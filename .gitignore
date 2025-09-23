@@ -1,0 +1,12 @@
+# Node
+node_modules
+npm-debug.log*
+.DS_Store
+
+# Env
+.env*
+\!.env.example
+
+# Next
+.next
+out
