@@ -17,7 +17,9 @@
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "jose": "^6.1.0",
+    "zod": "^4.1.11"
   },
   "devDependencies": {
     "@acme/config": "workspace:*",

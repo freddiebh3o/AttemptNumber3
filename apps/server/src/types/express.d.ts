@@ -3,6 +3,7 @@ import type { SessionUser } from "@acme/types";
 declare global {
   namespace Express {
     interface Request {
+      id?: string;
       context?: {
         tenantId: string;
         tenantSlug: string;

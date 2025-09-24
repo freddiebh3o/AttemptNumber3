@@ -5,10 +5,13 @@ import cors from "cors";
 import { prisma } from "./db";
 import { tenantContext } from "./middleware/tenantContext";
 import tenantRouter from "./routes/tenant";
+import { requestId } from "./middleware/requestId";
+import { errorHandler } from "./middleware/errorHandler";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(requestId);
 
 app.get("/health", (_req, res) => {
   res.json({ ok: true, service: "server" });
@@ -28,6 +31,10 @@ app.use("/t/:tenantSlug", tenantContext, tenantRouter);
 app.get("/demo/:tenant", (req, res) => {
   res.json({ message: `Hello from server for tenant: ${req.params.tenant}` });
 });
+
+app.use((_req, res) => res.status(404).json({ error: "Not Found" }));
+
+app.use(errorHandler);
 
 const PORT = process.env.PORT ?? 3001;
 app.listen(PORT, () => {
