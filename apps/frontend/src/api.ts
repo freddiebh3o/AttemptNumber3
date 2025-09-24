@@ -1,4 +1,5 @@
-const API_BASE = import.meta.env.VITE_API_BASE;
+// apps/frontend/src/api.ts
+const API_BASE = "/api";
 
 export type SessionUser = {
   id: string;
