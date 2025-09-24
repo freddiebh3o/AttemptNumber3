@@ -1,0 +1,10 @@
+// apps/server/tsconfig.json
+{
+  "extends": "@acme/config",
+  "compilerOptions": {
+    "rootDir": ".",
+    "esModuleInterop": true,
+    "types": ["node"]
+  },
+  "include": ["src", "prisma/**/*.ts", "prisma.config.ts"]
+}
