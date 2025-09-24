@@ -1,5 +1,4 @@
-// apps/frontend/src/api.ts
-const API_BASE = "/api";
+const API_BASE = "http://localhost:3001";
 
 export type SessionUser = {
   id: string;

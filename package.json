@@ -2,7 +2,6 @@
   "name": "multi-tenant-template",
   "private": true,
   "version": "0.1.0",
-  "packageManager": "pnpm@9.12.0",
   "scripts": {
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm -r build",

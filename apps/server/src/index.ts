@@ -18,15 +18,15 @@ app.use(cors());
 app.use(express.json());
 app.use(requestId);
 
-// ESM dirname
+// Resolve OpenAPI path relative to this file (works in dev and after build)
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-// OpenAPI (unchanged)
 const openapiPath = path.resolve(__dirname, "../openapi.yaml");
+
 try {
   const raw = fs.readFileSync(openapiPath, "utf8");
   const openapiDoc = yaml.parse(raw);
   app.use("/docs", swaggerUi.serve, swaggerUi.setup(openapiDoc));
+  // (Optional) serve raw spec too
   app.get("/openapi.yaml", (_req, res) => res.sendFile(openapiPath));
 } catch (err) {
   console.warn(`[docs] Could not load OpenAPI at ${openapiPath}:`, err);
@@ -35,13 +35,13 @@ try {
   );
 }
 
-// ---------- API (now under /api) ----------
-app.get("/api/health", (_req, res) => {
+// Health
+app.get("/health", (_req, res) => {
   res.json({ ok: true, service: "server" });
 });
 
-// dev helper
-app.get("/api/dev/tenants", async (_req, res, next) => {
+// Dev helper
+app.get("/dev/tenants", async (_req, res, next) => {
   try {
     const tenants = await prisma.tenant.findMany({
       select: { id: true, slug: true, name: true, createdAt: true },
@@ -53,25 +53,18 @@ app.get("/api/dev/tenants", async (_req, res, next) => {
   }
 });
 
-// tenant routes
-app.use("/api/t/:tenantSlug", tenantContext, tenantRouter);
+// Tenant-scoped routes
+app.use("/t/:tenantSlug", tenantContext, tenantRouter);
 
-// (optional) demo
-app.get("/api/demo/:tenant", (req, res) => {
+// Demo
+app.get("/demo/:tenant", (req, res) => {
   res.json({ message: `Hello from server for tenant: ${req.params.tenant}` });
 });
 
-// ---------- Static frontend ----------
-const staticDir = path.resolve(__dirname, "./public");
-app.use(express.static(staticDir));
+// 404
+app.use((_req, res) => res.status(404).json({ error: "Not Found" }));
 
-// SPA fallback: serve index.html for non-API GETs
-app.get("*", (req, res) => {
-  if (req.path.startsWith("/api")) return res.status(404).json({ error: "Not Found" });
-  res.sendFile(path.join(staticDir, "index.html"));
-});
-
-// Errors last
+// Central error handler (must be last)
 app.use(errorHandler);
 
 const PORT = process.env.PORT ?? 3001;
