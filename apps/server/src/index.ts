@@ -13,8 +13,10 @@ import path from "node:path";
 import yaml from "yaml";
 import { fileURLToPath } from "node:url";
 
+const ALLOW_ORIGINS = (process.env.CORS_ORIGINS || "").split(",").filter(Boolean);
 const app = express();
-app.use(cors());
+
+app.use(cors({ origin: ALLOW_ORIGINS.length ? ALLOW_ORIGINS : true }));
 app.use(express.json());
 app.use(requestId);
 

@@ -5,12 +5,14 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.build.json",
-    "start": "node dist/index.js",
+    "start": "pnpm prisma:deploy && node dist/index.js",
     "lint": "echo \"(add ESLint later)\"",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "db:seed": "prisma db seed",
+    "db:seed:dev": "prisma db seed",
+    "db:seed:prod": "echo 'No prod seed' && exit 0",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy",
     "openapi:lint": "redocly lint openapi.yaml",
     "openapi:preview": "openapi preview-docs openapi.yaml --port 8080",
     "openapi:serve": "pnpm dlx redoc-cli@latest serve openapi.yaml --watch --port 8080"
