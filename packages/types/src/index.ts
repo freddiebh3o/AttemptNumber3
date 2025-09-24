@@ -13,3 +13,15 @@ export interface SessionUser {
   tenantId: TenantId;
   tenantSlug: TenantSlug;
 }
+
+export type PostStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED";
+export interface PostDTO {
+  id: string;
+  tenantId: string;
+  authorId: string;
+  title: string;
+  content?: string | null;
+  status: PostStatus;
+  createdAt: string;
+  updatedAt: string;
+}
