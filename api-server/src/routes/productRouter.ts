@@ -1,3 +1,4 @@
+// api-server/src/routes/productRouter.ts
 import { Router } from "express";
 import { z } from "zod";
 import { createStandardSuccessResponse } from "../utils/standardResponse.js";

@@ -12,15 +12,20 @@ import helmet from "helmet";
 export function createConfiguredExpressApplicationInstance() {
   const expressApplicationInstance = express();
 
-  const frontendDevOriginFromEnvironmentVariable: string =
-    process.env.FRONTEND_DEV_ORIGIN || "http://localhost:5173";
-
-  // CORS
+  const allowedDevOrigins: string[] = [
+    process.env.FRONTEND_DEV_ORIGIN || 'http://localhost:5174',
+    'http://127.0.0.1:5174',
+  ]
+  
   expressApplicationInstance.use(cors({
-    origin: (origin, callback) => {
-      // Allow no-origin (curl/Postman) and the configured dev origin
-      if (!origin || origin === frontendDevOriginFromEnvironmentVariable) return callback(null, true)
-      return callback(new Error('Not allowed by CORS'))
+    origin(origin, callback) {
+      // Allow requests from tools like curl/Postman (no Origin header)
+      if (!origin) return callback(null, true)
+  
+      if (allowedDevOrigins.includes(origin)) return callback(null, true)
+  
+      // If you sometimes use another port/host, add it above, or loosen this check.
+      return callback(new Error(`Not allowed by CORS: ${origin}`))
     },
     credentials: true,
   }))
@@ -32,6 +37,7 @@ export function createConfiguredExpressApplicationInstance() {
   expressApplicationInstance.use(express.json({ limit: '64kb' }))
   expressApplicationInstance.use(requestIdMiddleware);
   expressApplicationInstance.use(sessionMiddleware);
+  expressApplicationInstance.use(express.urlencoded({ extended: false }))
 
   // Routes
   expressApplicationInstance.use("/api", apiRouter);

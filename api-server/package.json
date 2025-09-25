@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "nodemon",
+    "dev": "tsx watch src/server.ts",
     "build": "tsc -b",
     "start": "node --env-file=.env dist/server.js",
     "typecheck": "tsc --noEmit",

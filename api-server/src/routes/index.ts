@@ -1,3 +1,4 @@
+// api-server/src/routes/index.ts
 import { Router } from 'express'
 import { healthRouter } from './healthRouter.js'
 import { authRouter } from './authRouter.js'
