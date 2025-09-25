@@ -1,0 +1,71 @@
+export class HttpError extends Error {
+  httpStatusCode: number;
+  errorCode: string;
+  userFacingMessage: string;
+  developerMessage?: string | undefined;
+
+  constructor(params: {
+    httpStatusCode: number;
+    errorCode: string;
+    userFacingMessage: string;
+    developerMessage?: string;
+  }) {
+    super(params.userFacingMessage);
+    this.httpStatusCode = params.httpStatusCode;
+    this.errorCode = params.errorCode;
+    this.userFacingMessage = params.userFacingMessage;
+    this.developerMessage = params.developerMessage;
+  }
+}
+
+// Common factories
+export const Errors = {
+  validation(message = "One or more fields are invalid", dev?: string) {
+    return new HttpError({
+      httpStatusCode: 400,
+      errorCode: "VALIDATION_ERROR",
+      userFacingMessage: message,
+      ...(dev !== undefined && { developerMessage: dev }),
+    });
+  },
+  authRequired() {
+    return new HttpError({
+      httpStatusCode: 401,
+      errorCode: "AUTH_REQUIRED",
+      userFacingMessage: "Please sign in to continue.",
+    });
+  },
+  permissionDenied() {
+    return new HttpError({
+      httpStatusCode: 403,
+      errorCode: "PERMISSION_DENIED",
+      userFacingMessage: "You do not have permission for this action.",
+    });
+  },
+  notFound(userMsg = "The requested resource was not found.") {
+    return new HttpError({
+      httpStatusCode: 404,
+      errorCode: "RESOURCE_NOT_FOUND",
+      userFacingMessage: userMsg,
+    });
+  },
+  conflict(
+    userMsg = "This action conflicts with the current state of the resource.",
+    dev?: string
+  ) {
+    return new HttpError({
+      httpStatusCode: 409,
+      errorCode: "CONFLICT",
+      userFacingMessage: userMsg,
+      ...(dev !== undefined && { developerMessage: dev }),
+    });
+  },
+  internal(dev?: string) {
+    return new HttpError({
+      httpStatusCode: 500,
+      errorCode: "INTERNAL_ERROR",
+      userFacingMessage: "Unexpected error occurred.",
+      ...(dev !== undefined && { developerMessage: dev }),
+    });
+  },
+};
