@@ -7,6 +7,7 @@ import { requestIdMiddleware } from "./middleware/requestIdMiddleware.js";
 import { sessionMiddleware } from "./middleware/sessionMiddleware.js";
 import { standardErrorHandler } from "./middleware/errorHandler.js";
 import { apiRouter } from "./routes/index.js";
+import helmet from "helmet";
 
 export function createConfiguredExpressApplicationInstance() {
   const expressApplicationInstance = express();
@@ -15,16 +16,20 @@ export function createConfiguredExpressApplicationInstance() {
     process.env.FRONTEND_DEV_ORIGIN || "http://localhost:5173";
 
   // CORS
-  expressApplicationInstance.use(
-    cors({
-      origin: frontendDevOriginFromEnvironmentVariable,
-      credentials: true,
-    })
-  );
+  expressApplicationInstance.use(cors({
+    origin: (origin, callback) => {
+      // Allow no-origin (curl/Postman) and the configured dev origin
+      if (!origin || origin === frontendDevOriginFromEnvironmentVariable) return callback(null, true)
+      return callback(new Error('Not allowed by CORS'))
+    },
+    credentials: true,
+  }))
+
+  expressApplicationInstance.use(helmet())
 
   // Core middleware
   expressApplicationInstance.use(cookieParser());
-  expressApplicationInstance.use(express.json());
+  expressApplicationInstance.use(express.json({ limit: '64kb' }))
   expressApplicationInstance.use(requestIdMiddleware);
   expressApplicationInstance.use(sessionMiddleware);
 
