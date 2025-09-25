@@ -39,3 +39,5 @@ prisma/dev.db-journal
 # --- Logs & tmp ---
 tmp/
 *.tmp
+
+/src/generated/prisma

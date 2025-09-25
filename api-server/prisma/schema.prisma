@@ -1,0 +1,93 @@
+// Prisma uses this connection string from your .env
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+/// Simple RBAC for later service checks
+enum RoleName {
+  OWNER
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+/// A tenant/company
+model Tenant {
+  id                 String                 @id @default(cuid())
+  tenantSlug         String                 @unique
+  tenantName         String
+
+  memberships        UserTenantMembership[]
+  products           Product[]
+
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+}
+
+/// A person that can belong to multiple tenants
+model User {
+  id                       String                 @id @default(cuid())
+  userEmailAddress         String                 @unique
+  userHashedPassword       String
+
+  memberships              UserTenantMembership[]
+
+  createdAt                DateTime               @default(now())
+  updatedAt                DateTime               @updatedAt
+}
+
+/// Join table: which user belongs to which tenant, with role
+model UserTenantMembership {
+  id                String   @id @default(cuid())
+  userId            String
+  tenantId          String
+  roleName          RoleName
+
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([userId, tenantId])
+  @@index([tenantId])
+  @@index([userId])
+}
+
+/// A product owned by a tenant (POC scope)
+model Product {
+  id                           String   @id @default(cuid())
+  tenantId                     String
+  tenant                       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  productName                  String
+  productSku                   String
+  productPriceCents            Int
+
+  /// Optimistic concurrency: bump on every update
+  entityVersion                Int      @default(1)
+
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
+
+  @@unique([tenantId, productSku])
+  @@index([tenantId])
+}
+
+/// Stores idempotency for POST/PUT so we can replay the same result for duplicate requests
+model IdempotencyRecord {
+  id                     String   @id @default(cuid())
+  idempotencyKey         String   @unique
+  requestFingerprint     String   // e.g., stable hash of method+path+body+user+tenant
+  storedResponseJson     Json
+  expiresAt              DateTime
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@index([expiresAt])
+}
