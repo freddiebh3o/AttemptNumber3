@@ -8,6 +8,7 @@ import { sessionMiddleware } from "./middleware/sessionMiddleware.js";
 import { standardErrorHandler } from "./middleware/errorHandler.js";
 import { apiRouter } from "./routes/index.js";
 import helmet from "helmet";
+import { httpLoggingMiddleware } from './middleware/httpLoggingMiddleware.js'
 
 export function createConfiguredExpressApplicationInstance() {
   const expressApplicationInstance = express();
@@ -39,6 +40,9 @@ export function createConfiguredExpressApplicationInstance() {
   expressApplicationInstance.use(sessionMiddleware);
   expressApplicationInstance.use(express.urlencoded({ extended: false }))
 
+  expressApplicationInstance.use(httpLoggingMiddleware)
+  expressApplicationInstance.use(sessionMiddleware)
+  
   // Routes
   expressApplicationInstance.use("/api", apiRouter);
 
