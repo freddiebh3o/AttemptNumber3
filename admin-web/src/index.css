@@ -1,15 +1,7 @@
+/* Tailwind v4: import ONLY utilities (no preflight reset) */
 @import "tailwindcss";
-@import "tailwindcss/preflight";
-@import "tailwindcss/utilities";
 
-:root {
-  color-scheme: light;
-}
-
-html, body, #root {
-  height: 100%;
-}
-
-body {
-  margin: 0;
-}
+/* Your minimal globals (optional) */
+:root { color-scheme: light; }
+html, body, #root { height: 100%; }
+body { margin: 0; }
