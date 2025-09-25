@@ -1,9 +1,0 @@
-{
-  "name": "@acme/types",
-  "version": "0.1.0",
-  "types": "./src/index.ts",
-  "exports": { ".": "./src/index.ts" },
-  "devDependencies": {
-    "@acme/config": "workspace:*"
-  }
-}
