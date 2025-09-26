@@ -2,7 +2,6 @@
 import jwt from 'jsonwebtoken'
 import type { Response } from 'express'
 import type { SessionJwtClaims } from './sessionTypes.js'
-import { URL } from 'node:url'
 
 const sessionCookieNameFromEnvironmentVariable =
   process.env.SESSION_COOKIE_NAME || 'mt_session'
@@ -10,25 +9,7 @@ const sessionCookieNameFromEnvironmentVariable =
 const sessionJwtSecretFromEnvironmentVariable =
   process.env.SESSION_JWT_SECRET || 'dev-secret-change-me'
 
-// Optional but recommended in hosted/staging/prod:
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN 
-const API_ORIGIN = process.env.API_ORIGIN
-
-function isCrossSite(): boolean {
-  try {
-    // If either origin is missing, assume same-site (local dev fallback)
-    if (!FRONTEND_ORIGIN || !API_ORIGIN) return false
-    const f = new URL(FRONTEND_ORIGIN)
-    const a = new URL(API_ORIGIN)
-    // Heuristic: different host or scheme => cross-site
-    return f.protocol !== a.protocol || f.hostname !== a.hostname
-  } catch {
-    // If parsing fails, be conservative
-    return true
-  }
-}
-
-const useCrossSite = isCrossSite()
+  const sameSiteMode = process.env.COOKIE_SAMESITE_MODE === 'lax' ? 'lax' : 'none';
 
 const toSeconds = (minutes: number) => minutes * 60
 
@@ -59,8 +40,8 @@ export function verifySignedSessionToken(sessionTokenValue: string): SessionJwtC
 export function setSignedSessionCookie(res: Response, token: string) {
   res.cookie(getSessionCookieName(), token, {
     httpOnly: true,
-    secure: useCrossSite,                // must be true with SameSite=None
-    sameSite: useCrossSite ? 'none' : 'none',
+    secure: sameSiteMode === 'none',
+    sameSite: sameSiteMode,
     path: '/',
     maxAge: 60 * 60 * 1000,             // 60 minutes in ms
   })
@@ -70,8 +51,8 @@ export function clearSessionCookie(res: Response) {
   // To reliably clear in cross-site contexts, the options must match
   res.clearCookie(getSessionCookieName(), {
     httpOnly: true,
-    secure: useCrossSite,
-    sameSite: useCrossSite ? 'none' : 'none',
+    secure: sameSiteMode === 'none',
+    sameSite: sameSiteMode,
     path: '/',
   })
 }
