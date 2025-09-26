@@ -4,7 +4,7 @@ import ReactDOM from 'react-dom/client'
 import { MantineProvider } from '@mantine/core'
 import { Notifications } from '@mantine/notifications'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
-import App from './App'
+// import App from './App'
 import SignInPage from './pages/SignInPage'
 import ProductsPage from './pages/ProductsPage'
 import '@mantine/core/styles.css';

@@ -183,8 +183,8 @@ export default function ProductsPage() {
       const idempotencyKeyValue = `update-${editProductIdValue}-${Date.now()}`;
       const response = await updateProductApiRequest({
         productId: editProductIdValue,
-        productNameOptional: editProductNameInputValue,
-        productPriceCentsOptional:
+        productName: editProductNameInputValue,
+        productPriceCents:
           typeof editProductPriceCentsInputValue === "number"
             ? editProductPriceCentsInputValue
             : undefined,
