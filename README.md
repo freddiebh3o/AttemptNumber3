@@ -28,7 +28,7 @@ A proof-of-concept multi-tenant admin system built with:
 
 ```bash
 cd api-server
-cp .env.example .env # edit SERVER_PORT and FRONTEND_DEV_ORIGIN
+cp .env.example .env # edit SERVER_PORT and FRONTEND_ORIGIN
 npm install
 npm run dev
 ```
@@ -54,7 +54,7 @@ npm run dev -- --port 5174
 ### API Server
 
 * `SERVER_PORT` — default `4000`
-* `FRONTEND_DEV_ORIGIN` — frontend origin for CORS (e.g. `http://localhost:5174`)
+* `FRONTEND_ORIGIN` — frontend origin for CORS (e.g. `http://localhost:5174`)
 * `LOG_LEVEL` — Pino log level (`info` by default)
 * `PRETTY_LOGS` — set to `false` in prod
 
@@ -138,7 +138,7 @@ Create `api-server/.env` with (example Supabase/Local):
 ```dotenv
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DBNAME
 SERVER_PORT=4000
-FRONTEND_DEV_ORIGIN=http://localhost:5174
+FRONTEND_ORIGIN=http://localhost:5174
 SESSION_SECRET=dev-secret-change-me
 ```
 
@@ -294,14 +294,14 @@ Adding a new route:
 
 * API: `http://localhost:4000`
 * Frontend: `http://localhost:5174`
-* CORS allowlist is configured in `api-server/src/app.ts` (`FRONTEND_DEV_ORIGIN`)
+* CORS allowlist is configured in `api-server/src/app.ts` (`FRONTEND_ORIGIN`)
 
 ---
 
 ## Troubleshooting quick refs
 
 * **JSON body parsing issues**: ensure `Content-Type: application/json` and `express.json()` is registered before routes
-* **CORS 401/blocked**: confirm `FRONTEND_DEV_ORIGIN` matches the Vite port
+* **CORS 401/blocked**: confirm `FRONTEND_ORIGIN` matches the Vite port
 * **Type drift**: rerun `npm run openapi:gen` after server spec changes
 * **DB mismatch**: run `npm run db:deploy` or `npm run db:migrate -- --name …`
 
