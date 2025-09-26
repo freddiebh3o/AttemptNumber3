@@ -60,7 +60,7 @@ export function setSignedSessionCookie(res: Response, token: string) {
   res.cookie(getSessionCookieName(), token, {
     httpOnly: true,
     secure: useCrossSite,                // must be true with SameSite=None
-    sameSite: useCrossSite ? 'none' : 'lax',
+    sameSite: useCrossSite ? 'none' : 'none',
     path: '/',
     maxAge: 60 * 60 * 1000,             // 60 minutes in ms
   })
@@ -71,7 +71,7 @@ export function clearSessionCookie(res: Response) {
   res.clearCookie(getSessionCookieName(), {
     httpOnly: true,
     secure: useCrossSite,
-    sameSite: useCrossSite ? 'none' : 'lax',
+    sameSite: useCrossSite ? 'none' : 'none',
     path: '/',
   })
 }
