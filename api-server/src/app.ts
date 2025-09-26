@@ -17,13 +17,17 @@ export function createConfiguredExpressApplicationInstance() {
   const expressApplicationInstance = express();
   const openApiDocument = buildOpenApiDocument()
 
-  const allowedOrigin = process.env.FRONTEND_ORIGIN || 'http://localhost:5174'
+  const allowedOrigins = [
+    process.env.FRONTEND_DEV_ORIGIN || 'http://localhost:5174',
+    process.env.FRONTEND_ORIGIN, 
+    'http://127.0.0.1:5174',
+  ].filter(Boolean) as string[];
 
   expressApplicationInstance.use(cors({
-    origin(origin, callback) {
-      if (!origin) return callback(null, true) // allow curl/Postman
-      if (origin === allowedOrigin) return callback(null, true)
-      return callback(new Error(`Not allowed by CORS: ${origin}`))
+    origin(origin, cb) {
+      if (!origin) return cb(null, true);
+      if (allowedOrigins.includes(origin)) return cb(null, true);
+      return cb(new Error(`Not allowed by CORS: ${origin}`));
     },
     credentials: true,
   }))
