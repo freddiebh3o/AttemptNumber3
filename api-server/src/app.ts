@@ -9,9 +9,13 @@ import { standardErrorHandler } from "./middleware/errorHandler.js";
 import { apiRouter } from "./routes/index.js";
 import helmet from "helmet";
 import { httpLoggingMiddleware } from './middleware/httpLoggingMiddleware.js'
+import swaggerUi from 'swagger-ui-express'
+import { buildOpenApiDocument } from './openapi/openapi.js'
+
 
 export function createConfiguredExpressApplicationInstance() {
   const expressApplicationInstance = express();
+  const openApiDocument = buildOpenApiDocument()
 
   const allowedDevOrigins: string[] = [
     process.env.FRONTEND_DEV_ORIGIN || 'http://localhost:5174',
@@ -38,13 +42,15 @@ export function createConfiguredExpressApplicationInstance() {
   expressApplicationInstance.use(express.json({ limit: '64kb' }))
   expressApplicationInstance.use(requestIdMiddleware);
   expressApplicationInstance.use(sessionMiddleware);
-  expressApplicationInstance.use(express.urlencoded({ extended: false }))
-
   expressApplicationInstance.use(httpLoggingMiddleware)
   expressApplicationInstance.use(sessionMiddleware)
+  expressApplicationInstance.use(express.urlencoded({ extended: false }))
+
   
   // Routes
   expressApplicationInstance.use("/api", apiRouter);
+  expressApplicationInstance.get('/openapi.json', (_req, res) => res.json(openApiDocument))
+  expressApplicationInstance.use('/docs', swaggerUi.serve, swaggerUi.setup(openApiDocument))
 
   // 404 envelope for unmatched API routes
   expressApplicationInstance.use((req, res) => {
