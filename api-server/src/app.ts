@@ -17,19 +17,12 @@ export function createConfiguredExpressApplicationInstance() {
   const expressApplicationInstance = express();
   const openApiDocument = buildOpenApiDocument()
 
-  const allowedDevOrigins: string[] = [
-    process.env.FRONTEND_DEV_ORIGIN || 'http://localhost:5174',
-    'http://127.0.0.1:5174',
-  ]
-  
+  const allowedOrigin = process.env.FRONTEND_ORIGIN || 'http://localhost:5174'
+
   expressApplicationInstance.use(cors({
     origin(origin, callback) {
-      // Allow requests from tools like curl/Postman (no Origin header)
-      if (!origin) return callback(null, true)
-  
-      if (allowedDevOrigins.includes(origin)) return callback(null, true)
-  
-      // If you sometimes use another port/host, add it above, or loosen this check.
+      if (!origin) return callback(null, true) // allow curl/Postman
+      if (origin === allowedOrigin) return callback(null, true)
       return callback(new Error(`Not allowed by CORS: ${origin}`))
     },
     credentials: true,

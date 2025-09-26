@@ -42,10 +42,10 @@ authRouter.post(
 
       response.cookie(cookieName, sessionTokenValue, {
         httpOnly: true,
+        sameSite: isProduction ? 'lax' : 'lax',
         secure: isProduction,           // set true in prod (HTTPS)
-        sameSite: isProduction ? 'none' : 'lax',
         path: '/',
-        maxAge: 60 * 60 * 1000,        // 60 minutes
+        maxAge: 1000 * 60 * 60 * 24 * 7,       // 60 minutes
       })
 
       return response.status(200).json(createStandardSuccessResponse({ isSignedIn: true }))

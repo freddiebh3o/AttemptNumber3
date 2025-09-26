@@ -8,9 +8,10 @@ pnpm-debug.log*
 
 # --- Env files (keep examples) ---
 .env
-.env.*.local
-.env.local
+.env.*
 !.env.example
+!.env.development.example
+!.env.production.example
 
 # --- TypeScript build cache (if you enable incremental/composite later) ---
 *.tsbuildinfo

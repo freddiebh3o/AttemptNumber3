@@ -441,6 +441,11 @@ export function buildOpenApiDocument() {
   registerAllPathsInOpenApiRegistry();
 
   const generator = new OpenApiGeneratorV3(openApiRegistry.definitions);
+  const servers = [{ url: 'http://localhost:4000' }]
+  if (process.env.NODE_ENV === 'production' && process.env.API_PUBLIC_URL) {
+    servers.unshift({ url: process.env.API_PUBLIC_URL })
+  }
+
   return generator.generateDocument({
     openapi: "3.0.3",
     info: {
