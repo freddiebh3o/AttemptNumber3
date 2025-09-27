@@ -329,6 +329,9 @@ Adding a new route:
 
 * Phase 8: Tenant/user management UI
 * Phase 9: Monitoring & metrics
+  * Sentry
+  * Uptime monitor
+  * Prometheus?
 * Phase 10: Billing & subscriptions (Stripe)
 
 ## How to Add a New Environment (Prod or Another Staging)
