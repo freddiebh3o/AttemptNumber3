@@ -315,6 +315,7 @@ Adding a new route:
 5. Minimal admin web UI (login + product list)
    5.5. Structured logging
 6. OpenAPI spec + typed frontend API clients
+7. Deployed Development database(supabase) + server(Render) + frontend(Vercel)
 
 ---
 
@@ -326,7 +327,143 @@ Adding a new route:
 
 ## Next Steps (Planned)
 
-* Phase 7: Dev vs Prod configs + deployment setup
 * Phase 8: Tenant/user management UI
 * Phase 9: Monitoring & metrics
 * Phase 10: Billing & subscriptions (Stripe)
+
+## How to Add a New Environment (Prod or Another Staging)
+
+This checklist walks you through creating a **new isolated environment** (e.g., production) alongside your current dev/staging setup. It covers Supabase (DB), Render (API), and Vercel (Web UI), plus required env vars and cookie/CORS gotchas.
+
+---
+
+### 1 Create a new database (Supabase)
+
+1. **Create project** in the target region (ideally near your users).
+2. Copy the **connection strings** from **Project Settings → Database → Connection strings**:
+
+   * **Direct connection (IPv6)** → usually for local/dev
+   * **Session pooler (IPv4)** → required by Render
+3. In **SQL Editor** (optional if migrations already exist), ensure no manual schema; we’ll use Prisma migrations.
+
+**Save these secrets** (you’ll paste them into Render later):
+
+* `DATABASE_URL` → Use the **Session Pooler** IPv4 URL for Render (often like `aws-1-<region>.pooler.supabase.com`). Append `?sslmode=require` if not present.
+
+---
+
+### 2 Deploy a new API service (Render)
+
+1. **Create New → Web Service** and point to this repo.
+
+2. **Environment**: Node
+
+3. **Build Command**: `npm ci && npm run build && npx prisma generate`
+
+4. **Start Command**: `npm run start`
+
+5. **Environment Variables** (Render → Settings → Environment):
+
+   * `NODE_ENV=production`
+   * `SERVER_PORT=4000` (Render sets `PORT`, but your server reads `SERVER_PORT`—keep 4000 consistent internally)
+   * `FRONTEND_ORIGIN=https://<your-vercel-domain>` (no trailing slash)
+   * `DATABASE_URL=` (Supabase **Session Pooler** connection string)
+   * `SESSION_JWT_SECRET=` (strong random value)
+   * `SESSION_COOKIE_NAME=mt_session`
+   * `COOKIE_SAMESITE_MODE=none` (required for cross-site cookies in prod)
+   * `LOG_LEVEL=info`
+   * `PRETTY_LOGS=false`
+
+6. **First deploy**. On start, the service runs `npm run start` which executes:
+
+   * `prisma migrate deploy` → applies migrations
+   * `node dist/server.js` → starts the API
+
+7. **Health checks**: Visit `https://<render-app>.onrender.com/api/health`.
+
+---
+
+### 3 Deploy a new Web UI (Vercel)
+
+1. **Import Project** from Git (same repo).
+2. **Environment Variables** (Vercel → Settings → Environment Variables):
+
+   * `VITE_API_BASE_URL=https://<your-render-api-domain>` (no trailing slash)
+3. **Domains**: add your custom domain later if needed.
+4. **Redeploy**.
+
+---
+
+### 4 Cookie & CORS sanity
+
+* **Server CORS allow-list** (`FRONTEND_ORIGIN`) must match your Vercel domain **exactly** (no trailing slash).
+* **Cookies**:
+
+  * In **prod/staging cross-site**, set `COOKIE_SAMESITE_MODE=none` → the server sets `SameSite=None; Secure`.
+  * Locally, set `COOKIE_SAMESITE_MODE=lax` for `http://localhost`.
+
+**Quick test order**:
+
+1. Hit `POST /api/auth/sign-in` from the web app → expect `Set-Cookie` with `SameSite=None; Secure`.
+2. Then `GET /api/auth/me` should succeed (cookie sent back).
+3. CRUD on `/api/products` behaves as expected.
+
+---
+
+### 5 Prisma data setup (optional)
+
+If you need initial data in the new environment:
+
+* **Option A: run seed locally against the new DB**
+
+  ```bash
+  # In api-server/
+  # Temporarily point your local .env DATABASE_URL to the NEW environment (Session Pooler URL)
+  npx prisma migrate deploy
+  npm run db:seed
+  ```
+
+* **Option B: admin UI**
+
+  * Sign in to the new environment and create data via the UI.
+
+---
+
+### 6 OpenAPI docs per environment
+
+* API serves the spec at `GET /openapi.json` and UI at `/docs`.
+* If you want the frontend to **download types** per environment (optional): point your OpenAPI generation script to the new `/openapi.json`.
+
+---
+
+### 7 Common pitfalls
+
+* **Trailing slash** on `FRONTEND_ORIGIN` or `VITE_API_BASE_URL` → CORS/Cookie issues.
+* **Wrong Supabase endpoint**: Render requires **Session Pooler (IPv4)**.
+* **Cookie mode** not set to `none` in prod → cookie blocked by browser.
+* **Migrations not applied** → `P1001/Pxxxx` errors; ensure `prisma migrate deploy` runs at start.
+
+---
+
+### 8 Minimal rollback plan
+
+* Keep your **previous environment** running.
+* If the new environment misbehaves, just switch the domain you share with users back to the previous one.
+
+---
+
+### 9 Tear-down (if needed)
+
+* Remove Vercel project (UI), Render service (API), and Supabase project (DB). Double-check backups before deletion.
+
+---
+
+### One-page checklist
+
+* [ ] Create Supabase project (copy **Session Pooler** `DATABASE_URL`).
+* [ ] New Render service: set env vars (see list), deploy, confirm `/api/health`.
+* [ ] New Vercel project: set `VITE_API_BASE_URL`, deploy, test sign-in.
+* [ ] Verify cookies/CORS; confirm `/api/auth/me` returns user.
+* [ ] (Optional) Seed data.
+* [ ] (Optional) Generate OpenAPI types against `/openapi.json`.
+* [ ] Document URLs and secrets.
