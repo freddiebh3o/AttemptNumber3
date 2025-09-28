@@ -1,4 +1,12 @@
+// admin-web/src/App.tsx
+import { Outlet } from 'react-router-dom';
+import TopLoader from './components/feedback/TopLoader';
+
 export default function App() {
-  // We route directly from main.tsx; this is a placeholder if you need a shell later.
-  return null
+  return (
+    <>
+      <TopLoader />
+      <Outlet />
+    </>
+  );
 }
