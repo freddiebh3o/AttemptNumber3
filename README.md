@@ -174,7 +174,11 @@ From `api-server/`:
 
 ### Typical dev workflow
 
-1. Edit `prisma/schema.prisma` → 2) `npm run prisma:generate` → 3) `npm run db:migrate -- --name add_products_table` → 4) (optional) `npm run db:seed` → 5) Restart API if needed.
+1. Edit `prisma/schema.prisma`
+2. `npm run prisma:generate`
+3. `npm run db:migrate -- --name add_products_table`
+4. (optional) `npm run db:seed`
+5. Restart API if needed.
 
 > Resetting locally (⚠ destructive): drop the DB (via provider), re-create, then run `npm run db:deploy` and `npm run db:seed`.
 
