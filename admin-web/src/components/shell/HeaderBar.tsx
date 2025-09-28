@@ -3,6 +3,7 @@ import { Group, Text, Burger, Box, Button } from '@mantine/core';
 import { useNavigate } from 'react-router-dom';
 import TenantSwitcher from './TenantSwitcher';
 import { signOutApiRequest } from '../../api/auth';
+import { useAuthStore } from '../../stores/auth';
 
 export default function HeaderBar({
   opened,
@@ -12,6 +13,7 @@ export default function HeaderBar({
   onBurgerClick: () => void;
 }) {
   const navigate = useNavigate();
+  const clearAuth = useAuthStore((s) => s.clear);
 
   async function handleSignOut() {
     try {
@@ -19,6 +21,7 @@ export default function HeaderBar({
     } catch {
       // ignore; navigate regardless
     } finally {
+      clearAuth();
       navigate('/sign-in');
     }
   }

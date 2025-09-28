@@ -1,6 +1,6 @@
 // src/pages/ProductsPage.tsx
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams, Link } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import {
   Button,
   Group,
@@ -17,11 +17,6 @@ import {
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
-  meApiRequest,
-  signOutApiRequest,
-  switchTenantApiRequest,
-} from "../api/auth";
-import {
   listProductsApiRequest,
   createProductApiRequest,
   updateProductApiRequest,
@@ -32,27 +27,21 @@ import {
   IconTrash,
   IconPencil,
   IconRefresh,
-  IconLogout,
 } from "@tabler/icons-react";
 import { handlePageError } from "../utils/pageError";
+import { useAuthStore } from "../stores/auth";
 
 export default function ProductsPage() {
-  const navigate = useNavigate();
   const { tenantSlug } = useParams<{ tenantSlug: string }>();
+
+  // Global memberships (no per-page /me calls)
+  const currentUserTenantMemberships = useAuthStore((s) => s.tenantMemberships);
 
   const [isLoadingProductsList, setIsLoadingProductsList] = useState(false);
   const [productsListRecords, setProductsListRecords] = useState<ProductRecord[] | null>(null);
   const [errorForBoundary, setErrorForBoundary] = useState<
     (Error & { httpStatusCode?: number; correlationId?: string }) | null
   >(null);
-
-  const [currentUserTenantMemberships, setCurrentUserTenantMemberships] =
-    useState<
-      Array<{
-        tenantSlug: string;
-        roleName: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
-      }>
-    >([]);
 
   // Create modal state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -84,35 +73,6 @@ export default function ProductsPage() {
     return match?.roleName === "ADMIN" || match?.roleName === "OWNER";
   }, [currentUserTenantMemberships, tenantSlug]);
 
-  async function loadMeAndMaybeSwitchTenant() {
-    try {
-      const me = await meApiRequest();
-      if (me.success) {
-        setCurrentUserTenantMemberships(me.data.tenantMemberships);
-        const hasMembership = me.data.tenantMemberships.some(
-          (m) => m.tenantSlug === tenantSlug
-        );
-        if (!hasMembership && tenantSlug) {
-          // try to switch silently if the user belongs to it
-          const membership = me.data.tenantMemberships.find(
-            (m) => m.tenantSlug === tenantSlug
-          );
-          if (membership) {
-            await switchTenantApiRequest({ tenantSlug });
-          } else {
-            notifications.show({
-              color: "red",
-              message: `You do not belong to tenant '${tenantSlug}'.`,
-            });
-            navigate("/sign-in");
-          }
-        }
-      }
-    } catch {
-      navigate("/sign-in");
-    }
-  }
-
   async function loadProductsList() {
     setIsLoadingProductsList(true);
     try {
@@ -120,26 +80,23 @@ export default function ProductsPage() {
       if (response.success) {
         setProductsListRecords(response.data.products);
       } else {
-        // Defensive: envelope should be success, but if not:
         const e = Object.assign(new Error("Failed to load products"), { httpStatusCode: 500 });
         setErrorForBoundary(e);
       }
     } catch (error: any) {
-      setErrorForBoundary(handlePageError(error, { title: 'Error' }));  
+      setErrorForBoundary(handlePageError(error, { title: 'Error' }));
     } finally {
       setIsLoadingProductsList(false);
     }
   }
 
   useEffect(() => {
-    // Reset list & errors when tenant changes, then (re)load
     setProductsListRecords(null);
     setErrorForBoundary(null);
-    loadMeAndMaybeSwitchTenant().then(loadProductsList);
+    void loadProductsList();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantSlug]);
 
-  // IMPORTANT: throw to the route error boundary if we have an error
   if (errorForBoundary) throw errorForBoundary;
 
   function openEditModalForProduct(productRecord: ProductRecord) {
@@ -210,7 +167,6 @@ export default function ProductsPage() {
         await loadProductsList();
       }
     } catch (error: any) {
-      // 409 shows as conflict message from server
       notifications.show({
         color: "red",
         message: error?.message ?? "Update failed",
@@ -237,23 +193,6 @@ export default function ProductsPage() {
     }
   }
 
-  async function handleSignOutClick() {
-    await signOutApiRequest();
-    navigate("/sign-in");
-  }
-
-  async function handleSwitchTenantClick(newTenantSlug: string) {
-    try {
-      await switchTenantApiRequest({ tenantSlug: newTenantSlug });
-      navigate(`/${newTenantSlug}/products`);
-    } catch (error: any) {
-      notifications.show({
-        color: "red",
-        message: error?.message ?? "Switch failed",
-      });
-    }
-  }
-
   return (
     <div>
       <div className="p-4 border-b bg-white">
@@ -271,24 +210,9 @@ export default function ProductsPage() {
             </ActionIcon>
           </Group>
           <Group>
-            {currentUserTenantMemberships.map((m) => (
-              <Button
-                key={m.tenantSlug}
-                variant={m.tenantSlug === tenantSlug ? "filled" : "light"}
-                onClick={() => handleSwitchTenantClick(m.tenantSlug)}
-              >
-                {m.tenantSlug} ({m.roleName})
-              </Button>
-            ))}
+            {/* Tenant switching & sign-out removed; handled in the header */}
             <Button component={Link} to={`/${tenantSlug}/users`} variant="light">
               Manage users
-            </Button>
-            <Button
-              variant="default"
-              leftSection={<IconLogout />}
-              onClick={handleSignOutClick}
-            >
-              Sign out
             </Button>
           </Group>
         </Group>

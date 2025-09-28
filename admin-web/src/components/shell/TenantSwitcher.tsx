@@ -2,11 +2,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Select } from '@mantine/core';
 import { useNavigate, useParams } from 'react-router-dom';
-import { meApiRequest, switchTenantApiRequest } from '../../api/auth'; // OpenAPI-typed helpers
+import { meApiRequest, switchTenantApiRequest } from '../../api/auth';
+import { useAuthStore } from '../../stores/auth';
 
 export default function TenantSwitcher() {
   const navigate = useNavigate();
   const { tenantSlug: slugFromUrl } = useParams();
+
+  const setFromMe = useAuthStore((s) => s.setFromMe);
+  const setCurrentTenantSlug = useAuthStore((s) => s.setCurrentTenantSlug);
 
   const [tenantSlugs, setTenantSlugs] = useState<string[]>([]);
   const [currentSlug, setCurrentSlug] = useState<string | null>(slugFromUrl ?? null);
@@ -14,27 +18,28 @@ export default function TenantSwitcher() {
   useEffect(() => {
     (async () => {
       try {
-        // Envelope: { success: true, data: { currentUserId, currentTenantId, tenantMemberships: [{ tenantSlug, roleName }] }, error: null }
         const me = await meApiRequest();
+        // Save to global auth store
+        setFromMe({
+          currentUserId: me.data?.user.id,
+          tenantMemberships: me.data?.tenantMemberships ?? [],
+        });
+
         const slugs = (me.data?.tenantMemberships ?? []).map((m) => m.tenantSlug);
         setTenantSlugs(slugs);
 
-        // Prefer URL if present; else fall back to first membership (if any)
-        if (slugFromUrl) {
-          setCurrentSlug(slugFromUrl);
-        } else if (slugs.length > 0) {
-          setCurrentSlug(slugs[0]);
-        } else {
-          setCurrentSlug(null);
-        }
+        // Prefer URL slug; else first membership
+        const initial = slugFromUrl || slugs[0] || null;
+        setCurrentSlug(initial);
+        setCurrentTenantSlug(initial);
       } catch {
-        // Likely not signed in or on sign-in page; keep switcher inert
+        // Not signed in or not needed on sign-in page
       }
     })();
-  }, [slugFromUrl]);
+  }, [slugFromUrl, setFromMe, setCurrentTenantSlug]);
 
   const data = useMemo(
-    () => tenantSlugs.map((slug) => ({ value: slug, label: slug })), // no tenant name in /me response
+    () => tenantSlugs.map((slug) => ({ value: slug, label: slug })),
     [tenantSlugs]
   );
 
@@ -42,10 +47,11 @@ export default function TenantSwitcher() {
     if (!nextSlug || nextSlug === currentSlug) return;
 
     setCurrentSlug(nextSlug);
+    setCurrentTenantSlug(nextSlug);
     try {
       await switchTenantApiRequest({ tenantSlug: nextSlug });
     } catch {
-      // Non-fatal; server will enforce on next API call
+      // Non-fatal; server enforces on next call
     }
     navigate(`/${nextSlug}/products`);
   }

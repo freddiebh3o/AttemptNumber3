@@ -6,8 +6,7 @@ import {
   Select, Stack, Table, Text, TextInput, Title, Loader
 } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
-import { IconPlus, IconPencil, IconTrash, IconRefresh, IconLogout, IconArrowBack } from '@tabler/icons-react'
-import { meApiRequest, signOutApiRequest, switchTenantApiRequest } from '../api/auth'
+import { IconPlus, IconPencil, IconTrash, IconRefresh, IconArrowBack } from '@tabler/icons-react'
 import {
   listTenantUsersApiRequest,
   createTenantUserApiRequest,
@@ -15,43 +14,38 @@ import {
   deleteTenantUserApiRequest,
 } from '../api/tenantUsers'
 import { handlePageError } from '../utils/pageError'
+import { useAuthStore } from '../stores/auth'
 
 type RoleName = 'OWNER' | 'ADMIN' | 'EDITOR' | 'VIEWER'
+type Row = { userId: string; userEmailAddress: string; roleName: RoleName; createdAt?: string; updatedAt?: string }
 
 export default function TenantUsersPage() {
   const navigate = useNavigate()
   const { tenantSlug } = useParams<{ tenantSlug: string }>()
-  const [memberships, setMemberships] = useState<Array<{ tenantSlug: string; roleName: RoleName }>>([])
-  const [isLoading, setIsLoading] = useState(false)
 
-  type Row = { userId: string; userEmailAddress: string; roleName: RoleName; createdAt?: string; updatedAt?: string }
+  // Global memberships (no per-page /me calls)
+  const memberships = useAuthStore((s) => s.tenantMemberships)
+
+  // Page state
+  const [isLoading, setIsLoading] = useState(false)
   const [rows, setRows] = useState<Row[] | null>(null) // null = not loaded yet
   const [errorForBoundary, setErrorForBoundary] = useState<Error & { httpStatusCode?: number; correlationId?: string } | null>(null)
+
+  // Create/Edit modal state
+  const [createOpen, setCreateOpen] = useState(false)
+  const [createEmail, setCreateEmail] = useState('')
+  const [createPassword, setCreatePassword] = useState('')
+  const [createRole, setCreateRole] = useState<RoleName>('VIEWER')
+  const [editOpen, setEditOpen] = useState(false)
+  const [editUserId, setEditUserId] = useState<string | null>(null)
+  const [editEmail, setEditEmail] = useState('')
+  const [editPassword, setEditPassword] = useState('')
+  const [editRole, setEditRole] = useState<RoleName>('VIEWER')
 
   const isAdminOrOwner = useMemo(() => {
     const m = memberships.find((x) => x.tenantSlug === tenantSlug)
     return m?.roleName === 'OWNER' || m?.roleName === 'ADMIN'
   }, [memberships, tenantSlug])
-
-  async function bootstrap() {
-    try {
-      const me = await meApiRequest()
-      if (!me.success) throw new Error('Not signed in')
-      setMemberships(me.data.tenantMemberships)
-      const has = me.data.tenantMemberships.some((m) => m.tenantSlug === tenantSlug)
-      if (!has && tenantSlug) {
-        const m = me.data.tenantMemberships.find((x) => x.tenantSlug === tenantSlug)
-        if (m) {
-          await switchTenantApiRequest({ tenantSlug })
-        } else {
-          notifications.show({ color: 'red', message: `You do not belong to ${tenantSlug}` })
-          navigate('/sign-in')
-        }
-      }
-    } catch {
-      navigate('/sign-in')
-    }
-  }
 
   async function load() {
     setIsLoading(true)
@@ -60,43 +54,32 @@ export default function TenantUsersPage() {
       if (res.success) {
         setRows(res.data.users)
       } else {
-        // Shouldn't happen with envelope, but guard anyway
         const e = Object.assign(new Error('Failed to load users'), { httpStatusCode: 500 })
         setErrorForBoundary(e)
       }
     } catch (e: any) {
-      setErrorForBoundary(handlePageError(e, { title: 'Error' }));
+      setErrorForBoundary(handlePageError(e, { title: 'Error' }))
     } finally {
       setIsLoading(false)
     }
   }
 
   useEffect(() => {
-    setRows(null) // reset while tenant changes
+    setRows(null)
     setErrorForBoundary(null)
-    bootstrap().then(load)
+    void load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantSlug])
 
-  // Important: if we encountered an error, throw during render to hit RouteErrorBoundary
   if (errorForBoundary) throw errorForBoundary
 
-  // Loading state (optional skeleton)
-  if (rows === null) {
-    return (
-      <div className="p-4">
-        <Paper withBorder p="md" radius="md" className="bg-white">
-          <Group justify="center" p="lg"><Loader /></Group>
-        </Paper>
-      </div>
-    )
+  function openEditModal(row: Row) {
+    setEditUserId(row.userId)
+    setEditEmail(row.userEmailAddress)
+    setEditPassword('')
+    setEditRole(row.roleName)
+    setEditOpen(true)
   }
-
-  // Create modal
-  const [createOpen, setCreateOpen] = useState(false)
-  const [createEmail, setCreateEmail] = useState('')
-  const [createPassword, setCreatePassword] = useState('')
-  const [createRole, setCreateRole] = useState<RoleName>('VIEWER')
 
   async function handleCreate() {
     if (!createEmail || !createPassword) {
@@ -122,21 +105,6 @@ export default function TenantUsersPage() {
     } catch (e: any) {
       notifications.show({ color: 'red', message: e?.message ?? 'Create failed' })
     }
-  }
-
-  // Edit modal
-  const [editOpen, setEditOpen] = useState(false)
-  const [editUserId, setEditUserId] = useState<string | null>(null)
-  const [editEmail, setEditEmail] = useState('')
-  const [editPassword, setEditPassword] = useState('')
-  const [editRole, setEditRole] = useState<RoleName>('VIEWER')
-
-  function openEditModal(row: Row) {
-    setEditUserId(row.userId)
-    setEditEmail(row.userEmailAddress)
-    setEditPassword('')
-    setEditRole(row.roleName)
-    setEditOpen(true)
   }
 
   async function handleEdit() {
@@ -171,20 +139,6 @@ export default function TenantUsersPage() {
     }
   }
 
-  async function handleSignOut() {
-    await signOutApiRequest()
-    navigate('/sign-in')
-  }
-
-  async function handleSwitchTenant(newSlug: string) {
-    try {
-      await switchTenantApiRequest({ tenantSlug: newSlug })
-      navigate(`/${newSlug}/users`)
-    } catch (e: any) {
-      notifications.show({ color: 'red', message: e?.message ?? 'Switch failed' })
-    }
-  }
-
   return (
     <div>
       <div className="p-4 border-b bg-white">
@@ -201,18 +155,7 @@ export default function TenantUsersPage() {
             </ActionIcon>
           </Group>
           <Group>
-            {memberships.map((m) => (
-              <Button
-                key={m.tenantSlug}
-                variant={m.tenantSlug === tenantSlug ? 'filled' : 'light'}
-                onClick={() => handleSwitchTenant(m.tenantSlug)}
-              >
-                {m.tenantSlug} ({m.roleName})
-              </Button>
-            ))}
-            <Button variant="default" leftSection={<IconLogout />} onClick={handleSignOut}>
-              Sign out
-            </Button>
+            {/* Tenant switching & sign-out removed; handled in the header */}
           </Group>
         </Group>
       </div>
@@ -230,7 +173,7 @@ export default function TenantUsersPage() {
             </Button>
           </Group>
 
-          {isLoading ? (
+          {rows === null || isLoading ? (
             <Group justify="center" p="lg"><Loader /></Group>
           ) : (
             <Table striped withTableBorder withColumnBorders>
