@@ -1,12 +1,12 @@
 // admin-web/src/pages/TenantUsersPage.tsx
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams, Link } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import {
   ActionIcon, Badge, Button, Group, Modal, Paper, PasswordInput,
   Select, Stack, Table, Text, TextInput, Title, Loader
 } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
-import { IconPlus, IconPencil, IconTrash, IconRefresh, IconArrowBack } from '@tabler/icons-react'
+import { IconPlus, IconPencil, IconTrash, IconRefresh } from '@tabler/icons-react'
 import {
   listTenantUsersApiRequest,
   createTenantUserApiRequest,
@@ -20,7 +20,6 @@ type RoleName = 'OWNER' | 'ADMIN' | 'EDITOR' | 'VIEWER'
 type Row = { userId: string; userEmailAddress: string; roleName: RoleName; createdAt?: string; updatedAt?: string }
 
 export default function TenantUsersPage() {
-  const navigate = useNavigate()
   const { tenantSlug } = useParams<{ tenantSlug: string }>()
 
   // Global memberships (no per-page /me calls)
@@ -141,38 +140,37 @@ export default function TenantUsersPage() {
 
   return (
     <div>
-      <div className="p-4 border-b bg-white">
+      <div className="pb-4 border-b border-gray-200 bg-white">
         <Group justify="space-between">
           <Group>
-            <ActionIcon component={Link} to={`/${tenantSlug}/products`} variant="light" title="Back to products">
-              <IconArrowBack />
-            </ActionIcon>
             <Title order={3}>
-              Tenant users — <Badge variant="light">{tenantSlug}</Badge>
+              All Users
             </Title>
-            <ActionIcon variant="light" onClick={load} title="Refresh" loading={isLoading}>
-              <IconRefresh />
-            </ActionIcon>
           </Group>
           <Group>
-            {/* Tenant switching & sign-out removed; handled in the header */}
-          </Group>
-        </Group>
-      </div>
+            <Button
+              leftSection={<IconRefresh size={16} />}
+              title="Refresh"
+              onClick={load}
+              variant="light"
+            >
+              Refresh
+            </Button>
 
-      <div className="p-4">
-        <Paper withBorder p="md" radius="md" className="bg-white">
-          <Group justify="space-between" mb="md">
-            <Title order={4}>Users in this tenant</Title>
             <Button
               leftSection={<IconPlus size={16} />}
+              title="Add user"
               onClick={() => setCreateOpen(true)}
               disabled={!isAdminOrOwner}
             >
               Add user
             </Button>
           </Group>
+        </Group>
+      </div>
 
+      <div className="py-4">
+        <Paper withBorder p="md" radius="md" className="bg-white">
           {rows === null || isLoading ? (
             <Group justify="center" p="lg"><Loader /></Group>
           ) : (

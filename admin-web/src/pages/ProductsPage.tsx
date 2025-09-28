@@ -195,39 +195,37 @@ export default function ProductsPage() {
 
   return (
     <div>
-      <div className="p-4 border-b bg-white">
+      <div className="pb-4 border-b border-gray-200 bg-white">
         <Group justify="space-between">
           <Group>
             <Title order={3}>
-              Products — Tenant: <Badge variant="light">{tenantSlug}</Badge>
+              All Products
             </Title>
-            <ActionIcon
-              variant="light"
-              onClick={loadProductsList}
-              title="Refresh"
-            >
-              <IconRefresh />
-            </ActionIcon>
           </Group>
           <Group>
-            {/* Tenant switching & sign-out removed; handled in the header */}
-            <Button component={Link} to={`/${tenantSlug}/users`} variant="light">
-              Manage users
+            <Button
+              leftSection={<IconRefresh size={16} />}
+              title="Refresh"
+              onClick={loadProductsList}
+              variant="light"
+            >
+              Refresh
             </Button>
-          </Group>
-        </Group>
-      </div>
 
-      <div className="p-4">
-        <Paper withBorder p="md" radius="md" className="bg-white">
-          <Group justify="space-between" mb="md">
-            <Title order={4}>All Products</Title>
             <Button
               onClick={() => setIsCreateModalOpen(true)}
               disabled={!isUserAdminOrOwnerForCurrentTenant}
             >
               New product
             </Button>
+          </Group>
+        </Group>
+      </div>
+
+      <div className="py-4">
+        <Paper withBorder p="md" radius="md" className="bg-white">
+          <Group justify="space-between" mb="md">
+            <Title order={4}>All Products</Title>
           </Group>
 
           {productsListRecords === null || isLoadingProductsList ? (
