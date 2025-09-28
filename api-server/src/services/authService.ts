@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import { prismaClientInstance } from '../db/prismaClient.js'
 
-const prismaClientInstance = new PrismaClient()
 
 export async function verifyUserCredentialsForTenantService(params: {
   userEmailAddressInputValue: string

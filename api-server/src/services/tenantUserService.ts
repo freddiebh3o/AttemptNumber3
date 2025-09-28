@@ -2,17 +2,17 @@
 import { PrismaClient, RoleName } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { Errors } from '../utils/httpErrors.js'
+const prismaClientInstance = new PrismaClient()
 
-const prisma = new PrismaClient()
 
 async function countOwners(tenantId: string) {
-  return prisma.userTenantMembership.count({
+  return prismaClientInstance.userTenantMembership.count({
     where: { tenantId, roleName: 'OWNER' },
   })
 }
 
 async function isOwner(tenantId: string, userId: string) {
-  const m = await prisma.userTenantMembership.findUnique({
+  const m = await prismaClientInstance.userTenantMembership.findUnique({
     where: { userId_tenantId: { tenantId, userId } },
     select: { roleName: true },
   })
@@ -27,7 +27,7 @@ export async function listUsersForCurrentTenantService(params: {
 }) {
   const take = params.limitOptional ?? 50
 
-  const memberships = await prisma.userTenantMembership.findMany({
+  const memberships = await prismaClientInstance.userTenantMembership.findMany({
     where: { tenantId: params.currentTenantId },
     include: { user: true },
     orderBy: { createdAt: 'asc' },
@@ -61,14 +61,14 @@ export async function createOrAttachUserToTenantService(params: {
   roleName: RoleName
 }) {
   // Find existing user by email, else create
-  const existingUser = await prisma.user.findUnique({
+  const existingUser = await prismaClientInstance.user.findUnique({
     where: { userEmailAddress: params.email },
   })
 
   let userId: string
   if (!existingUser) {
     const hashed = await bcrypt.hash(params.password, 10)
-    const user = await prisma.user.create({
+    const user = await prismaClientInstance.user.create({
       data: {
         userEmailAddress: params.email,
         userHashedPassword: hashed,
@@ -80,7 +80,7 @@ export async function createOrAttachUserToTenantService(params: {
   }
 
   // Upsert membership for this tenant
-  const membership = await prisma.userTenantMembership.upsert({
+  const membership = await prismaClientInstance.userTenantMembership.upsert({
     where: { userId_tenantId: { userId, tenantId: params.currentTenantId } },
     update: { roleName: params.roleName },
     create: {
@@ -107,7 +107,7 @@ export async function updateTenantUserService(params: {
 }) {
   const { currentTenantId, currentUserId, targetUserId } = params
 
-  const membership = await prisma.userTenantMembership.findUnique({
+  const membership = await prismaClientInstance.userTenantMembership.findUnique({
     where: { userId_tenantId: { userId: targetUserId, tenantId: currentTenantId } },
   })
   if (!membership) throw Errors.notFound('User is not a member of this tenant.')
@@ -121,7 +121,7 @@ export async function updateTenantUserService(params: {
 
   // Apply membership role change first
   if (params.newRoleNameOptional !== undefined) {
-    await prisma.userTenantMembership.update({
+    await prismaClientInstance.userTenantMembership.update({
       where: { userId_tenantId: { userId: targetUserId, tenantId: currentTenantId } },
       data: { roleName: params.newRoleNameOptional },
     })
@@ -140,11 +140,11 @@ export async function updateTenantUserService(params: {
     if (params.newPasswordOptional !== undefined) {
       data.userHashedPassword = await bcrypt.hash(params.newPasswordOptional, 10)
     }
-    await prisma.user.update({ where: { id: targetUserId }, data })
+    await prismaClientInstance.user.update({ where: { id: targetUserId }, data })
   }
 
-  const user = await prisma.user.findUnique({ where: { id: targetUserId } })
-  const updatedMembership = await prisma.userTenantMembership.findUnique({
+  const user = await prismaClientInstance.user.findUnique({ where: { id: targetUserId } })
+  const updatedMembership = await prismaClientInstance.userTenantMembership.findUnique({
     where: { userId_tenantId: { userId: targetUserId, tenantId: currentTenantId } },
   })
   if (!user || !updatedMembership) throw Errors.internal('State mismatch after update.')
@@ -179,7 +179,7 @@ export async function removeUserFromTenantService(params: {
     // already covered by the check above when they are OWNER
   }
 
-  const deleted = await prisma.userTenantMembership.deleteMany({
+  const deleted = await prismaClientInstance.userTenantMembership.deleteMany({
     where: { userId: targetUserId, tenantId: currentTenantId },
   })
 
