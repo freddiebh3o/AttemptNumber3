@@ -366,7 +366,12 @@ Adding a new route:
 ---
 
 ## Future fetures
-* Global loading/loading bus
+* UI/UX Updates
+  * Admin shell layout with sidebar and header
+  * Listings page layout (e.g. for products page and tenants user page) with standardised filtering/sorting/pagination
+  * nice error page if user tried to access data they dont have access to
+  * Global loading/loading bus
+
 * Admin branding
 * Image uploading
 * Plan out feature roadmap
