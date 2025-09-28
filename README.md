@@ -281,6 +281,7 @@ Use this id to filter logs and pinpoint the exact failing path.
 * **Auth**: `POST /api/auth/sign-in`, `POST /api/auth/sign-out`, `GET /api/auth/me`, `POST /api/auth/switch-tenant`
 * **Products**: `GET /api/products`, `POST /api/products`, `PUT /api/products/{productId}`, `DELETE /api/products/{productId}`
 * **System**: `GET /api/health`, `GET /api/version`
+* **TenantUsers**: `GET /api/tenant-users`, `POST /api/tenant-users`, `PUT /api/tenant-users/{user-id}`, `DELETE /api/tenant-users/{user-id}`
 
 Adding a new route:
 
@@ -298,6 +299,45 @@ Adding a new route:
 
 ---
 
+## Tenant/User Management
+
+**Who can use it?**
+
+* Only `OWNER` and `ADMIN` roles can create, update, or delete tenant users.
+* `EDITOR` and `VIEWER` can only view.
+
+**Rules enforced by API:**
+
+* Cannot demote or delete the **last OWNER** of a tenant.
+* All user actions (create/update/delete) support **idempotency keys**.
+
+**UI features:**
+
+* `/[tenantSlug]/users` shows all tenant members with role, email, timestamps.
+* Owners/Admins can:
+
+  * Invite (create or attach) a user with email/password/role
+  * Update email, password, or role of existing members
+  * Remove members from the tenant
+* Friendly notifications and loading states
+* Role-gated controls (non-ADMIN/OWNER see disabled buttons)
+
+---
+
+## Rate Limiting
+
+* Middleware: fixed-window limiter with configurable scope (`ip`, `session`, or `ip+session`).
+* Defaults in this POC: `300 requests per minute` per IP+session.
+* Headers returned on each response:
+
+  * `X-RateLimit-Limit`
+  * `X-RateLimit-Remaining`
+  * `X-RateLimit-Reset`
+  * `Retry-After` (when exhausted)
+* Exemptions: `OPTIONS`, `/api/health`, `/docs`.
+
+---
+
 ## Troubleshooting quick refs
 
 * **JSON body parsing issues**: ensure `Content-Type: application/json` and `express.json()` is registered before routes
@@ -305,6 +345,7 @@ Adding a new route:
 * **Type drift**: rerun `npm run openapi:gen` after server spec changes
 * **DB mismatch**: run `npm run db:deploy` or `npm run db:migrate -- --name …`
 
+---
 
 ## Current Phases Completed
 
@@ -316,6 +357,7 @@ Adding a new route:
    5.5. Structured logging
 6. OpenAPI spec + typed frontend API clients
 7. Deployed Development database(supabase) + server(Render) + frontend(Vercel)
+8. Tenant/User management APIs and UI, with rate limiting
 
 ---
 
@@ -324,15 +366,12 @@ Adding a new route:
 * Admin branding
 * Image uploading
 * Plan out feature roadmap
-
-## Next Steps (Planned)
-
-* Phase 8: Tenant/user management UI
-* Phase 9: Monitoring & metrics
+* Monitoring & metrics
   * Sentry
   * Uptime monitor
   * Prometheus?
-* Phase 10: Billing & subscriptions (Stripe)
+
+---
 
 ## How to Add a New Environment (Prod or Another Staging)
 

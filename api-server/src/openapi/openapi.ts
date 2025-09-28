@@ -46,6 +46,13 @@ export const errorEnvelope = z
   })
   .openapi("ErrorEnvelope");
 
+const ZodRateLimitHeaders = z.object({
+  'X-RateLimit-Limit': z.string().openapi({ example: '300' }),
+  'X-RateLimit-Remaining': z.string().openapi({ example: '299' }),
+  'X-RateLimit-Reset': z.string().openapi({ example: '1758912000' }), // unix seconds
+  'Retry-After': z.string().openapi({ example: '42' }),              // seconds
+});
+
 // Common responses
 const response400 = {
   description: "Bad Request",
@@ -65,6 +72,11 @@ const response404 = {
 };
 const response409 = {
   description: "Conflict",
+  content: { "application/json": { schema: errorEnvelope } },
+};
+const response429 = {
+  description: "Too Many Requests",
+  headers: ZodRateLimitHeaders,
   content: { "application/json": { schema: errorEnvelope } },
 };
 const response500 = {
@@ -184,6 +196,44 @@ const ZodVersionResponseData = z
   })
   .openapi("VersionResponseData");
 
+// Tenant users
+const ZodTenantUserRecord = z
+  .object({
+    userId: z.string(),
+    userEmailAddress: z.string().email(),
+    roleName: z.enum(["OWNER", "ADMIN", "EDITOR", "VIEWER"]),
+    createdAt: z.string().datetime().optional(),
+    updatedAt: z.string().datetime().optional(),
+  })
+  .openapi("TenantUserRecord");
+
+const ZodTenantUsersList = z
+  .object({
+    users: z.array(ZodTenantUserRecord),
+    nextCursorId: z.string().optional(),
+  })
+  .openapi("TenantUsersList");
+
+const ZodCreateTenantUserBody = z
+  .object({
+    email: z.string().email(),
+    password: z.string().min(8),
+    roleName: z.enum(["OWNER", "ADMIN", "EDITOR", "VIEWER"]),
+  })
+  .openapi("CreateTenantUserBody");
+
+const ZodUpdateTenantUserBody = z
+  .object({
+    email: z.string().email().optional(),
+    password: z.string().min(8).optional(),
+    roleName: z.enum(["OWNER", "ADMIN", "EDITOR", "VIEWER"]).optional(),
+  })
+  .openapi("UpdateTenantUserBody");
+
+const ZodTenantUserEnvelope = z.object({
+  user: ZodTenantUserRecord,
+});
+
 // ---------- Paths ----------
 export function registerAllPathsInOpenApiRegistry() {
   // Auth — sign in
@@ -209,6 +259,7 @@ export function registerAllPathsInOpenApiRegistry() {
       },
       400: response400,
       401: response401,
+      429: response429,
       500: response500,
     },
   });
@@ -304,6 +355,7 @@ export function registerAllPathsInOpenApiRegistry() {
       401: response401,
       403: response403,
       409: response409,
+      429: response429,
       500: response500,
     },
   });
@@ -337,6 +389,7 @@ export function registerAllPathsInOpenApiRegistry() {
       403: response403,
       404: response404,
       409: response409,
+      429: response429,
       500: response500,
     },
   });
@@ -365,6 +418,7 @@ export function registerAllPathsInOpenApiRegistry() {
       401: response401,
       403: response403,
       404: response404,
+      429: response429,
       500: response500,
     },
   });
@@ -394,6 +448,7 @@ export function registerAllPathsInOpenApiRegistry() {
       400: response400,
       401: response401,
       403: response403,
+      429: response429,
       500: response500,
     },
   });
@@ -433,6 +488,169 @@ export function registerAllPathsInOpenApiRegistry() {
       500: response500,
     },
   });
+
+  // GET /api/tenant-users
+  openApiRegistry.registerPath({
+    tags: ["TenantUsers"],
+    method: "get",
+    path: "/api/tenant-users",
+    security: [{ cookieAuth: [] }],
+    request: {
+      query: z
+        .object({
+          limit: z.number().int().min(1).max(100).optional(),
+          cursorId: z.string().optional(),
+        })
+        .openapi("ListTenantUsersQuery"),
+    },
+    responses: {
+      200: {
+        description: "List tenant users",
+        content: {
+          "application/json": { schema: successEnvelope(ZodTenantUsersList) },
+        },
+      },
+      401: response401,
+      403: response403,
+      500: response500,
+    },
+  });
+
+  // POST /api/tenant-users
+  openApiRegistry.registerPath({
+    tags: ["TenantUsers"],
+    method: "post",
+    path: "/api/tenant-users",
+    security: [{ cookieAuth: [] }],
+    request: {
+      body: {
+        content: { "application/json": { schema: ZodCreateTenantUserBody } },
+      },
+    },
+    responses: {
+      201: {
+        description: "Created/attached user",
+        content: {
+          "application/json": {
+            schema: successEnvelope(ZodTenantUserEnvelope),
+          },
+        },
+      },
+      400: response400,
+      401: response401,
+      403: response403,
+      409: response409,
+      429: response429,
+      500: response500,
+    },
+  });
+
+  // PUT /api/tenant-users/{userId}
+  openApiRegistry.registerPath({
+    tags: ["TenantUsers"],
+    method: "put",
+    path: "/api/tenant-users/{userId}",
+    security: [{ cookieAuth: [] }],
+    request: {
+      params: z.object({ userId: z.string() }),
+      body: {
+        content: { "application/json": { schema: ZodUpdateTenantUserBody } },
+      },
+    },
+    responses: {
+      200: {
+        description: "Updated user/membership",
+        content: {
+          "application/json": {
+            schema: successEnvelope(ZodTenantUserEnvelope),
+          },
+        },
+      },
+      400: response400,
+      401: response401,
+      403: {
+        description: "Forbidden",
+        content: {
+          "application/json": {
+            schema: errorEnvelope,
+            examples: {
+              CANT_DEMOTE_LAST_OWNER: {
+                summary: "Cannot demote the last OWNER",
+                value: {
+                  success: false,
+                  data: null,
+                  error: {
+                    errorCode: "CANT_DEMOTE_LAST_OWNER",
+                    httpStatusCode: 403,
+                    userFacingMessage:
+                      "You cannot demote the last owner of a tenant.",
+                    developerMessage:
+                      "Refuse demotion if tenant would have zero OWNERs.",
+                    correlationId: "example-correlation-id",
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      404: response404,
+      409: response409,
+      429: response429,
+      500: response500,
+    },
+  });
+
+  // DELETE /api/tenant-users/{userId}
+  openApiRegistry.registerPath({
+    tags: ["TenantUsers"],
+    method: "delete",
+    path: "/api/tenant-users/{userId}",
+    security: [{ cookieAuth: [] }],
+    request: { params: z.object({ userId: z.string() }) },
+    responses: {
+      200: {
+        description: "Removed membership",
+        content: {
+          "application/json": {
+            schema: successEnvelope(
+              z.object({ hasRemovedMembership: z.boolean() })
+            ),
+          },
+        },
+      },
+      401: response401,
+      403: {
+        description: "Forbidden",
+        content: {
+          "application/json": {
+            schema: errorEnvelope,
+            examples: {
+              CANT_DELETE_LAST_OWNER: {
+                summary: "Cannot remove the last OWNER",
+                value: {
+                  success: false,
+                  data: null,
+                  error: {
+                    errorCode: "CANT_DELETE_LAST_OWNER",
+                    httpStatusCode: 403,
+                    userFacingMessage:
+                      "You cannot delete the last owner of a tenant.",
+                    developerMessage:
+                      "Refuse delete if tenant would have zero OWNERs.",
+                    correlationId: "example-correlation-id",
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      404: response404,
+      429: response429,
+      500: response500,
+    },
+  });
 }
 
 // ---------- Build document ----------
@@ -441,9 +659,10 @@ export function buildOpenApiDocument() {
   registerAllPathsInOpenApiRegistry();
 
   const generator = new OpenApiGeneratorV3(openApiRegistry.definitions);
-  const servers = [{ url: 'http://localhost:4000' }]
-  if (process.env.NODE_ENV === 'production' && process.env.API_PUBLIC_URL) {
-    servers.unshift({ url: process.env.API_PUBLIC_URL })
+
+  const servers = [{ url: "http://localhost:4000" }];
+  if (process.env.NODE_ENV === "production" && process.env.API_PUBLIC_URL) {
+    servers.unshift({ url: process.env.API_PUBLIC_URL });
   }
 
   return generator.generateDocument({
@@ -454,7 +673,7 @@ export function buildOpenApiDocument() {
       description:
         "Simple, multi-tenant admin API. Responses use a standard success/error envelope. Auth is cookie-based session.",
     },
-    servers: [{ url: "http://localhost:4000" }],
-    tags: [{ name: "Auth" }, { name: "Products" }, { name: 'System' }],
+    servers,
+    tags: [{ name: "Auth" }, { name: "Products" }, { name: "System" }],
   });
 }

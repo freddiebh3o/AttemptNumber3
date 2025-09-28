@@ -7,6 +7,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 // import App from './App'
 import SignInPage from './pages/SignInPage'
 import ProductsPage from './pages/ProductsPage'
+import TenantUsersPage from './pages/TenantUsersPage'
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 import './index.css'
@@ -15,6 +16,7 @@ const router = createBrowserRouter([
   { path: '/', element: <SignInPage /> },
   { path: '/sign-in', element: <SignInPage /> },
   { path: '/:tenantSlug/products', element: <ProductsPage /> },
+  { path: '/:tenantSlug/users', element: <TenantUsersPage /> },
 ])
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

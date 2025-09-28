@@ -3,54 +3,87 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import helmet from "helmet";
+import swaggerUi from "swagger-ui-express";
+
 import { requestIdMiddleware } from "./middleware/requestIdMiddleware.js";
 import { sessionMiddleware } from "./middleware/sessionMiddleware.js";
 import { standardErrorHandler } from "./middleware/errorHandler.js";
 import { apiRouter } from "./routes/index.js";
-import helmet from "helmet";
-import { httpLoggingMiddleware } from './middleware/httpLoggingMiddleware.js'
-import swaggerUi from 'swagger-ui-express'
-import { buildOpenApiDocument } from './openapi/openapi.js'
-
+import { httpLoggingMiddleware } from "./middleware/httpLoggingMiddleware.js";
+import { buildOpenApiDocument } from "./openapi/openapi.js";
+import { createFixedWindowRateLimiterMiddleware } from "./middleware/rateLimiterMiddleware.js";
 
 export function createConfiguredExpressApplicationInstance() {
-  const expressApplicationInstance = express();
-  const openApiDocument = buildOpenApiDocument()
+  const app = express();
+  const openApiDocument = buildOpenApiDocument();
 
+  // Trust Render/Proxy so req.ip is the real client IP
+  app.set("trust proxy", true);
+
+  // --- CORS (must be early and before any rate limiting) ---
   const allowedOrigins = [
-    process.env.FRONTEND_DEV_ORIGIN || 'http://localhost:5174',
-    process.env.FRONTEND_ORIGIN, 
-    'http://127.0.0.1:5174',
+    process.env.FRONTEND_DEV_ORIGIN || "http://localhost:5174",
+    process.env.FRONTEND_ORIGIN,
+    "http://127.0.0.1:5174",
   ].filter(Boolean) as string[];
 
-  expressApplicationInstance.use(cors({
-    origin(origin, cb) {
-      if (!origin) return cb(null, true);
-      if (allowedOrigins.includes(origin)) return cb(null, true);
-      return cb(new Error(`Not allowed by CORS: ${origin}`));
-    },
-    credentials: true,
-  }))
+  app.use(
+    cors({
+      origin(origin, cb) {
+        if (!origin) return cb(null, true); // curl/Postman
+        if (allowedOrigins.includes(origin)) return cb(null, true);
+        return cb(new Error(`Not allowed by CORS: ${origin}`));
+      },
+      credentials: true,
+    })
+  );
 
-  expressApplicationInstance.use(helmet())
+  // --- Security headers ---
+  app.use(helmet());
 
-  // Core middleware
-  expressApplicationInstance.use(cookieParser());
-  expressApplicationInstance.use(express.json({ limit: '64kb' }))
-  expressApplicationInstance.use(requestIdMiddleware);
-  expressApplicationInstance.use(sessionMiddleware);
-  expressApplicationInstance.use(httpLoggingMiddleware)
-  expressApplicationInstance.use(sessionMiddleware)
-  expressApplicationInstance.use(express.urlencoded({ extended: false }))
+  // --- Core middleware ---
+  app.use(cookieParser());
+  app.use(express.json({ limit: "64kb" }));
+  app.use(express.urlencoded({ extended: false }));
+  app.use(requestIdMiddleware);
+  app.use(httpLoggingMiddleware);
+  app.use(sessionMiddleware);
 
-  
-  // Routes
-  expressApplicationInstance.use("/api", apiRouter);
-  expressApplicationInstance.get('/openapi.json', (_req, res) => res.json(openApiDocument))
-  expressApplicationInstance.use('/docs', swaggerUi.serve, swaggerUi.setup(openApiDocument))
+  app.use(
+    createFixedWindowRateLimiterMiddleware({
+      windowSeconds: 60,
+      limit: 300,
+      bucketScope: 'ip+session',
+    })
+  )
+
+  // --- Public docs (no rate limiting) ---
+  app.get("/openapi.json", (_req, res) => res.json(openApiDocument));
+  app.use("/docs", swaggerUi.serve, swaggerUi.setup(openApiDocument));
+
+  // --- Rate limiters (scoped) ---
+  const authLimiter = createFixedWindowRateLimiterMiddleware({
+    windowSeconds: 60,
+    limit: 20,                 // tighter on auth
+    bucketScope: "ip+session", // combine IP + session when available
+  });
+
+  const generalLimiter = createFixedWindowRateLimiterMiddleware({
+    windowSeconds: 60,
+    limit: 300,
+    bucketScope: "ip",         // safe default for general routes
+  });
+
+  // Mount specific first, then general
+  app.use("/api/auth", authLimiter);
+  app.use("/api", generalLimiter);
+
+  // --- Routes ---
+  app.use("/api", apiRouter);
 
   // 404 envelope for unmatched API routes
-  expressApplicationInstance.use((req, res) => {
+  app.use((req, res) => {
     return res.status(404).json({
       success: false,
       data: null,
@@ -65,10 +98,10 @@ export function createConfiguredExpressApplicationInstance() {
   });
 
   // Central error handler (must be last)
-  expressApplicationInstance.use(standardErrorHandler);
+  app.use(standardErrorHandler);
 
   const serverPortFromEnvironmentVariable: number = Number(
     process.env.SERVER_PORT || 4000
   );
-  return { expressApplicationInstance, serverPortFromEnvironmentVariable };
+  return { expressApplicationInstance: app, serverPortFromEnvironmentVariable };
 }

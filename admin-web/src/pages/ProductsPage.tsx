@@ -1,6 +1,6 @@
 // src/pages/ProductsPage.tsx
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import {
   Button,
   Group,
@@ -267,6 +267,7 @@ export default function ProductsPage() {
                 {m.tenantSlug} ({m.roleName})
               </Button>
             ))}
+            <Button component={Link} to={`/${tenantSlug}/users`} variant="light">Manage users</Button>
             <Button
               variant="default"
               leftSection={<IconLogout />}

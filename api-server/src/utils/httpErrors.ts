@@ -1,3 +1,4 @@
+// src/utils/httpErrors.ts
 export class HttpError extends Error {
   httpStatusCode: number;
   errorCode: string;
@@ -40,6 +41,13 @@ export const Errors = {
       httpStatusCode: 403,
       errorCode: "PERMISSION_DENIED",
       userFacingMessage: "You do not have permission for this action.",
+    });
+  },
+  cantDeleteLastOwner() {
+    return new HttpError({
+      httpStatusCode: 409,
+      errorCode: "CANT_DELETE_LAST_OWNER",
+      userFacingMessage: "You cannot delete the last owner of a tenant.",
     });
   },
   notFound(userMsg = "The requested resource was not found.") {
