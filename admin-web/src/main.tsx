@@ -5,6 +5,7 @@ import { MantineProvider } from '@mantine/core'
 import { Notifications } from '@mantine/notifications'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import App from './App'
+import AdminLayout from './components/shell/AdminLayout'
 import SignInPage from './pages/SignInPage'
 import ProductsPage from './pages/ProductsPage'
 import TenantUsersPage from './pages/TenantUsersPage'
@@ -15,12 +16,20 @@ import './index.css'
 const router = createBrowserRouter([
   {
     path: '/',
-    element: <App />,              // root layout (shows TopLoader)
+    element: <App />, // Root layout with TopLoader; no shell here
     children: [
       { index: true, element: <SignInPage /> },
       { path: 'sign-in', element: <SignInPage /> },
-      { path: ':tenantSlug/products', element: <ProductsPage /> },
-      { path: ':tenantSlug/users', element: <TenantUsersPage /> },
+
+      // Admin area under :tenantSlug/*
+      {
+        path: ':tenantSlug',
+        element: <AdminLayout />, // <-- Shell applies only here
+        children: [
+          { path: 'products', element: <ProductsPage /> },
+          { path: 'users', element: <TenantUsersPage /> },
+        ],
+      },
     ],
   },
 ])
