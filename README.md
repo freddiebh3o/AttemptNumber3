@@ -366,11 +366,11 @@ Adding a new route:
 ---
 
 ## Future fetures
+* In the standardised server response, we need meta data for pagination/filtering.
+  * will return the search options and search options that we sent with the request
+  * Will return things like total results, total pages, current page etc.
 * UI/UX Updates
-  * Admin shell layout with sidebar and header
-  * Listings page layout (e.g. for products page and tenants user page) with standardised filtering/sorting/pagination
-  * nice error page if user tried to access data they dont have access to
-  * Global loading/loading bus
+  * Standardised list filters and pagination
 
 * Issue with double fetching lists and thereby double notifcations if something goes wrong
 * We shouldn't have to refetch 'me' everytime we go to a new page within the admin dashboard. This data should be on login or tenant switch to be available globally (context?).
