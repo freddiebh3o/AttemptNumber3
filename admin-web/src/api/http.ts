@@ -74,7 +74,7 @@ export async function httpRequestJson<DataShape>(
 
     error.details = json;
     error.httpStatusCode = errorBody?.httpStatusCode ?? httpResponse.status;
-    error.correlationId = json?.correlationId;
+    error.correlationId = errorBody?.correlationId ?? json?.correlationId;
 
     throw error;
   } finally {

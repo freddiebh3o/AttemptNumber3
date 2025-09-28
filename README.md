@@ -372,6 +372,8 @@ Adding a new route:
   * nice error page if user tried to access data they dont have access to
   * Global loading/loading bus
 
+* Issue with double fetching lists and thereby double notifcations if something goes wrong
+* We shouldn't have to refetch 'me' everytime we go to a new page within the admin dashboard. This data should be on login or tenant switch to be available globally (context?).
 * Admin branding
 * Image uploading
 * Plan out feature roadmap

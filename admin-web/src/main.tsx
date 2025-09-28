@@ -12,11 +12,13 @@ import TenantUsersPage from './pages/TenantUsersPage'
 import '@mantine/core/styles.css'
 import '@mantine/notifications/styles.css'
 import './index.css'
+import { RouteErrorBoundary } from './components/feedback/ErrorBoundary'
 
 const router = createBrowserRouter([
   {
     path: '/',
     element: <App />, // Root layout with TopLoader; no shell here
+    errorElement: <RouteErrorBoundary />,
     children: [
       { index: true, element: <SignInPage /> },
       { path: 'sign-in', element: <SignInPage /> },
@@ -26,8 +28,8 @@ const router = createBrowserRouter([
         path: ':tenantSlug',
         element: <AdminLayout />, // <-- Shell applies only here
         children: [
-          { path: 'products', element: <ProductsPage /> },
-          { path: 'users', element: <TenantUsersPage /> },
+          { path: 'products', element: <ProductsPage />, errorElement: <RouteErrorBoundary /> },
+          { path: 'users', element: <TenantUsersPage />, errorElement: <RouteErrorBoundary /> },
         ],
       },
     ],

@@ -2,19 +2,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import {
-  ActionIcon,
-  Badge,
-  Button,
-  Group,
-  Modal,
-  Paper,
-  PasswordInput,
-  Select,
-  Stack,
-  Table,
-  Text,
-  TextInput,
-  Title,
+  ActionIcon, Badge, Button, Group, Modal, Paper, PasswordInput,
+  Select, Stack, Table, Text, TextInput, Title, Loader
 } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
 import { IconPlus, IconPencil, IconTrash, IconRefresh, IconLogout, IconArrowBack } from '@tabler/icons-react'
@@ -25,6 +14,7 @@ import {
   updateTenantUserApiRequest,
   deleteTenantUserApiRequest,
 } from '../api/tenantUsers'
+import { handlePageError } from '../utils/pageError'
 
 type RoleName = 'OWNER' | 'ADMIN' | 'EDITOR' | 'VIEWER'
 
@@ -35,7 +25,8 @@ export default function TenantUsersPage() {
   const [isLoading, setIsLoading] = useState(false)
 
   type Row = { userId: string; userEmailAddress: string; roleName: RoleName; createdAt?: string; updatedAt?: string }
-  const [rows, setRows] = useState<Row[]>([])
+  const [rows, setRows] = useState<Row[] | null>(null) // null = not loaded yet
+  const [errorForBoundary, setErrorForBoundary] = useState<Error & { httpStatusCode?: number; correlationId?: string } | null>(null)
 
   const isAdminOrOwner = useMemo(() => {
     const m = memberships.find((x) => x.tenantSlug === tenantSlug)
@@ -68,18 +59,38 @@ export default function TenantUsersPage() {
       const res = await listTenantUsersApiRequest({ limit: 100 })
       if (res.success) {
         setRows(res.data.users)
+      } else {
+        // Shouldn't happen with envelope, but guard anyway
+        const e = Object.assign(new Error('Failed to load users'), { httpStatusCode: 500 })
+        setErrorForBoundary(e)
       }
     } catch (e: any) {
-      notifications.show({ color: 'red', message: e?.message ?? 'Failed to load users' })
+      setErrorForBoundary(handlePageError(e, { title: 'Error' }));
     } finally {
       setIsLoading(false)
     }
   }
 
   useEffect(() => {
+    setRows(null) // reset while tenant changes
+    setErrorForBoundary(null)
     bootstrap().then(load)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantSlug])
+
+  // Important: if we encountered an error, throw during render to hit RouteErrorBoundary
+  if (errorForBoundary) throw errorForBoundary
+
+  // Loading state (optional skeleton)
+  if (rows === null) {
+    return (
+      <div className="p-4">
+        <Paper withBorder p="md" radius="md" className="bg-white">
+          <Group justify="center" p="lg"><Loader /></Group>
+        </Paper>
+      </div>
+    )
+  }
 
   // Create modal
   const [createOpen, setCreateOpen] = useState(false)
@@ -93,7 +104,7 @@ export default function TenantUsersPage() {
       return
     }
     try {
-      const idempotencyKeyValue = `create-${Date.now()}`;
+      const idempotencyKeyValue = `create-${Date.now()}`
       const res = await createTenantUserApiRequest({
         email: createEmail,
         password: createPassword,
@@ -135,8 +146,8 @@ export default function TenantUsersPage() {
       if (editEmail) body.email = editEmail
       if (editPassword) body.password = editPassword
       if (editRole) body.roleName = editRole
-      
-      const idempotencyKeyValue = `update-${editUserId}-${Date.now()}`;
+
+      const idempotencyKeyValue = `update-${editUserId}-${Date.now()}`
       const res = await updateTenantUserApiRequest({ userId: editUserId, ...body, idempotencyKeyOptional: idempotencyKeyValue })
       if (res.success) {
         notifications.show({ color: 'green', message: 'User updated' })
@@ -175,7 +186,7 @@ export default function TenantUsersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div>
       <div className="p-4 border-b bg-white">
         <Group justify="space-between">
           <Group>
@@ -219,52 +230,41 @@ export default function TenantUsersPage() {
             </Button>
           </Group>
 
-          <Table striped withTableBorder withColumnBorders>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Email</Table.Th>
-                <Table.Th>Role</Table.Th>
-                <Table.Th>Created</Table.Th>
-                <Table.Th>Updated</Table.Th>
-                <Table.Th>Actions</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {rows.map((r) => (
-                <Table.Tr key={r.userId}>
-                  <Table.Td>{r.userEmailAddress}</Table.Td>
-                  <Table.Td>
-                    <Badge>{r.roleName}</Badge>
-                  </Table.Td>
-                  <Table.Td>{r.createdAt ? new Date(r.createdAt).toLocaleString() : '—'}</Table.Td>
-                  <Table.Td>{r.updatedAt ? new Date(r.updatedAt).toLocaleString() : '—'}</Table.Td>
-                  <Table.Td>
-                    <Group gap="xs">
-                      <Button
-                        size="xs"
-                        variant="light"
-                        leftSection={<IconPencil size={16} />}
-                        onClick={() => openEditModal(r)}
-                        disabled={!isAdminOrOwner}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        size="xs"
-                        variant="light"
-                        color="red"
-                        leftSection={<IconTrash size={16} />}
-                        onClick={() => handleDelete(r.userId)}
-                        disabled={!isAdminOrOwner}
-                      >
-                        Remove
-                      </Button>
-                    </Group>
-                  </Table.Td>
+          {isLoading ? (
+            <Group justify="center" p="lg"><Loader /></Group>
+          ) : (
+            <Table striped withTableBorder withColumnBorders>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Email</Table.Th>
+                  <Table.Th>Role</Table.Th>
+                  <Table.Th>Created</Table.Th>
+                  <Table.Th>Updated</Table.Th>
+                  <Table.Th>Actions</Table.Th>
                 </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
+              </Table.Thead>
+              <Table.Tbody>
+                {rows.map((r) => (
+                  <Table.Tr key={r.userId}>
+                    <Table.Td>{r.userEmailAddress}</Table.Td>
+                    <Table.Td><Badge>{r.roleName}</Badge></Table.Td>
+                    <Table.Td>{r.createdAt ? new Date(r.createdAt).toLocaleString() : '—'}</Table.Td>
+                    <Table.Td>{r.updatedAt ? new Date(r.updatedAt).toLocaleString() : '—'}</Table.Td>
+                    <Table.Td>
+                      <Group gap="xs">
+                        <Button size="xs" variant="light" leftSection={<IconPencil size={16} />} onClick={() => openEditModal(r)} disabled={!isAdminOrOwner}>
+                          Edit
+                        </Button>
+                        <Button size="xs" variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={() => handleDelete(r.userId)} disabled={!isAdminOrOwner}>
+                          Remove
+                        </Button>
+                      </Group>
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          )}
         </Paper>
       </div>
 
@@ -273,15 +273,8 @@ export default function TenantUsersPage() {
         <Stack>
           <TextInput label="Email" value={createEmail} onChange={(e) => setCreateEmail(e.currentTarget.value)} />
           <PasswordInput label="Temporary password" value={createPassword} onChange={(e) => setCreatePassword(e.currentTarget.value)} />
-          <Select
-            label="Role"
-            value={createRole}
-            onChange={(v) => setCreateRole((v as RoleName) ?? 'VIEWER')}
-            data={['OWNER', 'ADMIN', 'EDITOR', 'VIEWER']}
-          />
-          <Group justify="flex-end">
-            <Button onClick={handleCreate}>Create/Attach</Button>
-          </Group>
+          <Select label="Role" value={createRole} onChange={(v) => setCreateRole((v as RoleName) ?? 'VIEWER')} data={['OWNER', 'ADMIN', 'EDITOR', 'VIEWER']} />
+          <Group justify="flex-end"><Button onClick={handleCreate}>Create/Attach</Button></Group>
         </Stack>
       </Modal>
 
@@ -291,15 +284,8 @@ export default function TenantUsersPage() {
           <Text size="sm">Leave password blank to keep the same.</Text>
           <TextInput label="Email" value={editEmail} onChange={(e) => setEditEmail(e.currentTarget.value)} />
           <PasswordInput label="New password" value={editPassword} onChange={(e) => setEditPassword(e.currentTarget.value)} />
-          <Select
-            label="Role"
-            value={editRole}
-            onChange={(v) => setEditRole((v as RoleName) ?? 'VIEWER')}
-            data={['OWNER', 'ADMIN', 'EDITOR', 'VIEWER']}
-          />
-          <Group justify="flex-end">
-            <Button onClick={handleEdit}>Save changes</Button>
-          </Group>
+          <Select label="Role" value={editRole} onChange={(v) => setEditRole((v as RoleName) ?? 'VIEWER')} data={['OWNER', 'ADMIN', 'EDITOR', 'VIEWER']} />
+          <Group justify="flex-end"><Button onClick={handleEdit}>Save changes</Button></Group>
         </Stack>
       </Modal>
     </div>

@@ -1,3 +1,4 @@
+// admin-web/src/components/shell/AdminLayout.tsx
 import { AppShell } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { Outlet } from 'react-router-dom';

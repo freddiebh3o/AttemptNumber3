@@ -34,14 +34,18 @@ import {
   IconRefresh,
   IconLogout,
 } from "@tabler/icons-react";
+import { handlePageError } from "../utils/pageError";
 
 export default function ProductsPage() {
   const navigate = useNavigate();
   const { tenantSlug } = useParams<{ tenantSlug: string }>();
+
   const [isLoadingProductsList, setIsLoadingProductsList] = useState(false);
-  const [productsListRecords, setProductsListRecords] = useState<
-    ProductRecord[]
-  >([]);
+  const [productsListRecords, setProductsListRecords] = useState<ProductRecord[] | null>(null);
+  const [errorForBoundary, setErrorForBoundary] = useState<
+    (Error & { httpStatusCode?: number; correlationId?: string }) | null
+  >(null);
+
   const [currentUserTenantMemberships, setCurrentUserTenantMemberships] =
     useState<
       Array<{
@@ -113,21 +117,30 @@ export default function ProductsPage() {
     setIsLoadingProductsList(true);
     try {
       const response = await listProductsApiRequest({ limit: 50 });
-      if (response.success) setProductsListRecords(response.data.products);
+      if (response.success) {
+        setProductsListRecords(response.data.products);
+      } else {
+        // Defensive: envelope should be success, but if not:
+        const e = Object.assign(new Error("Failed to load products"), { httpStatusCode: 500 });
+        setErrorForBoundary(e);
+      }
     } catch (error: any) {
-      notifications.show({
-        color: "red",
-        message: error?.message ?? "Failed to load products",
-      });
+      setErrorForBoundary(handlePageError(error, { title: 'Error' }));  
     } finally {
       setIsLoadingProductsList(false);
     }
   }
 
   useEffect(() => {
+    // Reset list & errors when tenant changes, then (re)load
+    setProductsListRecords(null);
+    setErrorForBoundary(null);
     loadMeAndMaybeSwitchTenant().then(loadProductsList);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantSlug]);
+
+  // IMPORTANT: throw to the route error boundary if we have an error
+  if (errorForBoundary) throw errorForBoundary;
 
   function openEditModalForProduct(productRecord: ProductRecord) {
     setEditProductIdValue(productRecord.id);
@@ -242,7 +255,7 @@ export default function ProductsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div>
       <div className="p-4 border-b bg-white">
         <Group justify="space-between">
           <Group>
@@ -267,7 +280,9 @@ export default function ProductsPage() {
                 {m.tenantSlug} ({m.roleName})
               </Button>
             ))}
-            <Button component={Link} to={`/${tenantSlug}/users`} variant="light">Manage users</Button>
+            <Button component={Link} to={`/${tenantSlug}/users`} variant="light">
+              Manage users
+            </Button>
             <Button
               variant="default"
               leftSection={<IconLogout />}
@@ -291,7 +306,7 @@ export default function ProductsPage() {
             </Button>
           </Group>
 
-          {isLoadingProductsList ? (
+          {productsListRecords === null || isLoadingProductsList ? (
             <div className="flex items-center justify-center p-8">
               <Loader />
             </div>

@@ -1,3 +1,4 @@
+// admin-web/src/hooks/useLoadingBus.ts
 import { create } from 'zustand';
 
 interface LoadingState {
