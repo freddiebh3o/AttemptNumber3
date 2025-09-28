@@ -371,9 +371,8 @@ Adding a new route:
   * Will return things like total results, total pages, current page etc.
 * UI/UX Updates
   * Standardised list filters and pagination
+  * Remove the create/edit modals and replace with new pages
 
-* Issue with double fetching lists and thereby double notifcations if something goes wrong
-* We shouldn't have to refetch 'me' everytime we go to a new page within the admin dashboard. This data should be on login or tenant switch to be available globally (context?).
 * Admin branding
 * Image uploading
 * Plan out feature roadmap
