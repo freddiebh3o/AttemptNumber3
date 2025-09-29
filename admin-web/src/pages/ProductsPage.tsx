@@ -16,6 +16,7 @@ import {
   rem,
   ActionIcon,
   Tooltip,
+  CloseButton
 } from "@mantine/core";
 import { DatePickerInput } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
@@ -36,6 +37,7 @@ import {
   IconChevronUp,
   IconPlayerTrackNext,
   IconPlayerTrackPrev,
+  IconLink
 } from "@tabler/icons-react";
 import { handlePageError } from "../utils/pageError";
 import { useAuthStore } from "../stores/auth";
@@ -120,27 +122,31 @@ export default function ProductsPage() {
     return match?.roleName === "ADMIN" || match?.roleName === "OWNER";
   }, [currentUserTenantMemberships, tenantSlug]);
 
-  function clearAllFiltersAndFetch() {
-    setAppliedFilters(emptyProductFilters);
+  function applyAndFetch(values: ProductFilters) {
+    setAppliedFilters(values);
     setUrlFromState({
       cursorId: null,
-      q: null,
-      minPriceCents: null,
-      maxPriceCents: null,
-      createdAtFrom: null,
-      createdAtTo: null,
-      updatedAtFrom: null,
-      updatedAtTo: null,
+      q: values.q.trim() || null,
+      minPriceCents: typeof values.minPriceCents === "number" ? values.minPriceCents : null,
+      maxPriceCents: typeof values.maxPriceCents === "number" ? values.maxPriceCents : null,
+      createdAtFrom: values.createdAtFrom ?? null,
+      createdAtTo: values.createdAtTo ?? null,
+      updatedAtFrom: values.updatedAtFrom ?? null,
+      updatedAtTo: values.updatedAtTo ?? null,
     });
     resetToFirstPageAndFetch({
-      qOverride: null,
-      minPriceOverride: null,
-      maxPriceOverride: null,
-      createdFromOverride: null,
-      createdToOverride: null,
-      updatedFromOverride: null,
-      updatedToOverride: null,
+      qOverride: values.q.trim() || null,
+      minPriceOverride: typeof values.minPriceCents === "number" ? values.minPriceCents : null,
+      maxPriceOverride: typeof values.maxPriceCents === "number" ? values.maxPriceCents : null,
+      createdFromOverride: values.createdAtFrom ?? null,
+      createdToOverride: values.createdAtTo ?? null,
+      updatedFromOverride: values.updatedAtFrom ?? null,
+      updatedToOverride: values.updatedAtTo ?? null,
     });
+  }
+  
+  function clearAllFiltersAndFetch() {
+    applyAndFetch(emptyProductFilters);
   }
 
   function colAriaSort(field: SortField): "ascending" | "descending" | "none" {
@@ -580,6 +586,51 @@ export default function ProductsPage() {
     );
   }
 
+  async function copyShareableLink() {
+    const href = window.location.href;
+    try {
+      await navigator.clipboard.writeText(href);
+      notifications.show({ color: "green", message: "Shareable link copied." });
+    } catch {
+      // Fallback for older browsers
+      const ta = document.createElement("textarea");
+      ta.value = href;
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      notifications.show({ color: "green", message: "Shareable link copied." });
+    }
+  }
+
+  const activeFilterChips = useMemo(() => {
+    const chips: { key: keyof ProductFilters; label: string }[] = [];
+    if (appliedFilters.q.trim()) chips.push({ key: "q", label: `search: "${appliedFilters.q.trim()}"` });
+    if (typeof appliedFilters.minPriceCents === "number") chips.push({ key: "minPriceCents", label: `min: ${appliedFilters.minPriceCents}` });
+    if (typeof appliedFilters.maxPriceCents === "number") chips.push({ key: "maxPriceCents", label: `max: ${appliedFilters.maxPriceCents}` });
+    if (appliedFilters.createdAtFrom) chips.push({ key: "createdAtFrom", label: `created ≥ ${appliedFilters.createdAtFrom}` });
+    if (appliedFilters.createdAtTo) chips.push({ key: "createdAtTo", label: `created ≤ ${appliedFilters.createdAtTo}` });
+    if (appliedFilters.updatedAtFrom) chips.push({ key: "updatedAtFrom", label: `updated ≥ ${appliedFilters.updatedAtFrom}` });
+    if (appliedFilters.updatedAtTo) chips.push({ key: "updatedAtTo", label: `updated ≤ ${appliedFilters.updatedAtTo}` });
+    return chips;
+  }, [appliedFilters]);
+
+  function clearOneChip(key: keyof ProductFilters) {
+    const defaults: ProductFilters = {
+      ...appliedFilters,
+      q: key === "q" ? "" : appliedFilters.q,
+      minPriceCents: key === "minPriceCents" ? "" : appliedFilters.minPriceCents,
+      maxPriceCents: key === "maxPriceCents" ? "" : appliedFilters.maxPriceCents,
+      createdAtFrom: key === "createdAtFrom" ? null : appliedFilters.createdAtFrom,
+      createdAtTo: key === "createdAtTo" ? null : appliedFilters.createdAtTo,
+      updatedAtFrom: key === "updatedAtFrom" ? null : appliedFilters.updatedAtFrom,
+      updatedAtTo: key === "updatedAtTo" ? null : appliedFilters.updatedAtTo,
+    };
+    applyAndFetch(defaults);
+  }
+
   return (
     <div>
       {/* Header Banner */}
@@ -592,6 +643,15 @@ export default function ProductsPage() {
             </Text>
           </div>
           <Group justify="flex-end" align="center">
+            <Button
+              leftSection={<IconLink size={16} />}
+              variant="light"
+              title="Copy shareable link"
+              onClick={copyShareableLink}
+            >
+              Copy link
+            </Button>
+
             <Button
               leftSection={<IconFilter size={16} />}
               variant={showFilters ? "filled" : "light"}
@@ -634,20 +694,7 @@ export default function ProductsPage() {
         panelId={FILTER_PANEL_ID}
         initialValues={appliedFilters}
         emptyValues={emptyProductFilters}
-        onApply={(values) => {
-          setAppliedFilters(values);
-          resetToFirstPageAndFetch({
-            qOverride: values.q.trim() || null,
-            minPriceOverride:
-              typeof values.minPriceCents === "number" ? values.minPriceCents : null,
-            maxPriceOverride:
-              typeof values.maxPriceCents === "number" ? values.maxPriceCents : null,
-            createdFromOverride: values.createdAtFrom ?? null,
-            createdToOverride: values.createdAtTo ?? null,
-            updatedFromOverride: values.updatedAtFrom ?? null,
-            updatedToOverride: values.updatedAtTo ?? null,
-          });
-        }}
+        onApply={applyAndFetch}
         onClear={clearAllFiltersAndFetch}
       >
         {({ values, setValues }) => (
@@ -909,141 +956,184 @@ export default function ProductsPage() {
                     </Group>
                   </div>
                 ) : (
-                  <Table striped withTableBorder withColumnBorders stickyHeader>
-                    <Table.Thead>
-                      <Table.Tr>
-                        <Table.Th>
-                          <Group gap={4} wrap="nowrap">
-                            <span>Name</span>
-                            <Tooltip label="Sort by name" withArrow>
-                              <ActionIcon
-                                variant="subtle"
-                                size="sm"
-                                onClick={() => applySort("productName")}
-                                aria-label="Sort by name"
-                              >
-                                <SortIcon
-                                  active={sortBy === "productName"}
-                                  dir={sortDir}
-                                />
-                              </ActionIcon>
-                            </Tooltip>
-                          </Group>
-                        </Table.Th>
+                  <>
+                    {activeFilterChips.length > 0 && (
+                      <Group gap="xs" mb="sm" wrap="wrap" role="region" aria-label="Active filters">
+                        {activeFilterChips.map((chip) => (
+                          <Badge
+                            key={chip.key as string}
+                            variant="light"
+                            rightSection={
+                              <CloseButton
+                                aria-label={`Clear ${chip.label}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  clearOneChip(chip.key);
+                                }}
+                              />
+                            }
+                          >
+                            {chip.label}
+                          </Badge>
+                        ))}
+                    
+                        <Button
+                          variant="subtle"
+                          size="xs"
+                          onClick={clearAllFiltersAndFetch}
+                          aria-label="Clear all filters"
+                        >
+                          Clear all
+                        </Button>
+                      </Group>
+                    )}
 
-                        <Table.Th>SKU</Table.Th>
-
-                        <Table.Th>
-                          <Group gap={4} wrap="nowrap">
-                            <span>Price (cents)</span>
-                            <Tooltip label="Sort by price" withArrow>
-                              <ActionIcon
-                                variant="subtle"
-                                size="sm"
-                                onClick={() => applySort("productPriceCents")}
-                                aria-label="Sort by price"
-                              >
-                                <SortIcon
-                                  active={sortBy === "productPriceCents"}
-                                  dir={sortDir}
-                                />
-                              </ActionIcon>
-                            </Tooltip>
-                          </Group>
-                        </Table.Th>
-
-                        <Table.Th>
-                          <Group gap={4} wrap="nowrap">
-                            <span>Created</span>
-                            <Tooltip label="Sort by created date" withArrow>
-                              <ActionIcon
-                                variant="subtle"
-                                size="sm"
-                                onClick={() => applySort("createdAt")}
-                                aria-label="Sort by created"
-                              >
-                                <SortIcon
-                                  active={sortBy === "createdAt"}
-                                  dir={sortDir}
-                                />
-                              </ActionIcon>
-                            </Tooltip>
-                          </Group>
-                        </Table.Th>
-
-                        <Table.Th>
-                          <Group gap={4} wrap="nowrap">
-                            <span>Updated</span>
-                            <Tooltip label="Sort by updated date" withArrow>
-                              <ActionIcon
-                                variant="subtle"
-                                size="sm"
-                                onClick={() => applySort("updatedAt")}
-                                aria-label="Sort by updated"
-                              >
-                                <SortIcon
-                                  active={sortBy === "updatedAt"}
-                                  dir={sortDir}
-                                />
-                              </ActionIcon>
-                            </Tooltip>
-                          </Group>
-                        </Table.Th>
-
-                        <Table.Th>
-                          <Group gap={4} wrap="nowrap">
-                            <span>Version</span>
-                          </Group>
-                        </Table.Th>
-
-                        <Table.Th className="flex justify-end">Actions</Table.Th>
-                      </Table.Tr>
-                    </Table.Thead>
-
-                    <Table.Tbody>
-                      {productsListRecords.map((p) => (
-                        <Table.Tr key={p.id}>
-                          <Table.Td>{p.productName}</Table.Td>
-                          <Table.Td>{p.productSku}</Table.Td>
-                          <Table.Td>{p.productPriceCents}</Table.Td>
-                          <Table.Td>
-                            <Text size="sm">
-                              {new Date(p.createdAt).toLocaleString()}
-                            </Text>
-                          </Table.Td>
-                          <Table.Td>
-                            <Text size="sm">
-                              {new Date(p.updatedAt).toLocaleString()}
-                            </Text>
-                          </Table.Td>
-                          <Table.Td>
-                            <Badge>{p.entityVersion}</Badge>
-                          </Table.Td>
-                          <Table.Td className="flex justify-end">
-                            <Group gap="xs">
-                              <ActionIcon
-                                variant="light"
-                                size="md"
-                                onClick={() => console.log('open edit product')}
-                                disabled={!isUserAdminOrOwnerForCurrentTenant}
-                              >
-                                <IconPencil size={16} />
-                              </ActionIcon>
-                              <ActionIcon
-                                variant="light"
-                                color="red"
-                                size="md"
-                                onClick={() => handleDeleteProduct(p.id)}
-                                disabled={!isUserAdminOrOwnerForCurrentTenant}
-                              >
-                                <IconTrash size={16} />
-                              </ActionIcon>
+                    <Table 
+                      id={TABLE_ID}
+                      striped 
+                      withTableBorder 
+                      withColumnBorders 
+                      stickyHeader
+                      aria-describedby={RANGE_ID}
+                    >
+                      <Table.Thead>
+                        <Table.Tr>
+                          <Table.Th scope="col" aria-sort={colAriaSort("productName")}>
+                            <Group gap={4} wrap="nowrap">
+                              <span>Name</span>
+                              <Tooltip label="Sort by name" withArrow>
+                                <ActionIcon
+                                  variant="subtle"
+                                  size="sm"
+                                  onClick={() => applySort("productName")}
+                                  aria-label="Sort by name"
+                                >
+                                  <SortIcon
+                                    active={sortBy === "productName"}
+                                    dir={sortDir}
+                                  />
+                                </ActionIcon>
+                              </Tooltip>
                             </Group>
-                          </Table.Td>
+                          </Table.Th>
+
+                          <Table.Th scope="col">SKU</Table.Th>
+
+                          <Table.Th scope="col" aria-sort={colAriaSort("productPriceCents")}>
+                            <Group gap={4} wrap="nowrap">
+                              <span>Price (cents)</span>
+                              <Tooltip label="Sort by price" withArrow>
+                                <ActionIcon
+                                  variant="subtle"
+                                  size="sm"
+                                  onClick={() => applySort("productPriceCents")}
+                                  aria-label={sortButtonLabel("price", "productPriceCents")}
+                                  aria-controls={TABLE_ID}
+                                >
+                                  <SortIcon
+                                    active={sortBy === "productPriceCents"}
+                                    dir={sortDir}
+                                  />
+                                </ActionIcon>
+                              </Tooltip>
+                            </Group>
+                          </Table.Th>
+
+                          <Table.Th scope="col" aria-sort={colAriaSort("createdAt")}>
+                            <Group gap={4} wrap="nowrap">
+                              <span>Created</span>
+                              <Tooltip label="Sort by created date" withArrow>
+                                <ActionIcon
+                                  variant="subtle"
+                                  size="sm"
+                                  onClick={() => applySort("createdAt")}
+                                  aria-label={sortButtonLabel("created", "createdAt")}
+                                  aria-controls={TABLE_ID}
+                                >
+                                  <SortIcon
+                                    active={sortBy === "createdAt"}
+                                    dir={sortDir}
+                                  />
+                                </ActionIcon>
+                              </Tooltip>
+                            </Group>
+                          </Table.Th>
+
+                          <Table.Th scope="col" aria-sort={colAriaSort("updatedAt")}>
+                            <Group gap={4} wrap="nowrap">
+                              <span>Updated</span>
+                              <Tooltip label="Sort by updated date" withArrow>
+                                <ActionIcon
+                                  variant="subtle"
+                                  size="sm"
+                                  onClick={() => applySort("updatedAt")}
+                                  aria-label={sortButtonLabel("updated", "updatedAt")}
+                                  aria-controls={TABLE_ID}
+                                >
+                                  <SortIcon
+                                    active={sortBy === "updatedAt"}
+                                    dir={sortDir}
+                                  />
+                                </ActionIcon>
+                              </Tooltip>
+                            </Group>
+                          </Table.Th>
+
+                          <Table.Th>
+                            <Group gap={4} wrap="nowrap">
+                              <span>Version</span>
+                            </Group>
+                          </Table.Th>
+
+                          <Table.Th className="flex justify-end">Actions</Table.Th>
                         </Table.Tr>
-                      ))}
-                    </Table.Tbody>
-                  </Table>
+                      </Table.Thead>
+
+                      <Table.Tbody>
+                        {productsListRecords.map((p) => (
+                          <Table.Tr key={p.id}>
+                            <Table.Td>{p.productName}</Table.Td>
+                            <Table.Td>{p.productSku}</Table.Td>
+                            <Table.Td>{p.productPriceCents}</Table.Td>
+                            <Table.Td>
+                              <Text size="sm">
+                                {new Date(p.createdAt).toLocaleString()}
+                              </Text>
+                            </Table.Td>
+                            <Table.Td>
+                              <Text size="sm">
+                                {new Date(p.updatedAt).toLocaleString()}
+                              </Text>
+                            </Table.Td>
+                            <Table.Td>
+                              <Badge>{p.entityVersion}</Badge>
+                            </Table.Td>
+                            <Table.Td className="flex justify-end">
+                              <Group gap="xs">
+                                <ActionIcon
+                                  variant="light"
+                                  size="md"
+                                  onClick={() => console.log('open edit product')}
+                                  disabled={!isUserAdminOrOwnerForCurrentTenant}
+                                >
+                                  <IconPencil size={16} />
+                                </ActionIcon>
+                                <ActionIcon
+                                  variant="light"
+                                  color="red"
+                                  size="md"
+                                  onClick={() => handleDeleteProduct(p.id)}
+                                  disabled={!isUserAdminOrOwnerForCurrentTenant}
+                                >
+                                  <IconTrash size={16} />
+                                </ActionIcon>
+                              </Group>
+                            </Table.Td>
+                          </Table.Tr>
+                        ))}
+                      </Table.Tbody>
+                    </Table>
+                  </>
                 )}
               </div>
 
