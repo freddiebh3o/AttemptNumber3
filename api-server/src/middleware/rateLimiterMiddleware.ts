@@ -43,7 +43,7 @@ export function createFixedWindowRateLimiterMiddleware(options: {
     maybeSweep(now);
 
     const ipKey = request.ip || request.socket.remoteAddress || "unknown";
-    const sessionKey = (request as any).currentUserId ?? "anon";
+    const sessionKey = request.currentUserId ?? "anon";
     const compositeKey =
       options.bucketScope === "ip"
         ? ipKey
@@ -78,7 +78,7 @@ export function createFixedWindowRateLimiterMiddleware(options: {
         httpStatusCode: 429,
         userFacingMessage: "Too many requests. Please try again later.",
         developerMessage: "Rate limit exceeded.",
-        correlationId: (request as any).correlationId ?? null,
+        correlationId: request.correlationId ?? null,
       },
     });
   };

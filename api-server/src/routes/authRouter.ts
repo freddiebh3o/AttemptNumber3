@@ -16,6 +16,7 @@ import {
 } from '../services/authService.js'
 import { requireAuthenticatedUserMiddleware } from '../middleware/sessionMiddleware.js'
 import { PrismaClient } from '@prisma/client'
+import { assertAuthed } from '../types/assertions.js'
 
 export const authRouter = Router()
 
@@ -30,7 +31,7 @@ authRouter.post(
   validateRequestBodyWithZod(signInBodySchema),
   async (request, response, next) => {
     try {
-      const { email, password, tenantSlug } = (request as any).validatedBody as z.infer<typeof signInBodySchema>
+      const { email, password, tenantSlug } = request.validatedBody as z.infer<typeof signInBodySchema>    
 
       const verified = await verifyUserCredentialsForTenantService({
         userEmailAddressInputValue: email,
@@ -62,9 +63,10 @@ authRouter.post('/sign-out', (_request, response) => {
 })
 
 authRouter.get('/me', requireAuthenticatedUserMiddleware, async (request, response, next) => {
-  try {
-    const currentUserId: string = (request as any).currentUserId
-    const currentTenantId: string = (request as any).currentTenantId
+  try { 
+    assertAuthed(request);
+    const currentUserId: string = request.currentUserId
+    const currentTenantId: string = request.currentTenantId
 
     const prisma = new PrismaClient()
 
@@ -85,7 +87,7 @@ authRouter.get('/me', requireAuthenticatedUserMiddleware, async (request, respon
         tenant: { select: { tenantSlug: true } },
       },
       orderBy: { createdAt: 'asc' },
-    }).then(rows => rows.map(r => ({ tenantSlug: r.tenant.tenantSlug, roleName: r.roleName as any })))
+    }).then(rows => rows.map(r => ({ tenantSlug: r.tenant.tenantSlug, roleName: r.roleName })))
 
     // 3) currentTenant: { tenantId, tenantSlug, roleName } | null
     let currentTenant: { tenantId: string; tenantSlug: string; roleName: 'OWNER' | 'ADMIN' | 'EDITOR' | 'VIEWER' } | null = null
@@ -105,7 +107,7 @@ authRouter.get('/me', requireAuthenticatedUserMiddleware, async (request, respon
         currentTenant = {
           tenantId: tenant.id,
           tenantSlug: tenant.tenantSlug,
-          roleName: membership.roleName as any,
+          roleName: membership.roleName,
         }
       }
     }
@@ -132,7 +134,7 @@ authRouter.post(
   validateRequestBodyWithZod(switchTenantBodySchema),
   async (request, response, next) => {
     try {
-      const { tenantSlug } = (request as any).validatedBody as z.infer<typeof switchTenantBodySchema>
+      const { tenantSlug } = request.validatedBody as z.infer<typeof switchTenantBodySchema>
 
       // Verify current token so we can reuse the user id
       const decoded = verifySignedSessionToken(request.cookies?.['mt_session'] ?? '')

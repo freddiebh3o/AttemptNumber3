@@ -17,8 +17,8 @@ export function sessionMiddleware(
   if (sessionCookieValue) {
     const verifiedClaims = verifySignedSessionToken(sessionCookieValue);
     if (verifiedClaims) {
-      (request as any).currentUserId = verifiedClaims.currentUserId;
-      (request as any).currentTenantId = verifiedClaims.currentTenantId;
+      request.currentUserId = verifiedClaims.currentUserId;
+      request.currentTenantId = verifiedClaims.currentTenantId;
     }
   }
   next();
@@ -29,8 +29,8 @@ export function requireAuthenticatedUserMiddleware(
   _response: Response,
   next: NextFunction
 ) {
-  const currentUserId: string | undefined = (request as any).currentUserId;
-  const currentTenantId: string | undefined = (request as any).currentTenantId;
+  const currentUserId: string | undefined = request.currentUserId;
+  const currentTenantId: string | undefined = request.currentTenantId;
   if (!currentUserId || !currentTenantId) {
     return next(Errors.authRequired());
   }

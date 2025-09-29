@@ -12,8 +12,8 @@ const rolePrivilegeRankMap: Record<string, number> = {
 
 export function requireRoleAtLeastMiddleware(requiredRoleName: 'VIEWER' | 'EDITOR' | 'ADMIN' | 'OWNER') {
   return async (request: Request, _response: Response, next: NextFunction) => {
-    const currentUserId: string | undefined = (request as any).currentUserId
-    const currentTenantId: string | undefined = (request as any).currentTenantId
+    const currentUserId: string | undefined = request.currentUserId
+    const currentTenantId: string | undefined = request.currentTenantId
     if (!currentUserId || !currentTenantId) return next(Errors.authRequired())
 
     const membershipRecord = await prismaClientInstance.userTenantMembership.findUnique({

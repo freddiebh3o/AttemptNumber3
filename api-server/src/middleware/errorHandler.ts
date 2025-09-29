@@ -4,7 +4,7 @@ import { HttpError } from '../utils/httpErrors.js'
 import { pinoLoggerInstance } from '../logger/logger.js'
 
 export function standardErrorHandler(error: unknown, request: Request, response: Response, _next: NextFunction) {
-  const correlationId = (request as any).correlationId ?? null
+  const correlationId = request.correlationId ?? null
 
   if (error instanceof HttpError) {
     // optional: structured log for expected HttpError at warn level

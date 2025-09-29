@@ -18,6 +18,7 @@ import {
   deleteProductForCurrentTenantService,
 } from "../services/productService.js";
 import { createFixedWindowRateLimiterMiddleware } from "../middleware/rateLimiterMiddleware.js";
+import { assertAuthed } from '../types/assertions.js'
 
 export const productRouter = Router();
 
@@ -60,8 +61,9 @@ productRouter.get(
   validateRequestQueryWithZod(listQuerySchema),
   async (request, response, next) => {
     try {
-      const currentTenantId: string = (request as any).currentTenantId;
-      const { limit, cursorId } = (request as any).validatedQuery as z.infer<
+      assertAuthed(request);
+      const currentTenantId: string = request.currentTenantId;
+      const { limit, cursorId } = request.validatedQuery as z.infer<
         typeof listQuerySchema
       >;
 
@@ -89,9 +91,9 @@ productRouter.post(
   validateRequestBodyWithZod(createBodySchema),
   async (request, response, next) => {
     try {
-      const currentTenantId: string = (request as any).currentTenantId;
-      const { productName, productSku, productPriceCents } = (request as any)
-        .validatedBody as z.infer<typeof createBodySchema>;
+      assertAuthed(request);
+      const currentTenantId: string = request.currentTenantId;
+      const { productName, productSku, productPriceCents } = request.validatedBody as z.infer<typeof createBodySchema>;
 
       const createdProduct = await createProductForCurrentTenantService({
         currentTenantId,
@@ -118,13 +120,12 @@ productRouter.put(
   validateRequestBodyWithZod(updateBodySchema),
   async (request, response, next) => {
     try {
-      const currentTenantId: string = (request as any).currentTenantId;
-      const { productId } = (request as any).validatedParams as z.infer<
+      assertAuthed(request);
+      const currentTenantId: string = request.currentTenantId;
+      const { productId } = request.validatedParams as z.infer<
         typeof updateParamsSchema
       >;
-      const { productName, productPriceCents, currentEntityVersion } = (
-        request as any
-      ).validatedBody as z.infer<typeof updateBodySchema>;
+      const { productName, productPriceCents, currentEntityVersion } = request.validatedBody as z.infer<typeof updateBodySchema>;
 
       const updatedProduct = await updateProductForCurrentTenantService({
         currentTenantId,
@@ -155,8 +156,9 @@ productRouter.delete(
   validateRequestParamsWithZod(updateParamsSchema),
   async (request, response, next) => {
     try {
-      const currentTenantId: string = (request as any).currentTenantId;
-      const { productId } = (request as any).validatedParams as z.infer<
+      assertAuthed(request);
+      const currentTenantId: string = request.currentTenantId;
+      const { productId } = request.validatedParams as z.infer<
         typeof updateParamsSchema
       >;
       const result = await deleteProductForCurrentTenantService({

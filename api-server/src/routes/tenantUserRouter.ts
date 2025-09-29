@@ -1,129 +1,155 @@
 // src/routes/tenantUserRouter.ts
-import { Router } from 'express'
-import { z } from 'zod'
-import { requireAuthenticatedUserMiddleware } from '../middleware/sessionMiddleware.js'
-import { requireRoleAtLeastMiddleware } from '../middleware/rbacMiddleware.js'
-import { validateRequestBodyWithZod, validateRequestParamsWithZod, validateRequestQueryWithZod } from '../middleware/zodValidation.js'
-import { createStandardSuccessResponse } from '../utils/standardResponse.js'
+import { Router } from "express";
+import { z } from "zod";
+import { requireAuthenticatedUserMiddleware } from "../middleware/sessionMiddleware.js";
+import { requireRoleAtLeastMiddleware } from "../middleware/rbacMiddleware.js";
+import {
+  validateRequestBodyWithZod,
+  validateRequestParamsWithZod,
+  validateRequestQueryWithZod,
+} from "../middleware/zodValidation.js";
+import { createStandardSuccessResponse } from "../utils/standardResponse.js";
 import {
   listUsersForCurrentTenantService,
   createOrAttachUserToTenantService,
   updateTenantUserService,
   removeUserFromTenantService,
-} from '../services/tenantUserService.js'
+} from "../services/tenantUserService.js";
+import { assertAuthed, assertHasQuery, assertHasBody, assertHasParams } from "../types/assertions.js";
 
-export const tenantUserRouter = Router()
+export const tenantUserRouter = Router();
 
-const RoleEnum = z.enum(['OWNER', 'ADMIN', 'EDITOR', 'VIEWER'])
+const RoleEnum = z.enum(["OWNER", "ADMIN", "EDITOR", "VIEWER"]);
 
-/** GET /api/tenant-users */
+// GET /api/tenant-users
 const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional(),
   cursorId: z.string().min(1).optional(),
-})
+});
+
 tenantUserRouter.get(
-  '/',
+  "/",
   requireAuthenticatedUserMiddleware,
-  requireRoleAtLeastMiddleware('ADMIN'),
+  requireRoleAtLeastMiddleware("ADMIN"),
   validateRequestQueryWithZod(listQuerySchema),
   async (req, res, next) => {
     try {
-      const currentTenantId: string = (req as any).currentTenantId
-      const { limit, cursorId } = (req as any).validatedQuery as z.infer<typeof listQuerySchema>
+      assertAuthed(req);
+      assertHasQuery<z.infer<typeof listQuerySchema>>(req);
+
+      const currentTenantId = req.currentTenantId;
+      const { limit, cursorId } = req.validatedQuery;
+
       const result = await listUsersForCurrentTenantService({
         currentTenantId,
         ...(limit !== undefined && { limitOptional: limit }),
         ...(cursorId !== undefined && { cursorIdOptional: cursorId }),
-      })
-      return res.status(200).json(createStandardSuccessResponse(result))
+      });
+
+      return res.status(200).json(createStandardSuccessResponse(result));
     } catch (err) {
-      return next(err)
+      return next(err);
     }
   }
-)
+);
 
-/** POST /api/tenant-users  (create or attach) */
+// POST /api/tenant-users
 const createBodySchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
   roleName: RoleEnum,
-})
+});
+
 tenantUserRouter.post(
-  '/',
+  "/",
   requireAuthenticatedUserMiddleware,
-  requireRoleAtLeastMiddleware('ADMIN'),
+  requireRoleAtLeastMiddleware("ADMIN"),
   validateRequestBodyWithZod(createBodySchema),
   async (req, res, next) => {
     try {
-      const currentTenantId: string = (req as any).currentTenantId
-      const { email, password, roleName } = (req as any).validatedBody as z.infer<typeof createBodySchema>
+      assertAuthed(req);
+      assertHasBody<z.infer<typeof createBodySchema>>(req);
+
+      const { currentTenantId } = req;
+      const { email, password, roleName } = req.validatedBody;
+
       const created = await createOrAttachUserToTenantService({
         currentTenantId,
         email,
         password,
         roleName,
-      })
-      return res.status(201).json(createStandardSuccessResponse({ user: created }))
+      });
+
+      return res.status(201).json(createStandardSuccessResponse({ user: created }));
     } catch (err) {
-      return next(err)
+      return next(err);
     }
   }
-)
+);
 
-/** PUT /api/tenant-users/:userId (update user and/or role) */
-const updateParamsSchema = z.object({ userId: z.string().min(1) })
+//PUT /api/tenant-users/:userId
+const updateParamsSchema = z.object({ userId: z.string().min(1) });
 const updateBodySchema = z.object({
   email: z.string().email().optional(),
   password: z.string().min(8).optional(),
   roleName: RoleEnum.optional(),
-})
+});
+
 tenantUserRouter.put(
-  '/:userId',
+  "/:userId",
   requireAuthenticatedUserMiddleware,
-  requireRoleAtLeastMiddleware('ADMIN'),
+  requireRoleAtLeastMiddleware("ADMIN"),
   validateRequestParamsWithZod(updateParamsSchema),
   validateRequestBodyWithZod(updateBodySchema),
   async (req, res, next) => {
     try {
-      const currentTenantId: string = (req as any).currentTenantId
-      const { userId } = (req as any).validatedParams as z.infer<typeof updateParamsSchema>
-      const { email, password, roleName } = (req as any).validatedBody as z.infer<typeof updateBodySchema>
+      assertAuthed(req);
+      assertHasParams<z.infer<typeof updateParamsSchema>>(req);
+      assertHasBody<z.infer<typeof updateBodySchema>>(req);
+
+      const { currentTenantId, currentUserId } = req;
+      const { userId } = req.validatedParams;
+      const { email, password, roleName } = req.validatedBody;
 
       const updated = await updateTenantUserService({
         currentTenantId,
-        currentUserId: (req as any).currentUserId,   // ← add
+        currentUserId,
         targetUserId: userId,
         ...(email !== undefined && { newEmailOptional: email }),
         ...(password !== undefined && { newPasswordOptional: password }),
         ...(roleName !== undefined && { newRoleNameOptional: roleName }),
-      })
-      
+      });
 
-      return res.status(200).json(createStandardSuccessResponse({ user: updated }))
+      return res.status(200).json(createStandardSuccessResponse({ user: updated }));
     } catch (err) {
-      return next(err)
+      return next(err);
     }
   }
-)
+);
 
-/** DELETE /api/tenant-users/:userId (remove membership) */
+// DELETE /api/tenant-users/:userId
 tenantUserRouter.delete(
-  '/:userId',
+  "/:userId",
   requireAuthenticatedUserMiddleware,
-  requireRoleAtLeastMiddleware('ADMIN'),
+  requireRoleAtLeastMiddleware("ADMIN"),
   validateRequestParamsWithZod(updateParamsSchema),
   async (req, res, next) => {
     try {
-      const currentTenantId: string = (req as any).currentTenantId
-      const { userId } = (req as any).validatedParams as z.infer<typeof updateParamsSchema>
+      assertAuthed(req);
+      assertHasParams<z.infer<typeof updateParamsSchema>>(req);
+
+      const { currentTenantId, currentUserId } = req;
+      const { userId } = req.validatedParams;
+
       const result = await removeUserFromTenantService({
         currentTenantId,
-        currentUserId: (req as any).currentUserId,
+        currentUserId,
         targetUserId: userId,
-      })
-      return res.status(200).json(createStandardSuccessResponse(result))
+      });
+
+      return res.status(200).json(createStandardSuccessResponse(result));
     } catch (err) {
-      return next(err)
+      return next(err);
     }
   }
-)
+);

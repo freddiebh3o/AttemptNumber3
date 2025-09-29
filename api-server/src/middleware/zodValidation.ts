@@ -13,8 +13,7 @@ export function validateRequestBodyWithZod<TSchema extends ZodTypeAny>(
         Errors.validation("Invalid request body", parseResult.error.message)
       );
     }
-    (request as any).validatedBody =
-      parseResult.data as import("zod").infer<TSchema>;
+    request.validatedBody = parseResult.data as import("zod").infer<TSchema>;
     next();
   };
 }
@@ -29,8 +28,7 @@ export function validateRequestQueryWithZod<TSchema extends ZodTypeAny>(
         Errors.validation("Invalid query string", parseResult.error.message)
       );
     }
-    (request as any).validatedQuery =
-      parseResult.data as import("zod").infer<TSchema>;
+    request.validatedQuery = parseResult.data as import("zod").infer<TSchema>;
     next();
   };
 }
@@ -45,8 +43,7 @@ export function validateRequestParamsWithZod<TSchema extends ZodTypeAny>(
         Errors.validation("Invalid route parameters", parseResult.error.message)
       );
     }
-    (request as any).validatedParams =
-      parseResult.data as import("zod").infer<TSchema>;
+    request.validatedParams = parseResult.data as import("zod").infer<TSchema>;
     next();
   };
 }

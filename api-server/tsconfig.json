@@ -24,6 +24,6 @@
 
     "skipLibCheck": true,
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "src/types/express.d.ts"],
   "exclude": ["dist", "prisma"]
 }

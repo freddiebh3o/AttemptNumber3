@@ -48,7 +48,7 @@ export function createConfiguredExpressApplicationInstance() {
   app.use(express.urlencoded({ extended: false }));
   app.use(requestIdMiddleware);
   app.use((req, res, next) => {
-    const id = (req as any).correlationId ?? null;
+    const id = req.correlationId ?? null;
     if (id) {
       res.setHeader('X-Request-Id', String(id));
       res.setHeader('X-Correlation-Id', String(id));
@@ -92,7 +92,7 @@ export function createConfiguredExpressApplicationInstance() {
         httpStatusCode: 404,
         userFacingMessage: "The requested resource was not found.",
         developerMessage: "No matching route.",
-        correlationId: (req as any).correlationId ?? null,
+        correlationId: req.correlationId ?? null,
       },
     });
   });

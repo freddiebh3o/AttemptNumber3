@@ -4,8 +4,8 @@ import { prismaClientInstance } from "../db/prismaClient.js";
 
 // Generate a stable fingerprint for the request (method + path + body + user + tenant)
 function createStableRequestFingerprintString(request: Request): string {
-  const currentUserId: string | undefined = (request as any).currentUserId;
-  const currentTenantId: string | undefined = (request as any).currentTenantId;
+  const currentUserId: string | undefined = request.currentUserId;
+  const currentTenantId: string | undefined = request.currentTenantId;
   const requestBodyValue =
     typeof request.body === "object"
       ? request.body
