@@ -7,14 +7,11 @@ import {
   Table,
   Title,
   Paper,
-  Modal,
   TextInput,
   NumberInput,
-  Stack,
   Badge,
   Loader,
   Text,
-  Collapse,
   Grid,
   rem,
   ActionIcon,
@@ -24,8 +21,6 @@ import { DatePickerInput } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
 import {
   listProductsApiRequest,
-  createProductApiRequest,
-  updateProductApiRequest,
   deleteProductApiRequest,
 } from "../api/products";
 import type { ProductRecord } from "../api/apiTypes";
@@ -404,7 +399,6 @@ export default function ProductsPage() {
       sortBy === nextField ? (sortDir === "asc" ? "desc" : "asc") : "asc";
     setSortBy(nextField);
     setSortDir(nextDir);
-    setUrlFromState({ cursorId: null, sortBy: nextField, sortDir: nextDir });
     resetToFirstPageAndFetch({
       sortByOverride: nextField,
       sortDirOverride: nextDir,
@@ -533,24 +527,7 @@ export default function ProductsPage() {
             initialValues={appliedFilters}
             emptyValues={emptyProductFilters}
             onApply={(values) => {
-              // push into URL + fetch (first page)
               setAppliedFilters(values);
-              setUrlFromState({
-                cursorId: null,
-                q: values.q.trim() || null,
-                minPriceCents:
-                  typeof values.minPriceCents === "number"
-                    ? values.minPriceCents
-                    : null,
-                maxPriceCents:
-                  typeof values.maxPriceCents === "number"
-                    ? values.maxPriceCents
-                    : null,
-                createdAtFrom: values.createdAtFrom ?? null,
-                createdAtTo: values.createdAtTo ?? null,
-                updatedAtFrom: values.updatedAtFrom ?? null,
-                updatedAtTo: values.updatedAtTo ?? null,
-              });
               resetToFirstPageAndFetch({
                 qOverride: values.q.trim() || null,
                 minPriceOverride:
@@ -565,16 +542,6 @@ export default function ProductsPage() {
             }}
             onClear={() => {
               setAppliedFilters(emptyProductFilters);
-              setUrlFromState({
-                cursorId: null,
-                q: null,
-                minPriceCents: null,
-                maxPriceCents: null,
-                createdAtFrom: null,
-                createdAtTo: null,
-                updatedAtFrom: null,
-                updatedAtTo: null,
-              });
               resetToFirstPageAndFetch({
                 qOverride: null,
                 minPriceOverride: null,
@@ -1001,7 +968,6 @@ export default function ProductsPage() {
                     typeof v === "number" ? v : v === "" ? 20 : Number(v);
                   const clamped = Math.max(1, Math.min(100, n));
                   setLimit(clamped);
-                  setUrlFromState({ cursorId: null, limit: clamped });
                   resetToFirstPageAndFetch({ limitOverride: clamped });
                 }}
                 min={1}
