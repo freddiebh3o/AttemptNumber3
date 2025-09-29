@@ -1,3 +1,4 @@
+// api-server/src/middleware/rbacMiddleware.ts
 import type { Request, Response, NextFunction } from 'express'
 import { prismaClientInstance } from '../db/prismaClient.js'
 import { Errors } from '../utils/httpErrors.js'

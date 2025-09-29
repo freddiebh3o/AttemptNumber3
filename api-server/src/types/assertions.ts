@@ -1,4 +1,4 @@
-// src/types/assertions.ts
+// api-server/src/types/assertions.ts
 import type { Request } from "express";
 import type { AuthedRequest } from "./request.js";
 

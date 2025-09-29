@@ -1,3 +1,4 @@
+// api-server/src/utils/standardResponse.ts
 export type StandardSuccessResponse<DataType> = {
   success: true;
   data: DataType;
