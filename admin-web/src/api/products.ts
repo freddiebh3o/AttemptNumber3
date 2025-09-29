@@ -26,11 +26,18 @@ type DeleteProduct200Response =
 export async function listProductsApiRequest(params?: {
   limit?: number;
   cursorId?: string;
+  minPriceCents?: number;
+  sortBy?: "createdAt" | "productName" | "productPriceCents";
+  sortDir?: "asc" | "desc";
+  includeTotal?: boolean;
 }) {
   const search = new URLSearchParams();
   if (params?.limit !== undefined) search.set("limit", String(params.limit));
-  if (params?.cursorId !== undefined)
-    search.set("cursorId", String(params.cursorId));
+  if (params?.cursorId !== undefined) search.set("cursorId", String(params.cursorId));
+  if (params?.minPriceCents !== undefined) search.set("minPriceCents", String(params.minPriceCents));
+  if (params?.sortBy) search.set("sortBy", params.sortBy);
+  if (params?.sortDir) search.set("sortDir", params.sortDir);
+  if (params?.includeTotal) search.set("includeTotal", "1");
   const qs = search.toString();
 
   return httpRequestJson<ListProducts200Response>(

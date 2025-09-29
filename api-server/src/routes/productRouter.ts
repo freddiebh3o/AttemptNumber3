@@ -36,6 +36,10 @@ productRouter.use(productRateLimiterMiddleware)
 const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional(),
   cursorId: z.string().min(1).optional(),
+  minPriceCents: z.coerce.number().int().min(0).optional(),
+  sortBy: z.enum(["createdAt", "productName", "productPriceCents"]).optional(),
+  sortDir: z.enum(["asc", "desc"]).optional(),
+  includeTotal: z.coerce.boolean().optional(),
 });
 
 const createBodySchema = z.object({
@@ -62,25 +66,33 @@ productRouter.get(
   async (request, response, next) => {
     try {
       assertAuthed(request);
-      const currentTenantId: string = request.currentTenantId;
-      const { limit, cursorId } = request.validatedQuery as z.infer<
-        typeof listQuerySchema
-      >;
+      const {
+        limit,
+        cursorId,
+        minPriceCents,
+        sortBy,
+        sortDir,
+        includeTotal,
+      } = request.validatedQuery as z.infer<typeof listQuerySchema>;
 
-      const products = await listProductsForCurrentTenantService({
-        currentTenantId,
+      const args = {
+        currentTenantId: request.currentTenantId!,
         ...(limit !== undefined && { limitOptional: limit }),
         ...(cursorId !== undefined && { cursorIdOptional: cursorId }),
-      });
+        ...(minPriceCents !== undefined && { minPriceCentsOptional: minPriceCents }),
+        ...(sortBy !== undefined && { sortByOptional: sortBy }),
+        ...(sortDir !== undefined && { sortDirOptional: sortDir }),
+        ...(includeTotal !== undefined && { includeTotalOptional: includeTotal }),
+      } as const;
+      const result = await listProductsForCurrentTenantService(args);
 
-      return response
-        .status(200)
-        .json(createStandardSuccessResponse({ products }));
+      return response.status(200).json(createStandardSuccessResponse(result));
     } catch (error) {
       return next(error);
     }
   }
 );
+
 
 // POST /api/products  (ADMIN+; idempotent via Idempotency-Key)
 productRouter.post(

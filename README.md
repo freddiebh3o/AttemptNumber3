@@ -374,6 +374,9 @@ Adding a new route:
   * Remove the create/edit modals and replace with new pages
 
 * Admin branding
+  * Suggested themes for different colour schemes 
+  * Fully custom option
+  * Ability to upload image -> LocalStack -> Will localStack work on my dev/staging environment
 * Image uploading
 * Plan out feature roadmap
 * Monitoring & metrics

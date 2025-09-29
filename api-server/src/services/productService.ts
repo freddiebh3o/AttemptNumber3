@@ -1,23 +1,56 @@
+// api-server/src/services/productService.ts
 import { prismaClientInstance } from '../db/prismaClient.js'
 import { Errors } from '../utils/httpErrors.js'
+import type { Prisma } from '@prisma/client';
 
-export async function listProductsForCurrentTenantService(params: {
+type ListProductsArgs = {
   currentTenantId: string
   limitOptional?: number
   cursorIdOptional?: string
-}) {
-  const { currentTenantId, limitOptional = 50, cursorIdOptional } = params
+  minPriceCentsOptional?: number
+  sortByOptional?: 'createdAt' | 'productName' | 'productPriceCents'
+  sortDirOptional?: 'asc' | 'desc'
+  includeTotalOptional?: boolean
+}
 
-  const whereClause = { tenantId: currentTenantId }
-  const takeValue = Math.min(Math.max(limitOptional, 1), 100)
+export async function listProductsForCurrentTenantService(args: ListProductsArgs) {
+  const {
+    currentTenantId,
+    limitOptional,
+    cursorIdOptional,
+    minPriceCentsOptional,
+    sortByOptional,
+    sortDirOptional,
+    includeTotalOptional,
+  } = args
 
-  const products = await prismaClientInstance.product.findMany({
-    where: whereClause,
-    orderBy: { createdAt: 'desc' },
-    take: takeValue,
-    ...(cursorIdOptional ? { skip: 1, cursor: { id: cursorIdOptional } } : {}),
+  const limit = Math.min(Math.max(limitOptional ?? 20, 1), 100)
+  const sortBy = sortByOptional ?? 'createdAt'
+  const sortDir = sortDirOptional ?? 'desc'
+
+  const where = {
+    tenantId: currentTenantId,
+    ...(minPriceCentsOptional !== undefined && {
+      productPriceCents: { gte: minPriceCentsOptional },
+    }),
+  } as const
+
+  // Deterministic ordering with id as tie-breaker
+  const orderBy: Prisma.ProductOrderByWithRelationInput[] = [
+    { [sortBy]: sortDir } as Prisma.ProductOrderByWithRelationInput,
+    { id: sortDir },
+  ];
+  
+
+const take = limit + 1 // fetch one extra to detect next page
+
+  const findArgs: Prisma.ProductFindManyArgs = {
+    where,
+    orderBy,
+    take,
     select: {
       id: true,
+      tenantId: true,
       productName: true,
       productSku: true,
       productPriceCents: true,
@@ -25,9 +58,41 @@ export async function listProductsForCurrentTenantService(params: {
       updatedAt: true,
       createdAt: true,
     },
-  })
+    ...(cursorIdOptional && { cursor: { id: cursorIdOptional }, skip: 1 }),
+  };
 
-  return products
+  if (cursorIdOptional) {
+    findArgs.cursor = { id: cursorIdOptional }
+    findArgs.skip = 1 // exclude cursor row itself
+  }
+
+  const rows = await prismaClientInstance.product.findMany(findArgs)
+  const hasNextPage = rows.length > limit
+  const items = hasNextPage ? rows.slice(0, limit) : rows
+  const nextCursor = hasNextPage ? items[items.length - 1]!.id : null
+
+  let totalCount: number | undefined
+  if (includeTotalOptional) {
+    totalCount = await prismaClientInstance.product.count({ where })
+  }
+
+  return {
+    items,
+    pageInfo: {
+      hasNextPage,
+      nextCursor,
+      ...(totalCount !== undefined && { totalCount }),
+    },
+    applied: {
+      limit,
+      sort: { field: sortBy, direction: sortDir },
+      filters: {
+        ...(minPriceCentsOptional !== undefined && {
+          minPriceCents: minPriceCentsOptional,
+        }),
+      },
+    },
+  }
 }
 
 export async function createProductForCurrentTenantService(params: {

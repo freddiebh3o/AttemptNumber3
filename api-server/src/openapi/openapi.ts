@@ -47,10 +47,10 @@ export const errorEnvelope = z
   .openapi("ErrorEnvelope");
 
 const ZodRateLimitHeaders = z.object({
-  'X-RateLimit-Limit': z.string().openapi({ example: '300' }),
-  'X-RateLimit-Remaining': z.string().openapi({ example: '299' }),
-  'X-RateLimit-Reset': z.string().openapi({ example: '1758912000' }), // unix seconds
-  'Retry-After': z.string().openapi({ example: '42' }),              // seconds
+  "X-RateLimit-Limit": z.string().openapi({ example: "300" }),
+  "X-RateLimit-Remaining": z.string().openapi({ example: "299" }),
+  "X-RateLimit-Reset": z.string().openapi({ example: "1758912000" }), // unix seconds
+  "Retry-After": z.string().openapi({ example: "42" }), // seconds
 });
 
 // Common responses
@@ -135,8 +135,22 @@ const ZodProductRecord = z
 
 const ZodProductsListResponseData = z
   .object({
-    products: z.array(ZodProductRecord),
-    nextCursorId: z.string().optional(),
+    items: z.array(ZodProductRecord),
+    pageInfo: z.object({
+      hasNextPage: z.boolean(),
+      nextCursor: z.string().nullable().optional(),
+      totalCount: z.number().int().min(0).optional(),
+    }),
+    applied: z.object({
+      limit: z.number().int().min(1).max(100),
+      sort: z.object({
+        field: z.enum(["createdAt", "productName", "productPriceCents"]),
+        direction: z.enum(["asc", "desc"]),
+      }),
+      filters: z.object({
+        minPriceCents: z.number().int().min(0).optional(),
+      }),
+    }),
   })
   .openapi("ProductsListResponseData");
 
@@ -311,6 +325,12 @@ export function registerAllPathsInOpenApiRegistry() {
         .object({
           limit: z.number().int().min(1).max(100).optional(),
           cursorId: z.string().optional(),
+          minPriceCents: z.number().int().min(0).optional(),
+          sortBy: z
+            .enum(["createdAt", "productName", "productPriceCents"])
+            .optional(),
+          sortDir: z.enum(["asc", "desc"]).optional(),
+          includeTotal: z.boolean().optional(),
         })
         .openapi("ListProductsQuery"),
     },

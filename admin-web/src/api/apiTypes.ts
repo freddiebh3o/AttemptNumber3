@@ -1,3 +1,4 @@
+// admin-web/src/api/apiTypes.ts
 export type StandardSuccessResponse<T> = { success: true; data: T; error: null }
 export type StandardError = {
   errorCode: string
@@ -18,6 +19,7 @@ export type MeResponseData = {
 
 export type ProductRecord = {
   id: string
+  tenantId: string
   productName: string
   productSku: string
   productPriceCents: number

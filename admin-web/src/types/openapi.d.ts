@@ -211,6 +211,10 @@ export interface paths {
                 query?: {
                     limit?: number;
                     cursorId?: string;
+                    minPriceCents?: number;
+                    sortBy?: "createdAt" | "productName" | "productPriceCents";
+                    sortDir?: "asc" | "desc";
+                    includeTotal?: boolean;
                 };
                 header?: never;
                 path?: never;
@@ -1142,8 +1146,24 @@ export interface components {
             updatedAt: string;
         };
         ProductsListResponseData: {
-            products: components["schemas"]["ProductRecord"][];
-            nextCursorId?: string;
+            items: components["schemas"]["ProductRecord"][];
+            pageInfo: {
+                hasNextPage: boolean;
+                nextCursor?: string | null;
+                totalCount?: number;
+            };
+            applied: {
+                limit: number;
+                sort: {
+                    /** @enum {string} */
+                    field: "createdAt" | "productName" | "productPriceCents";
+                    /** @enum {string} */
+                    direction: "asc" | "desc";
+                };
+                filters: {
+                    minPriceCents?: number;
+                };
+            };
         };
         CreateProductRequestBody: {
             productName: string;

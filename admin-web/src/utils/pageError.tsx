@@ -1,3 +1,4 @@
+// admin-web/src/utils/pageError.tsx
 import { notifications } from '@mantine/notifications';
 
 export type PageError = Error & {
