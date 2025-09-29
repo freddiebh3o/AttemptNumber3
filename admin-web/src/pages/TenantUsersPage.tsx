@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams, useLocation, useNavigationType } from "react-router-dom";
 import {
   ActionIcon, Badge, Button, CloseButton, Group, Loader, Modal, NumberInput, Paper,
-  PasswordInput, Select, Stack, Table, Text, TextInput, Title, rem, Tooltip, Grid 
+  PasswordInput, Select, Stack, Table, Text, TextInput, Title, rem, Tooltip, Grid
 } from "@mantine/core";
 import { DatePickerInput } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
@@ -567,15 +567,15 @@ export default function TenantUsersPage() {
   return (
     <div>
       {/* Header */}
-      <div className="pb-4 border-b border-gray-200 bg-white">
-        <Group justify="space-between" align="flex-end">
-          <div>
+      <div className="flex justify-between items-start w-full">
+        <Group justify="space-between" align="flex-end" className="w-full">
+          <Stack gap="xs">
             <Title order={3}>All Users</Title>
             <Text size="sm" c="dimmed" id={RANGE_ID} aria-live="polite" aria-atomic="true">
               {rangeText}
             </Text>
-          </div>
-          <Group justify="flex-end" align="center">
+          </Stack>
+          <Group gap="xs">
             <Button
               leftSection={<IconLink size={16} />}
               variant="light"

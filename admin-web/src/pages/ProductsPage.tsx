@@ -16,7 +16,8 @@ import {
   rem,
   ActionIcon,
   Tooltip,
-  CloseButton
+  CloseButton,
+  Stack
 } from "@mantine/core";
 import { DatePickerInput } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
@@ -634,15 +635,15 @@ export default function ProductsPage() {
   return (
     <div>
       {/* Header Banner */}
-      <div className="pb-4 border-b border-gray-200 bg-white">
-        <Group justify="space-between" align="flex-end">
-          <div>
+      <div className="flex justify-between items-start w-full">
+        <Group justify="space-between" align="flex-end" className="w-full">
+          <Stack gap="xs"> 
             <Title order={3}>All Products</Title>
             <Text size="sm" c="dimmed">
               {rangeText}
             </Text>
-          </div>
-          <Group justify="flex-end" align="center">
+          </Stack>
+          <Group gap="xs">
             <Button
               leftSection={<IconLink size={16} />}
               variant="light"
