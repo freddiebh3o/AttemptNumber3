@@ -1,5 +1,6 @@
 // admin-web/src/components/shell/HeaderBar.tsx
-import { Group, Text, Burger, Box, Button } from '@mantine/core';
+import { Group, Text, Burger, Box, Button, ActionIcon, Tooltip, useComputedColorScheme, useMantineColorScheme } from '@mantine/core';
+import { IconSun, IconMoon } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 import TenantSwitcher from './TenantSwitcher';
 import { signOutApiRequest } from '../../api/auth';
@@ -15,6 +16,11 @@ export default function HeaderBar({
   const navigate = useNavigate();
   const clearAuth = useAuthStore((s) => s.clear);
 
+  // ⬇️ Mantine color scheme hooks
+  const { setColorScheme } = useMantineColorScheme();
+  const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
+  const isLight = computedColorScheme === 'light';
+
   async function handleSignOut() {
     try {
       await signOutApiRequest();
@@ -24,6 +30,10 @@ export default function HeaderBar({
       clearAuth();
       navigate('/sign-in');
     }
+  }
+
+  function toggleScheme() {
+    setColorScheme(isLight ? 'dark' : 'light');
   }
 
   return (
@@ -37,6 +47,20 @@ export default function HeaderBar({
         <Box>
           <TenantSwitcher />
         </Box>
+
+        {/* ⬇️ Dark / Light toggle */}
+        <Tooltip label={isLight ? 'Switch to dark' : 'Switch to light'} withArrow>
+          <ActionIcon
+            variant="default"
+            size="lg"
+            radius="md"
+            onClick={toggleScheme}
+            aria-label="Toggle color scheme"
+          >
+            {isLight ? <IconMoon size={18} /> : <IconSun size={18} />}
+          </ActionIcon>
+        </Tooltip>
+
         <Button variant="light" onClick={handleSignOut}>
           Sign out
         </Button>
