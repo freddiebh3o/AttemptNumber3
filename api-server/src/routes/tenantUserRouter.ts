@@ -16,15 +16,37 @@ import {
   removeUserFromTenantService,
 } from "../services/tenantUserService.js";
 import { assertAuthed, assertHasQuery, assertHasBody, assertHasParams } from "../types/assertions.js";
+import { createFixedWindowRateLimiterMiddleware } from "../middleware/rateLimiterMiddleware.js";
 
 export const tenantUserRouter = Router();
 
+
+const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+const tenantUsersRateLimiter = createFixedWindowRateLimiterMiddleware({
+  windowSeconds: 60,
+  limit: 60,
+  bucketScope: "ip+session",
+});
+
+tenantUserRouter.use(tenantUsersRateLimiter);
+
 const RoleEnum = z.enum(["OWNER", "ADMIN", "EDITOR", "VIEWER"]);
 
-// GET /api/tenant-users
 const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional(),
   cursorId: z.string().min(1).optional(),
+  // filters
+  q: z.string().min(1).optional(),
+  roleName: RoleEnum.optional(),
+  createdAtFrom: z.string().regex(dateRegex, 'Use YYYY-MM-DD').optional(),
+  createdAtTo: z.string().regex(dateRegex, 'Use YYYY-MM-DD').optional(),
+  updatedAtFrom: z.string().regex(dateRegex, 'Use YYYY-MM-DD').optional(),
+  updatedAtTo: z.string().regex(dateRegex, 'Use YYYY-MM-DD').optional(),
+  // sort
+  sortBy: z.enum(["createdAt", "updatedAt", "userEmailAddress", "roleName"]).optional(),
+  sortDir: z.enum(["asc", "desc"]).optional(),
+  includeTotal: z.coerce.boolean().optional(),
 });
 
 tenantUserRouter.get(
@@ -37,13 +59,33 @@ tenantUserRouter.get(
       assertAuthed(req);
       assertHasQuery<z.infer<typeof listQuerySchema>>(req);
 
-      const currentTenantId = req.currentTenantId;
-      const { limit, cursorId } = req.validatedQuery;
+      const {
+        limit,
+        cursorId,
+        q,
+        roleName,
+        createdAtFrom,
+        createdAtTo,
+        updatedAtFrom,
+        updatedAtTo,
+        sortBy,
+        sortDir,
+        includeTotal,
+      } = req.validatedQuery;
 
       const result = await listUsersForCurrentTenantService({
-        currentTenantId,
+        currentTenantId: req.currentTenantId,
         ...(limit !== undefined && { limitOptional: limit }),
         ...(cursorId !== undefined && { cursorIdOptional: cursorId }),
+        ...(q !== undefined && { qOptional: q }),
+        ...(roleName !== undefined && { roleNameOptional: roleName }),
+        ...(createdAtFrom !== undefined && { createdAtFromOptional: createdAtFrom }),
+        ...(createdAtTo !== undefined && { createdAtToOptional: createdAtTo }),
+        ...(updatedAtFrom !== undefined && { updatedAtFromOptional: updatedAtFrom }),
+        ...(updatedAtTo !== undefined && { updatedAtToOptional: updatedAtTo }),
+        ...(sortBy !== undefined && { sortByOptional: sortBy }),
+        ...(sortDir !== undefined && { sortDirOptional: sortDir }),
+        ...(includeTotal !== undefined && { includeTotalOptional: includeTotal }),
       });
 
       return res.status(200).json(createStandardSuccessResponse(result));

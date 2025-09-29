@@ -1,9 +1,32 @@
 // api-server/src/services/tenantUserService.ts
-import { PrismaClient, RoleName } from '@prisma/client'
+import { RoleName } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { Errors } from '../utils/httpErrors.js'
-const prismaClientInstance = new PrismaClient()
+import { prismaClientInstance } from '../db/prismaClient.js'
 
+type SortField = 'createdAt' | 'updatedAt' | 'userEmailAddress' | 'roleName'
+type SortDir = 'asc' | 'desc'
+
+type ListUsersArgs = {
+  currentTenantId: string
+  limitOptional?: number
+  cursorIdOptional?: string
+  // filters
+  qOptional?: string
+  roleNameOptional?: RoleName
+  createdAtFromOptional?: string // 'YYYY-MM-DD'
+  createdAtToOptional?: string   // 'YYYY-MM-DD'
+  updatedAtFromOptional?: string // 'YYYY-MM-DD'
+  updatedAtToOptional?: string   // 'YYYY-MM-DD'
+  // sort
+  sortByOptional?: SortField
+  sortDirOptional?: SortDir
+  includeTotalOptional?: boolean
+}
+
+function addDays(date: Date, days: number) {
+  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000)
+}
 
 async function countOwners(tenantId: string) {
   return prismaClientInstance.userTenantMembership.count({
@@ -20,33 +43,132 @@ async function isOwner(tenantId: string, userId: string) {
 }
 
 
-export async function listUsersForCurrentTenantService(params: {
-  currentTenantId: string
-  limitOptional?: number
-  cursorIdOptional?: string
-}) {
-  const take = params.limitOptional ?? 50
+export async function listUsersForCurrentTenantService(args: ListUsersArgs) {
+  const {
+    currentTenantId,
+    limitOptional,
+    cursorIdOptional,
+    qOptional,
+    roleNameOptional,
+    createdAtFromOptional,
+    createdAtToOptional,
+    updatedAtFromOptional,
+    updatedAtToOptional,
+    sortByOptional,
+    sortDirOptional,
+    includeTotalOptional,
+  } = args
 
-  const memberships = await prismaClientInstance.userTenantMembership.findMany({
-    where: { tenantId: params.currentTenantId },
-    include: { user: true },
-    orderBy: { createdAt: 'asc' },
+  const limit = Math.min(Math.max(limitOptional ?? 20, 1), 100)
+  const sortBy: SortField = sortByOptional ?? 'createdAt'
+  const sortDir: SortDir = sortDirOptional ?? 'desc'
+
+  // Build nested user filter (email + dates)
+  let userFilter: any = {}
+  if (qOptional && qOptional.trim()) {
+    userFilter.userEmailAddress = { contains: qOptional.trim(), mode: 'insensitive' }
+  }
+
+  let createdAtFilter: any = {}
+  if (createdAtFromOptional) {
+    const from = new Date(createdAtFromOptional)
+    if (!isNaN(from.getTime())) createdAtFilter.gte = from
+  }
+  if (createdAtToOptional) {
+    const to = new Date(createdAtToOptional)
+    if (!isNaN(to.getTime())) createdAtFilter.lt = addDays(to, 1) // inclusive end
+  }
+  if (Object.keys(createdAtFilter).length) {
+    userFilter = { ...userFilter, createdAt: createdAtFilter }
+  }
+
+  let updatedAtFilter: any = {}
+  if (updatedAtFromOptional) {
+    const from = new Date(updatedAtFromOptional)
+    if (!isNaN(from.getTime())) updatedAtFilter.gte = from
+  }
+  if (updatedAtToOptional) {
+    const to = new Date(updatedAtToOptional)
+    if (!isNaN(to.getTime())) updatedAtFilter.lt = addDays(to, 1)
+  }
+  if (Object.keys(updatedAtFilter).length) {
+    userFilter = { ...userFilter, updatedAt: updatedAtFilter }
+  }
+
+  // Membership-level where
+  const where: any = {
+    tenantId: currentTenantId,
+    ...(roleNameOptional ? { roleName: roleNameOptional } : {}),
+    ...(Object.keys(userFilter).length ? { user: userFilter } : {}),
+  }
+
+  // Primary order + tie-breaker by membership.id
+  const orderByPrimary =
+    sortBy === 'userEmailAddress'
+      ? { user: { userEmailAddress: sortDir } }
+      : sortBy === 'roleName'
+      ? { roleName: sortDir }
+      : sortBy === 'createdAt'
+      ? { user: { createdAt: sortDir } }
+      : { user: { updatedAt: sortDir } }
+
+  const orderBy: any[] = [orderByPrimary, { id: sortDir }]
+
+  const take = limit + 1
+
+  const rows = await prismaClientInstance.userTenantMembership.findMany({
+    where,
+    orderBy,
     take,
-    ...(params.cursorIdOptional && { cursor: { id: params.cursorIdOptional }, skip: 1 }),
+    ...(cursorIdOptional && { cursor: { id: cursorIdOptional }, skip: 1 }),
+    select: {
+      id: true,            // for cursor
+      roleName: true,
+      user: {
+        select: {
+          id: true,
+          userEmailAddress: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      },
+    },
   })
 
-  const nextCursorId = memberships.length === take ? memberships[memberships.length - 1]?.id : undefined
+  const hasNextPage = rows.length > limit
+  const slice = hasNextPage ? rows.slice(0, limit) : rows
+  const nextCursor = hasNextPage ? slice[slice.length - 1]?.id ?? null : null
+
+  let totalCount: number | undefined
+  if (includeTotalOptional) {
+    totalCount = await prismaClientInstance.userTenantMembership.count({ where })
+  }
 
   return {
-    users: memberships.map((m) => ({
-      userId: m.userId,
+    items: slice.map((m) => ({
+      userId: m.user.id,
       userEmailAddress: m.user.userEmailAddress,
       roleName: m.roleName,
-      // createdAt/updatedAt are often useful in admin lists:
       createdAt: m.user.createdAt.toISOString(),
       updatedAt: m.user.updatedAt.toISOString(),
     })),
-    nextCursorId,
+    pageInfo: {
+      hasNextPage,
+      nextCursor,
+      ...(totalCount !== undefined && { totalCount }),
+    },
+    applied: {
+      limit,
+      sort: { field: sortBy, direction: sortDir },
+      filters: {
+        ...(qOptional ? { q: qOptional } : {}),
+        ...(roleNameOptional ? { roleName: roleNameOptional } : {}),
+        ...(createdAtFromOptional ? { createdAtFrom: createdAtFromOptional } : {}),
+        ...(createdAtToOptional ? { createdAtTo: createdAtToOptional } : {}),
+        ...(updatedAtFromOptional ? { updatedAtFrom: updatedAtFromOptional } : {}),
+        ...(updatedAtToOptional ? { updatedAtTo: updatedAtToOptional } : {}),
+      },
+    },
   }
 }
 

@@ -367,6 +367,7 @@ Adding a new route:
 
 ## Future fetures
 * Repeat UI/UX improvements for the users page.
+* Split the openapi.ts file up to make it more manageable
 
 * In the standardised server response, we need meta data for pagination/filtering.
   * will return the search options and search options that we sent with the request

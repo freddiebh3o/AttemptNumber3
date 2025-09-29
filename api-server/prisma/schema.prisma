@@ -31,32 +31,36 @@ model Tenant {
 
 /// A person that can belong to multiple tenants
 model User {
-  id                       String                 @id @default(cuid())
-  userEmailAddress         String                 @unique
-  userHashedPassword       String
+  id                 String   @id @default(cuid())
+  userEmailAddress   String   @unique
+  userHashedPassword String
 
-  memberships              UserTenantMembership[]
+  memberships        UserTenantMembership[]
 
-  createdAt                DateTime               @default(now())
-  updatedAt                DateTime               @updatedAt
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([createdAt])
+  @@index([updatedAt])
 }
 
 /// Join table: which user belongs to which tenant, with role
 model UserTenantMembership {
-  id                String   @id @default(cuid())
-  userId            String
-  tenantId          String
-  roleName          RoleName
+  id        String   @id @default(cuid())
+  userId    String
+  tenantId  String
+  roleName  RoleName
 
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([userId, tenantId])
   @@index([tenantId])
   @@index([userId])
+  @@index([tenantId, roleName])
 }
 
 /// A product owned by a tenant (POC scope)
@@ -77,6 +81,7 @@ model Product {
   @@unique([tenantId, productSku])
   @@index([tenantId])
   @@index([createdAt])
+  @@index([updatedAt])
 }
 
 /// Stores idempotency for POST/PUT so we can replay the same result for duplicate requests

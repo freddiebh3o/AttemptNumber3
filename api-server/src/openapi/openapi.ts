@@ -234,6 +234,58 @@ const ZodTenantUsersList = z
   })
   .openapi("TenantUsersList");
 
+const ZodListTenantUsersQuery = z
+  .object({
+    limit: z.number().int().min(1).max(100).optional(),
+    cursorId: z.string().optional(),
+    // filters
+    q: z.string().optional(),
+    roleName: z.enum(["OWNER", "ADMIN", "EDITOR", "VIEWER"]).optional(),
+    createdAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    createdAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    updatedAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    updatedAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    // sort
+    sortBy: z.enum(["createdAt", "updatedAt", "userEmailAddress", "roleName"]).optional(),
+    sortDir: z.enum(["asc", "desc"]).optional(),
+    includeTotal: z.boolean().optional(),
+  })
+  .openapi("ListTenantUsersQuery");
+
+const ZodTenantUsersListResponseData = z
+  .object({
+    items: z.array(
+      z.object({
+        userId: z.string(),
+        userEmailAddress: z.string().email(),
+        roleName: z.enum(["OWNER", "ADMIN", "EDITOR", "VIEWER"]),
+        createdAt: z.string().datetime(),
+        updatedAt: z.string().datetime(),
+      })
+    ),
+    pageInfo: z.object({
+      hasNextPage: z.boolean(),
+      nextCursor: z.string().nullable().optional(),
+      totalCount: z.number().int().min(0).optional(),
+    }),
+    applied: z.object({
+      limit: z.number().int().min(1).max(100),
+      sort: z.object({
+        field: z.enum(["createdAt", "updatedAt", "userEmailAddress", "roleName"]),
+        direction: z.enum(["asc", "desc"]),
+      }),
+      filters: z.object({
+        q: z.string().optional(),
+        roleName: z.enum(["OWNER", "ADMIN", "EDITOR", "VIEWER"]).optional(),
+        createdAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        createdAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        updatedAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        updatedAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      }),
+    }),
+  })
+  .openapi("TenantUsersListResponseData");
+
 const ZodCreateTenantUserBody = z
   .object({
     email: z.string().email(),
@@ -532,23 +584,19 @@ export function registerAllPathsInOpenApiRegistry() {
     method: "get",
     path: "/api/tenant-users",
     security: [{ cookieAuth: [] }],
-    request: {
-      query: z
-        .object({
-          limit: z.number().int().min(1).max(100).optional(),
-          cursorId: z.string().optional(),
-        })
-        .openapi("ListTenantUsersQuery"),
-    },
+    request: { query: ZodListTenantUsersQuery },
     responses: {
       200: {
         description: "List tenant users",
         content: {
-          "application/json": { schema: successEnvelope(ZodTenantUsersList) },
+          "application/json": {
+            schema: successEnvelope(ZodTenantUsersListResponseData),
+          },
         },
       },
       401: response401,
       403: response403,
+      429: response429,
       500: response500,
     },
   });
