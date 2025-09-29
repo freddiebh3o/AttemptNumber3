@@ -44,6 +44,8 @@ const listQuerySchema = z.object({
   maxPriceCents: z.coerce.number().int().min(0).optional(),
   createdAtFrom: z.string().regex(dateRegex, 'Use YYYY-MM-DD').optional(),
   createdAtTo: z.string().regex(dateRegex, 'Use YYYY-MM-DD').optional(),
+  updatedAtFrom: z.string().regex(dateRegex, 'Use YYYY-MM-DD').optional(), // NEW
+  updatedAtTo: z.string().regex(dateRegex, 'Use YYYY-MM-DD').optional(),   // NEW
   // sort
   sortBy: z.enum(["createdAt", "updatedAt", "productName", "productPriceCents"]).optional(),
   sortDir: z.enum(["asc", "desc"]).optional(),
@@ -82,6 +84,8 @@ productRouter.get(
         maxPriceCents,
         createdAtFrom,
         createdAtTo,
+        updatedAtFrom,
+        updatedAtTo,
         sortBy,
         sortDir,
         includeTotal,
@@ -91,13 +95,15 @@ productRouter.get(
         currentTenantId: request.currentTenantId!,
         ...(limit !== undefined && { limitOptional: limit }),
         ...(cursorId !== undefined && { cursorIdOptional: cursorId }),
-      
+
         ...(q !== undefined && { qOptional: q }),
         ...(minPriceCents !== undefined && { minPriceCentsOptional: minPriceCents }),
         ...(maxPriceCents !== undefined && { maxPriceCentsOptional: maxPriceCents }),
         ...(createdAtFrom !== undefined && { createdAtFromOptional: createdAtFrom }),
         ...(createdAtTo !== undefined && { createdAtToOptional: createdAtTo }),
-      
+        ...(updatedAtFrom !== undefined && { updatedAtFromOptional: updatedAtFrom }), // NEW
+        ...(updatedAtTo !== undefined && { updatedAtToOptional: updatedAtTo }),       // NEW
+
         ...(sortBy !== undefined && { sortByOptional: sortBy }),
         ...(sortDir !== undefined && { sortDirOptional: sortDir }),
         ...(includeTotal !== undefined && { includeTotalOptional: includeTotal }),

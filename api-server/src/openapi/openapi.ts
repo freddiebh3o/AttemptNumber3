@@ -153,6 +153,8 @@ const ZodProductsListResponseData = z
         maxPriceCents: z.number().int().min(0).optional(),
         createdAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
         createdAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        updatedAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        updatedAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
       }),
     }),
   })
@@ -263,6 +265,8 @@ const ZodListProductsQuery = z
     maxPriceCents: z.number().int().min(0).optional(),
     createdAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     createdAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    updatedAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    updatedAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     // sort
     sortBy: z
       .enum(["createdAt", "updatedAt", "productName", "productPriceCents"])

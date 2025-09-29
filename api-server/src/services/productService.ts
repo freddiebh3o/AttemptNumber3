@@ -15,6 +15,8 @@ type ListProductsArgs = {
   maxPriceCentsOptional?: number
   createdAtFromOptional?: string // 'YYYY-MM-DD'
   createdAtToOptional?: string   // 'YYYY-MM-DD'
+  updatedAtFromOptional?: string // 'YYYY-MM-DD'  // NEW
+  updatedAtToOptional?: string   // 'YYYY-MM-DD'  // NEW
   // sort
   sortByOptional?: SortField
   sortDirOptional?: SortDir
@@ -35,6 +37,8 @@ export async function listProductsForCurrentTenantService(args: ListProductsArgs
     maxPriceCentsOptional,
     createdAtFromOptional,
     createdAtToOptional,
+    updatedAtFromOptional,
+    updatedAtToOptional,
     sortByOptional,
     sortDirOptional,
     includeTotalOptional,
@@ -75,6 +79,26 @@ export async function listProductsForCurrentTenantService(args: ListProductsArgs
     createdAtFilter = {}
   }
 
+  // NEW: updatedAt filter
+  let updatedAtFilter: any = {}
+  if (updatedAtFromOptional) {
+    const from = new Date(updatedAtFromOptional)
+    if (!isNaN(from.getTime())) {
+      updatedAtFilter = { ...updatedAtFilter, gte: from }
+    }
+  }
+  if (updatedAtToOptional) {
+    const to = new Date(updatedAtToOptional)
+    if (!isNaN(to.getTime())) {
+      updatedAtFilter = { ...updatedAtFilter, lt: addDays(to, 1) } // inclusive end
+    }
+  }
+  if (Object.keys(updatedAtFilter).length > 0) {
+    updatedAtFilter = { updatedAt: updatedAtFilter }
+  } else {
+    updatedAtFilter = {}
+  }
+
   const searchFilter =
     qOptional && qOptional.trim().length > 0
       ? {
@@ -89,6 +113,7 @@ export async function listProductsForCurrentTenantService(args: ListProductsArgs
     tenantId: currentTenantId,
     ...priceFilter,
     ...createdAtFilter,
+    ...updatedAtFilter, // NEW
     ...searchFilter,
   } as const
 
@@ -145,6 +170,8 @@ export async function listProductsForCurrentTenantService(args: ListProductsArgs
         ...(maxPriceCentsOptional !== undefined ? { maxPriceCents: maxPriceCentsOptional } : {}),
         ...(createdAtFromOptional ? { createdAtFrom: createdAtFromOptional } : {}),
         ...(createdAtToOptional ? { createdAtTo: createdAtToOptional } : {}),
+        ...(updatedAtFromOptional ? { updatedAtFrom: updatedAtFromOptional } : {}), // NEW
+        ...(updatedAtToOptional ? { updatedAtTo: updatedAtToOptional } : {}),       // NEW
       },
     },
   }

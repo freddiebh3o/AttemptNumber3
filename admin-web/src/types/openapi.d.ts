@@ -216,6 +216,8 @@ export interface paths {
                     maxPriceCents?: number;
                     createdAtFrom?: string;
                     createdAtTo?: string;
+                    updatedAtFrom?: string;
+                    updatedAtTo?: string;
                     sortBy?: "createdAt" | "updatedAt" | "productName" | "productPriceCents";
                     sortDir?: "asc" | "desc";
                     includeTotal?: boolean;
@@ -1170,6 +1172,8 @@ export interface components {
                     maxPriceCents?: number;
                     createdAtFrom?: string;
                     createdAtTo?: string;
+                    updatedAtFrom?: string;
+                    updatedAtTo?: string;
                 };
             };
         };
