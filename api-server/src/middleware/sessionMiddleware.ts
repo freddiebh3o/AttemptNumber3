@@ -4,6 +4,7 @@ import {
   getSessionCookieName,
   verifySignedSessionToken,
 } from "../utils/sessionCookie.js";
+import { Errors } from "../utils/httpErrors.js";
 
 export function sessionMiddleware(
   request: Request,
@@ -31,13 +32,7 @@ export function requireAuthenticatedUserMiddleware(
   const currentUserId: string | undefined = (request as any).currentUserId;
   const currentTenantId: string | undefined = (request as any).currentTenantId;
   if (!currentUserId || !currentTenantId) {
-    return next(
-      new (class extends Error {
-        httpStatusCode = 401;
-        errorCode = "AUTH_REQUIRED";
-        userFacingMessage = "Please sign in to continue.";
-      })()
-    );
+    return next(Errors.authRequired());
   }
   next();
 }

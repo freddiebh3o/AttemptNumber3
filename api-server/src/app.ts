@@ -47,16 +47,16 @@ export function createConfiguredExpressApplicationInstance() {
   app.use(express.json({ limit: "64kb" }));
   app.use(express.urlencoded({ extended: false }));
   app.use(requestIdMiddleware);
+  app.use((req, res, next) => {
+    const id = (req as any).correlationId ?? null;
+    if (id) {
+      res.setHeader('X-Request-Id', String(id));
+      res.setHeader('X-Correlation-Id', String(id));
+    }
+    next();
+  });
   app.use(httpLoggingMiddleware);
   app.use(sessionMiddleware);
-
-  app.use(
-    createFixedWindowRateLimiterMiddleware({
-      windowSeconds: 60,
-      limit: 300,
-      bucketScope: 'ip+session',
-    })
-  )
 
   // --- Public docs (no rate limiting) ---
   app.get("/openapi.json", (_req, res) => res.json(openApiDocument));
@@ -83,7 +83,7 @@ export function createConfiguredExpressApplicationInstance() {
   app.use("/api", apiRouter);
 
   // 404 envelope for unmatched API routes
-  app.use((req, res) => {
+  app.use("/api", (req, res) => {
     return res.status(404).json({
       success: false,
       data: null,
