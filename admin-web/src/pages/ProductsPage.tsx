@@ -20,6 +20,7 @@ import {
   ActionIcon,
   Tooltip,
 } from "@mantine/core";
+import { DatePickerInput } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
 import {
   listProductsApiRequest,
@@ -43,8 +44,10 @@ import {
 } from "@tabler/icons-react";
 import { handlePageError } from "../utils/pageError";
 import { useAuthStore } from "../stores/auth";
+import dayjs from 'dayjs';
 
-type SortField = "createdAt" | "productName" | "productPriceCents";
+
+type SortField = "createdAt" | "updatedAt" | "productName" | "productPriceCents";
 type SortDir = "asc" | "desc";
 
 export default function ProductsPage() {
@@ -72,12 +75,16 @@ export default function ProductsPage() {
 
   // Query controls
   const [showFilters, setShowFilters] = useState(false);
-  const [limit, setLimit] = useState<number>(12);
+  const [limit, setLimit] = useState<number>(20);
   const [sortBy, setSortBy] = useState<SortField>("createdAt");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   // Filters (server-side)
+  const [q, setQ] = useState<string>("");
   const [minPriceCents, setMinPriceCents] = useState<number | "">("");
+  const [maxPriceCents, setMaxPriceCents] = useState<number | "">("");
+  const [createdAtFromStr, setCreatedAtFromStr] = useState<string | null>(null);
+  const [createdAtToStr, setCreatedAtToStr] = useState<string | null>(null);
 
   // Create modal state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -107,19 +114,45 @@ export default function ProductsPage() {
     sortByOverride?: SortField;
     sortDirOverride?: SortDir;
     limitOverride?: number;
-    minPriceOverride?: number | undefined;
+    qOverride?: string | null | undefined;
+    minPriceOverride?: number | null | undefined;
+    maxPriceOverride?: number | null | undefined;
+    createdFromOverride?: string | null | undefined;
+    createdToOverride?: string | null | undefined;
   }) {
     setIsLoadingProductsList(true);
     try {
+      const qParam =
+        opts?.qOverride === undefined ? (q.trim() || undefined) : (opts.qOverride || undefined);
+  
+      const minParam =
+        opts?.minPriceOverride === undefined
+          ? (typeof minPriceCents === "number" ? minPriceCents : undefined)
+          : (opts.minPriceOverride == null ? undefined : opts.minPriceOverride);
+  
+      const maxParam =
+        opts?.maxPriceOverride === undefined
+          ? (typeof maxPriceCents === "number" ? maxPriceCents : undefined)
+          : (opts.maxPriceOverride == null ? undefined : opts.maxPriceOverride);
+  
+      const createdFromParam =
+        opts?.createdFromOverride === undefined
+          ? (createdAtFromStr || undefined)
+          : (opts.createdFromOverride || undefined);
+  
+      const createdToParam =
+        opts?.createdToOverride === undefined
+          ? (createdAtToStr || undefined)
+          : (opts.createdToOverride || undefined);
+  
       const response = await listProductsApiRequest({
         limit: opts?.limitOverride ?? limit,
         cursorId: opts?.cursorId ?? cursorStack[pageIndex] ?? undefined,
-        minPriceCents:
-          opts?.minPriceOverride !== undefined
-            ? opts.minPriceOverride
-            : typeof minPriceCents === "number"
-            ? minPriceCents
-            : undefined,
+        q: qParam,
+        minPriceCents: minParam,
+        maxPriceCents: maxParam,
+        createdAtFrom: createdFromParam,
+        createdAtTo: createdToParam,
         sortBy: opts?.sortByOverride ?? sortBy,
         sortDir: opts?.sortDirOverride ?? sortDir,
         includeTotal: opts?.includeTotal === true,
@@ -148,17 +181,18 @@ export default function ProductsPage() {
     sortByOverride?: SortField;
     sortDirOverride?: SortDir;
     limitOverride?: number;
-    minPriceOverride?: number | undefined;
+    qOverride?: string | null | undefined;
+    minPriceOverride?: number | null | undefined;
+    maxPriceOverride?: number | null | undefined;
+    createdFromOverride?: string | null | undefined;
+    createdToOverride?: string | null | undefined;
   }) {
     setCursorStack([null]);
     setPageIndex(0);
     void fetchPageWith({
       includeTotal: true,
       cursorId: null,
-      sortByOverride: opts?.sortByOverride,
-      sortDirOverride: opts?.sortDirOverride,
-      limitOverride: opts?.limitOverride,
-      minPriceOverride: opts?.minPriceOverride,
+      ...opts,
     });
   }
 
@@ -177,7 +211,7 @@ export default function ProductsPage() {
 
   if (errorForBoundary) throw errorForBoundary;
 
-  // ---- Sorting from table headers (FIXED: apply next values immediately) ----
+  // ---- Sorting from table headers ----
   function applySort(nextField: SortField) {
     const nextDir: SortDir =
       sortBy === nextField ? (sortDir === "asc" ? "desc" : "asc") : "asc";
@@ -191,7 +225,6 @@ export default function ProductsPage() {
     if (!hasNextPage || !nextCursor) return;
     setIsPaginating(true);
     try {
-      // push next cursor & move forward
       setCursorStack((prev) => [...prev.slice(0, pageIndex + 1), nextCursor]);
       setPageIndex((i) => i + 1);
       setTimeout(() => void fetchPageWith(), 0);
@@ -304,7 +337,35 @@ export default function ProductsPage() {
   function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
     if (!active) return <IconArrowsSort size={16} />;
     return dir === "asc" ? <IconArrowUp size={16} /> : <IconArrowDown size={16} />;
-    }
+  }
+
+  // Submit filters via Enter inside form
+  function onSubmitFilters(e: React.FormEvent) {
+    e.preventDefault();
+    resetToFirstPageAndFetch({
+      qOverride: q.trim() || undefined,
+      minPriceOverride: typeof minPriceCents === "number" ? minPriceCents : undefined,
+      maxPriceOverride: typeof maxPriceCents === "number" ? maxPriceCents : undefined,
+      createdFromOverride: createdAtFromStr ?? undefined,
+      createdToOverride: createdAtToStr ?? undefined,
+    });
+  }
+
+  function onClearFilters() {
+    setQ("");
+    setMinPriceCents("");
+    setMaxPriceCents("");
+    setCreatedAtFromStr(null);
+    setCreatedAtToStr(null);
+  
+    resetToFirstPageAndFetch({
+      qOverride: null,
+      minPriceOverride: null,
+      maxPriceOverride: null,
+      createdFromOverride: null,
+      createdToOverride: null,
+    });
+  }
 
   return (
     <div>
@@ -346,43 +407,91 @@ export default function ProductsPage() {
       {/* Collapsible Filters */}
       <Collapse in={showFilters}>
         <Paper withBorder p="md" radius="md" className="bg-white mt-3">
-          <Grid gutter="md">
-            <Grid.Col span={{ base: 12, sm: 6, md: 4 }}>
-              <NumberInput
-                label="Min price (cents)"
-                placeholder="e.g. 5000"
-                value={minPriceCents}
-                min={0}
-                onChange={(v) =>
-                  setMinPriceCents(typeof v === "number" ? v : v === "" ? "" : Number(v))
-                }
-              />
-            </Grid.Col>
+          <form onSubmit={onSubmitFilters}>
+            <Grid gutter="md">
+              <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+                <TextInput
+                  label="Search (name or SKU)"
+                  placeholder="e.g. anvil or ACME-SKU-001"
+                  value={q}
+                  onChange={(e) => setQ(e.currentTarget.value)}
+                />
+              </Grid.Col>
 
-            {/* More filters can go here */}
-          </Grid>
+              <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+                <NumberInput
+                  label="Min price (cents)"
+                  placeholder="e.g. 5000"
+                  value={minPriceCents}
+                  min={0}
+                  onChange={(v) =>
+                    setMinPriceCents(typeof v === "number" ? v : v === "" ? "" : Number(v))
+                  }
+                />
+              </Grid.Col>
 
-          <Group justify="flex-end" mt="md">
-            <Button
-              variant="subtle"
-              onClick={() => {
-                setMinPriceCents("");
-                resetToFirstPageAndFetch({ minPriceOverride: undefined });
-              }}
-            >
-              Clear
-            </Button>
-            <Button
-              onClick={() => {
-                resetToFirstPageAndFetch({
-                  minPriceOverride:
-                    typeof minPriceCents === "number" ? minPriceCents : undefined,
-                });
-              }}
-            >
-              Apply filters
-            </Button>
-          </Group>
+              <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+                <NumberInput
+                  label="Max price (cents)"
+                  placeholder="e.g. 20000"
+                  value={maxPriceCents}
+                  min={0}
+                  onChange={(v) =>
+                    setMaxPriceCents(typeof v === "number" ? v : v === "" ? "" : Number(v))
+                  }
+                />
+              </Grid.Col>
+
+              <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+                <DatePickerInput
+                  label="Created from"
+                  placeholder="Start date"
+                  value={createdAtFromStr}
+                  onChange={setCreatedAtFromStr}
+                  valueFormat="YYYY-MM-DD"
+                  popoverProps={{ withinPortal: true }}
+                  presets={[
+                    { value: dayjs().subtract(1, 'day').format('YYYY-MM-DD'), label: 'Yesterday' },
+                    { value: dayjs().format('YYYY-MM-DD'), label: 'Today' },
+                    { value: dayjs().add(1, 'day').format('YYYY-MM-DD'), label: 'Tomorrow' },
+                    { value: dayjs().add(1, 'month').format('YYYY-MM-DD'), label: 'Next month' },
+                    { value: dayjs().add(1, 'year').format('YYYY-MM-DD'), label: 'Next year' },
+                    { value: dayjs().subtract(1, 'month').format('YYYY-MM-DD'), label: 'Last month' },
+                    { value: dayjs().subtract(1, 'year').format('YYYY-MM-DD'), label: 'Last year' },
+                  ]}
+                  clearable
+                />
+              </Grid.Col>
+
+              <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+                <DatePickerInput
+                  label="Created to"
+                  placeholder="End date"
+                  value={createdAtToStr}
+                  onChange={setCreatedAtToStr}
+                  valueFormat="YYYY-MM-DD"
+                  popoverProps={{ withinPortal: true }}
+                  presets={[
+                    { value: dayjs().subtract(1, 'day').format('YYYY-MM-DD'), label: 'Yesterday' },
+                    { value: dayjs().format('YYYY-MM-DD'), label: 'Today' },
+                    { value: dayjs().add(1, 'day').format('YYYY-MM-DD'), label: 'Tomorrow' },
+                    { value: dayjs().add(1, 'month').format('YYYY-MM-DD'), label: 'Next month' },
+                    { value: dayjs().add(1, 'year').format('YYYY-MM-DD'), label: 'Next year' },
+                    { value: dayjs().subtract(1, 'month').format('YYYY-MM-DD'), label: 'Last month' },
+                    { value: dayjs().subtract(1, 'year').format('YYYY-MM-DD'), label: 'Last year' },
+                  ]}
+                  clearable
+                />
+              </Grid.Col>
+            </Grid>
+
+            <Group justify="flex-end" mt="md">
+              <Button type="button" variant="subtle" onClick={onClearFilters}>
+                Clear
+              </Button>
+              <Button type="submit">Apply filters</Button>
+            </Group>
+          </form>
         </Paper>
       </Collapse>
 
@@ -460,8 +569,23 @@ export default function ProductsPage() {
 
                       <Table.Th>
                         <Group gap={4} wrap="nowrap">
+                          <span>Created</span>
+                          <Tooltip label="Sort by created date" withArrow>
+                            <ActionIcon
+                              variant="subtle"
+                              size="sm"
+                              onClick={() => applySort("createdAt")}
+                              aria-label="Sort by created"
+                            >
+                              <SortIcon active={sortBy === "createdAt"} dir={sortDir} />
+                            </ActionIcon>
+                          </Tooltip>
+                        </Group>
+                      </Table.Th>
+
+                      <Table.Th>
+                        <Group gap={4} wrap="nowrap">
                           <span>Version</span>
-                          {/* Not sortable server-side */}
                         </Group>
                       </Table.Th>
 
@@ -475,6 +599,9 @@ export default function ProductsPage() {
                         <Table.Td>{p.productName}</Table.Td>
                         <Table.Td>{p.productSku}</Table.Td>
                         <Table.Td>{p.productPriceCents}</Table.Td>
+                        <Table.Td>
+                          <Text size="sm">{new Date(p.createdAt).toLocaleString()}</Text>
+                        </Table.Td>
                         <Table.Td>
                           <Badge>{p.entityVersion}</Badge>
                         </Table.Td>

@@ -1,8 +1,7 @@
 // admin-web/src/api/products.ts
 import { httpRequestJson } from "./http";
-import type { paths } from "../types/openapi"; // ← generated
+import type { paths } from "../types/openapi";
 
-// Request/Response types from OpenAPI (note the NonNullable around requestBody)
 type CreateProductRequestBody = NonNullable<
   paths["/api/products"]["post"]["requestBody"]
 >["content"]["application/json"];
@@ -23,18 +22,27 @@ type ListProducts200Response =
 type DeleteProduct200Response =
   paths["/api/products/{productId}"]["delete"]["responses"]["200"]["content"]["application/json"];
 
+// Matches server query options (incl. new filters and updated sortBy)
 export async function listProductsApiRequest(params?: {
   limit?: number;
   cursorId?: string;
+  q?: string;                       // search by name or SKU
   minPriceCents?: number;
-  sortBy?: "createdAt" | "productName" | "productPriceCents";
+  maxPriceCents?: number;
+  createdAtFrom?: string;           // YYYY-MM-DD
+  createdAtTo?: string;             // YYYY-MM-DD
+  sortBy?: "createdAt" | "updatedAt" | "productName" | "productPriceCents";
   sortDir?: "asc" | "desc";
   includeTotal?: boolean;
 }) {
   const search = new URLSearchParams();
   if (params?.limit !== undefined) search.set("limit", String(params.limit));
   if (params?.cursorId !== undefined) search.set("cursorId", String(params.cursorId));
+  if (params?.q) search.set("q", params.q);
   if (params?.minPriceCents !== undefined) search.set("minPriceCents", String(params.minPriceCents));
+  if (params?.maxPriceCents !== undefined) search.set("maxPriceCents", String(params.maxPriceCents));
+  if (params?.createdAtFrom) search.set("createdAtFrom", params.createdAtFrom);
+  if (params?.createdAtTo) search.set("createdAtTo", params.createdAtTo);
   if (params?.sortBy) search.set("sortBy", params.sortBy);
   if (params?.sortDir) search.set("sortDir", params.sortDir);
   if (params?.includeTotal) search.set("includeTotal", "1");
@@ -63,8 +71,8 @@ export async function createProductApiRequest(
 
 export async function updateProductApiRequest(
   params: { productId: string } & UpdateProductRequestBody & {
-      idempotencyKeyOptional?: string;
-    }
+    idempotencyKeyOptional?: string;
+  }
 ) {
   return httpRequestJson<UpdateProduct200Response>(
     `/api/products/${params.productId}`,

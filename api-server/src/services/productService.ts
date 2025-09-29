@@ -1,16 +1,28 @@
 // api-server/src/services/productService.ts
 import { prismaClientInstance } from '../db/prismaClient.js'
 import { Errors } from '../utils/httpErrors.js'
-import type { Prisma } from '@prisma/client';
+
+type SortField = 'createdAt' | 'updatedAt' | 'productName' | 'productPriceCents'
+type SortDir = 'asc' | 'desc'
 
 type ListProductsArgs = {
   currentTenantId: string
   limitOptional?: number
   cursorIdOptional?: string
+  // filters
+  qOptional?: string
   minPriceCentsOptional?: number
-  sortByOptional?: 'createdAt' | 'productName' | 'productPriceCents'
-  sortDirOptional?: 'asc' | 'desc'
+  maxPriceCentsOptional?: number
+  createdAtFromOptional?: string // 'YYYY-MM-DD'
+  createdAtToOptional?: string   // 'YYYY-MM-DD'
+  // sort
+  sortByOptional?: SortField
+  sortDirOptional?: SortDir
   includeTotalOptional?: boolean
+}
+
+function addDays(date: Date, days: number) {
+  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000)
 }
 
 export async function listProductsForCurrentTenantService(args: ListProductsArgs) {
@@ -18,33 +30,75 @@ export async function listProductsForCurrentTenantService(args: ListProductsArgs
     currentTenantId,
     limitOptional,
     cursorIdOptional,
+    qOptional,
     minPriceCentsOptional,
+    maxPriceCentsOptional,
+    createdAtFromOptional,
+    createdAtToOptional,
     sortByOptional,
     sortDirOptional,
     includeTotalOptional,
   } = args
 
   const limit = Math.min(Math.max(limitOptional ?? 20, 1), 100)
-  const sortBy = sortByOptional ?? 'createdAt'
-  const sortDir = sortDirOptional ?? 'desc'
+  const sortBy: SortField = sortByOptional ?? 'createdAt'
+  const sortDir: SortDir = sortDirOptional ?? 'desc'
+
+  // Build WHERE
+  const priceFilter =
+    minPriceCentsOptional !== undefined || maxPriceCentsOptional !== undefined
+      ? {
+          productPriceCents: {
+            ...(minPriceCentsOptional !== undefined ? { gte: minPriceCentsOptional } : {}),
+            ...(maxPriceCentsOptional !== undefined ? { lte: maxPriceCentsOptional } : {}),
+          },
+        }
+      : {}
+
+  // Dates: inclusive range for whole days. 'YYYY-MM-DD' is treated as UTC in JS Date.
+  let createdAtFilter: any = {}
+  if (createdAtFromOptional) {
+    const from = new Date(createdAtFromOptional)
+    if (!isNaN(from.getTime())) {
+      createdAtFilter = { ...createdAtFilter, gte: from }
+    }
+  }
+  if (createdAtToOptional) {
+    const to = new Date(createdAtToOptional)
+    if (!isNaN(to.getTime())) {
+      createdAtFilter = { ...createdAtFilter, lt: addDays(to, 1) } // inclusive end
+    }
+  }
+  if (Object.keys(createdAtFilter).length > 0) {
+    createdAtFilter = { createdAt: createdAtFilter }
+  } else {
+    createdAtFilter = {}
+  }
+
+  const searchFilter =
+    qOptional && qOptional.trim().length > 0
+      ? {
+          OR: [
+            { productName: { contains: qOptional, mode: 'insensitive' } },
+            { productSku: { contains: qOptional, mode: 'insensitive' } },
+          ],
+        }
+      : {}
 
   const where = {
     tenantId: currentTenantId,
-    ...(minPriceCentsOptional !== undefined && {
-      productPriceCents: { gte: minPriceCentsOptional },
-    }),
+    ...priceFilter,
+    ...createdAtFilter,
+    ...searchFilter,
   } as const
 
   // Deterministic ordering with id as tie-breaker
-  const orderBy: Prisma.ProductOrderByWithRelationInput[] = [
-    { [sortBy]: sortDir } as Prisma.ProductOrderByWithRelationInput,
-    { id: sortDir },
-  ];
-  
+  const orderBy: any[] = [{ [sortBy]: sortDir }]
+  orderBy.push({ id: sortDir })
 
-const take = limit + 1 // fetch one extra to detect next page
+  const take = limit + 1 // fetch one extra to detect next page
 
-  const findArgs: Prisma.ProductFindManyArgs = {
+  const findArgs: any = {
     where,
     orderBy,
     take,
@@ -58,8 +112,7 @@ const take = limit + 1 // fetch one extra to detect next page
       updatedAt: true,
       createdAt: true,
     },
-    ...(cursorIdOptional && { cursor: { id: cursorIdOptional }, skip: 1 }),
-  };
+  }
 
   if (cursorIdOptional) {
     findArgs.cursor = { id: cursorIdOptional }
@@ -69,7 +122,7 @@ const take = limit + 1 // fetch one extra to detect next page
   const rows = await prismaClientInstance.product.findMany(findArgs)
   const hasNextPage = rows.length > limit
   const items = hasNextPage ? rows.slice(0, limit) : rows
-  const nextCursor = hasNextPage ? items[items.length - 1]!.id : null
+  const nextCursor = hasNextPage ? items[items.length - 1]?.id ?? null : null
 
   let totalCount: number | undefined
   if (includeTotalOptional) {
@@ -87,9 +140,11 @@ const take = limit + 1 // fetch one extra to detect next page
       limit,
       sort: { field: sortBy, direction: sortDir },
       filters: {
-        ...(minPriceCentsOptional !== undefined && {
-          minPriceCents: minPriceCentsOptional,
-        }),
+        ...(qOptional ? { q: qOptional } : {}),
+        ...(minPriceCentsOptional !== undefined ? { minPriceCents: minPriceCentsOptional } : {}),
+        ...(maxPriceCentsOptional !== undefined ? { maxPriceCents: maxPriceCentsOptional } : {}),
+        ...(createdAtFromOptional ? { createdAtFrom: createdAtFromOptional } : {}),
+        ...(createdAtToOptional ? { createdAtTo: createdAtToOptional } : {}),
       },
     },
   }
@@ -123,8 +178,7 @@ export async function createProductForCurrentTenantService(params: {
 }
 
 /**
- * Optimistic concurrency: updateMany with (id, tenantId, entityVersion) where clause.
- * If count === 0, version mismatch or not found -> 409.
+ * Optimistic concurrency
  */
 export async function updateProductForCurrentTenantService(params: {
   currentTenantId: string
@@ -158,7 +212,6 @@ export async function updateProductForCurrentTenantService(params: {
     throw Errors.conflict('The product was modified by someone else. Please reload and try again.')
   }
 
-  // Return the fresh row
   const updated = await prismaClientInstance.product.findFirst({
     where: { id: productIdPathParam, tenantId: currentTenantId },
     select: { id: true, productName: true, productSku: true, productPriceCents: true, entityVersion: true, updatedAt: true, createdAt: true },

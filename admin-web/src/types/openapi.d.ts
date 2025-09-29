@@ -211,8 +211,12 @@ export interface paths {
                 query?: {
                     limit?: number;
                     cursorId?: string;
+                    q?: string;
                     minPriceCents?: number;
-                    sortBy?: "createdAt" | "productName" | "productPriceCents";
+                    maxPriceCents?: number;
+                    createdAtFrom?: string;
+                    createdAtTo?: string;
+                    sortBy?: "createdAt" | "updatedAt" | "productName" | "productPriceCents";
                     sortDir?: "asc" | "desc";
                     includeTotal?: boolean;
                 };
@@ -1156,12 +1160,16 @@ export interface components {
                 limit: number;
                 sort: {
                     /** @enum {string} */
-                    field: "createdAt" | "productName" | "productPriceCents";
+                    field: "createdAt" | "updatedAt" | "productName" | "productPriceCents";
                     /** @enum {string} */
                     direction: "asc" | "desc";
                 };
                 filters: {
+                    q?: string;
                     minPriceCents?: number;
+                    maxPriceCents?: number;
+                    createdAtFrom?: string;
+                    createdAtTo?: string;
                 };
             };
         };

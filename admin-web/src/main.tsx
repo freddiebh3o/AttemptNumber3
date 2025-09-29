@@ -11,6 +11,7 @@ import ProductsPage from './pages/ProductsPage'
 import TenantUsersPage from './pages/TenantUsersPage'
 import '@mantine/core/styles.css'
 import '@mantine/notifications/styles.css'
+import '@mantine/dates/styles.css'
 import './index.css'
 import { RouteErrorBoundary } from './components/feedback/ErrorBoundary'
 

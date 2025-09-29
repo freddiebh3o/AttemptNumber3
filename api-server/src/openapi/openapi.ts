@@ -144,11 +144,15 @@ const ZodProductsListResponseData = z
     applied: z.object({
       limit: z.number().int().min(1).max(100),
       sort: z.object({
-        field: z.enum(["createdAt", "productName", "productPriceCents"]),
+        field: z.enum(["createdAt", "updatedAt", "productName", "productPriceCents"]),
         direction: z.enum(["asc", "desc"]),
       }),
       filters: z.object({
+        q: z.string().optional(),
         minPriceCents: z.number().int().min(0).optional(),
+        maxPriceCents: z.number().int().min(0).optional(),
+        createdAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        createdAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
       }),
     }),
   })
@@ -248,6 +252,26 @@ const ZodTenantUserEnvelope = z.object({
   user: ZodTenantUserRecord,
 });
 
+// ---------- Products list query schema ----------
+const ZodListProductsQuery = z
+  .object({
+    limit: z.number().int().min(1).max(100).optional(),
+    cursorId: z.string().optional(),
+    // filters
+    q: z.string().optional(),
+    minPriceCents: z.number().int().min(0).optional(),
+    maxPriceCents: z.number().int().min(0).optional(),
+    createdAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    createdAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    // sort
+    sortBy: z
+      .enum(["createdAt", "updatedAt", "productName", "productPriceCents"])
+      .optional(),
+    sortDir: z.enum(["asc", "desc"]).optional(),
+    includeTotal: z.boolean().optional(),
+  })
+  .openapi("ListProductsQuery");
+
 // ---------- Paths ----------
 export function registerAllPathsInOpenApiRegistry() {
   // Auth — sign in
@@ -321,18 +345,7 @@ export function registerAllPathsInOpenApiRegistry() {
     path: "/api/products",
     security: [{ cookieAuth: [] }],
     request: {
-      query: z
-        .object({
-          limit: z.number().int().min(1).max(100).optional(),
-          cursorId: z.string().optional(),
-          minPriceCents: z.number().int().min(0).optional(),
-          sortBy: z
-            .enum(["createdAt", "productName", "productPriceCents"])
-            .optional(),
-          sortDir: z.enum(["asc", "desc"]).optional(),
-          includeTotal: z.boolean().optional(),
-        })
-        .openapi("ListProductsQuery"),
+      query: ZodListProductsQuery,
     },
     responses: {
       200: {
@@ -694,6 +707,6 @@ export function buildOpenApiDocument() {
         "Simple, multi-tenant admin API. Responses use a standard success/error envelope. Auth is cookie-based session.",
     },
     servers,
-    tags: [{ name: "Auth" }, { name: "Products" }, { name: "System" }],
+    tags: [{ name: "Auth" }, { name: "Products" }, { name: "System" }, { name: "TenantUsers" }],
   });
 }

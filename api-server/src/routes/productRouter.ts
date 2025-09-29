@@ -32,12 +32,20 @@ const productRateLimiterMiddleware = createFixedWindowRateLimiterMiddleware({
 
 productRouter.use(productRateLimiterMiddleware)
 
+const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
 // Schemas
 const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional(),
   cursorId: z.string().min(1).optional(),
+  // filters
+  q: z.string().min(1).optional(),
   minPriceCents: z.coerce.number().int().min(0).optional(),
-  sortBy: z.enum(["createdAt", "productName", "productPriceCents"]).optional(),
+  maxPriceCents: z.coerce.number().int().min(0).optional(),
+  createdAtFrom: z.string().regex(dateRegex, 'Use YYYY-MM-DD').optional(),
+  createdAtTo: z.string().regex(dateRegex, 'Use YYYY-MM-DD').optional(),
+  // sort
+  sortBy: z.enum(["createdAt", "updatedAt", "productName", "productPriceCents"]).optional(),
   sortDir: z.enum(["asc", "desc"]).optional(),
   includeTotal: z.coerce.boolean().optional(),
 });
@@ -69,22 +77,31 @@ productRouter.get(
       const {
         limit,
         cursorId,
+        q,
         minPriceCents,
+        maxPriceCents,
+        createdAtFrom,
+        createdAtTo,
         sortBy,
         sortDir,
         includeTotal,
       } = request.validatedQuery as z.infer<typeof listQuerySchema>;
 
-      const args = {
+      const result = await listProductsForCurrentTenantService({
         currentTenantId: request.currentTenantId!,
         ...(limit !== undefined && { limitOptional: limit }),
         ...(cursorId !== undefined && { cursorIdOptional: cursorId }),
+      
+        ...(q !== undefined && { qOptional: q }),
         ...(minPriceCents !== undefined && { minPriceCentsOptional: minPriceCents }),
+        ...(maxPriceCents !== undefined && { maxPriceCentsOptional: maxPriceCents }),
+        ...(createdAtFrom !== undefined && { createdAtFromOptional: createdAtFrom }),
+        ...(createdAtTo !== undefined && { createdAtToOptional: createdAtTo }),
+      
         ...(sortBy !== undefined && { sortByOptional: sortBy }),
         ...(sortDir !== undefined && { sortDirOptional: sortDir }),
         ...(includeTotal !== undefined && { includeTotalOptional: includeTotal }),
-      } as const;
-      const result = await listProductsForCurrentTenantService(args);
+      });
 
       return response.status(200).json(createStandardSuccessResponse(result));
     } catch (error) {
@@ -92,7 +109,6 @@ productRouter.get(
     }
   }
 );
-
 
 // POST /api/products  (ADMIN+; idempotent via Idempotency-Key)
 productRouter.post(

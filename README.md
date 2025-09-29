@@ -366,12 +366,21 @@ Adding a new route:
 ---
 
 ## Future fetures
+* Finish off products page filtering by allowing for updated at filtering and sorting
+* Fix issue where the filter/sorting/pagination options aren't being set in the url so they can't be copied/saved in a link
+
 * In the standardised server response, we need meta data for pagination/filtering.
   * will return the search options and search options that we sent with the request
   * Will return things like total results, total pages, current page etc.
 * UI/UX Updates
   * Standardised list filters and pagination
   * Remove the create/edit modals and replace with new pages
+
+* Find a way to simulate what happens when a session expires 
+  * Current suspicion is that you are not automatically logged out 
+  * Instead, any request you make just fails with the notification 'Please sign in to continue'
+  * Instead of this, any request that is made that requires the user to be logged in and they arent logged in, should be redirected to the login page automatically 
+  * Whenever a user is logged out and redirected to the login page, it should show a clear reason on the login page as to why they were logged out
 
 * Admin branding
   * Suggested themes for different colour schemes 
