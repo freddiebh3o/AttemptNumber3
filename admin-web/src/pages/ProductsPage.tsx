@@ -1,6 +1,6 @@
 // admin-web/src/pages/ProductsPage.tsx
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import {
   Button,
   Group,
@@ -45,15 +45,38 @@ import {
 import { handlePageError } from "../utils/pageError";
 import { useAuthStore } from "../stores/auth";
 import dayjs from "dayjs";
+import { FilterBar } from "../components/FilterBar";
 
 type SortField =
   | "createdAt"
   | "updatedAt"
   | "productName"
   | "productPriceCents";
+
 type SortDir = "asc" | "desc";
 
+type ProductFilters = {
+  q: string;
+  minPriceCents: number | "";
+  maxPriceCents: number | "";
+  createdAtFrom: string | null;
+  createdAtTo: string | null;
+  updatedAtFrom: string | null;
+  updatedAtTo: string | null;
+};
+
+const emptyProductFilters: ProductFilters = {
+  q: "",
+  minPriceCents: "",
+  maxPriceCents: "",
+  createdAtFrom: null,
+  createdAtTo: null,
+  updatedAtFrom: null,
+  updatedAtTo: null,
+};
+
 export default function ProductsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { tenantSlug } = useParams<{ tenantSlug: string }>();
 
   // Global memberships (no per-page /me calls)
@@ -84,37 +107,9 @@ export default function ProductsPage() {
   const [sortBy, setSortBy] = useState<SortField>("createdAt");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
-  // Filters (server-side)
-  const [q, setQ] = useState<string>("");
-  const [minPriceCents, setMinPriceCents] = useState<number | "">("");
-  const [maxPriceCents, setMaxPriceCents] = useState<number | "">("");
-  const [createdAtFromStr, setCreatedAtFromStr] = useState<string | null>(null);
-  const [createdAtToStr, setCreatedAtToStr] = useState<string | null>(null);
-  const [updatedAtFromStr, setUpdatedAtFromStr] = useState<string | null>(null);
-  const [updatedAtToStr, setUpdatedAtToStr] = useState<string | null>(null);
-
-  // Create modal state
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [createProductNameInputValue, setCreateProductNameInputValue] =
-    useState("");
-  const [createProductSkuInputValue, setCreateProductSkuInputValue] =
-    useState("");
-  const [
-    createProductPriceCentsInputValue,
-    setCreateProductPriceCentsInputValue,
-  ] = useState<number | "">("");
-
-  // Edit modal state
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editProductIdValue, setEditProductIdValue] = useState<string | null>(
-    null
-  );
-  const [editProductNameInputValue, setEditProductNameInputValue] =
-    useState("");
-  const [editProductPriceCentsInputValue, setEditProductPriceCentsInputValue] =
-    useState<number | "">("");
-  const [editProductEntityVersionValue, setEditProductEntityVersionValue] =
-    useState<number | null>(null);
+  // Filters
+  const [appliedFilters, setAppliedFilters] =
+    useState<ProductFilters>(emptyProductFilters);
 
   const isUserAdminOrOwnerForCurrentTenant = useMemo(() => {
     const match = currentUserTenantMemberships.find(
@@ -122,6 +117,90 @@ export default function ProductsPage() {
     );
     return match?.roleName === "ADMIN" || match?.roleName === "OWNER";
   }, [currentUserTenantMemberships, tenantSlug]);
+
+  function setUrlFromState(overrides?: {
+    cursorId?: string | null;
+    limit?: number;
+    sortBy?: SortField;
+    sortDir?: SortDir;
+    q?: string | null | undefined;
+    minPriceCents?: number | null | undefined;
+    maxPriceCents?: number | null | undefined;
+    createdAtFrom?: string | null | undefined;
+    createdAtTo?: string | null | undefined;
+    updatedAtFrom?: string | null | undefined;
+    updatedAtTo?: string | null | undefined;
+  }) {
+    const params = new URLSearchParams();
+
+    const put = (k: string, v: unknown) => {
+      if (v === undefined || v === null || v === "") return;
+      params.set(k, String(v));
+    };
+
+    // fallbacks to currently-applied filters if overrides are not provided
+    const qVal =
+      overrides?.q === undefined
+        ? appliedFilters.q.trim() || null
+        : overrides.q?.toString().trim() || null;
+
+    const minVal =
+      overrides?.minPriceCents === undefined
+        ? typeof appliedFilters.minPriceCents === "number"
+          ? appliedFilters.minPriceCents
+          : null
+        : overrides.minPriceCents;
+
+    const maxVal =
+      overrides?.maxPriceCents === undefined
+        ? typeof appliedFilters.maxPriceCents === "number"
+          ? appliedFilters.maxPriceCents
+          : null
+        : overrides.maxPriceCents;
+
+    const createdFromVal =
+      overrides &&
+      Object.prototype.hasOwnProperty.call(overrides, "createdAtFrom")
+        ? overrides.createdAtFrom
+        : appliedFilters.createdAtFrom;
+
+    const createdToVal =
+      overrides &&
+      Object.prototype.hasOwnProperty.call(overrides, "createdAtTo")
+        ? overrides.createdAtTo
+        : appliedFilters.createdAtTo;
+
+    const updatedFromVal =
+      overrides &&
+      Object.prototype.hasOwnProperty.call(overrides, "updatedAtFrom")
+        ? overrides.updatedAtFrom
+        : appliedFilters.updatedAtFrom;
+
+    const updatedToVal =
+      overrides &&
+      Object.prototype.hasOwnProperty.call(overrides, "updatedAtTo")
+        ? overrides.updatedAtTo
+        : appliedFilters.updatedAtTo;
+
+    put("limit", overrides?.limit ?? limit);
+    put("sortBy", overrides?.sortBy ?? sortBy);
+    put("sortDir", overrides?.sortDir ?? sortDir);
+    put("q", qVal);
+    put("minPriceCents", minVal);
+    put("maxPriceCents", maxVal);
+    put("createdAtFrom", createdFromVal);
+    put("createdAtTo", createdToVal);
+    put("updatedAtFrom", updatedFromVal);
+    put("updatedAtTo", updatedToVal);
+
+    const cursor =
+      overrides?.cursorId === undefined
+        ? cursorStack[pageIndex] ?? null
+        : overrides.cursorId;
+    if (cursor) params.set("cursorId", cursor);
+
+    setSearchParams(params, { replace: true });
+  }
 
   // ---- Data fetching helpers ----
   async function fetchPageWith(opts?: {
@@ -142,13 +221,13 @@ export default function ProductsPage() {
     try {
       const qParam =
         opts?.qOverride === undefined
-          ? q.trim() || undefined
+          ? appliedFilters.q.trim() || undefined
           : opts.qOverride || undefined;
 
       const minParam =
         opts?.minPriceOverride === undefined
-          ? typeof minPriceCents === "number"
-            ? minPriceCents
+          ? typeof appliedFilters.minPriceCents === "number"
+            ? appliedFilters.minPriceCents
             : undefined
           : opts.minPriceOverride == null
           ? undefined
@@ -156,8 +235,8 @@ export default function ProductsPage() {
 
       const maxParam =
         opts?.maxPriceOverride === undefined
-          ? typeof maxPriceCents === "number"
-            ? maxPriceCents
+          ? typeof appliedFilters.maxPriceCents === "number"
+            ? appliedFilters.maxPriceCents
             : undefined
           : opts.maxPriceOverride == null
           ? undefined
@@ -165,21 +244,22 @@ export default function ProductsPage() {
 
       const createdFromParam =
         opts?.createdFromOverride === undefined
-          ? createdAtFromStr || undefined
+          ? appliedFilters.createdAtFrom || undefined
           : opts.createdFromOverride || undefined;
 
       const createdToParam =
         opts?.createdToOverride === undefined
-          ? createdAtToStr || undefined
+          ? appliedFilters.createdAtTo || undefined
           : opts.createdToOverride || undefined;
 
       const updatedFromParam =
         opts?.updatedFromOverride === undefined
-          ? updatedAtFromStr || undefined
+          ? appliedFilters.updatedAtFrom || undefined
           : opts.updatedFromOverride || undefined;
+
       const updatedToParam =
         opts?.updatedToOverride === undefined
-          ? updatedAtToStr || undefined
+          ? appliedFilters.updatedAtTo || undefined
           : opts.updatedToOverride || undefined;
 
       const response = await listProductsApiRequest({
@@ -235,6 +315,19 @@ export default function ProductsPage() {
   }) {
     setCursorStack([null]);
     setPageIndex(0);
+    setUrlFromState({
+      cursorId: null,
+      limit: opts?.limitOverride,
+      sortBy: opts?.sortByOverride,
+      sortDir: opts?.sortDirOverride,
+      q: opts?.qOverride,
+      minPriceCents: opts?.minPriceOverride,
+      maxPriceCents: opts?.maxPriceOverride,
+      createdAtFrom: opts?.createdFromOverride,
+      createdAtTo: opts?.createdToOverride,
+      updatedAtFrom: opts?.updatedFromOverride,
+      updatedAtTo: opts?.updatedToOverride,
+    });
     void fetchPageWith({
       includeTotal: true,
       cursorId: null,
@@ -247,12 +340,60 @@ export default function ProductsPage() {
     setProductsListRecords(null);
     setHasNextPage(false);
     setNextCursor(null);
-    setCursorStack([null]);
-    setPageIndex(0);
     setTotalCount(null);
     setErrorForBoundary(null);
-    void fetchPageWith({ includeTotal: true, cursorId: null });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    // Parse URL params
+    const qpLimit = Number(searchParams.get("limit"));
+    const qpSortBy = searchParams.get("sortBy") as SortField | null;
+    const qpSortDir = searchParams.get("sortDir") as SortDir | null;
+    const qpQ = searchParams.get("q");
+    const qpMin = searchParams.get("minPriceCents");
+    const qpMax = searchParams.get("maxPriceCents");
+    const qpCreatedFrom = searchParams.get("createdAtFrom");
+    const qpCreatedTo = searchParams.get("createdAtTo");
+    const qpUpdatedFrom = searchParams.get("updatedAtFrom");
+    const qpUpdatedTo = searchParams.get("updatedAtTo");
+    const qpCursor = searchParams.get("cursorId");
+
+    if (!Number.isNaN(qpLimit) && qpLimit)
+      setLimit(Math.max(1, Math.min(100, qpLimit)));
+    if (qpSortBy) setSortBy(qpSortBy);
+    if (qpSortDir) setSortDir(qpSortDir);
+
+    setAppliedFilters({
+      q: qpQ ?? "",
+      minPriceCents: qpMin !== null ? (qpMin === "" ? "" : Number(qpMin)) : "",
+      maxPriceCents: qpMax !== null ? (qpMax === "" ? "" : Number(qpMax)) : "",
+      createdAtFrom: qpCreatedFrom ?? null,
+      createdAtTo: qpCreatedTo ?? null,
+      updatedAtFrom: qpUpdatedFrom ?? null,
+      updatedAtTo: qpUpdatedTo ?? null,
+    });
+
+    // Use the cursor from URL as the starting point
+    setCursorStack([qpCursor ?? null]);
+    setPageIndex(0);
+
+    void fetchPageWith({
+      includeTotal: true,
+      cursorId: qpCursor ?? null,
+      sortByOverride: qpSortBy ?? undefined,
+      sortDirOverride: qpSortDir ?? undefined,
+      limitOverride:
+        !Number.isNaN(qpLimit) && qpLimit
+          ? Math.max(1, Math.min(100, qpLimit))
+          : undefined,
+      qOverride: qpQ ?? undefined,
+      minPriceOverride:
+        qpMin !== null ? (qpMin ? Number(qpMin) : null) : undefined,
+      maxPriceOverride:
+        qpMax !== null ? (qpMax ? Number(qpMax) : null) : undefined,
+      createdFromOverride: qpCreatedFrom ?? undefined,
+      createdToOverride: qpCreatedTo ?? undefined,
+      updatedFromOverride: qpUpdatedFrom ?? undefined,
+      updatedToOverride: qpUpdatedTo ?? undefined,
+    });
   }, [tenantSlug]);
 
   if (errorForBoundary) throw errorForBoundary;
@@ -263,6 +404,7 @@ export default function ProductsPage() {
       sortBy === nextField ? (sortDir === "asc" ? "desc" : "asc") : "asc";
     setSortBy(nextField);
     setSortDir(nextDir);
+    setUrlFromState({ cursorId: null, sortBy: nextField, sortDir: nextDir });
     resetToFirstPageAndFetch({
       sortByOverride: nextField,
       sortDirOverride: nextDir,
@@ -276,6 +418,7 @@ export default function ProductsPage() {
     try {
       setCursorStack((prev) => [...prev.slice(0, pageIndex + 1), nextCursor]);
       setPageIndex((i) => i + 1);
+      setUrlFromState({ cursorId: nextCursor });
       setTimeout(() => void fetchPageWith(), 0);
     } finally {
       setIsPaginating(false);
@@ -286,7 +429,9 @@ export default function ProductsPage() {
     if (pageIndex === 0) return;
     setIsPaginating(true);
     try {
+      const prevCursor = cursorStack[pageIndex - 1] ?? null;
       setPageIndex((i) => i - 1);
+      setUrlFromState({ cursorId: prevCursor });
       setTimeout(() => void fetchPageWith(), 0);
     } finally {
       setIsPaginating(false);
@@ -305,81 +450,6 @@ export default function ProductsPage() {
         }`;
 
   // ---- UI handlers ----
-  function openEditModalForProduct(productRecord: ProductRecord) {
-    setEditProductIdValue(productRecord.id);
-    setEditProductNameInputValue(productRecord.productName);
-    setEditProductPriceCentsInputValue(productRecord.productPriceCents);
-    setEditProductEntityVersionValue(productRecord.entityVersion);
-    setIsEditModalOpen(true);
-  }
-
-  async function handleCreateProductSubmit() {
-    if (createProductNameInputValue.trim().length === 0) {
-      notifications.show({
-        color: "red",
-        message: "Product name is required.",
-      });
-      return;
-    }
-    if (typeof createProductPriceCentsInputValue !== "number") {
-      notifications.show({
-        color: "red",
-        message: "Price must be a number in cents.",
-      });
-      return;
-    }
-
-    try {
-      const idempotencyKeyValue = `create-${Date.now()}`;
-      const response = await createProductApiRequest({
-        productName: createProductNameInputValue,
-        productSku: createProductSkuInputValue,
-        productPriceCents: createProductPriceCentsInputValue,
-        idempotencyKeyOptional: idempotencyKeyValue,
-      });
-      if (response.success) {
-        notifications.show({ color: "green", message: "Product created." });
-        setIsCreateModalOpen(false);
-        setCreateProductNameInputValue("");
-        setCreateProductSkuInputValue("");
-        setCreateProductPriceCentsInputValue("");
-        resetToFirstPageAndFetch();
-      }
-    } catch (error: any) {
-      notifications.show({
-        color: "red",
-        message: error?.message ?? "Create failed",
-      });
-    }
-  }
-
-  async function handleEditProductSubmit() {
-    if (!editProductIdValue || editProductEntityVersionValue == null) return;
-    try {
-      const idempotencyKeyValue = `update-${editProductIdValue}-${Date.now()}`;
-      const response = await updateProductApiRequest({
-        productId: editProductIdValue,
-        productName: editProductNameInputValue,
-        productPriceCents:
-          typeof editProductPriceCentsInputValue === "number"
-            ? editProductPriceCentsInputValue
-            : undefined,
-        currentEntityVersion: editProductEntityVersionValue,
-        idempotencyKeyOptional: idempotencyKeyValue,
-      });
-      if (response.success) {
-        notifications.show({ color: "green", message: "Product updated." });
-        setIsEditModalOpen(false);
-        resetToFirstPageAndFetch();
-      }
-    } catch (error: any) {
-      notifications.show({
-        color: "red",
-        message: error?.message ?? "Update failed",
-      });
-    }
-  }
-
   async function handleDeleteProduct(productId: string) {
     try {
       const idempotencyKeyValue = `delete-${productId}-${Date.now()}`;
@@ -407,42 +477,6 @@ export default function ProductsPage() {
     ) : (
       <IconArrowDown size={16} />
     );
-  }
-
-  // Submit filters via Enter inside form
-  function onSubmitFilters(e: React.FormEvent) {
-    e.preventDefault();
-    resetToFirstPageAndFetch({
-      qOverride: q.trim() || undefined,
-      minPriceOverride:
-        typeof minPriceCents === "number" ? minPriceCents : undefined,
-      maxPriceOverride:
-        typeof maxPriceCents === "number" ? maxPriceCents : undefined,
-      createdFromOverride: createdAtFromStr ?? undefined,
-      createdToOverride: createdAtToStr ?? undefined,
-      updatedFromOverride: updatedAtFromStr ?? undefined,
-      updatedToOverride: updatedAtToStr ?? undefined,
-    });
-  }
-
-  function onClearFilters() {
-    setQ("");
-    setMinPriceCents("");
-    setMaxPriceCents("");
-    setCreatedAtFromStr(null);
-    setCreatedAtToStr(null);
-    setUpdatedAtFromStr(null);
-    setUpdatedAtToStr(null);
-
-    resetToFirstPageAndFetch({
-      qOverride: null,
-      minPriceOverride: null,
-      maxPriceOverride: null,
-      createdFromOverride: null,
-      createdToOverride: null,
-      updatedFromOverride: null,
-      updatedToOverride: null,
-    });
   }
 
   return (
@@ -482,7 +516,7 @@ export default function ProductsPage() {
             </Button>
 
             <Button
-              onClick={() => setIsCreateModalOpen(true)}
+              onClick={() => console.log("New product")}
               disabled={!isUserAdminOrOwnerForCurrentTenant}
             >
               New product
@@ -492,9 +526,269 @@ export default function ProductsPage() {
       </div>
 
       {/* Collapsible Filters */}
-      <Collapse in={showFilters}>
-        <Paper withBorder p="md" radius="md" className="bg-white mt-3">
-          <form onSubmit={onSubmitFilters}>
+      {/* <Collapse in={showFilters}>
+        <Paper withBorder p="md" radius="md" className="bg-white mt-3"> */}
+          <FilterBar<ProductFilters>
+            open={showFilters}
+            initialValues={appliedFilters}
+            emptyValues={emptyProductFilters}
+            onApply={(values) => {
+              // push into URL + fetch (first page)
+              setAppliedFilters(values);
+              setUrlFromState({
+                cursorId: null,
+                q: values.q.trim() || null,
+                minPriceCents:
+                  typeof values.minPriceCents === "number"
+                    ? values.minPriceCents
+                    : null,
+                maxPriceCents:
+                  typeof values.maxPriceCents === "number"
+                    ? values.maxPriceCents
+                    : null,
+                createdAtFrom: values.createdAtFrom ?? null,
+                createdAtTo: values.createdAtTo ?? null,
+                updatedAtFrom: values.updatedAtFrom ?? null,
+                updatedAtTo: values.updatedAtTo ?? null,
+              });
+              resetToFirstPageAndFetch({
+                qOverride: values.q.trim() || null,
+                minPriceOverride:
+                  typeof values.minPriceCents === "number" ? values.minPriceCents : null,
+                maxPriceOverride:
+                  typeof values.maxPriceCents === "number" ? values.maxPriceCents : null,
+                createdFromOverride: values.createdAtFrom ?? null,
+                createdToOverride: values.createdAtTo ?? null,
+                updatedFromOverride: values.updatedAtFrom ?? null,
+                updatedToOverride: values.updatedAtTo ?? null,
+              });
+            }}
+            onClear={() => {
+              setAppliedFilters(emptyProductFilters);
+              setUrlFromState({
+                cursorId: null,
+                q: null,
+                minPriceCents: null,
+                maxPriceCents: null,
+                createdAtFrom: null,
+                createdAtTo: null,
+                updatedAtFrom: null,
+                updatedAtTo: null,
+              });
+              resetToFirstPageAndFetch({
+                qOverride: null,
+                minPriceOverride: null,
+                maxPriceOverride: null,
+                createdFromOverride: null,
+                createdToOverride: null,
+                updatedFromOverride: null,
+                updatedToOverride: null,
+              });
+            }}
+          >
+            {({ values, setValues }) => (
+              <Grid gutter="md">
+                <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+                  <TextInput
+                    label="Search (name or SKU)"
+                    placeholder="e.g. anvil or ACME-SKU-001"
+                    value={values.q}
+                    onChange={(e) => {
+                      const val = e.currentTarget.value;   // buffer first
+                      setValues((prev) => ({ ...prev, q: val }));
+                    }}
+                  />
+                </Grid.Col>
+
+                <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+                  <NumberInput
+                    label="Min price (cents)"
+                    placeholder="e.g. 5000"
+                    value={values.minPriceCents}
+                    min={0}
+                    onChange={(v) =>
+                      setValues((prev) => ({
+                        ...prev,
+                        minPriceCents:
+                          typeof v === "number" ? v : v === "" ? "" : Number(v),
+                      }))
+                    }
+                  />
+                </Grid.Col>
+
+                <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+                  <NumberInput
+                    label="Max price (cents)"
+                    placeholder="e.g. 20000"
+                    value={values.maxPriceCents}
+                    min={0}
+                    onChange={(v) =>
+                      setValues((prev) => ({
+                        ...prev,
+                        maxPriceCents:
+                          typeof v === "number" ? v : v === "" ? "" : Number(v),
+                      }))
+                    }
+                  />
+                </Grid.Col>
+
+                <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+                  <DatePickerInput
+                    label="Created from"
+                    placeholder="Start date"
+                    value={values.createdAtFrom}
+                    onChange={(v) =>
+                      setValues((prev) => ({ ...prev, createdAtFrom: v }))
+                    }
+                    valueFormat="YYYY-MM-DD"
+                    popoverProps={{ withinPortal: true }}
+                    presets={[
+                      {
+                        value: dayjs().subtract(1, "day").format("YYYY-MM-DD"),
+                        label: "Yesterday",
+                      },
+                      { value: dayjs().format("YYYY-MM-DD"), label: "Today" },
+                      {
+                        value: dayjs().add(1, "day").format("YYYY-MM-DD"),
+                        label: "Tomorrow",
+                      },
+                      {
+                        value: dayjs().add(1, "month").format("YYYY-MM-DD"),
+                        label: "Next month",
+                      },
+                      {
+                        value: dayjs().add(1, "year").format("YYYY-MM-DD"),
+                        label: "Next year",
+                      },
+                      {
+                        value: dayjs()
+                          .subtract(1, "month")
+                          .format("YYYY-MM-DD"),
+                        label: "Last month",
+                      },
+                      {
+                        value: dayjs().subtract(1, "year").format("YYYY-MM-DD"),
+                        label: "Last year",
+                      },
+                    ]}
+                    clearable
+                  />
+                </Grid.Col>
+
+                <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+                  <DatePickerInput
+                    label="Created to"
+                    placeholder="End date"
+                    value={values.createdAtTo}
+                    onChange={(v) =>
+                      setValues((prev) => ({ ...prev, createdAtTo: v }))
+                    }
+                    valueFormat="YYYY-MM-DD"
+                    popoverProps={{ withinPortal: true }}
+                    presets={[
+                      {
+                        value: dayjs().subtract(1, "day").format("YYYY-MM-DD"),
+                        label: "Yesterday",
+                      },
+                      { value: dayjs().format("YYYY-MM-DD"), label: "Today" },
+                      {
+                        value: dayjs().add(1, "day").format("YYYY-MM-DD"),
+                        label: "Tomorrow",
+                      },
+                      {
+                        value: dayjs().add(1, "month").format("YYYY-MM-DD"),
+                        label: "Next month",
+                      },
+                      {
+                        value: dayjs().add(1, "year").format("YYYY-MM-DD"),
+                        label: "Next year",
+                      },
+                      {
+                        value: dayjs()
+                          .subtract(1, "month")
+                          .format("YYYY-MM-DD"),
+                        label: "Last month",
+                      },
+                      {
+                        value: dayjs().subtract(1, "year").format("YYYY-MM-DD"),
+                        label: "Last year",
+                      },
+                    ]}
+                    clearable
+                  />
+                </Grid.Col>
+
+                <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+                  <DatePickerInput
+                    label="Updated from"
+                    placeholder="Start date"
+                    value={values.updatedAtFrom}
+                    onChange={(v) =>
+                      setValues((prev) => ({ ...prev, updatedAtFrom: v }))
+                    }
+                    valueFormat="YYYY-MM-DD"
+                    popoverProps={{ withinPortal: true }}
+                    presets={[
+                      {
+                        value: dayjs().subtract(1, "day").format("YYYY-MM-DD"),
+                        label: "Yesterday",
+                      },
+                      { value: dayjs().format("YYYY-MM-DD"), label: "Today" },
+                      {
+                        value: dayjs().add(1, "day").format("YYYY-MM-DD"),
+                        label: "Tomorrow",
+                      },
+                      {
+                        value: dayjs()
+                          .subtract(1, "month")
+                          .format("YYYY-MM-DD"),
+                        label: "Last month",
+                      },
+                      {
+                        value: dayjs().subtract(1, "year").format("YYYY-MM-DD"),
+                        label: "Last year",
+                      },
+                    ]}
+                    clearable
+                  />
+                </Grid.Col>
+
+                <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+                  <DatePickerInput
+                    label="Updated to"
+                    placeholder="End date"
+                    value={values.updatedAtTo}
+                    onChange={(v) =>
+                      setValues((prev) => ({ ...prev, updatedAtTo: v }))
+                    }
+                    valueFormat="YYYY-MM-DD"
+                    popoverProps={{ withinPortal: true }}
+                    presets={[
+                      {
+                        value: dayjs().subtract(1, "day").format("YYYY-MM-DD"),
+                        label: "Yesterday",
+                      },
+                      { value: dayjs().format("YYYY-MM-DD"), label: "Today" },
+                      {
+                        value: dayjs().add(1, "day").format("YYYY-MM-DD"),
+                        label: "Tomorrow",
+                      },
+                      {
+                        value: dayjs().add(1, "month").format("YYYY-MM-DD"),
+                        label: "Next month",
+                      },
+                      {
+                        value: dayjs().add(1, "year").format("YYYY-MM-DD"),
+                        label: "Next year",
+                      },
+                    ]}
+                    clearable
+                  />
+                </Grid.Col>
+              </Grid>
+            )}
+          </FilterBar>
+          {/* <form onSubmit={onSubmitFilters}>
             <Grid gutter="md">
               <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
                 <TextInput
@@ -620,11 +914,23 @@ export default function ProductsPage() {
                   valueFormat="YYYY-MM-DD"
                   popoverProps={{ withinPortal: true }}
                   presets={[
-                    { value: dayjs().subtract(1, 'day').format('YYYY-MM-DD'), label: 'Yesterday' },
-                    { value: dayjs().format('YYYY-MM-DD'), label: 'Today' },
-                    { value: dayjs().add(1, 'day').format('YYYY-MM-DD'), label: 'Tomorrow' },
-                    { value: dayjs().subtract(1, 'month').format('YYYY-MM-DD'), label: 'Last month' },
-                    { value: dayjs().subtract(1, 'year').format('YYYY-MM-DD'), label: 'Last year' },
+                    {
+                      value: dayjs().subtract(1, "day").format("YYYY-MM-DD"),
+                      label: "Yesterday",
+                    },
+                    { value: dayjs().format("YYYY-MM-DD"), label: "Today" },
+                    {
+                      value: dayjs().add(1, "day").format("YYYY-MM-DD"),
+                      label: "Tomorrow",
+                    },
+                    {
+                      value: dayjs().subtract(1, "month").format("YYYY-MM-DD"),
+                      label: "Last month",
+                    },
+                    {
+                      value: dayjs().subtract(1, "year").format("YYYY-MM-DD"),
+                      label: "Last year",
+                    },
                   ]}
                   clearable
                 />
@@ -639,11 +945,23 @@ export default function ProductsPage() {
                   valueFormat="YYYY-MM-DD"
                   popoverProps={{ withinPortal: true }}
                   presets={[
-                    { value: dayjs().subtract(1, 'day').format('YYYY-MM-DD'), label: 'Yesterday' },
-                    { value: dayjs().format('YYYY-MM-DD'), label: 'Today' },
-                    { value: dayjs().add(1, 'day').format('YYYY-MM-DD'), label: 'Tomorrow' },
-                    { value: dayjs().add(1, 'month').format('YYYY-MM-DD'), label: 'Next month' },
-                    { value: dayjs().add(1, 'year').format('YYYY-MM-DD'), label: 'Next year' },
+                    {
+                      value: dayjs().subtract(1, "day").format("YYYY-MM-DD"),
+                      label: "Yesterday",
+                    },
+                    { value: dayjs().format("YYYY-MM-DD"), label: "Today" },
+                    {
+                      value: dayjs().add(1, "day").format("YYYY-MM-DD"),
+                      label: "Tomorrow",
+                    },
+                    {
+                      value: dayjs().add(1, "month").format("YYYY-MM-DD"),
+                      label: "Next month",
+                    },
+                    {
+                      value: dayjs().add(1, "year").format("YYYY-MM-DD"),
+                      label: "Next year",
+                    },
                   ]}
                   clearable
                 />
@@ -656,9 +974,9 @@ export default function ProductsPage() {
               </Button>
               <Button type="submit">Apply filters</Button>
             </Group>
-          </form>
-        </Paper>
-      </Collapse>
+          </form> */}
+        {/* </Paper>
+      </Collapse> */}
 
       {/* Table + Controls */}
       <div className="py-4">
@@ -683,6 +1001,7 @@ export default function ProductsPage() {
                     typeof v === "number" ? v : v === "" ? 20 : Number(v);
                   const clamped = Math.max(1, Math.min(100, n));
                   setLimit(clamped);
+                  setUrlFromState({ cursorId: null, limit: clamped });
                   resetToFirstPageAndFetch({ limitOverride: clamped });
                 }}
                 min={1}
@@ -773,7 +1092,10 @@ export default function ProductsPage() {
                               onClick={() => applySort("updatedAt")}
                               aria-label="Sort by updated"
                             >
-                              <SortIcon active={sortBy === "updatedAt"} dir={sortDir} />
+                              <SortIcon
+                                active={sortBy === "updatedAt"}
+                                dir={sortDir}
+                              />
                             </ActionIcon>
                           </Tooltip>
                         </Group>
@@ -801,7 +1123,9 @@ export default function ProductsPage() {
                           </Text>
                         </Table.Td>
                         <Table.Td>
-                          <Text size="sm">{new Date(p.updatedAt).toLocaleString()}</Text>
+                          <Text size="sm">
+                            {new Date(p.updatedAt).toLocaleString()}
+                          </Text>
                         </Table.Td>
                         <Table.Td>
                           <Badge>{p.entityVersion}</Badge>
@@ -811,7 +1135,7 @@ export default function ProductsPage() {
                             <ActionIcon
                               variant="light"
                               size="md"
-                              onClick={() => openEditModalForProduct(p)}
+                              onClick={() => console.log('open edit product')}
                               disabled={!isUserAdminOrOwnerForCurrentTenant}
                             >
                               <IconPencil size={16} />
@@ -864,78 +1188,6 @@ export default function ProductsPage() {
           )}
         </Paper>
       </div>
-
-      {/* Create modal */}
-      <Modal
-        opened={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        title="Create product"
-      >
-        <Stack>
-          <TextInput
-            label="Product name"
-            value={createProductNameInputValue}
-            onChange={(e) =>
-              setCreateProductNameInputValue(e.currentTarget.value)
-            }
-          />
-          <TextInput
-            label="Product SKU"
-            value={createProductSkuInputValue}
-            onChange={(e) =>
-              setCreateProductSkuInputValue(e.currentTarget.value)
-            }
-          />
-          <NumberInput
-            label="Price (cents)"
-            value={createProductPriceCentsInputValue}
-            onChange={(val) =>
-              setCreateProductPriceCentsInputValue(
-                typeof val === "number" ? val : val === "" ? "" : Number(val)
-              )
-            }
-            min={0}
-          />
-          <Group justify="flex-end">
-            <Button onClick={handleCreateProductSubmit}>Create</Button>
-          </Group>
-        </Stack>
-      </Modal>
-
-      {/* Edit modal */}
-      <Modal
-        opened={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        title="Edit product"
-      >
-        <Stack>
-          <TextInput
-            label="Product name"
-            value={editProductNameInputValue}
-            onChange={(e) =>
-              setEditProductNameInputValue(e.currentTarget.value)
-            }
-          />
-          <NumberInput
-            label="Price (cents)"
-            value={editProductPriceCentsInputValue}
-            onChange={(val) =>
-              setEditProductPriceCentsInputValue(
-                typeof val === "number" ? val : val === "" ? "" : Number(val)
-              )
-            }
-            min={0}
-          />
-          <TextInput
-            label="Current entity version (for optimistic concurrency)"
-            value={String(editProductEntityVersionValue ?? "")}
-            readOnly
-          />
-          <Group justify="flex-end">
-            <Button onClick={handleEditProductSubmit}>Save changes</Button>
-          </Group>
-        </Stack>
-      </Modal>
     </div>
   );
 }

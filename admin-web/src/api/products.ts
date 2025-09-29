@@ -31,6 +31,8 @@ export async function listProductsApiRequest(params?: {
   maxPriceCents?: number;
   createdAtFrom?: string;           // YYYY-MM-DD
   createdAtTo?: string;             // YYYY-MM-DD
+  updatedAtFrom?: string;           // YYYY-MM-DD
+  updatedAtTo?: string;             // YYYY-MM-DD
   sortBy?: "createdAt" | "updatedAt" | "productName" | "productPriceCents";
   sortDir?: "asc" | "desc";
   includeTotal?: boolean;

@@ -366,8 +366,7 @@ Adding a new route:
 ---
 
 ## Future fetures
-* Finish off products page filtering by allowing for updated at filtering and sorting
-* Fix issue where the filter/sorting/pagination options aren't being set in the url so they can't be copied/saved in a link
+* Repeat UI/UX improvements for the users page.
 
 * In the standardised server response, we need meta data for pagination/filtering.
   * will return the search options and search options that we sent with the request
