@@ -60,17 +60,9 @@ tenantUserRouter.get(
       assertHasQuery<z.infer<typeof listQuerySchema>>(req);
 
       const {
-        limit,
-        cursorId,
-        q,
-        roleName,
-        createdAtFrom,
-        createdAtTo,
-        updatedAtFrom,
-        updatedAtTo,
-        sortBy,
-        sortDir,
-        includeTotal,
+        limit, cursorId, q, roleName,
+        createdAtFrom, createdAtTo, updatedAtFrom, updatedAtTo,
+        sortBy, sortDir, includeTotal,
       } = req.validatedQuery;
 
       const result = await listUsersForCurrentTenantService({

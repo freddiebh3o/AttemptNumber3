@@ -2,7 +2,6 @@
 import { httpRequestJson } from "./http";
 import type { paths } from "../types/openapi";
 
-// ---- Types from OpenAPI (generated) ----
 type ListUsers200 =
   paths["/api/tenant-users"]["get"]["responses"]["200"]["content"]["application/json"];
 
@@ -24,14 +23,30 @@ type DeleteUser200 =
 export async function listTenantUsersApiRequest(params?: {
   limit?: number;
   cursorId?: string;
+  q?: string;
+  roleName?: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
+  createdAtFrom?: string;
+  createdAtTo?: string;
+  updatedAtFrom?: string;
+  updatedAtTo?: string;
+  sortBy?: "createdAt" | "updatedAt" | "userEmailAddress" | "roleName";
+  sortDir?: "asc" | "desc";
+  includeTotal?: boolean;
 }) {
   const search = new URLSearchParams();
-  if (params?.limit != null) search.set("limit", String(params.limit));
+  if (params?.limit !== undefined) search.set("limit", String(params.limit));
   if (params?.cursorId) search.set("cursorId", params.cursorId);
+  if (params?.q) search.set("q", params.q);
+  if (params?.roleName) search.set("roleName", params.roleName);
+  if (params?.createdAtFrom) search.set("createdAtFrom", params.createdAtFrom);
+  if (params?.createdAtTo) search.set("createdAtTo", params.createdAtTo);
+  if (params?.updatedAtFrom) search.set("updatedAtFrom", params.updatedAtFrom);
+  if (params?.updatedAtTo) search.set("updatedAtTo", params.updatedAtTo);
+  if (params?.sortBy) search.set("sortBy", params.sortBy);
+  if (params?.sortDir) search.set("sortDir", params.sortDir);
+  if (params?.includeTotal) search.set("includeTotal", "1");
   const qs = search.toString();
-  return httpRequestJson<ListUsers200>(
-    `/api/tenant-users${qs ? `?${qs}` : ""}`
-  );
+  return httpRequestJson<ListUsers200>(`/api/tenant-users${qs ? `?${qs}` : ""}`);
 }
 
 export async function createTenantUserApiRequest(

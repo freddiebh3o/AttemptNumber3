@@ -759,6 +759,15 @@ export interface paths {
                 query?: {
                     limit?: number;
                     cursorId?: string;
+                    q?: string;
+                    roleName?: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
+                    createdAtFrom?: string;
+                    createdAtTo?: string;
+                    updatedAtFrom?: string;
+                    updatedAtTo?: string;
+                    sortBy?: "createdAt" | "updatedAt" | "userEmailAddress" | "roleName";
+                    sortDir?: "asc" | "desc";
+                    includeTotal?: boolean;
                 };
                 header?: never;
                 path?: never;
@@ -775,7 +784,7 @@ export interface paths {
                         "application/json": {
                             /** @enum {boolean} */
                             success: true;
-                            data: components["schemas"]["TenantUsersList"];
+                            data: components["schemas"]["TenantUsersListResponseData"];
                             error: unknown;
                         };
                     };
@@ -792,6 +801,19 @@ export interface paths {
                 /** @description Forbidden */
                 403: {
                     headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        "X-RateLimit-Limit": string;
+                        "X-RateLimit-Remaining": string;
+                        "X-RateLimit-Reset": string;
+                        "Retry-After": string;
                         [name: string]: unknown;
                     };
                     content: {
@@ -1205,6 +1227,42 @@ export interface components {
             serviceName: string;
             semanticVersion: string;
         };
+        TenantUsersListResponseData: {
+            items: {
+                userId: string;
+                /** Format: email */
+                userEmailAddress: string;
+                /** @enum {string} */
+                roleName: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
+                /** Format: date-time */
+                createdAt: string;
+                /** Format: date-time */
+                updatedAt: string;
+            }[];
+            pageInfo: {
+                hasNextPage: boolean;
+                nextCursor?: string | null;
+                totalCount?: number;
+            };
+            applied: {
+                limit: number;
+                sort: {
+                    /** @enum {string} */
+                    field: "createdAt" | "updatedAt" | "userEmailAddress" | "roleName";
+                    /** @enum {string} */
+                    direction: "asc" | "desc";
+                };
+                filters: {
+                    q?: string;
+                    /** @enum {string} */
+                    roleName?: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
+                    createdAtFrom?: string;
+                    createdAtTo?: string;
+                    updatedAtFrom?: string;
+                    updatedAtTo?: string;
+                };
+            };
+        };
         TenantUserRecord: {
             userId: string;
             /** Format: email */
@@ -1215,10 +1273,6 @@ export interface components {
             createdAt?: string;
             /** Format: date-time */
             updatedAt?: string;
-        };
-        TenantUsersList: {
-            users: components["schemas"]["TenantUserRecord"][];
-            nextCursorId?: string;
         };
         CreateTenantUserBody: {
             /** Format: email */

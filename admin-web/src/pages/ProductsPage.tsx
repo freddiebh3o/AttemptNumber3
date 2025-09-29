@@ -942,6 +942,37 @@ export default function ProductsPage() {
           ) : (
             <>
               <div className="max-h-[65vh] overflow-y-auto" aria-busy={isLoadingProductsList}>
+                {activeFilterChips.length > 0 && (
+                  <Group gap="xs" mb="sm" wrap="wrap" role="region" aria-label="Active filters">
+                    {activeFilterChips.map((chip) => (
+                      <Badge
+                        key={chip.key as string}
+                        variant="light"
+                        rightSection={
+                          <CloseButton
+                            aria-label={`Clear ${chip.label}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              clearOneChip(chip.key);
+                            }}
+                          />
+                        }
+                      >
+                        {chip.label}
+                      </Badge>
+                    ))}
+                
+                    <Button
+                      variant="subtle"
+                      size="xs"
+                      onClick={clearAllFiltersAndFetch}
+                      aria-label="Clear all filters"
+                    >
+                      Clear all
+                    </Button>
+                  </Group>
+                )}
+                
                 {!isLoadingProductsList && (productsListRecords?.length ?? 0) === 0 ? (
                   <div className="py-16 text-center" role="region" aria-live="polite" aria-atomic="true">
                     <Title order={4} mb="xs">No products match your filters</Title>
@@ -956,184 +987,151 @@ export default function ProductsPage() {
                     </Group>
                   </div>
                 ) : (
-                  <>
-                    {activeFilterChips.length > 0 && (
-                      <Group gap="xs" mb="sm" wrap="wrap" role="region" aria-label="Active filters">
-                        {activeFilterChips.map((chip) => (
-                          <Badge
-                            key={chip.key as string}
-                            variant="light"
-                            rightSection={
-                              <CloseButton
-                                aria-label={`Clear ${chip.label}`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  clearOneChip(chip.key);
-                                }}
-                              />
-                            }
-                          >
-                            {chip.label}
-                          </Badge>
-                        ))}
-                    
-                        <Button
-                          variant="subtle"
-                          size="xs"
-                          onClick={clearAllFiltersAndFetch}
-                          aria-label="Clear all filters"
-                        >
-                          Clear all
-                        </Button>
-                      </Group>
-                    )}
+                  <Table 
+                    id={TABLE_ID}
+                    striped 
+                    withTableBorder 
+                    withColumnBorders 
+                    stickyHeader
+                    aria-describedby={RANGE_ID}
+                  >
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th scope="col" aria-sort={colAriaSort("productName")}>
+                          <Group gap={4} wrap="nowrap">
+                            <span>Name</span>
+                            <Tooltip label="Sort by name" withArrow>
+                              <ActionIcon
+                                variant="subtle"
+                                size="sm"
+                                onClick={() => applySort("productName")}
+                                aria-label="Sort by name"
+                              >
+                                <SortIcon
+                                  active={sortBy === "productName"}
+                                  dir={sortDir}
+                                />
+                              </ActionIcon>
+                            </Tooltip>
+                          </Group>
+                        </Table.Th>
 
-                    <Table 
-                      id={TABLE_ID}
-                      striped 
-                      withTableBorder 
-                      withColumnBorders 
-                      stickyHeader
-                      aria-describedby={RANGE_ID}
-                    >
-                      <Table.Thead>
-                        <Table.Tr>
-                          <Table.Th scope="col" aria-sort={colAriaSort("productName")}>
-                            <Group gap={4} wrap="nowrap">
-                              <span>Name</span>
-                              <Tooltip label="Sort by name" withArrow>
-                                <ActionIcon
-                                  variant="subtle"
-                                  size="sm"
-                                  onClick={() => applySort("productName")}
-                                  aria-label="Sort by name"
-                                >
-                                  <SortIcon
-                                    active={sortBy === "productName"}
-                                    dir={sortDir}
-                                  />
-                                </ActionIcon>
-                              </Tooltip>
+                        <Table.Th scope="col">SKU</Table.Th>
+
+                        <Table.Th scope="col" aria-sort={colAriaSort("productPriceCents")}>
+                          <Group gap={4} wrap="nowrap">
+                            <span>Price (cents)</span>
+                            <Tooltip label="Sort by price" withArrow>
+                              <ActionIcon
+                                variant="subtle"
+                                size="sm"
+                                onClick={() => applySort("productPriceCents")}
+                                aria-label={sortButtonLabel("price", "productPriceCents")}
+                                aria-controls={TABLE_ID}
+                              >
+                                <SortIcon
+                                  active={sortBy === "productPriceCents"}
+                                  dir={sortDir}
+                                />
+                              </ActionIcon>
+                            </Tooltip>
+                          </Group>
+                        </Table.Th>
+
+                        <Table.Th scope="col" aria-sort={colAriaSort("createdAt")}>
+                          <Group gap={4} wrap="nowrap">
+                            <span>Created</span>
+                            <Tooltip label="Sort by created date" withArrow>
+                              <ActionIcon
+                                variant="subtle"
+                                size="sm"
+                                onClick={() => applySort("createdAt")}
+                                aria-label={sortButtonLabel("created", "createdAt")}
+                                aria-controls={TABLE_ID}
+                              >
+                                <SortIcon
+                                  active={sortBy === "createdAt"}
+                                  dir={sortDir}
+                                />
+                              </ActionIcon>
+                            </Tooltip>
+                          </Group>
+                        </Table.Th>
+
+                        <Table.Th scope="col" aria-sort={colAriaSort("updatedAt")}>
+                          <Group gap={4} wrap="nowrap">
+                            <span>Updated</span>
+                            <Tooltip label="Sort by updated date" withArrow>
+                              <ActionIcon
+                                variant="subtle"
+                                size="sm"
+                                onClick={() => applySort("updatedAt")}
+                                aria-label={sortButtonLabel("updated", "updatedAt")}
+                                aria-controls={TABLE_ID}
+                              >
+                                <SortIcon
+                                  active={sortBy === "updatedAt"}
+                                  dir={sortDir}
+                                />
+                              </ActionIcon>
+                            </Tooltip>
+                          </Group>
+                        </Table.Th>
+
+                        <Table.Th>
+                          <Group gap={4} wrap="nowrap">
+                            <span>Version</span>
+                          </Group>
+                        </Table.Th>
+
+                        <Table.Th className="flex justify-end">Actions</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+
+                    <Table.Tbody>
+                      {productsListRecords.map((p) => (
+                        <Table.Tr key={p.id}>
+                          <Table.Td>{p.productName}</Table.Td>
+                          <Table.Td>{p.productSku}</Table.Td>
+                          <Table.Td>{p.productPriceCents}</Table.Td>
+                          <Table.Td>
+                            <Text size="sm">
+                              {new Date(p.createdAt).toLocaleString()}
+                            </Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="sm">
+                              {new Date(p.updatedAt).toLocaleString()}
+                            </Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Badge>{p.entityVersion}</Badge>
+                          </Table.Td>
+                          <Table.Td className="flex justify-end">
+                            <Group gap="xs">
+                              <ActionIcon
+                                variant="light"
+                                size="md"
+                                onClick={() => console.log('open edit product')}
+                                disabled={!isUserAdminOrOwnerForCurrentTenant}
+                              >
+                                <IconPencil size={16} />
+                              </ActionIcon>
+                              <ActionIcon
+                                variant="light"
+                                color="red"
+                                size="md"
+                                onClick={() => handleDeleteProduct(p.id)}
+                                disabled={!isUserAdminOrOwnerForCurrentTenant}
+                              >
+                                <IconTrash size={16} />
+                              </ActionIcon>
                             </Group>
-                          </Table.Th>
-
-                          <Table.Th scope="col">SKU</Table.Th>
-
-                          <Table.Th scope="col" aria-sort={colAriaSort("productPriceCents")}>
-                            <Group gap={4} wrap="nowrap">
-                              <span>Price (cents)</span>
-                              <Tooltip label="Sort by price" withArrow>
-                                <ActionIcon
-                                  variant="subtle"
-                                  size="sm"
-                                  onClick={() => applySort("productPriceCents")}
-                                  aria-label={sortButtonLabel("price", "productPriceCents")}
-                                  aria-controls={TABLE_ID}
-                                >
-                                  <SortIcon
-                                    active={sortBy === "productPriceCents"}
-                                    dir={sortDir}
-                                  />
-                                </ActionIcon>
-                              </Tooltip>
-                            </Group>
-                          </Table.Th>
-
-                          <Table.Th scope="col" aria-sort={colAriaSort("createdAt")}>
-                            <Group gap={4} wrap="nowrap">
-                              <span>Created</span>
-                              <Tooltip label="Sort by created date" withArrow>
-                                <ActionIcon
-                                  variant="subtle"
-                                  size="sm"
-                                  onClick={() => applySort("createdAt")}
-                                  aria-label={sortButtonLabel("created", "createdAt")}
-                                  aria-controls={TABLE_ID}
-                                >
-                                  <SortIcon
-                                    active={sortBy === "createdAt"}
-                                    dir={sortDir}
-                                  />
-                                </ActionIcon>
-                              </Tooltip>
-                            </Group>
-                          </Table.Th>
-
-                          <Table.Th scope="col" aria-sort={colAriaSort("updatedAt")}>
-                            <Group gap={4} wrap="nowrap">
-                              <span>Updated</span>
-                              <Tooltip label="Sort by updated date" withArrow>
-                                <ActionIcon
-                                  variant="subtle"
-                                  size="sm"
-                                  onClick={() => applySort("updatedAt")}
-                                  aria-label={sortButtonLabel("updated", "updatedAt")}
-                                  aria-controls={TABLE_ID}
-                                >
-                                  <SortIcon
-                                    active={sortBy === "updatedAt"}
-                                    dir={sortDir}
-                                  />
-                                </ActionIcon>
-                              </Tooltip>
-                            </Group>
-                          </Table.Th>
-
-                          <Table.Th>
-                            <Group gap={4} wrap="nowrap">
-                              <span>Version</span>
-                            </Group>
-                          </Table.Th>
-
-                          <Table.Th className="flex justify-end">Actions</Table.Th>
+                          </Table.Td>
                         </Table.Tr>
-                      </Table.Thead>
-
-                      <Table.Tbody>
-                        {productsListRecords.map((p) => (
-                          <Table.Tr key={p.id}>
-                            <Table.Td>{p.productName}</Table.Td>
-                            <Table.Td>{p.productSku}</Table.Td>
-                            <Table.Td>{p.productPriceCents}</Table.Td>
-                            <Table.Td>
-                              <Text size="sm">
-                                {new Date(p.createdAt).toLocaleString()}
-                              </Text>
-                            </Table.Td>
-                            <Table.Td>
-                              <Text size="sm">
-                                {new Date(p.updatedAt).toLocaleString()}
-                              </Text>
-                            </Table.Td>
-                            <Table.Td>
-                              <Badge>{p.entityVersion}</Badge>
-                            </Table.Td>
-                            <Table.Td className="flex justify-end">
-                              <Group gap="xs">
-                                <ActionIcon
-                                  variant="light"
-                                  size="md"
-                                  onClick={() => console.log('open edit product')}
-                                  disabled={!isUserAdminOrOwnerForCurrentTenant}
-                                >
-                                  <IconPencil size={16} />
-                                </ActionIcon>
-                                <ActionIcon
-                                  variant="light"
-                                  color="red"
-                                  size="md"
-                                  onClick={() => handleDeleteProduct(p.id)}
-                                  disabled={!isUserAdminOrOwnerForCurrentTenant}
-                                >
-                                  <IconTrash size={16} />
-                                </ActionIcon>
-                              </Group>
-                            </Table.Td>
-                          </Table.Tr>
-                        ))}
-                      </Table.Tbody>
-                    </Table>
-                  </>
+                      ))}
+                    </Table.Tbody>
+                  </Table>
                 )}
               </div>
 

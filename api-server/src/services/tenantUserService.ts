@@ -102,6 +102,13 @@ export async function listUsersForCurrentTenantService(args: ListUsersArgs) {
     ...(Object.keys(userFilter).length ? { user: userFilter } : {}),
   }
 
+  if (qOptional && qOptional.trim()) {
+    where.user = {
+      ...(where.user ?? {}),
+      userEmailAddress: { contains: qOptional.trim(), mode: 'insensitive' },
+    };
+  }
+
   // Primary order + tie-breaker by membership.id
   const orderByPrimary =
     sortBy === 'userEmailAddress'
