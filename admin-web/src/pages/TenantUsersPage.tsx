@@ -843,7 +843,7 @@ export default function TenantUsersPage() {
                         </Group>
                       </Table.Th>
 
-                      <Table.Th>Actions</Table.Th>
+                      <Table.Th className="flex justify-end">Actions</Table.Th>
                     </Table.Tr>
                   </Table.Thead>
 
@@ -854,14 +854,25 @@ export default function TenantUsersPage() {
                         <Table.Td><Badge>{r.roleName}</Badge></Table.Td>
                         <Table.Td>{r.createdAt ? new Date(r.createdAt).toLocaleString() : "—"}</Table.Td>
                         <Table.Td>{r.updatedAt ? new Date(r.updatedAt).toLocaleString() : "—"}</Table.Td>
-                        <Table.Td>
+                        <Table.Td className="flex justify-end">
                           <Group gap="xs">
-                            <Button size="xs" variant="light" leftSection={<IconPencil size={16} />} onClick={() => openEditModal(r)} disabled={!isAdminOrOwner}>
-                              Edit
-                            </Button>
-                            <Button size="xs" variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={() => handleDelete(r.userId)} disabled={!isAdminOrOwner}>
-                              Remove
-                            </Button>
+                            <ActionIcon
+                                variant="light"
+                                size="md"
+                                onClick={() => console.log('open edit product')}
+                                disabled={!isAdminOrOwner}
+                              >
+                                <IconPencil size={16} />
+                              </ActionIcon>
+                              <ActionIcon
+                                variant="light"
+                                color="red"
+                                size="md"
+                                onClick={() => handleDelete(r.userId)}
+                                disabled={!isAdminOrOwner}
+                              >
+                                <IconTrash size={16} />
+                              </ActionIcon>
                           </Group>
                         </Table.Td>
                       </Table.Tr>
