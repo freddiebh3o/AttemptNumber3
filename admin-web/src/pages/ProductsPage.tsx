@@ -1,6 +1,6 @@
 // admin-web/src/pages/ProductsPage.tsx
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams, useLocation, useNavigationType } from "react-router-dom";
 import {
   Button,
   Group,
@@ -72,6 +72,8 @@ const emptyProductFilters: ProductFilters = {
 
 export default function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigationType = useNavigationType(); 
+  const location = useLocation();
   const { tenantSlug } = useParams<{ tenantSlug: string }>();
 
   // Global memberships (no per-page /me calls)
@@ -125,6 +127,7 @@ export default function ProductsPage() {
     createdAtTo?: string | null | undefined;
     updatedAtFrom?: string | null | undefined;
     updatedAtTo?: string | null | undefined;
+    page?: number;
   }) {
     const params = new URLSearchParams();
 
@@ -194,7 +197,10 @@ export default function ProductsPage() {
         : overrides.cursorId;
     if (cursor) params.set("cursorId", cursor);
 
-    setSearchParams(params, { replace: true });
+    const pageToWrite = overrides?.page ?? (pageIndex + 1);
+    put("page", pageToWrite);
+
+    setSearchParams(params, { replace: false });
   }
 
   // ---- Data fetching helpers ----
@@ -312,6 +318,7 @@ export default function ProductsPage() {
     setPageIndex(0);
     setUrlFromState({
       cursorId: null,
+      page: 1,
       limit: opts?.limitOverride,
       sortBy: opts?.sortByOverride,
       sortDir: opts?.sortDirOverride,
@@ -337,6 +344,9 @@ export default function ProductsPage() {
     setNextCursor(null);
     setTotalCount(null);
     setErrorForBoundary(null);
+
+    const qpPage = Number(searchParams.get("page") ?? "1");
+    const initialPageIndex = Number.isFinite(qpPage) && qpPage > 0 ? qpPage - 1 : 0;
 
     // Parse URL params
     const qpLimit = Number(searchParams.get("limit"));
@@ -368,7 +378,7 @@ export default function ProductsPage() {
 
     // Use the cursor from URL as the starting point
     setCursorStack([qpCursor ?? null]);
-    setPageIndex(0);
+    setPageIndex(initialPageIndex);
 
     void fetchPageWith({
       includeTotal: true,
@@ -391,6 +401,59 @@ export default function ProductsPage() {
     });
   }, [tenantSlug]);
 
+  useEffect(() => {
+    if (navigationType !== 'POP') return; // only browser back/forward
+  
+    const sp = new URLSearchParams(location.search);
+  
+    const qpLimit = Number(sp.get("limit"));
+    const qpSortBy = sp.get("sortBy") as SortField | null;
+    const qpSortDir = sp.get("sortDir") as SortDir | null;
+    const qpQ = sp.get("q");
+    const qpMin = sp.get("minPriceCents");
+    const qpMax = sp.get("maxPriceCents");
+    const qpCreatedFrom = sp.get("createdAtFrom");
+    const qpCreatedTo = sp.get("createdAtTo");
+    const qpUpdatedFrom = sp.get("updatedAtFrom");
+    const qpUpdatedTo = sp.get("updatedAtTo");
+    const qpCursor = sp.get("cursorId");
+    const qpPage = Number(sp.get("page") ?? "1");
+    const newPageIndex = Number.isFinite(qpPage) && qpPage > 0 ? qpPage - 1 : 0;
+  
+    if (!Number.isNaN(qpLimit) && qpLimit) setLimit(Math.max(1, Math.min(100, qpLimit)));
+    if (qpSortBy) setSortBy(qpSortBy);
+    if (qpSortDir) setSortDir(qpSortDir);
+  
+    setAppliedFilters({
+      q: qpQ ?? "",
+      minPriceCents: qpMin !== null ? (qpMin === "" ? "" : Number(qpMin)) : "",
+      maxPriceCents: qpMax !== null ? (qpMax === "" ? "" : Number(qpMax)) : "",
+      createdAtFrom: qpCreatedFrom ?? null,
+      createdAtTo: qpCreatedTo ?? null,
+      updatedAtFrom: qpUpdatedFrom ?? null,
+      updatedAtTo: qpUpdatedTo ?? null,
+    });
+  
+    // seed stack minimally; we may not know earlier cursors
+    setCursorStack([qpCursor ?? null]);
+    setPageIndex(newPageIndex);
+  
+    void fetchPageWith({
+      includeTotal: true,
+      cursorId: qpCursor ?? null,
+      sortByOverride: qpSortBy ?? undefined,
+      sortDirOverride: qpSortDir ?? undefined,
+      limitOverride: !Number.isNaN(qpLimit) && qpLimit ? Math.max(1, Math.min(100, qpLimit)) : undefined,
+      qOverride: qpQ ?? undefined,
+      minPriceOverride: qpMin !== null ? (qpMin ? Number(qpMin) : null) : undefined,
+      maxPriceOverride: qpMax !== null ? (qpMax ? Number(qpMax) : null) : undefined,
+      createdFromOverride: qpCreatedFrom ?? undefined,
+      createdToOverride: qpCreatedTo ?? undefined,
+      updatedFromOverride: qpUpdatedFrom ?? undefined,
+      updatedToOverride: qpUpdatedTo ?? undefined,
+    });
+  }, [location.key, navigationType, tenantSlug]);
+
   if (errorForBoundary) throw errorForBoundary;
 
   // ---- Sorting from table headers ----
@@ -410,9 +473,10 @@ export default function ProductsPage() {
     if (!hasNextPage || !nextCursor) return;
     setIsPaginating(true);
     try {
+      const newIndex = pageIndex + 1;
       setCursorStack((prev) => [...prev.slice(0, pageIndex + 1), nextCursor]);
-      setPageIndex((i) => i + 1);
-      setUrlFromState({ cursorId: nextCursor });
+      setPageIndex(newIndex);
+      setUrlFromState({ cursorId: nextCursor, page: newIndex + 1 });
       setTimeout(() => void fetchPageWith(), 0);
     } finally {
       setIsPaginating(false);
@@ -424,8 +488,9 @@ export default function ProductsPage() {
     setIsPaginating(true);
     try {
       const prevCursor = cursorStack[pageIndex - 1] ?? null;
-      setPageIndex((i) => i - 1);
-      setUrlFromState({ cursorId: prevCursor });
+      const newIndex = pageIndex - 1;
+      setPageIndex(newIndex);
+      setUrlFromState({ cursorId: prevCursor, page: newIndex + 1 });
       setTimeout(() => void fetchPageWith(), 0);
     } finally {
       setIsPaginating(false);
@@ -1133,7 +1198,7 @@ export default function ProductsPage() {
                     variant="light"
                     leftSection={<IconPlayerTrackPrev size={16} />}
                     onClick={goPrevPage}
-                    disabled={pageIndex === 0 || isPaginating}
+                    disabled={isPaginating || pageIndex === 0 || (pageIndex > 0 && cursorStack[pageIndex - 1] === undefined)}
                   >
                     Prev
                   </Button>
