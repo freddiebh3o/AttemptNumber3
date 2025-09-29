@@ -1,4 +1,4 @@
-// src/services/tenantUserService.ts
+// api-server/src/services/tenantUserService.ts
 import { PrismaClient, RoleName } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { Errors } from '../utils/httpErrors.js'

@@ -1,4 +1,4 @@
-// src/routes/tenantUserRouter.ts
+// api-server/src/routes/tenantUserRouter.ts
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuthenticatedUserMiddleware } from "../middleware/sessionMiddleware.js";
