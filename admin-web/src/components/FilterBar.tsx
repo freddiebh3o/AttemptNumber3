@@ -8,6 +8,7 @@ type FilterBarProps<T extends object> = {
   emptyValues: T;   // what "Clear" should reset to
   onApply: (values: T) => void;
   onClear: () => void;
+  panelId?: string;
   children: (args: {
     values: T;
     setValues: React.Dispatch<React.SetStateAction<T>>;
@@ -21,6 +22,7 @@ export function FilterBar<T extends object>({
   onApply,
   onClear,
   children,
+  panelId,
 }: FilterBarProps<T>) {
   const [values, setValues] = useState<T>(initialValues);
 
@@ -41,7 +43,7 @@ export function FilterBar<T extends object>({
   }
 
   return (
-    <Collapse in={open}>
+    <Collapse in={open} id={panelId}>
       <Paper withBorder p="md" radius="md" className="bg-white mt-3">
         <form onSubmit={handleSubmit}>
           {children({ values, setValues })}

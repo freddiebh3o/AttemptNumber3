@@ -71,6 +71,11 @@ const emptyProductFilters: ProductFilters = {
 };
 
 export default function ProductsPage() {
+  const FILTER_PANEL_ID = "products-filter-panel";
+  const TABLE_ID = "products-table";
+  const RANGE_ID = "products-range";
+
+
   const [searchParams, setSearchParams] = useSearchParams();
   const navigationType = useNavigationType(); 
   const location = useLocation();
@@ -114,6 +119,43 @@ export default function ProductsPage() {
     );
     return match?.roleName === "ADMIN" || match?.roleName === "OWNER";
   }, [currentUserTenantMemberships, tenantSlug]);
+
+  function clearAllFiltersAndFetch() {
+    setAppliedFilters(emptyProductFilters);
+    setUrlFromState({
+      cursorId: null,
+      q: null,
+      minPriceCents: null,
+      maxPriceCents: null,
+      createdAtFrom: null,
+      createdAtTo: null,
+      updatedAtFrom: null,
+      updatedAtTo: null,
+    });
+    resetToFirstPageAndFetch({
+      qOverride: null,
+      minPriceOverride: null,
+      maxPriceOverride: null,
+      createdFromOverride: null,
+      createdToOverride: null,
+      updatedFromOverride: null,
+      updatedToOverride: null,
+    });
+  }
+
+  function colAriaSort(field: SortField): "ascending" | "descending" | "none" {
+    if (sortBy !== field) return "none";
+    return sortDir === "asc" ? "ascending" : "descending";
+  }
+  function nextDir(dir: SortDir) { return dir === "asc" ? "desc" : "asc"; }
+  function sortButtonLabel(label: string, field: SortField) {
+    if (sortBy === field) {
+      const curr = sortDir === "asc" ? "ascending" : "descending";
+      const next = nextDir(sortDir) === "asc" ? "ascending" : "descending";
+      return `Sort by ${label}, currently ${curr}. Activate to sort ${next}.`;
+    }
+    return `Sort by ${label}. Activate to sort ascending.`;
+  }
 
   function setUrlFromState(overrides?: {
     cursorId?: string | null;
@@ -561,6 +603,8 @@ export default function ProductsPage() {
                   <IconChevronDown size={16} />
                 )
               }
+              aria-expanded={showFilters}
+              aria-controls={FILTER_PANEL_ID}
             >
               Filters
             </Button>
@@ -585,430 +629,229 @@ export default function ProductsPage() {
       </div>
 
       {/* Collapsible Filters */}
-      {/* <Collapse in={showFilters}>
-        <Paper withBorder p="md" radius="md" className="bg-white mt-3"> */}
-          <FilterBar<ProductFilters>
-            open={showFilters}
-            initialValues={appliedFilters}
-            emptyValues={emptyProductFilters}
-            onApply={(values) => {
-              setAppliedFilters(values);
-              resetToFirstPageAndFetch({
-                qOverride: values.q.trim() || null,
-                minPriceOverride:
-                  typeof values.minPriceCents === "number" ? values.minPriceCents : null,
-                maxPriceOverride:
-                  typeof values.maxPriceCents === "number" ? values.maxPriceCents : null,
-                createdFromOverride: values.createdAtFrom ?? null,
-                createdToOverride: values.createdAtTo ?? null,
-                updatedFromOverride: values.updatedAtFrom ?? null,
-                updatedToOverride: values.updatedAtTo ?? null,
-              });
-            }}
-            onClear={() => {
-              setAppliedFilters(emptyProductFilters);
-              resetToFirstPageAndFetch({
-                qOverride: null,
-                minPriceOverride: null,
-                maxPriceOverride: null,
-                createdFromOverride: null,
-                createdToOverride: null,
-                updatedFromOverride: null,
-                updatedToOverride: null,
-              });
-            }}
-          >
-            {({ values, setValues }) => (
-              <Grid gutter="md">
-                <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-                  <TextInput
-                    label="Search (name or SKU)"
-                    placeholder="e.g. anvil or ACME-SKU-001"
-                    value={values.q}
-                    onChange={(e) => {
-                      const val = e.currentTarget.value;   // buffer first
-                      setValues((prev) => ({ ...prev, q: val }));
-                    }}
-                  />
-                </Grid.Col>
+      <FilterBar<ProductFilters>
+        open={showFilters}
+        panelId={FILTER_PANEL_ID}
+        initialValues={appliedFilters}
+        emptyValues={emptyProductFilters}
+        onApply={(values) => {
+          setAppliedFilters(values);
+          resetToFirstPageAndFetch({
+            qOverride: values.q.trim() || null,
+            minPriceOverride:
+              typeof values.minPriceCents === "number" ? values.minPriceCents : null,
+            maxPriceOverride:
+              typeof values.maxPriceCents === "number" ? values.maxPriceCents : null,
+            createdFromOverride: values.createdAtFrom ?? null,
+            createdToOverride: values.createdAtTo ?? null,
+            updatedFromOverride: values.updatedAtFrom ?? null,
+            updatedToOverride: values.updatedAtTo ?? null,
+          });
+        }}
+        onClear={clearAllFiltersAndFetch}
+      >
+        {({ values, setValues }) => (
+          <Grid gutter="md">
+            <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+              <TextInput
+                label="Search (name or SKU)"
+                placeholder="e.g. anvil or ACME-SKU-001"
+                value={values.q}
+                onChange={(e) => {
+                  const val = e.currentTarget.value;   // buffer first
+                  setValues((prev) => ({ ...prev, q: val }));
+                }}
+              />
+            </Grid.Col>
 
-                <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-                  <NumberInput
-                    label="Min price (cents)"
-                    placeholder="e.g. 5000"
-                    value={values.minPriceCents}
-                    min={0}
-                    onChange={(v) =>
-                      setValues((prev) => ({
-                        ...prev,
-                        minPriceCents:
-                          typeof v === "number" ? v : v === "" ? "" : Number(v),
-                      }))
-                    }
-                  />
-                </Grid.Col>
+            <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+              <NumberInput
+                label="Min price (cents)"
+                placeholder="e.g. 5000"
+                value={values.minPriceCents}
+                min={0}
+                onChange={(v) =>
+                  setValues((prev) => ({
+                    ...prev,
+                    minPriceCents:
+                      typeof v === "number" ? v : v === "" ? "" : Number(v),
+                  }))
+                }
+              />
+            </Grid.Col>
 
-                <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-                  <NumberInput
-                    label="Max price (cents)"
-                    placeholder="e.g. 20000"
-                    value={values.maxPriceCents}
-                    min={0}
-                    onChange={(v) =>
-                      setValues((prev) => ({
-                        ...prev,
-                        maxPriceCents:
-                          typeof v === "number" ? v : v === "" ? "" : Number(v),
-                      }))
-                    }
-                  />
-                </Grid.Col>
+            <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+              <NumberInput
+                label="Max price (cents)"
+                placeholder="e.g. 20000"
+                value={values.maxPriceCents}
+                min={0}
+                onChange={(v) =>
+                  setValues((prev) => ({
+                    ...prev,
+                    maxPriceCents:
+                      typeof v === "number" ? v : v === "" ? "" : Number(v),
+                  }))
+                }
+              />
+            </Grid.Col>
 
-                <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-                  <DatePickerInput
-                    label="Created from"
-                    placeholder="Start date"
-                    value={values.createdAtFrom}
-                    onChange={(v) =>
-                      setValues((prev) => ({ ...prev, createdAtFrom: v }))
-                    }
-                    valueFormat="YYYY-MM-DD"
-                    popoverProps={{ withinPortal: true }}
-                    presets={[
-                      {
-                        value: dayjs().subtract(1, "day").format("YYYY-MM-DD"),
-                        label: "Yesterday",
-                      },
-                      { value: dayjs().format("YYYY-MM-DD"), label: "Today" },
-                      {
-                        value: dayjs().add(1, "day").format("YYYY-MM-DD"),
-                        label: "Tomorrow",
-                      },
-                      {
-                        value: dayjs().add(1, "month").format("YYYY-MM-DD"),
-                        label: "Next month",
-                      },
-                      {
-                        value: dayjs().add(1, "year").format("YYYY-MM-DD"),
-                        label: "Next year",
-                      },
-                      {
-                        value: dayjs()
-                          .subtract(1, "month")
-                          .format("YYYY-MM-DD"),
-                        label: "Last month",
-                      },
-                      {
-                        value: dayjs().subtract(1, "year").format("YYYY-MM-DD"),
-                        label: "Last year",
-                      },
-                    ]}
-                    clearable
-                  />
-                </Grid.Col>
+            <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+              <DatePickerInput
+                label="Created from"
+                placeholder="Start date"
+                value={values.createdAtFrom}
+                onChange={(v) =>
+                  setValues((prev) => ({ ...prev, createdAtFrom: v }))
+                }
+                valueFormat="YYYY-MM-DD"
+                popoverProps={{ withinPortal: true }}
+                presets={[
+                  {
+                    value: dayjs().subtract(1, "day").format("YYYY-MM-DD"),
+                    label: "Yesterday",
+                  },
+                  { value: dayjs().format("YYYY-MM-DD"), label: "Today" },
+                  {
+                    value: dayjs().add(1, "day").format("YYYY-MM-DD"),
+                    label: "Tomorrow",
+                  },
+                  {
+                    value: dayjs().add(1, "month").format("YYYY-MM-DD"),
+                    label: "Next month",
+                  },
+                  {
+                    value: dayjs().add(1, "year").format("YYYY-MM-DD"),
+                    label: "Next year",
+                  },
+                  {
+                    value: dayjs()
+                      .subtract(1, "month")
+                      .format("YYYY-MM-DD"),
+                    label: "Last month",
+                  },
+                  {
+                    value: dayjs().subtract(1, "year").format("YYYY-MM-DD"),
+                    label: "Last year",
+                  },
+                ]}
+                clearable
+              />
+            </Grid.Col>
 
-                <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-                  <DatePickerInput
-                    label="Created to"
-                    placeholder="End date"
-                    value={values.createdAtTo}
-                    onChange={(v) =>
-                      setValues((prev) => ({ ...prev, createdAtTo: v }))
-                    }
-                    valueFormat="YYYY-MM-DD"
-                    popoverProps={{ withinPortal: true }}
-                    presets={[
-                      {
-                        value: dayjs().subtract(1, "day").format("YYYY-MM-DD"),
-                        label: "Yesterday",
-                      },
-                      { value: dayjs().format("YYYY-MM-DD"), label: "Today" },
-                      {
-                        value: dayjs().add(1, "day").format("YYYY-MM-DD"),
-                        label: "Tomorrow",
-                      },
-                      {
-                        value: dayjs().add(1, "month").format("YYYY-MM-DD"),
-                        label: "Next month",
-                      },
-                      {
-                        value: dayjs().add(1, "year").format("YYYY-MM-DD"),
-                        label: "Next year",
-                      },
-                      {
-                        value: dayjs()
-                          .subtract(1, "month")
-                          .format("YYYY-MM-DD"),
-                        label: "Last month",
-                      },
-                      {
-                        value: dayjs().subtract(1, "year").format("YYYY-MM-DD"),
-                        label: "Last year",
-                      },
-                    ]}
-                    clearable
-                  />
-                </Grid.Col>
+            <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+              <DatePickerInput
+                label="Created to"
+                placeholder="End date"
+                value={values.createdAtTo}
+                onChange={(v) =>
+                  setValues((prev) => ({ ...prev, createdAtTo: v }))
+                }
+                valueFormat="YYYY-MM-DD"
+                popoverProps={{ withinPortal: true }}
+                presets={[
+                  {
+                    value: dayjs().subtract(1, "day").format("YYYY-MM-DD"),
+                    label: "Yesterday",
+                  },
+                  { value: dayjs().format("YYYY-MM-DD"), label: "Today" },
+                  {
+                    value: dayjs().add(1, "day").format("YYYY-MM-DD"),
+                    label: "Tomorrow",
+                  },
+                  {
+                    value: dayjs().add(1, "month").format("YYYY-MM-DD"),
+                    label: "Next month",
+                  },
+                  {
+                    value: dayjs().add(1, "year").format("YYYY-MM-DD"),
+                    label: "Next year",
+                  },
+                  {
+                    value: dayjs()
+                      .subtract(1, "month")
+                      .format("YYYY-MM-DD"),
+                    label: "Last month",
+                  },
+                  {
+                    value: dayjs().subtract(1, "year").format("YYYY-MM-DD"),
+                    label: "Last year",
+                  },
+                ]}
+                clearable
+              />
+            </Grid.Col>
 
-                <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-                  <DatePickerInput
-                    label="Updated from"
-                    placeholder="Start date"
-                    value={values.updatedAtFrom}
-                    onChange={(v) =>
-                      setValues((prev) => ({ ...prev, updatedAtFrom: v }))
-                    }
-                    valueFormat="YYYY-MM-DD"
-                    popoverProps={{ withinPortal: true }}
-                    presets={[
-                      {
-                        value: dayjs().subtract(1, "day").format("YYYY-MM-DD"),
-                        label: "Yesterday",
-                      },
-                      { value: dayjs().format("YYYY-MM-DD"), label: "Today" },
-                      {
-                        value: dayjs().add(1, "day").format("YYYY-MM-DD"),
-                        label: "Tomorrow",
-                      },
-                      {
-                        value: dayjs()
-                          .subtract(1, "month")
-                          .format("YYYY-MM-DD"),
-                        label: "Last month",
-                      },
-                      {
-                        value: dayjs().subtract(1, "year").format("YYYY-MM-DD"),
-                        label: "Last year",
-                      },
-                    ]}
-                    clearable
-                  />
-                </Grid.Col>
+            <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+              <DatePickerInput
+                label="Updated from"
+                placeholder="Start date"
+                value={values.updatedAtFrom}
+                onChange={(v) =>
+                  setValues((prev) => ({ ...prev, updatedAtFrom: v }))
+                }
+                valueFormat="YYYY-MM-DD"
+                popoverProps={{ withinPortal: true }}
+                presets={[
+                  {
+                    value: dayjs().subtract(1, "day").format("YYYY-MM-DD"),
+                    label: "Yesterday",
+                  },
+                  { value: dayjs().format("YYYY-MM-DD"), label: "Today" },
+                  {
+                    value: dayjs().add(1, "day").format("YYYY-MM-DD"),
+                    label: "Tomorrow",
+                  },
+                  {
+                    value: dayjs()
+                      .subtract(1, "month")
+                      .format("YYYY-MM-DD"),
+                    label: "Last month",
+                  },
+                  {
+                    value: dayjs().subtract(1, "year").format("YYYY-MM-DD"),
+                    label: "Last year",
+                  },
+                ]}
+                clearable
+              />
+            </Grid.Col>
 
-                <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-                  <DatePickerInput
-                    label="Updated to"
-                    placeholder="End date"
-                    value={values.updatedAtTo}
-                    onChange={(v) =>
-                      setValues((prev) => ({ ...prev, updatedAtTo: v }))
-                    }
-                    valueFormat="YYYY-MM-DD"
-                    popoverProps={{ withinPortal: true }}
-                    presets={[
-                      {
-                        value: dayjs().subtract(1, "day").format("YYYY-MM-DD"),
-                        label: "Yesterday",
-                      },
-                      { value: dayjs().format("YYYY-MM-DD"), label: "Today" },
-                      {
-                        value: dayjs().add(1, "day").format("YYYY-MM-DD"),
-                        label: "Tomorrow",
-                      },
-                      {
-                        value: dayjs().add(1, "month").format("YYYY-MM-DD"),
-                        label: "Next month",
-                      },
-                      {
-                        value: dayjs().add(1, "year").format("YYYY-MM-DD"),
-                        label: "Next year",
-                      },
-                    ]}
-                    clearable
-                  />
-                </Grid.Col>
-              </Grid>
-            )}
-          </FilterBar>
-          {/* <form onSubmit={onSubmitFilters}>
-            <Grid gutter="md">
-              <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-                <TextInput
-                  label="Search (name or SKU)"
-                  placeholder="e.g. anvil or ACME-SKU-001"
-                  value={q}
-                  onChange={(e) => setQ(e.currentTarget.value)}
-                />
-              </Grid.Col>
-
-              <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-                <NumberInput
-                  label="Min price (cents)"
-                  placeholder="e.g. 5000"
-                  value={minPriceCents}
-                  min={0}
-                  onChange={(v) =>
-                    setMinPriceCents(
-                      typeof v === "number" ? v : v === "" ? "" : Number(v)
-                    )
-                  }
-                />
-              </Grid.Col>
-
-              <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-                <NumberInput
-                  label="Max price (cents)"
-                  placeholder="e.g. 20000"
-                  value={maxPriceCents}
-                  min={0}
-                  onChange={(v) =>
-                    setMaxPriceCents(
-                      typeof v === "number" ? v : v === "" ? "" : Number(v)
-                    )
-                  }
-                />
-              </Grid.Col>
-
-              <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-                <DatePickerInput
-                  label="Created from"
-                  placeholder="Start date"
-                  value={createdAtFromStr}
-                  onChange={setCreatedAtFromStr}
-                  valueFormat="YYYY-MM-DD"
-                  popoverProps={{ withinPortal: true }}
-                  presets={[
-                    {
-                      value: dayjs().subtract(1, "day").format("YYYY-MM-DD"),
-                      label: "Yesterday",
-                    },
-                    { value: dayjs().format("YYYY-MM-DD"), label: "Today" },
-                    {
-                      value: dayjs().add(1, "day").format("YYYY-MM-DD"),
-                      label: "Tomorrow",
-                    },
-                    {
-                      value: dayjs().add(1, "month").format("YYYY-MM-DD"),
-                      label: "Next month",
-                    },
-                    {
-                      value: dayjs().add(1, "year").format("YYYY-MM-DD"),
-                      label: "Next year",
-                    },
-                    {
-                      value: dayjs().subtract(1, "month").format("YYYY-MM-DD"),
-                      label: "Last month",
-                    },
-                    {
-                      value: dayjs().subtract(1, "year").format("YYYY-MM-DD"),
-                      label: "Last year",
-                    },
-                  ]}
-                  clearable
-                />
-              </Grid.Col>
-
-              <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-                <DatePickerInput
-                  label="Created to"
-                  placeholder="End date"
-                  value={createdAtToStr}
-                  onChange={setCreatedAtToStr}
-                  valueFormat="YYYY-MM-DD"
-                  popoverProps={{ withinPortal: true }}
-                  presets={[
-                    {
-                      value: dayjs().subtract(1, "day").format("YYYY-MM-DD"),
-                      label: "Yesterday",
-                    },
-                    { value: dayjs().format("YYYY-MM-DD"), label: "Today" },
-                    {
-                      value: dayjs().add(1, "day").format("YYYY-MM-DD"),
-                      label: "Tomorrow",
-                    },
-                    {
-                      value: dayjs().add(1, "month").format("YYYY-MM-DD"),
-                      label: "Next month",
-                    },
-                    {
-                      value: dayjs().add(1, "year").format("YYYY-MM-DD"),
-                      label: "Next year",
-                    },
-                    {
-                      value: dayjs().subtract(1, "month").format("YYYY-MM-DD"),
-                      label: "Last month",
-                    },
-                    {
-                      value: dayjs().subtract(1, "year").format("YYYY-MM-DD"),
-                      label: "Last year",
-                    },
-                  ]}
-                  clearable
-                />
-              </Grid.Col>
-
-              <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-                <DatePickerInput
-                  label="Updated from"
-                  placeholder="Start date"
-                  value={updatedAtFromStr}
-                  onChange={setUpdatedAtFromStr}
-                  valueFormat="YYYY-MM-DD"
-                  popoverProps={{ withinPortal: true }}
-                  presets={[
-                    {
-                      value: dayjs().subtract(1, "day").format("YYYY-MM-DD"),
-                      label: "Yesterday",
-                    },
-                    { value: dayjs().format("YYYY-MM-DD"), label: "Today" },
-                    {
-                      value: dayjs().add(1, "day").format("YYYY-MM-DD"),
-                      label: "Tomorrow",
-                    },
-                    {
-                      value: dayjs().subtract(1, "month").format("YYYY-MM-DD"),
-                      label: "Last month",
-                    },
-                    {
-                      value: dayjs().subtract(1, "year").format("YYYY-MM-DD"),
-                      label: "Last year",
-                    },
-                  ]}
-                  clearable
-                />
-              </Grid.Col>
-
-              <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-                <DatePickerInput
-                  label="Updated to"
-                  placeholder="End date"
-                  value={updatedAtToStr}
-                  onChange={setUpdatedAtToStr}
-                  valueFormat="YYYY-MM-DD"
-                  popoverProps={{ withinPortal: true }}
-                  presets={[
-                    {
-                      value: dayjs().subtract(1, "day").format("YYYY-MM-DD"),
-                      label: "Yesterday",
-                    },
-                    { value: dayjs().format("YYYY-MM-DD"), label: "Today" },
-                    {
-                      value: dayjs().add(1, "day").format("YYYY-MM-DD"),
-                      label: "Tomorrow",
-                    },
-                    {
-                      value: dayjs().add(1, "month").format("YYYY-MM-DD"),
-                      label: "Next month",
-                    },
-                    {
-                      value: dayjs().add(1, "year").format("YYYY-MM-DD"),
-                      label: "Next year",
-                    },
-                  ]}
-                  clearable
-                />
-              </Grid.Col>
-            </Grid>
-
-            <Group justify="flex-end" mt="md">
-              <Button type="button" variant="subtle" onClick={onClearFilters}>
-                Clear
-              </Button>
-              <Button type="submit">Apply filters</Button>
-            </Group>
-          </form> */}
-        {/* </Paper>
-      </Collapse> */}
+            <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+              <DatePickerInput
+                label="Updated to"
+                placeholder="End date"
+                value={values.updatedAtTo}
+                onChange={(v) =>
+                  setValues((prev) => ({ ...prev, updatedAtTo: v }))
+                }
+                valueFormat="YYYY-MM-DD"
+                popoverProps={{ withinPortal: true }}
+                presets={[
+                  {
+                    value: dayjs().subtract(1, "day").format("YYYY-MM-DD"),
+                    label: "Yesterday",
+                  },
+                  { value: dayjs().format("YYYY-MM-DD"), label: "Today" },
+                  {
+                    value: dayjs().add(1, "day").format("YYYY-MM-DD"),
+                    label: "Tomorrow",
+                  },
+                  {
+                    value: dayjs().add(1, "month").format("YYYY-MM-DD"),
+                    label: "Next month",
+                  },
+                  {
+                    value: dayjs().add(1, "year").format("YYYY-MM-DD"),
+                    label: "Next year",
+                  },
+                ]}
+                clearable
+              />
+            </Grid.Col>
+          </Grid>
+        )}
+      </FilterBar>
 
       {/* Table + Controls */}
       <div className="py-4">
@@ -1045,152 +888,168 @@ export default function ProductsPage() {
           </Group>
 
           {productsListRecords === null || isLoadingProductsList ? (
-            <div className="flex items-center justify-center p-8">
+            <div className="flex items-center justify-center p-8" role="status" aria-live="polite">
               <Loader />
+              <Text ml="sm">Loading products…</Text>
             </div>
           ) : (
             <>
-              <div className="max-h-[65vh] overflow-y-auto">
-                <Table striped withTableBorder withColumnBorders stickyHeader>
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th>
-                        <Group gap={4} wrap="nowrap">
-                          <span>Name</span>
-                          <Tooltip label="Sort by name" withArrow>
-                            <ActionIcon
-                              variant="subtle"
-                              size="sm"
-                              onClick={() => applySort("productName")}
-                              aria-label="Sort by name"
-                            >
-                              <SortIcon
-                                active={sortBy === "productName"}
-                                dir={sortDir}
-                              />
-                            </ActionIcon>
-                          </Tooltip>
-                        </Group>
-                      </Table.Th>
-
-                      <Table.Th>SKU</Table.Th>
-
-                      <Table.Th>
-                        <Group gap={4} wrap="nowrap">
-                          <span>Price (cents)</span>
-                          <Tooltip label="Sort by price" withArrow>
-                            <ActionIcon
-                              variant="subtle"
-                              size="sm"
-                              onClick={() => applySort("productPriceCents")}
-                              aria-label="Sort by price"
-                            >
-                              <SortIcon
-                                active={sortBy === "productPriceCents"}
-                                dir={sortDir}
-                              />
-                            </ActionIcon>
-                          </Tooltip>
-                        </Group>
-                      </Table.Th>
-
-                      <Table.Th>
-                        <Group gap={4} wrap="nowrap">
-                          <span>Created</span>
-                          <Tooltip label="Sort by created date" withArrow>
-                            <ActionIcon
-                              variant="subtle"
-                              size="sm"
-                              onClick={() => applySort("createdAt")}
-                              aria-label="Sort by created"
-                            >
-                              <SortIcon
-                                active={sortBy === "createdAt"}
-                                dir={sortDir}
-                              />
-                            </ActionIcon>
-                          </Tooltip>
-                        </Group>
-                      </Table.Th>
-
-                      <Table.Th>
-                        <Group gap={4} wrap="nowrap">
-                          <span>Updated</span>
-                          <Tooltip label="Sort by updated date" withArrow>
-                            <ActionIcon
-                              variant="subtle"
-                              size="sm"
-                              onClick={() => applySort("updatedAt")}
-                              aria-label="Sort by updated"
-                            >
-                              <SortIcon
-                                active={sortBy === "updatedAt"}
-                                dir={sortDir}
-                              />
-                            </ActionIcon>
-                          </Tooltip>
-                        </Group>
-                      </Table.Th>
-
-                      <Table.Th>
-                        <Group gap={4} wrap="nowrap">
-                          <span>Version</span>
-                        </Group>
-                      </Table.Th>
-
-                      <Table.Th className="flex justify-end">Actions</Table.Th>
-                    </Table.Tr>
-                  </Table.Thead>
-
-                  <Table.Tbody>
-                    {productsListRecords.map((p) => (
-                      <Table.Tr key={p.id}>
-                        <Table.Td>{p.productName}</Table.Td>
-                        <Table.Td>{p.productSku}</Table.Td>
-                        <Table.Td>{p.productPriceCents}</Table.Td>
-                        <Table.Td>
-                          <Text size="sm">
-                            {new Date(p.createdAt).toLocaleString()}
-                          </Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="sm">
-                            {new Date(p.updatedAt).toLocaleString()}
-                          </Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Badge>{p.entityVersion}</Badge>
-                        </Table.Td>
-                        <Table.Td className="flex justify-end">
-                          <Group gap="xs">
-                            <ActionIcon
-                              variant="light"
-                              size="md"
-                              onClick={() => console.log('open edit product')}
-                              disabled={!isUserAdminOrOwnerForCurrentTenant}
-                            >
-                              <IconPencil size={16} />
-                            </ActionIcon>
-                            <ActionIcon
-                              variant="light"
-                              color="red"
-                              size="md"
-                              onClick={() => handleDeleteProduct(p.id)}
-                              disabled={!isUserAdminOrOwnerForCurrentTenant}
-                            >
-                              <IconTrash size={16} />
-                            </ActionIcon>
+              <div className="max-h-[65vh] overflow-y-auto" aria-busy={isLoadingProductsList}>
+                {!isLoadingProductsList && (productsListRecords?.length ?? 0) === 0 ? (
+                  <div className="py-16 text-center" role="region" aria-live="polite" aria-atomic="true">
+                    <Title order={4} mb="xs">No products match your filters</Title>
+                    <Text c="dimmed" mb="md">
+                      Try adjusting your filters or clear them to see all products.
+                    </Text>
+                    <Group justify="center">
+                      <Button onClick={clearAllFiltersAndFetch}>Clear all filters</Button>
+                      <Button variant="light" onClick={() => setShowFilters(true)} aria-controls={FILTER_PANEL_ID} aria-expanded={showFilters}>
+                        Show filters
+                      </Button>
+                    </Group>
+                  </div>
+                ) : (
+                  <Table striped withTableBorder withColumnBorders stickyHeader>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>
+                          <Group gap={4} wrap="nowrap">
+                            <span>Name</span>
+                            <Tooltip label="Sort by name" withArrow>
+                              <ActionIcon
+                                variant="subtle"
+                                size="sm"
+                                onClick={() => applySort("productName")}
+                                aria-label="Sort by name"
+                              >
+                                <SortIcon
+                                  active={sortBy === "productName"}
+                                  dir={sortDir}
+                                />
+                              </ActionIcon>
+                            </Tooltip>
                           </Group>
-                        </Table.Td>
+                        </Table.Th>
+
+                        <Table.Th>SKU</Table.Th>
+
+                        <Table.Th>
+                          <Group gap={4} wrap="nowrap">
+                            <span>Price (cents)</span>
+                            <Tooltip label="Sort by price" withArrow>
+                              <ActionIcon
+                                variant="subtle"
+                                size="sm"
+                                onClick={() => applySort("productPriceCents")}
+                                aria-label="Sort by price"
+                              >
+                                <SortIcon
+                                  active={sortBy === "productPriceCents"}
+                                  dir={sortDir}
+                                />
+                              </ActionIcon>
+                            </Tooltip>
+                          </Group>
+                        </Table.Th>
+
+                        <Table.Th>
+                          <Group gap={4} wrap="nowrap">
+                            <span>Created</span>
+                            <Tooltip label="Sort by created date" withArrow>
+                              <ActionIcon
+                                variant="subtle"
+                                size="sm"
+                                onClick={() => applySort("createdAt")}
+                                aria-label="Sort by created"
+                              >
+                                <SortIcon
+                                  active={sortBy === "createdAt"}
+                                  dir={sortDir}
+                                />
+                              </ActionIcon>
+                            </Tooltip>
+                          </Group>
+                        </Table.Th>
+
+                        <Table.Th>
+                          <Group gap={4} wrap="nowrap">
+                            <span>Updated</span>
+                            <Tooltip label="Sort by updated date" withArrow>
+                              <ActionIcon
+                                variant="subtle"
+                                size="sm"
+                                onClick={() => applySort("updatedAt")}
+                                aria-label="Sort by updated"
+                              >
+                                <SortIcon
+                                  active={sortBy === "updatedAt"}
+                                  dir={sortDir}
+                                />
+                              </ActionIcon>
+                            </Tooltip>
+                          </Group>
+                        </Table.Th>
+
+                        <Table.Th>
+                          <Group gap={4} wrap="nowrap">
+                            <span>Version</span>
+                          </Group>
+                        </Table.Th>
+
+                        <Table.Th className="flex justify-end">Actions</Table.Th>
                       </Table.Tr>
-                    ))}
-                  </Table.Tbody>
-                </Table>
+                    </Table.Thead>
+
+                    <Table.Tbody>
+                      {productsListRecords.map((p) => (
+                        <Table.Tr key={p.id}>
+                          <Table.Td>{p.productName}</Table.Td>
+                          <Table.Td>{p.productSku}</Table.Td>
+                          <Table.Td>{p.productPriceCents}</Table.Td>
+                          <Table.Td>
+                            <Text size="sm">
+                              {new Date(p.createdAt).toLocaleString()}
+                            </Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="sm">
+                              {new Date(p.updatedAt).toLocaleString()}
+                            </Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Badge>{p.entityVersion}</Badge>
+                          </Table.Td>
+                          <Table.Td className="flex justify-end">
+                            <Group gap="xs">
+                              <ActionIcon
+                                variant="light"
+                                size="md"
+                                onClick={() => console.log('open edit product')}
+                                disabled={!isUserAdminOrOwnerForCurrentTenant}
+                              >
+                                <IconPencil size={16} />
+                              </ActionIcon>
+                              <ActionIcon
+                                variant="light"
+                                color="red"
+                                size="md"
+                                onClick={() => handleDeleteProduct(p.id)}
+                                disabled={!isUserAdminOrOwnerForCurrentTenant}
+                              >
+                                <IconTrash size={16} />
+                              </ActionIcon>
+                            </Group>
+                          </Table.Td>
+                        </Table.Tr>
+                      ))}
+                    </Table.Tbody>
+                  </Table>
+                )}
               </div>
 
               {/* Pagination (right) with range */}
               <Group justify="space-between" mt="md">
-                <Text size="sm" c="dimmed">
+                <Text id={RANGE_ID} size="sm" c="dimmed" aria-live="polite" aria-atomic="true">
                   {rangeText}
                 </Text>
                 <Group gap="xs">
