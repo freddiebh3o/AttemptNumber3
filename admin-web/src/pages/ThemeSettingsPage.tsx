@@ -92,7 +92,6 @@ export default function ThemeSettingsPage() {
 
   // UI helpers
   const theme = useMantineTheme();
-  const colorScheme = useComputedColorScheme("light");
   const [showMore, setShowMore] = useState(false);
 
   // Presets split

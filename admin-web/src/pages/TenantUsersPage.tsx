@@ -19,7 +19,6 @@ import {
   IconPlus, IconPencil, IconTrash, IconRefresh, IconArrowsSort, IconArrowUp, IconArrowDown,
   IconFilter, IconChevronDown, IconChevronUp, IconPlayerTrackNext, IconPlayerTrackPrev, IconLink
 } from "@tabler/icons-react";
-import dayjs from "dayjs";
 import { FilterBar } from "../components/FilterBar";
 
 type RoleName = "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
@@ -456,14 +455,6 @@ export default function TenantUsersPage() {
   const rangeText =
     shownCount === 0 ? "No results" : `Showing ${rangeStart}–${rangeEnd}${totalCount != null ? ` of ${totalCount}` : ""}`;
 
-  // actions
-  function openEditModal(r: UserRow) {
-    setEditUserId(r.userId);
-    setEditEmail(r.userEmailAddress);
-    setEditPassword("");
-    setEditRole(r.roleName);
-    setEditOpen(true);
-  }
   async function handleCreate() {
     if (!createEmail || !createPassword) {
       notifications.show({ color: "red", message: "Email and password are required" });
