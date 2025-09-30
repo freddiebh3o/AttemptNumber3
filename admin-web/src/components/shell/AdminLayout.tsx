@@ -5,12 +5,14 @@ import { Outlet } from 'react-router-dom';
 import HeaderBar from './HeaderBar';
 import SidebarNav from './SidebarNav';
 import TenantThemeProvider from '../theme/TenantThemeProvider';
+import DirtyNavigationGuard from '../nav/DirtyNavigationGuard';
 
 export default function AdminLayout() {
   const [opened, { toggle, close }] = useDisclosure(false);
 
   return (
     <TenantThemeProvider>
+      <DirtyNavigationGuard />
       <AppShell
         header={{ height: 56 }}
         navbar={{ width: 260, breakpoint: 'sm', collapsed: { mobile: !opened } }}

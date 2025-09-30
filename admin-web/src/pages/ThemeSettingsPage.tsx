@@ -1,5 +1,5 @@
 // admin-web/src/pages/ThemeSettingsPage.tsx
-import { useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import {
   Title,
@@ -26,30 +26,28 @@ import type { MantineColorShade } from "@mantine/core";
 import { useThemeStore } from "../stores/theme";
 import { PRESET_META, THEME_PRESETS, type PresetKey } from "../theme/presets";
 import PaletteEditor from "../components/theme/PaletteEditor";
-import { notifications } from '@mantine/notifications';
-import { putTenantThemeApiRequest } from '../api/tenantTheme';
+import ShadeUsageGuide from "../components/theme/ShadeUsageGuide";
+import { notifications } from "@mantine/notifications";
+import { putTenantThemeApiRequest } from "../api/tenantTheme";
 import type { ThemeOverrides } from "../stores/theme";
 import type { paths } from "../types/openapi";
-import ShadeUsageGuide from "../components/theme/ShadeUsageGuide";
+import { useDirtyStore } from "../stores/dirty";
 
-const toShade = (
-  v: unknown,
-  fallback: MantineColorShade
-): MantineColorShade => {
+const toShade = (v: unknown, fallback: MantineColorShade): MantineColorShade => {
   const n = typeof v === "number" ? v : Number(v);
   const clamped = Number.isFinite(n) ? Math.min(9, Math.max(0, n)) : fallback;
   return clamped as MantineColorShade;
 };
-
 
 type PutThemeBody = NonNullable<
   paths["/api/tenants/{tenantSlug}/theme"]["put"]["requestBody"]
 >["content"]["application/json"];
 
 // Helper: convert readonly MantineColorsTuple -> mutable string[] for API
-function serializeOverridesForApi(overrides: ThemeOverrides): PutThemeBody["overrides"] {
+function serializeOverridesForApi(
+  overrides: ThemeOverrides
+): PutThemeBody["overrides"] {
   if (!overrides) return undefined;
-
   const { colors, ...rest } = overrides;
 
   let colorsOut: Record<string, string[]> | undefined;
@@ -65,39 +63,58 @@ function serializeOverridesForApi(overrides: ThemeOverrides): PutThemeBody["over
   };
 }
 
+// Stable fingerprint of what we consider the "save payload"
+function getFingerprint(params: {
+  presetKey: PresetKey | null;
+  overrides: ThemeOverrides;
+  logoUrl?: string | null;
+}) {
+  return JSON.stringify({
+    presetKey: params.presetKey ?? null,
+    overrides: serializeOverridesForApi(params.overrides) ?? {},
+    logoUrl: params.logoUrl ?? null,
+  });
+}
+
 export default function ThemeSettingsPage() {
   const { tenantSlug } = useParams();
   const key = tenantSlug ?? "default";
-  const [saving, setSaving] = useState(false);
 
+  // Local theme state (frontend store)
   const rec = useThemeStore((s) => s.getFor(key));
   const patchOverrides = useThemeStore((s) => s.patchOverrides);
   const setPreset = useThemeStore((s) => s.setPreset);
   const setLogoUrl = useThemeStore((s) => s.setLogoUrl);
   const reset = useThemeStore((s) => s.reset);
 
+  // Global dirty store
+  const { saving } = useDirtyStore();
+
+  // UI helpers
   const theme = useMantineTheme();
   const colorScheme = useComputedColorScheme("light");
-
   const [showMore, setShowMore] = useState(false);
 
-  const PRIMARY_PRESETS: PresetKey[] = [
-    "classicBlue",
-    "rubyDark",
-    "emeraldLight",
-    "oceanLight",
-  ];
-  const EXTRA_PRESETS: PresetKey[] = [
-    "violetLight",
-    "grapeDark",
-    "tealDark",
-    "cyanLight",
-    "orangeLight",
-    "limeLight",
-    "pinkDark",
-    "yellowLight",
-  ];
+  // Presets split
+  const PRIMARY_PRESETS: PresetKey[] = useMemo(
+    () => ["classicBlue", "rubyDark", "emeraldLight", "oceanLight"],
+    []
+  );
+  const EXTRA_PRESETS: PresetKey[] = useMemo(
+    () => [
+      "violetLight",
+      "grapeDark",
+      "tealDark",
+      "cyanLight",
+      "orangeLight",
+      "limeLight",
+      "pinkDark",
+      "yellowLight",
+    ],
+    []
+  );
 
+  // Current palette choices & shades
   const paletteChoices = Object.keys(theme.colors).sort();
   const currentPrimary = rec.overrides.primaryColor ?? "indigo";
 
@@ -111,6 +128,104 @@ export default function ThemeSettingsPage() {
       ? rec.overrides.primaryShade
       : rec.overrides.primaryShade?.dark) ?? 8;
 
+  // ----- Dirty tracking -----
+  // Baseline is the "last saved" snapshot (or first load if none)
+  const [baseline, setBaseline] = useState<string>(() =>
+    getFingerprint({
+      presetKey: rec.presetKey,
+      overrides: rec.overrides,
+      logoUrl: rec.logoUrl ?? null,
+    })
+  );
+
+  // Current fingerprint vs. baseline
+  const currentFingerprint = useMemo(
+    () =>
+      getFingerprint({
+        presetKey: rec.presetKey,
+        overrides: rec.overrides,
+        logoUrl: rec.logoUrl ?? null,
+      }),
+    [rec.presetKey, rec.overrides, rec.logoUrl]
+  );
+  const isDirty = currentFingerprint !== baseline;
+
+  // The actual save function (used by page button & nav guard)
+  const handleSaveToServer = useCallback(async () => {
+    if (!tenantSlug) {
+      notifications.show({
+        color: "yellow",
+        title: "Theme",
+        message: "Select a tenant first",
+      });
+      return;
+    }
+
+    const idk =
+      (crypto as any)?.randomUUID?.() ??
+      Math.random().toString(36).slice(2);
+
+    const body: PutThemeBody = {
+      presetKey: rec.presetKey,
+      overrides: serializeOverridesForApi(rec.overrides),
+      logoUrl: rec.logoUrl ?? null,
+    };
+
+    await putTenantThemeApiRequest({
+      tenantSlug,
+      body,
+      idempotencyKeyOptional: idk,
+    });
+
+    // On success, new baseline = current
+    setBaseline(getFingerprint({ presetKey: rec.presetKey, overrides: rec.overrides, logoUrl: rec.logoUrl ?? null }));
+
+    notifications.show({
+      color: "green",
+      title: "Theme",
+      message: "Saved theme",
+    });
+  }, [tenantSlug, rec.presetKey, rec.overrides, rec.logoUrl]);
+
+  // Register dirty state + save handler with the global store
+  useEffect(() => {
+    useDirtyStore.setState({
+      isDirty,
+      reason: "You have unsaved theme changes.",
+      saveHandler: async () => {
+        // Let the guard control the "saving" spinner
+        useDirtyStore.setState({ saving: true });
+        try {
+          await handleSaveToServer();
+        } finally {
+          useDirtyStore.setState({ saving: false });
+        }
+      },
+    });
+
+    // Cleanup on unmount/tenant change
+    return () => {
+      useDirtyStore.setState({
+        isDirty: false,
+        reason: null,
+        saveHandler: null,
+      });
+    };
+  }, [isDirty, handleSaveToServer]);
+
+  // Reset baseline when tenant changes (so we don't carry dirty across tenants)
+  useEffect(() => {
+    setBaseline(
+      getFingerprint({
+        presetKey: rec.presetKey,
+        overrides: rec.overrides,
+        logoUrl: rec.logoUrl ?? null,
+      })
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenantSlug]);
+
+  // ----- UI render helpers -----
   const renderPresetCard = (k: PresetKey) => {
     const label = PRESET_META[k].label;
     const swatchKey = PRESET_META[k].swatchKey;
@@ -144,27 +259,19 @@ export default function ThemeSettingsPage() {
     );
   };
 
-  async function handleSaveToServer() {
-    if (!tenantSlug) {
-      notifications.show({ color: 'yellow', title: 'Theme', message: 'Select a tenant first' });
-      return;
-    }
+  // Page-level Save button (shares the same handler as the guard)
+  async function onClickSave() {
     try {
-      setSaving(true);
-      const idk = (crypto as any)?.randomUUID?.() ?? Math.random().toString(36).slice(2);
-  
-      const body: PutThemeBody = {
-        presetKey: rec.presetKey,
-        overrides: serializeOverridesForApi(rec.overrides),
-        logoUrl: rec.logoUrl ?? null,
-      };
-  
-      await putTenantThemeApiRequest({ tenantSlug, body, idempotencyKeyOptional: idk });
-      notifications.show({ color: 'green', title: 'Theme', message: 'Saved theme' });
+      useDirtyStore.setState({ saving: true });
+      await handleSaveToServer();
     } catch (e: any) {
-      notifications.show({ color: 'red', title: 'Theme', message: e?.message ?? 'Failed to save theme' });
+      notifications.show({
+        color: "red",
+        title: "Theme",
+        message: e?.message ?? "Failed to save theme",
+      });
     } finally {
-      setSaving(false);
+      useDirtyStore.setState({ saving: false });
     }
   }
 
@@ -176,7 +283,7 @@ export default function ThemeSettingsPage() {
           <Button variant="default" onClick={() => reset(key)}>
             Reset to defaults
           </Button>
-          <Button onClick={handleSaveToServer} loading={saving} disabled={!tenantSlug}>
+          <Button onClick={onClickSave} loading={saving} disabled={!tenantSlug}>
             Save
           </Button>
         </Group>
@@ -207,16 +314,9 @@ export default function ThemeSettingsPage() {
 
           <Group justify="center" mt="xs">
             <Button variant="subtle" onClick={() => setShowMore((v) => !v)}>
-              {showMore ? 'Show less' : 'View more'}
+              {showMore ? "Show less" : "View more"}
             </Button>
           </Group>
-          
-{/* 
-          <Group>
-            <Button variant="subtle" onClick={() => setPreset(key, null)}>
-              Clear preset
-            </Button>
-          </Group> */}
         </Stack>
       </Card>
 
@@ -305,7 +405,6 @@ export default function ThemeSettingsPage() {
       </Card>
 
       <PaletteEditor tenantKey={key} />
-      
       <ShadeUsageGuide tenantKey={key} />
     </Stack>
   );
