@@ -1119,6 +1119,187 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tenants/{tenantSlug}/theme": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tenantSlug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Tenant theme (preset, overrides, logo) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: components["schemas"]["TenantThemeResponseData"];
+                            error: unknown;
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        "X-RateLimit-Limit": string;
+                        "X-RateLimit-Remaining": string;
+                        "X-RateLimit-Reset": string;
+                        "Retry-After": string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Internal Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: {
+                    "Idempotency-Key"?: string;
+                };
+                path: {
+                    tenantSlug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["TenantThemePutBody"];
+                };
+            };
+            responses: {
+                /** @description Saved tenant theme */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: components["schemas"]["TenantThemeResponseData"];
+                            error: unknown;
+                        };
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        "X-RateLimit-Limit": string;
+                        "X-RateLimit-Remaining": string;
+                        "X-RateLimit-Reset": string;
+                        "Retry-After": string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Internal Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1287,6 +1468,42 @@ export interface components {
             password?: string;
             /** @enum {string} */
             roleName?: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
+        };
+        /** @enum {string|null} */
+        PresetKey: "classicBlue" | "rubyDark" | "emeraldLight" | "oceanLight" | "violetLight" | "grapeDark" | "tealDark" | "cyanLight" | "orangeLight" | "limeLight" | "pinkDark" | "yellowLight" | null;
+        /** @default {} */
+        ThemeOverrides: {
+            /** @enum {string} */
+            colorScheme?: "light" | "dark";
+            primaryColor?: string;
+            primaryShade?: number | {
+                light?: number;
+                dark?: number;
+            };
+            colors?: {
+                [key: string]: string[];
+            };
+            defaultRadius?: string;
+            fontFamily?: string;
+        };
+        TenantThemeResponseData: {
+            presetKey: components["schemas"]["PresetKey"];
+            overrides?: components["schemas"]["ThemeOverrides"];
+            /**
+             * Format: uri
+             * @default null
+             */
+            logoUrl: string | null;
+            /** Format: date-time */
+            updatedAt: string | null;
+            /** Format: date-time */
+            createdAt: string | null;
+        };
+        TenantThemePutBody: {
+            presetKey?: components["schemas"]["PresetKey"];
+            overrides?: components["schemas"]["ThemeOverrides"];
+            /** Format: uri */
+            logoUrl?: string | null;
         };
     };
     responses: never;
