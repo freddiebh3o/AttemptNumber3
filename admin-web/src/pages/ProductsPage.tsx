@@ -636,8 +636,8 @@ export default function ProductsPage() {
     <div>
       {/* Header Banner */}
       <div className="flex justify-between items-start w-full">
-        <Group justify="space-between" align="flex-end" className="w-full">
-          <Stack gap="xs"> 
+        <Group justify="space-between" align="start" className="w-full">
+          <Stack gap="1"> 
             <Title order={3}>All Products</Title>
             <Text size="sm" c="dimmed">
               {rangeText}

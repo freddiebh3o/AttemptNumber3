@@ -275,8 +275,13 @@ export default function ThemeSettingsPage() {
 
   return (
     <Stack gap="lg">
-      <Group align="center" justify="space-between">
-        <Title order={2}>Theme</Title>
+      <Group align="start" justify="space-between">
+        <Stack gap="1">
+          <Title order={2}>Theme</Title>
+          <Text size="sm" c="dimmed">
+            {rec.presetKey ? `${PRESET_META[rec.presetKey].label} theme` : "Theme"}
+          </Text>
+        </Stack>
         <Group>
           <Button variant="default" onClick={() => reset(key)}>
             Reset to defaults

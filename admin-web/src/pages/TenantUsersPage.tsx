@@ -502,8 +502,8 @@ export default function TenantUsersPage() {
     <div>
       {/* Header */}
       <div className="flex justify-between items-start w-full">
-        <Group justify="space-between" align="flex-end" className="w-full">
-          <Stack gap="xs">
+        <Group justify="space-between" align="start" className="w-full">
+          <Stack gap="1">
             <Title order={3}>All Users</Title>
             <Text size="sm" c="dimmed" id={RANGE_ID} aria-live="polite" aria-atomic="true">
               {rangeText}
