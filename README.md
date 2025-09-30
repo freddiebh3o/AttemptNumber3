@@ -366,7 +366,13 @@ Adding a new route:
 ---
 
 ## Future fetures
-* Image uploading with supabase storage.
+* Different branches/locations
+  * Each product can have stock in any/all branches
+  * Users can be assigned to one/many branches
+* Get more insight to how the RBAC works
+  * Is it compatible with being able to create custom roles?
+  * How specific can you be with these roles? e.g. can we specify which branches the user can access or specific features like stock management?
+
 * Create/Edit pages for users/products
 
 * Find a way to simulate what happens when a session expires 

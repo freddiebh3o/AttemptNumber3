@@ -43,7 +43,7 @@ import {
 import { handlePageError } from "../utils/pageError";
 import { useAuthStore } from "../stores/auth";
 import dayjs from "dayjs";
-import { FilterBar } from "../components/FilterBar";
+import { FilterBar } from "../components/common/FilterBar";
 
 type SortField =
   | "createdAt"

@@ -17,7 +17,7 @@ import {
   IconPlus, IconPencil, IconTrash, IconRefresh, IconArrowsSort, IconArrowUp, IconArrowDown,
   IconFilter, IconChevronDown, IconChevronUp, IconPlayerTrackNext, IconPlayerTrackPrev, IconLink
 } from "@tabler/icons-react";
-import { FilterBar } from "../components/FilterBar";
+import { FilterBar } from "../components/common/FilterBar";
 
 type RoleName = "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
 type SortField = "createdAt" | "updatedAt" | "userEmailAddress" | "roleName";

@@ -161,3 +161,59 @@ export async function httpRequestJson<DataShape>(
     loading.dec();
   }
 }
+
+export async function httpRequestMultipart<DataShape>(
+  httpPathRelativeToApiBaseUrl: string,
+  httpInitOptions: RequestInit = {}
+): Promise<DataShape> {
+  const fullUrl = `${apiBaseUrlFromEnvironmentVariable}${httpPathRelativeToApiBaseUrl}`;
+
+  // Do NOT set Content-Type here; the browser will set the correct boundary for FormData
+  const { headers: callerHeaders, ...restInit } = httpInitOptions as ExtendedInit;
+
+  const callerHeadersObj =
+    callerHeaders instanceof Headers
+      ? Object.fromEntries(callerHeaders.entries())
+      : Array.isArray(callerHeaders)
+      ? Object.fromEntries(callerHeaders)
+      : (callerHeaders as Record<string, string> | undefined) ?? {};
+
+  const mergedHeaders: Record<string, string> = {
+    ...callerHeadersObj,
+  };
+
+  // Uploads are POST; not cacheable, so we skip the dedupe logic and reuse the JSON envelope parsing
+  const httpResponse = await fetch(fullUrl, {
+    credentials: 'include',
+    ...restInit,
+    headers: mergedHeaders,
+  });
+
+  const raw = await httpResponse.text();
+  let json: any = null;
+  try {
+    json = raw ? JSON.parse(raw) : null;
+  } catch {
+    json = null;
+  }
+
+  if (!json || typeof json !== 'object') {
+    const invalidErr = new Error(`Invalid JSON from ${fullUrl}`) as Error & { httpStatusCode?: number };
+    invalidErr.httpStatusCode = httpResponse.status;
+    throw invalidErr;
+  }
+
+  if (json.success === true) {
+    return json as DataShape;
+  }
+
+  const errorBody = json?.error;
+  const error = new Error(
+    errorBody?.userFacingMessage || `Request failed (${httpResponse.status}) at ${httpPathRelativeToApiBaseUrl}`
+  ) as Error & { details?: unknown; httpStatusCode?: number; correlationId?: string };
+
+  error.details = json;
+  error.httpStatusCode = errorBody?.httpStatusCode ?? httpResponse.status;
+  error.correlationId = errorBody?.correlationId ?? json?.correlationId;
+  throw error;
+}

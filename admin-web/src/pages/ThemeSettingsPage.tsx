@@ -10,8 +10,6 @@ import {
   Select,
   ColorSwatch,
   SimpleGrid,
-  TextInput,
-  Image,
   Divider,
   NumberInput,
   Box,
@@ -28,9 +26,11 @@ import PaletteEditor from "../components/theme/PaletteEditor";
 import ShadeUsageGuide from "../components/theme/ShadeUsageGuide";
 import { notifications } from "@mantine/notifications";
 import { putTenantThemeApiRequest } from "../api/tenantTheme";
+import { uploadTenantLogoApiRequest } from "../api/uploads";
 import type { ThemeOverrides } from "../stores/theme";
 import type { paths } from "../types/openapi";
 import { useDirtyStore } from "../stores/dirty";
+import ImageUploadCard from "../components/common/ImageUploadCard";
 
 const toShade = (v: unknown, fallback: MantineColorShade): MantineColorShade => {
   const n = typeof v === "number" ? v : Number(v);
@@ -176,7 +176,13 @@ export default function ThemeSettingsPage() {
     });
 
     // On success, new baseline = current
-    setBaseline(getFingerprint({ presetKey: rec.presetKey, overrides: rec.overrides, logoUrl: rec.logoUrl ?? null }));
+    setBaseline(
+      getFingerprint({
+        presetKey: rec.presetKey,
+        overrides: rec.overrides,
+        logoUrl: rec.logoUrl ?? null,
+      })
+    );
 
     notifications.show({
       color: "green",
@@ -191,7 +197,6 @@ export default function ThemeSettingsPage() {
       isDirty,
       reason: "You have unsaved theme changes.",
       saveHandler: async () => {
-        // Let the guard control the "saving" spinner
         useDirtyStore.setState({ saving: true });
         try {
           await handleSaveToServer();
@@ -201,7 +206,6 @@ export default function ThemeSettingsPage() {
       },
     });
 
-    // Cleanup on unmount/tenant change
     return () => {
       useDirtyStore.setState({
         isDirty: false,
@@ -211,7 +215,7 @@ export default function ThemeSettingsPage() {
     };
   }, [isDirty, handleSaveToServer]);
 
-  // Reset baseline when tenant changes (so we don't carry dirty across tenants)
+  // Reset baseline when tenant changes
   useEffect(() => {
     setBaseline(
       getFingerprint({
@@ -377,33 +381,58 @@ export default function ThemeSettingsPage() {
 
           <Divider my="xs" />
 
-          <Stack gap="sm">
-            <Text fw={600}>Logo</Text>
-            <Group align="flex-end" grow>
-              <TextInput
-                label="Logo URL"
-                placeholder="https://cdn.example.com/tenant-logo.png"
-                value={rec.logoUrl ?? ""}
-                onChange={(e) => setLogoUrl(key, e.currentTarget.value)}
-              />
-              <Button variant="light" onClick={() => setLogoUrl(key, "")}>
-                Clear
-              </Button>
-            </Group>
-            {rec.logoUrl ? (
-              <Box>
-                <Text size="sm" c="dimmed">
-                  Preview
-                </Text>
-                <Image
-                  src={rec.logoUrl}
-                  alt="Logo preview"
-                  h={40}
-                  fit="contain"
-                />
-              </Box>
-            ) : null}
-          </Stack>
+          {/* Logo upload */}
+          <ImageUploadCard
+            label="Logo"
+            hint="PNG/JPEG/WEBP/SVG • up to 2MB"
+            value={rec.logoUrl ?? null}
+            width={340}
+            accept={["image/png", "image/jpeg", "image/webp", "image/svg+xml"]}
+            maxBytes={2 * 1024 * 1024}
+            disabled={!tenantSlug}
+            onUpload={async (file) => {
+              // call your API
+              const resp = await uploadTenantLogoApiRequest({ tenantSlug: tenantSlug!, file });
+              // Try both shapes
+              const url = (resp as any)?.data?.upload?.url ?? (resp as any)?.data?.logoUrl;
+              if (!url) throw new Error("Upload succeeded but no URL returned");
+              // Update store + baseline here so guard won’t trigger
+              setLogoUrl(key, url);
+              setBaseline(
+                getFingerprint({
+                  presetKey: rec.presetKey,
+                  overrides: rec.overrides,
+                  logoUrl: url,
+                })
+              );
+              notifications.show({ color: "green", title: "Logo", message: "Logo uploaded" });
+              return { url };
+            }}
+            onRemove={async () => {
+              const idk = (crypto as any)?.randomUUID?.() ?? Math.random().toString(36).slice(2);
+              await putTenantThemeApiRequest({
+                tenantSlug: tenantSlug!,
+                body: {
+                  presetKey: rec.presetKey,
+                  overrides: serializeOverridesForApi(rec.overrides),
+                  logoUrl: null,
+                },
+                idempotencyKeyOptional: idk,
+              });
+              setLogoUrl(key, "");
+              setBaseline(
+                getFingerprint({
+                  presetKey: rec.presetKey,
+                  overrides: rec.overrides,
+                  logoUrl: null,
+                })
+              );
+              notifications.show({ color: "green", title: "Logo", message: "Logo removed" });
+            }}
+            onChange={() => {
+              // no-op; we already adjust state in onUpload/onRemove to keep baseline in sync
+            }}
+          />
         </Stack>
       </Card>
 
