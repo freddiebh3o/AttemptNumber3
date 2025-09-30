@@ -8,6 +8,14 @@
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="/src/main.tsx">
+      (function () {
+        try {
+          var key = 'admin-color-scheme';
+          var cs = localStorage.getItem(key) || 'light';
+          document.documentElement.setAttribute('data-mantine-color-scheme', cs);
+        } catch (e) {}
+      })();
+    </script>
   </body>
 </html>

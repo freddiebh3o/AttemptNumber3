@@ -14,6 +14,7 @@ import '@mantine/notifications/styles.css'
 import '@mantine/dates/styles.css'
 import './index.css'
 import { RouteErrorBoundary } from './components/feedback/ErrorBoundary'
+import ThemeSettingsPage from './pages/ThemeSettingsPage';
 
 const router = createBrowserRouter([
   {
@@ -31,6 +32,7 @@ const router = createBrowserRouter([
         children: [
           { path: 'products', element: <ProductsPage />, errorElement: <RouteErrorBoundary /> },
           { path: 'users', element: <TenantUsersPage />, errorElement: <RouteErrorBoundary /> },
+          { path: 'settings/theme', element: <ThemeSettingsPage />, errorElement: <RouteErrorBoundary /> },
         ],
       },
     ],
@@ -41,7 +43,7 @@ const colorSchemeManager = localStorageColorSchemeManager({ key: 'admin-color-sc
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <MantineProvider defaultColorScheme="dark" colorSchemeManager={colorSchemeManager}>
+    <MantineProvider defaultColorScheme="light" colorSchemeManager={colorSchemeManager}>
       <Notifications position="top-right" />
       <RouterProvider router={router} />
     </MantineProvider>

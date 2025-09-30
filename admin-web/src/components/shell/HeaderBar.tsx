@@ -1,10 +1,11 @@
 // admin-web/src/components/shell/HeaderBar.tsx
-import { Group, Text, Burger, Box, Button, ActionIcon, Tooltip, useComputedColorScheme, useMantineColorScheme } from '@mantine/core';
-import { IconSun, IconMoon } from '@tabler/icons-react';
-import { useNavigate } from 'react-router-dom';
+import { Group, Text, Burger, Box, Button, ActionIcon, Tooltip, useComputedColorScheme, useMantineColorScheme, Image } from '@mantine/core';
+import { IconSun, IconMoon, IconPalette } from '@tabler/icons-react';
+import { useNavigate, useParams } from 'react-router-dom';
 import TenantSwitcher from './TenantSwitcher';
 import { signOutApiRequest } from '../../api/auth';
 import { useAuthStore } from '../../stores/auth';
+import { useThemeStore } from '../../stores/theme';
 
 export default function HeaderBar({
   opened,
@@ -14,19 +15,18 @@ export default function HeaderBar({
   onBurgerClick: () => void;
 }) {
   const navigate = useNavigate();
+  const { tenantSlug } = useParams();
+  const tenantKey = tenantSlug ?? 'default';
+  const { logoUrl } = useThemeStore((s) => s.getFor(tenantKey));
+
   const clearAuth = useAuthStore((s) => s.clear);
 
-  // ⬇️ Mantine color scheme hooks
   const { setColorScheme } = useMantineColorScheme();
-  const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
+  const computedColorScheme = useComputedColorScheme('light');
   const isLight = computedColorScheme === 'light';
 
   async function handleSignOut() {
-    try {
-      await signOutApiRequest();
-    } catch {
-      // ignore; navigate regardless
-    } finally {
+    try { await signOutApiRequest(); } catch {} finally {
       clearAuth();
       navigate('/sign-in');
     }
@@ -38,9 +38,13 @@ export default function HeaderBar({
 
   return (
     <Group h="100%" px="md" justify="space-between" wrap="nowrap">
-      <Group gap="sm">
+      <Group gap="sm" align="center">
         <Burger opened={opened} onClick={onBurgerClick} aria-label="Toggle navigation" />
-        <Text fw={600}>Admin</Text>
+        {logoUrl ? (
+          <Image src={logoUrl} alt="Tenant logo" h={24} fit="contain" />
+        ) : (
+          <Text fw={600}>Admin</Text>
+        )}
       </Group>
 
       <Group gap="sm">
@@ -48,7 +52,20 @@ export default function HeaderBar({
           <TenantSwitcher />
         </Box>
 
-        {/* ⬇️ Dark / Light toggle */}
+        {/* Theme settings quick link */}
+        <Tooltip label="Theme settings" withArrow>
+          <ActionIcon
+            variant="default"
+            size="lg"
+            radius="md"
+            onClick={() => tenantSlug && navigate(`/${tenantSlug}/settings/theme`)}
+            aria-label="Open theme settings"
+          >
+            <IconPalette size={18} />
+          </ActionIcon>
+        </Tooltip>
+
+        {/* Light/Dark toggle */}
         <Tooltip label={isLight ? 'Switch to dark' : 'Switch to light'} withArrow>
           <ActionIcon
             variant="default"
