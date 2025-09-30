@@ -125,10 +125,15 @@ export default function DirtyNavigationGuard() {
       <Text mb="md">
         {reason ?? 'Are you sure you want to leave this page? You will lose any unsaved changes.'}
       </Text>
-      <Group justify="flex-end">
-        <Button variant="default" onClick={handleCancel} disabled={saving}>Cancel</Button>
-        <Button variant="light" color="red" onClick={handleLeave} disabled={saving}>Leave</Button>
-        <Button onClick={handleSaveAndLeave} loading={saving}>Save &amp; leave</Button>
+      <Group align="center" justify="space-between">
+        <Group>
+          <Button variant="default" onClick={handleCancel} disabled={saving}>Cancel</Button>
+          <Button variant="light" color="red" onClick={handleLeave} disabled={saving}>Leave</Button>
+        </Group>
+
+        <Group>
+          <Button onClick={handleSaveAndLeave} loading={saving}>Save &amp; leave</Button>
+        </Group>
       </Group>
     </Modal>
   );
