@@ -366,9 +366,7 @@ Adding a new route:
 ---
 
 ## Future fetures
-* Dirty state for theme settings page 
-  * Maybe think about a 'global dirty state' so we can trigger a 'Are you sure you want to leave this page... you have unsaved changes'
-  * Disabled save buttons if no state has changed
+* Image uploading with supabase storage.
 * Split the openapi.ts file up to make it more manageable
 * Create/Edit pages for users/products
 
