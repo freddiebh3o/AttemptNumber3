@@ -18,7 +18,6 @@ import {
   Text,
   Badge,
   Paper,
-  useComputedColorScheme,
   useMantineTheme,
   Collapse,
 } from "@mantine/core";

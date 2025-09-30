@@ -2,15 +2,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams, useLocation, useNavigationType } from "react-router-dom";
 import {
-  ActionIcon, Badge, Button, CloseButton, Group, Loader, Modal, NumberInput, Paper,
-  PasswordInput, Select, Stack, Table, Text, TextInput, Title, rem, Tooltip, Grid
+  ActionIcon, Badge, Button, CloseButton, Group, Loader, NumberInput, Paper,
+  Select, Stack, Table, Text, TextInput, Title, rem, Tooltip, Grid
 } from "@mantine/core";
 import { DatePickerInput } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
 import {
   listTenantUsersApiRequest,
-  createTenantUserApiRequest,
-  updateTenantUserApiRequest,
   deleteTenantUserApiRequest,
 } from "../api/tenantUsers";
 import { handlePageError } from "../utils/pageError";
@@ -91,18 +89,6 @@ export default function TenantUsersPage() {
 
   // filters
   const [appliedFilters, setAppliedFilters] = useState<UserFilters>(emptyUserFilters);
-
-  // modals (keep your existing functionality)
-  const [createOpen, setCreateOpen] = useState(false);
-  const [createEmail, setCreateEmail] = useState("");
-  const [createPassword, setCreatePassword] = useState("");
-  const [createRole, setCreateRole] = useState<RoleName>("VIEWER");
-
-  const [editOpen, setEditOpen] = useState(false);
-  const [editUserId, setEditUserId] = useState<string | null>(null);
-  const [editEmail, setEditEmail] = useState("");
-  const [editPassword, setEditPassword] = useState("");
-  const [editRole, setEditRole] = useState<RoleName>("VIEWER");
 
   if (errorForBoundary) throw errorForBoundary;
 
@@ -455,49 +441,6 @@ export default function TenantUsersPage() {
   const rangeText =
     shownCount === 0 ? "No results" : `Showing ${rangeStart}–${rangeEnd}${totalCount != null ? ` of ${totalCount}` : ""}`;
 
-  async function handleCreate() {
-    if (!createEmail || !createPassword) {
-      notifications.show({ color: "red", message: "Email and password are required" });
-      return;
-    }
-    try {
-      const res = await createTenantUserApiRequest({
-        email: createEmail,
-        password: createPassword,
-        roleName: createRole,
-        idempotencyKeyOptional: `create-${Date.now()}`,
-      });
-      if (res.success) {
-        notifications.show({ color: "green", message: "User added to tenant" });
-        setCreateOpen(false);
-        setCreateEmail("");
-        setCreatePassword("");
-        setCreateRole("VIEWER");
-        resetToFirstPageAndFetch();
-      }
-    } catch (e: any) {
-      notifications.show({ color: "red", message: e?.message ?? "Create failed" });
-    }
-  }
-  async function handleEdit() {
-    if (!editUserId) return;
-    try {
-      const res = await updateTenantUserApiRequest({
-        userId: editUserId,
-        ...(editEmail && { email: editEmail }),
-        ...(editPassword && { password: editPassword }),
-        ...(editRole && { roleName: editRole }),
-        idempotencyKeyOptional: `update-${editUserId}-${Date.now()}`,
-      });
-      if (res.success) {
-        notifications.show({ color: "green", message: "User updated" });
-        setEditOpen(false);
-        resetToFirstPageAndFetch();
-      }
-    } catch (e: any) {
-      notifications.show({ color: "red", message: e?.message ?? "Update failed" });
-    }
-  }
   async function handleDelete(userId: string) {
     try {
       const res = await deleteTenantUserApiRequest({
@@ -599,7 +542,7 @@ export default function TenantUsersPage() {
             <Button
               leftSection={<IconPlus size={16} />}
               title="Add user"
-              onClick={() => setCreateOpen(true)}
+              onClick={() => console.log("Add user")}
               disabled={!isAdminOrOwner}
             >
               Add user
@@ -901,27 +844,6 @@ export default function TenantUsersPage() {
           )}
         </Paper>
       </div>
-
-      {/* Create modal */}
-      <Modal opened={createOpen} onClose={() => setCreateOpen(false)} title="Add user to tenant">
-        <Stack>
-          <TextInput label="Email" value={createEmail} onChange={(e) => setCreateEmail(e.currentTarget.value)} />
-          <PasswordInput label="Temporary password" value={createPassword} onChange={(e) => setCreatePassword(e.currentTarget.value)} />
-          <Select label="Role" value={createRole} onChange={(v) => setCreateRole((v as RoleName) ?? "VIEWER")} data={["OWNER","ADMIN","EDITOR","VIEWER"]} />
-          <Group justify="flex-end"><Button onClick={handleCreate}>Create/Attach</Button></Group>
-        </Stack>
-      </Modal>
-
-      {/* Edit modal */}
-      <Modal opened={editOpen} onClose={() => setEditOpen(false)} title="Edit user/membership">
-        <Stack>
-          <Text size="sm">Leave password blank to keep the same.</Text>
-          <TextInput label="Email" value={editEmail} onChange={(e) => setEditEmail(e.currentTarget.value)} />
-          <PasswordInput label="New password" value={editPassword} onChange={(e) => setEditPassword(e.currentTarget.value)} />
-          <Select label="Role" value={editRole} onChange={(v) => setEditRole((v as RoleName) ?? "VIEWER")} data={["OWNER","ADMIN","EDITOR","VIEWER"]} />
-          <Group justify="flex-end"><Button onClick={handleEdit}>Save changes</Button></Group>
-        </Stack>
-      </Modal>
     </div>
   );
 }
