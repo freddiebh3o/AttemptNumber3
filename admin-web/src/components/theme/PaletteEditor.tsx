@@ -101,18 +101,41 @@ export default function PaletteEditor({ tenantKey }: { tenantKey: string }) {
       : rec.overrides.primaryShade?.dark
   ) ?? 8;
 
-  // Derived: palette checks
+  // Derived: palette checks + contrast metrics
   const checks = useMemo(() => {
     const tenSteps = colors.length === 10;
+
     // monotonic (0 lightest → 9 darkest) means luminance should decrease
     const lumas = colors.map(relLuma);
     const monotonic = lumas.every((L, i) => (i === 0 ? true : L <= lumas[i - 1] + 1e-6));
-    // contrast targets for previews (text on filled button)
-    const filledLight = colors[lightShade] ?? '#000000';
-    const filledDark = colors[darkShade] ?? '#000000';
-    const crOnWhite = contrastRatio(filledLight, '#ffffff'); // light scheme buttons on light surface
-    const crOnDark = contrastRatio(filledDark, '#121212');   // dark scheme buttons on dark surface
-    return { tenSteps, monotonic, crOnWhite, crOnDark };
+
+    // Button fill shades
+    const fillLight = colors[lightShade] ?? '#000000';
+    const fillDark = colors[darkShade] ?? '#000000';
+
+    // Text contrast (assume white text on filled buttons, which is common)
+    const crTextLight = contrastRatio(fillLight, '#ffffff'); // light mode text on filled
+    const crTextDark  = contrastRatio(fillDark,  '#ffffff'); // dark mode text on filled
+
+    // Component/surface contrast (discoverability of a filled button on dark surface)
+    const darkSurface = '#121212';
+    const crSurfaceDark = contrastRatio(fillDark, darkSurface);
+
+    // Targets (WCAG-ish)
+    const okTextLight   = crTextLight  >= 4.5; // normal text 4.5:1
+    const okTextDark    = crTextDark   >= 4.5;
+    const okSurfaceDark = crSurfaceDark >= 3.0; // non-text UI components 3.0:1
+
+    return {
+      tenSteps,
+      monotonic,
+      crTextLight,
+      crTextDark,
+      crSurfaceDark,
+      okTextLight,
+      okTextDark,
+      okSurfaceDark,
+    };
   }, [colors, lightShade, darkShade]);
 
   useEffect(() => {
@@ -166,6 +189,13 @@ export default function PaletteEditor({ tenantKey }: { tenantKey: string }) {
     };
     patchOverrides(tenantKey, { primaryShade: { light: clamp(light, 6), dark: clamp(dark, 8) } });
   }
+
+  const overallOk =
+    checks.tenSteps &&
+    checks.monotonic &&
+    checks.okTextLight &&
+    checks.okTextDark &&
+    checks.okSurfaceDark;
 
   return (
     <Card withBorder radius="md" p="md">
@@ -245,18 +275,16 @@ export default function PaletteEditor({ tenantKey }: { tenantKey: string }) {
         <Divider />
         <Group gap="sm" wrap="wrap">
           <Text fw={600}>Preview</Text>
-          <Badge color={`${PALETTE_KEY}.${lightShade}`}>filled (light)</Badge>
-          <Badge variant="light" color={`${PALETTE_KEY}.${lightShade}`}>light (light)</Badge>
-          <Badge variant="outline" color={`${PALETTE_KEY}.${lightShade}`}>outline (light)</Badge>
-          <Badge color={`${PALETTE_KEY}.${darkShade}`}>filled (dark)</Badge>
-          <Badge variant="light" color={`${PALETTE_KEY}.${darkShade}`}>light (dark)</Badge>
-          <Badge variant="outline" color={`${PALETTE_KEY}.${darkShade}`}>outline (dark)</Badge>
+          <Badge color={`${PALETTE_KEY}.${lightShade}`}>Filled (light)</Badge>
+          <Badge variant="light" color={`${PALETTE_KEY}.${lightShade}`}>Soft (light)</Badge>
+          <Badge color={`${PALETTE_KEY}.${darkShade}`}>Filled (dark)</Badge>
+          <Badge variant="light" color={`${PALETTE_KEY}.${darkShade}`}>Soft (dark)</Badge>
         </Group>
 
-        {/* Health checks */}
+        {/* Health checks with targets */}
         <Alert
           variant="light"
-          color={(checks.tenSteps && checks.monotonic && checks.crOnWhite >= 4.5 && checks.crOnDark >= 4.5) ? 'green' : 'yellow'}
+          color={overallOk ? 'green' : 'yellow'}
           icon={<ThemeIcon variant="light" color="blue"><IconInfoCircle size={16} /></ThemeIcon>}
         >
           <Stack gap={6}>
@@ -268,18 +296,29 @@ export default function PaletteEditor({ tenantKey }: { tenantKey: string }) {
               {checks.monotonic ? <IconCheck size={16} /> : <IconAlertTriangle size={16} />}
               <Text size="sm">Steps go from light (0) → dark (9)</Text>
             </Group>
+
+            {/* Text contrast targets */}
             <Group gap={8}>
-              {(checks.crOnWhite >= 4.5) ? <IconCheck size={16} /> : <IconAlertTriangle size={16} />}
+              {checks.okTextLight ? <IconCheck size={16} /> : <IconAlertTriangle size={16} />}
               <Text size="sm">
-                Contrast for <b>light</b> primary ({PALETTE_KEY}.{lightShade}) on light surfaces ≈ {checks.crOnWhite.toFixed(2)}:1
-                {checks.crOnWhite < 4.5 ? ' — consider a darker index' : ''}
+                <b>Text contrast (light mode)</b> — white text on filled {PALETTE_KEY}.{lightShade} ≈ {checks.crTextLight.toFixed(2)}:1
+                {'  '}(<i>target ≥ 4.5:1</i>)
               </Text>
             </Group>
             <Group gap={8}>
-              {(checks.crOnDark >= 4.5) ? <IconCheck size={16} /> : <IconAlertTriangle size={16} />}
+              {checks.okTextDark ? <IconCheck size={16} /> : <IconAlertTriangle size={16} />}
               <Text size="sm">
-                Contrast for <b>dark</b> primary ({PALETTE_KEY}.{darkShade}) on dark surfaces ≈ {checks.crOnDark.toFixed(2)}:1
-                {checks.crOnDark < 4.5 ? ' — consider a lighter/stronger index' : ''}
+                <b>Text contrast (dark mode)</b> — white text on filled {PALETTE_KEY}.{darkShade} ≈ {checks.crTextDark.toFixed(2)}:1
+                {'  '}(<i>target ≥ 4.5:1</i>)
+              </Text>
+            </Group>
+
+            {/* Component/surface contrast target */}
+            <Group gap={8}>
+              {checks.okSurfaceDark ? <IconCheck size={16} /> : <IconAlertTriangle size={16} />}
+              <Text size="sm">
+                <b>Component vs surface (dark)</b> — filled {PALETTE_KEY}.{darkShade} on dark surface ≈ {checks.crSurfaceDark.toFixed(2)}:1
+                {'  '}(<i>target ≥ 3.0:1</i>)
               </Text>
             </Group>
           </Stack>
@@ -287,9 +326,16 @@ export default function PaletteEditor({ tenantKey }: { tenantKey: string }) {
 
         {/* Gentle guidance */}
         <Alert variant="light">
-          Keep it simple: make index <b>0</b> the lightest and <b>9</b> the darkest, pick a
+          Keep it simple: make index <b>0</b> the lightest and <b>9</b> the darkest; pick a
           <b> mid</b> shade (≈5–6) as your light-mode accent and a <b>strong</b> one (≈7–9) for dark-mode.
           Use “Sort by brightness” if things look out of order.
+          <br />
+          <br />
+          <Text size="sm" c="dimmed">
+            <b>About “too high” contrast:</b> Accessibility guidelines only set <i>minimums</i>.
+            Higher contrast is not a problem for accessibility, though very high contrast can look a bit harsh visually.
+            If that happens, try a slightly lighter shade in light mode or adjust your dark-mode shade toward mid tones.
+          </Text>
         </Alert>
       </Stack>
     </Card>

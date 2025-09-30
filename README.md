@@ -366,15 +366,11 @@ Adding a new route:
 ---
 
 ## Future fetures
-* Repeat UI/UX improvements for the users page.
+* Dirty state for theme settings page 
+  * Maybe think about a 'global dirty state' so we can trigger a 'Are you sure you want to leave this page... you have unsaved changes'
+  * Disabled save buttons if no state has changed
 * Split the openapi.ts file up to make it more manageable
-
-* In the standardised server response, we need meta data for pagination/filtering.
-  * will return the search options and search options that we sent with the request
-  * Will return things like total results, total pages, current page etc.
-* UI/UX Updates
-  * Standardised list filters and pagination
-  * Remove the create/edit modals and replace with new pages
+* Create/Edit pages for users/products
 
 * Find a way to simulate what happens when a session expires 
   * Current suspicion is that you are not automatically logged out 
