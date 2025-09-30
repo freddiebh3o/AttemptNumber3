@@ -1,13 +1,29 @@
 // admin-web/src/components/theme/PaletteEditor.tsx
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  Card, Stack, Group, Text, SimpleGrid, ColorInput, Button, NumberInput, Alert
+  Card, Stack, Group, Text, SimpleGrid, ColorInput, Button, NumberInput, Alert, Badge, Divider,
+  ThemeIcon
 } from '@mantine/core';
 import { useMantineTheme } from '@mantine/core';
 import { useThemeStore } from '../../stores/theme';
 import type { MantineColorsTuple, MantineColorShade } from '@mantine/core';
+import { IconInfoCircle, IconCheck, IconAlertTriangle } from '@tabler/icons-react';
 
 const PALETTE_KEY = 'brand';
+
+// Friendly tips per index (guidance, not rules)
+const INDEX_TIPS: Record<number, string> = {
+  0: 'Lightest — subtle backgrounds',
+  1: 'Very light — soft fills',
+  2: 'Light — subtle accents',
+  3: 'Light-mid — chips/labels',
+  4: 'Mid — outlines & accents',
+  5: 'Mid-strong — CTA (light)',
+  6: 'Strong — default CTA (light)',
+  7: 'Stronger — CTA (dark)',
+  8: 'Very strong — CTA (dark)',
+  9: 'Darkest — borders/ink',
+};
 
 function cleanHex(hex: string) {
   if (!hex) return '#ffffff';
@@ -29,8 +45,31 @@ function toMantineTuple(arr: string[]): MantineColorsTuple {
     cleanHex(arr[8] ?? '#ffffff'),
     cleanHex(arr[9] ?? '#ffffff'),
   ] as const;
-  // TypeScript: convince it this readonly tuple matches MantineColorsTuple
   return t as unknown as MantineColorsTuple;
+}
+
+// --- Contrast helpers (WCAG-ish) ---
+function hexToRgb(hex: string) {
+  const v = cleanHex(hex).slice(1);
+  const r = parseInt(v.slice(0, 2), 16);
+  const g = parseInt(v.slice(2, 4), 16);
+  const b = parseInt(v.slice(4, 6), 16);
+  return { r, g, b };
+}
+function srgbToLin(c: number) {
+  const x = c / 255;
+  return x <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+}
+function relLuma(hex: string) {
+  const { r, g, b } = hexToRgb(hex);
+  const R = srgbToLin(r), G = srgbToLin(g), B = srgbToLin(b);
+  return 0.2126 * R + 0.7152 * G + 0.0722 * B;
+}
+function contrastRatio(hexA: string, hexB: string) {
+  const L1 = relLuma(hexA);
+  const L2 = relLuma(hexB);
+  const [hi, lo] = L1 >= L2 ? [L1, L2] : [L2, L1];
+  return (hi + 0.05) / (lo + 0.05);
 }
 
 export default function PaletteEditor({ tenantKey }: { tenantKey: string }) {
@@ -62,6 +101,20 @@ export default function PaletteEditor({ tenantKey }: { tenantKey: string }) {
       : rec.overrides.primaryShade?.dark
   ) ?? 8;
 
+  // Derived: palette checks
+  const checks = useMemo(() => {
+    const tenSteps = colors.length === 10;
+    // monotonic (0 lightest → 9 darkest) means luminance should decrease
+    const lumas = colors.map(relLuma);
+    const monotonic = lumas.every((L, i) => (i === 0 ? true : L <= lumas[i - 1] + 1e-6));
+    // contrast targets for previews (text on filled button)
+    const filledLight = colors[lightShade] ?? '#000000';
+    const filledDark = colors[darkShade] ?? '#000000';
+    const crOnWhite = contrastRatio(filledLight, '#ffffff'); // light scheme buttons on light surface
+    const crOnDark = contrastRatio(filledDark, '#121212');   // dark scheme buttons on dark surface
+    return { tenSteps, monotonic, crOnWhite, crOnDark };
+  }, [colors, lightShade, darkShade]);
+
   useEffect(() => {
     // Re-seed editor when tenant or primary palette changes
     const latest = (rec.overrides.colors?.[PALETTE_KEY] ?? basePaletteFromPrimary) as ReadonlyArray<string>;
@@ -80,6 +133,12 @@ export default function PaletteEditor({ tenantKey }: { tenantKey: string }) {
   function loadFromPrimary() {
     const source = theme.colors[currentPrimary] ?? theme.colors.indigo; // MantineColorsTuple
     setColors(Array.from({ length: 10 }, (_, i) => cleanHex(source[i] ?? '#ffffff')));
+  }
+
+  function sortByBrightness() {
+    // Ensure 0 is lightest → 9 is darkest
+    const next = [...colors].sort((a, b) => relLuma(b) - relLuma(a)); // higher lum first
+    setColors(next);
   }
 
   function savePalette() {
@@ -101,19 +160,27 @@ export default function PaletteEditor({ tenantKey }: { tenantKey: string }) {
   }
 
   function setShades(light: number | null, dark: number | null) {
-    const l = Math.min(9, Math.max(0, Number.isFinite(light ?? NaN) ? Number(light) : 6)) as MantineColorShade;
-    const d = Math.min(9, Math.max(0, Number.isFinite(dark ?? NaN) ? Number(dark) : 8)) as MantineColorShade;
-    patchOverrides(tenantKey, { primaryShade: { light: l, dark: d } });
+    const clamp = (n: unknown, fallback: number) => {
+      const v = typeof n === 'number' ? n : Number(n);
+      return (Number.isFinite(v) ? Math.min(9, Math.max(0, v)) : fallback) as MantineColorShade;
+    };
+    patchOverrides(tenantKey, { primaryShade: { light: clamp(light, 6), dark: clamp(dark, 8) } });
   }
 
   return (
     <Card withBorder radius="md" p="md">
       <Stack gap="sm">
-        <Group justify="space-between">
-          <Text fw={600}>Custom palette (“{PALETTE_KEY}”)</Text>
+        <Group justify="space-between" wrap="wrap">
           <Group gap="xs">
+            <Text fw={600}>Custom palette (“{PALETTE_KEY}”)</Text>
+            <Badge variant="outline" radius="sm">{currentPrimary} → {PALETTE_KEY}</Badge>
+          </Group>
+          <Group gap="xs" wrap="wrap">
             <Button size="xs" variant="default" onClick={loadFromPrimary}>
               Load from current primary
+            </Button>
+            <Button size="xs" variant="default" onClick={sortByBrightness} leftSection={<IconCheck size={14} />}>
+              Sort by brightness
             </Button>
             <Button size="xs" variant="light" onClick={savePalette}>
               Save palette
@@ -127,21 +194,36 @@ export default function PaletteEditor({ tenantKey }: { tenantKey: string }) {
           </Group>
         </Group>
 
+        {/* Editors + tips */}
         <SimpleGrid cols={{ base: 2, sm: 5 }}>
-          {Array.from({ length: 10 }).map((_, i) => (
-            <ColorInput
-              key={i}
-              format="hex"
-              label={`Index ${i}`}
-              value={colors[i]}
-              onChange={(v) => setIdx(i, v)}
-              withPicker
-              swatches={[colors[i]]}
-              disallowInput={false}
-            />
-          ))}
+          {Array.from({ length: 10 }).map((_, i) => {
+            const tip = INDEX_TIPS[i];
+            const isLightPrimary = i === lightShade;
+            const isDarkPrimary = i === darkShade;
+            return (
+              <Stack key={i} gap={6}>
+                <Group justify="space-between" gap="xs">
+                  <Text size="xs" fw={600}>Index {i}</Text>
+                  <Group gap={4}>
+                    {isLightPrimary && <Badge size="xs" variant="outline">primary (light)</Badge>}
+                    {isDarkPrimary && <Badge size="xs" variant="outline">primary (dark)</Badge>}
+                  </Group>
+                </Group>
+                <ColorInput
+                  format="hex"
+                  value={colors[i]}
+                  onChange={(v) => setIdx(i, v)}
+                  withPicker
+                  swatches={[colors[i]]}
+                  disallowInput={false}
+                />
+                <Text size="xs" c="dimmed">{tip}</Text>
+              </Stack>
+            );
+          })}
         </SimpleGrid>
 
+        {/* Choose primary shades */}
         <Group grow>
           <NumberInput
             label="Primary shade (light scheme)"
@@ -159,9 +241,55 @@ export default function PaletteEditor({ tenantKey }: { tenantKey: string }) {
           />
         </Group>
 
+        {/* Live preview row */}
+        <Divider />
+        <Group gap="sm" wrap="wrap">
+          <Text fw={600}>Preview</Text>
+          <Badge color={`${PALETTE_KEY}.${lightShade}`}>filled (light)</Badge>
+          <Badge variant="light" color={`${PALETTE_KEY}.${lightShade}`}>light (light)</Badge>
+          <Badge variant="outline" color={`${PALETTE_KEY}.${lightShade}`}>outline (light)</Badge>
+          <Badge color={`${PALETTE_KEY}.${darkShade}`}>filled (dark)</Badge>
+          <Badge variant="light" color={`${PALETTE_KEY}.${darkShade}`}>light (dark)</Badge>
+          <Badge variant="outline" color={`${PALETTE_KEY}.${darkShade}`}>outline (dark)</Badge>
+        </Group>
+
+        {/* Health checks */}
+        <Alert
+          variant="light"
+          color={(checks.tenSteps && checks.monotonic && checks.crOnWhite >= 4.5 && checks.crOnDark >= 4.5) ? 'green' : 'yellow'}
+          icon={<ThemeIcon variant="light" color="blue"><IconInfoCircle size={16} /></ThemeIcon>}
+        >
+          <Stack gap={6}>
+            <Group gap={8}>
+              {checks.tenSteps ? <IconCheck size={16} /> : <IconAlertTriangle size={16} />}
+              <Text size="sm">Palette has 10 steps (0–9)</Text>
+            </Group>
+            <Group gap={8}>
+              {checks.monotonic ? <IconCheck size={16} /> : <IconAlertTriangle size={16} />}
+              <Text size="sm">Steps go from light (0) → dark (9)</Text>
+            </Group>
+            <Group gap={8}>
+              {(checks.crOnWhite >= 4.5) ? <IconCheck size={16} /> : <IconAlertTriangle size={16} />}
+              <Text size="sm">
+                Contrast for <b>light</b> primary ({PALETTE_KEY}.{lightShade}) on light surfaces ≈ {checks.crOnWhite.toFixed(2)}:1
+                {checks.crOnWhite < 4.5 ? ' — consider a darker index' : ''}
+              </Text>
+            </Group>
+            <Group gap={8}>
+              {(checks.crOnDark >= 4.5) ? <IconCheck size={16} /> : <IconAlertTriangle size={16} />}
+              <Text size="sm">
+                Contrast for <b>dark</b> primary ({PALETTE_KEY}.{darkShade}) on dark surfaces ≈ {checks.crOnDark.toFixed(2)}:1
+                {checks.crOnDark < 4.5 ? ' — consider a lighter/stronger index' : ''}
+              </Text>
+            </Group>
+          </Stack>
+        </Alert>
+
+        {/* Gentle guidance */}
         <Alert variant="light">
-          Mantine expects exactly 10 colors per palette (indexes 0–9). The selected <b>primaryColor</b> (e.g. “brand”)
-          will use these steps, and <b>primaryShade</b> chooses which index is used by components in light/dark.
+          Keep it simple: make index <b>0</b> the lightest and <b>9</b> the darkest, pick a
+          <b> mid</b> shade (≈5–6) as your light-mode accent and a <b>strong</b> one (≈7–9) for dark-mode.
+          Use “Sort by brightness” if things look out of order.
         </Alert>
       </Stack>
     </Card>

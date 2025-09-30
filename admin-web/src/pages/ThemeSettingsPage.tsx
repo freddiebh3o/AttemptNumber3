@@ -22,10 +22,15 @@ import {
   useMantineTheme,
   Collapse,
 } from "@mantine/core";
-import type { MantineColorShade } from "@mantine/core"; // ⬅️ add
+import type { MantineColorShade } from "@mantine/core";
 import { useThemeStore } from "../stores/theme";
 import { PRESET_META, THEME_PRESETS, type PresetKey } from "../theme/presets";
 import PaletteEditor from "../components/theme/PaletteEditor";
+import { notifications } from '@mantine/notifications';
+import { putTenantThemeApiRequest } from '../api/tenantTheme';
+import type { ThemeOverrides } from "../stores/theme";
+import type { paths } from "../types/openapi";
+import ShadeUsageGuide from "../components/theme/ShadeUsageGuide";
 
 const toShade = (
   v: unknown,
@@ -36,9 +41,34 @@ const toShade = (
   return clamped as MantineColorShade;
 };
 
+
+type PutThemeBody = NonNullable<
+  paths["/api/tenants/{tenantSlug}/theme"]["put"]["requestBody"]
+>["content"]["application/json"];
+
+// Helper: convert readonly MantineColorsTuple -> mutable string[] for API
+function serializeOverridesForApi(overrides: ThemeOverrides): PutThemeBody["overrides"] {
+  if (!overrides) return undefined;
+
+  const { colors, ...rest } = overrides;
+
+  let colorsOut: Record<string, string[]> | undefined;
+  if (colors) {
+    colorsOut = Object.fromEntries(
+      Object.entries(colors).map(([k, tuple]) => [k, Array.from(tuple)])
+    );
+  }
+
+  return {
+    ...rest,
+    ...(colorsOut ? { colors: colorsOut } : null),
+  };
+}
+
 export default function ThemeSettingsPage() {
   const { tenantSlug } = useParams();
   const key = tenantSlug ?? "default";
+  const [saving, setSaving] = useState(false);
 
   const rec = useThemeStore((s) => s.getFor(key));
   const patchOverrides = useThemeStore((s) => s.patchOverrides);
@@ -114,6 +144,30 @@ export default function ThemeSettingsPage() {
     );
   };
 
+  async function handleSaveToServer() {
+    if (!tenantSlug) {
+      notifications.show({ color: 'yellow', title: 'Theme', message: 'Select a tenant first' });
+      return;
+    }
+    try {
+      setSaving(true);
+      const idk = (crypto as any)?.randomUUID?.() ?? Math.random().toString(36).slice(2);
+  
+      const body: PutThemeBody = {
+        presetKey: rec.presetKey,
+        overrides: serializeOverridesForApi(rec.overrides),
+        logoUrl: rec.logoUrl ?? null,
+      };
+  
+      await putTenantThemeApiRequest({ tenantSlug, body, idempotencyKeyOptional: idk });
+      notifications.show({ color: 'green', title: 'Theme', message: 'Saved theme' });
+    } catch (e: any) {
+      notifications.show({ color: 'red', title: 'Theme', message: e?.message ?? 'Failed to save theme' });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <Stack gap="lg">
       <Group align="center" justify="space-between">
@@ -121,6 +175,9 @@ export default function ThemeSettingsPage() {
         <Group>
           <Button variant="default" onClick={() => reset(key)}>
             Reset to defaults
+          </Button>
+          <Button onClick={handleSaveToServer} loading={saving} disabled={!tenantSlug}>
+            Save
           </Button>
         </Group>
       </Group>
@@ -248,18 +305,8 @@ export default function ThemeSettingsPage() {
       </Card>
 
       <PaletteEditor tenantKey={key} />
-
-      <Card withBorder radius="md" p="md">
-        <Stack gap="xs">
-          <Text fw={600}>Notes</Text>
-          <Text size="sm" c="dimmed">
-            This is frontend-only for now. Your selection is stored in
-            localStorage per tenant slug and applied live via a nested
-            MantineProvider. The global dark-mode toggle still works (current:{" "}
-            {colorScheme}).
-          </Text>
-        </Stack>
-      </Card>
+      
+      <ShadeUsageGuide tenantKey={key} />
     </Stack>
   );
 }

@@ -34,7 +34,6 @@ export const THEME_PRESETS: Record<PresetKey, any> = {
     colors: { emerald },
     primaryColor: 'emerald',
     colorScheme: 'light' as const,
-    defaultRadius: 'lg',
   },
   oceanLight: {
     colors: { ocean },

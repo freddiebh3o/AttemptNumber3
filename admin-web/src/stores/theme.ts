@@ -20,15 +20,18 @@ export type TenantThemeRecord = {
   overrides: ThemeOverrides;
   presetKey: PresetKey | null;
   logoUrl?: string | null;
+  // optional sync metadata
+  lastSyncedAt?: string | null;
 };
 
 type ThemeState = {
-  records: Record<string, TenantThemeRecord>; // keyed by tenantSlug (or 'default')
+  records: Record<string, TenantThemeRecord>;
   getFor: (tenantSlug: string) => TenantThemeRecord;
   patchOverrides: (tenantSlug: string, patch: Partial<ThemeOverrides>) => void;
   setPreset: (tenantSlug: string, presetKey: PresetKey | null) => void;
   setLogoUrl: (tenantSlug: string, url: string | null) => void;
   reset: (tenantSlug: string) => void;
+  setFromServer: (tenantSlug: string, payload: { presetKey: PresetKey | null; overrides: ThemeOverrides; logoUrl: string | null; updatedAt?: string | null }) => void;
 };
 
 const EMPTY: TenantThemeRecord = {
@@ -42,6 +45,7 @@ export const useThemeStore = create<ThemeState>()(
     (set, get) => ({
       records: {},
       getFor: (tenantSlug) => get().records[tenantSlug] ?? EMPTY,
+
       patchOverrides: (tenantSlug, patch) => {
         const rec = get().records[tenantSlug] ?? EMPTY;
         set({
@@ -51,9 +55,9 @@ export const useThemeStore = create<ThemeState>()(
           },
         });
       },
+
       setPreset: (tenantSlug, presetKey) => {
         const rec = get().records[tenantSlug] ?? EMPTY;
-        // When a preset is chosen, we apply its theme values as overrides
         const preset = presetKey ? THEME_PRESETS[presetKey] : {};
         set({
           records: {
@@ -66,18 +70,29 @@ export const useThemeStore = create<ThemeState>()(
           },
         });
       },
+
       setLogoUrl: (tenantSlug, url) => {
         const rec = get().records[tenantSlug] ?? EMPTY;
-        set({
-          records: { ...get().records, [tenantSlug]: { ...rec, logoUrl: url } },
-        });
+        set({ records: { ...get().records, [tenantSlug]: { ...rec, logoUrl: url } } });
       },
+
       reset: (tenantSlug) => {
         const records = { ...get().records };
         records[tenantSlug] = EMPTY;
         set({ records });
       },
+
+      // ⬇️ NEW
+      setFromServer: (tenantSlug, payload) => {
+        const next: TenantThemeRecord = {
+          overrides: (payload.overrides ?? {}) as ThemeOverrides,
+          presetKey: (payload.presetKey ?? null) as any,
+          logoUrl: payload.logoUrl ?? null,
+          lastSyncedAt: payload.updatedAt ?? new Date().toISOString(),
+        };
+        set({ records: { ...get().records, [tenantSlug]: next } });
+      },
     }),
-    { name: "tenant-theme-v1" }
+    { name: 'tenant-theme-v1' }
   )
 );
