@@ -1,4 +1,4 @@
-// src/openapi/openapi.ts
+// api-server/src/openapi/openapi.ts
 import { z } from "zod";
 import {
   OpenAPIRegistry,
@@ -144,17 +144,34 @@ const ZodProductsListResponseData = z
     applied: z.object({
       limit: z.number().int().min(1).max(100),
       sort: z.object({
-        field: z.enum(["createdAt", "updatedAt", "productName", "productPriceCents"]),
+        field: z.enum([
+          "createdAt",
+          "updatedAt",
+          "productName",
+          "productPriceCents",
+        ]),
         direction: z.enum(["asc", "desc"]),
       }),
       filters: z.object({
         q: z.string().optional(),
         minPriceCents: z.number().int().min(0).optional(),
         maxPriceCents: z.number().int().min(0).optional(),
-        createdAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-        createdAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-        updatedAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-        updatedAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        createdAtFrom: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
+        createdAtTo: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
+        updatedAtFrom: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
+        updatedAtTo: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
       }),
     }),
   })
@@ -241,12 +258,26 @@ const ZodListTenantUsersQuery = z
     // filters
     q: z.string().optional(),
     roleName: z.enum(["OWNER", "ADMIN", "EDITOR", "VIEWER"]).optional(),
-    createdAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-    createdAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-    updatedAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-    updatedAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    createdAtFrom: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    createdAtTo: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    updatedAtFrom: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    updatedAtTo: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
     // sort
-    sortBy: z.enum(["createdAt", "updatedAt", "userEmailAddress", "roleName"]).optional(),
+    sortBy: z
+      .enum(["createdAt", "updatedAt", "userEmailAddress", "roleName"])
+      .optional(),
     sortDir: z.enum(["asc", "desc"]).optional(),
     includeTotal: z.boolean().optional(),
   })
@@ -271,16 +302,33 @@ const ZodTenantUsersListResponseData = z
     applied: z.object({
       limit: z.number().int().min(1).max(100),
       sort: z.object({
-        field: z.enum(["createdAt", "updatedAt", "userEmailAddress", "roleName"]),
+        field: z.enum([
+          "createdAt",
+          "updatedAt",
+          "userEmailAddress",
+          "roleName",
+        ]),
         direction: z.enum(["asc", "desc"]),
       }),
       filters: z.object({
         q: z.string().optional(),
         roleName: z.enum(["OWNER", "ADMIN", "EDITOR", "VIEWER"]).optional(),
-        createdAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-        createdAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-        updatedAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-        updatedAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        createdAtFrom: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
+        createdAtTo: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
+        updatedAtFrom: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
+        updatedAtTo: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
       }),
     }),
   })
@@ -315,10 +363,22 @@ const ZodListProductsQuery = z
     q: z.string().optional(),
     minPriceCents: z.number().int().min(0).optional(),
     maxPriceCents: z.number().int().min(0).optional(),
-    createdAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-    createdAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-    updatedAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-    updatedAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    createdAtFrom: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    createdAtTo: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    updatedAtFrom: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    updatedAtTo: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
     // sort
     sortBy: z
       .enum(["createdAt", "updatedAt", "productName", "productPriceCents"])
@@ -327,6 +387,99 @@ const ZodListProductsQuery = z
     includeTotal: z.boolean().optional(),
   })
   .openapi("ListProductsQuery");
+
+// ── Theme / Branding (Tenants)
+const ZodHex = z
+  .string()
+  .regex(/^#(?:[0-9a-fA-F]{6})$/)
+  .openapi({
+    description: "Hex color in #RRGGBB",
+    example: "#3b82f6",
+  });
+
+const ZodPalette10 = z
+  .array(ZodHex)
+  .length(10)
+  .openapi({
+    description: "Mantine 10-step palette (indexes 0–9)",
+    example: [
+      "#e7f7ff",
+      "#d0eeff",
+      "#a1dcff",
+      "#6bc8ff",
+      "#41b7ff",
+      "#27aaff",
+      "#159fff",
+      "#008ff3",
+      "#007fd9",
+      "#0062a6",
+    ],
+  });
+
+const ZodThemeOverrides = z
+  .object({
+    // Note: colorScheme is not read by Mantine v7 theme object (kept for future)
+    colorScheme: z.enum(["light", "dark"]).optional(),
+    primaryColor: z.string().optional(),
+    primaryShade: z
+      .union([
+        z.number().int().min(0).max(9),
+        z.object({
+          light: z.number().int().min(0).max(9).optional(),
+          dark: z.number().int().min(0).max(9).optional(),
+        }),
+      ])
+      .optional(),
+    colors: z.record(z.string(), ZodPalette10).optional(), // { [name]: string[10] }
+    defaultRadius: z
+      .string()
+      .regex(/^\d+px$/)
+      .optional(),
+    fontFamily: z.string().max(200).optional(),
+  })
+  .strict()
+  .partial()
+  .openapi("ThemeOverrides");
+
+const ZodPresetKey = z
+  .enum([
+    "classicBlue",
+    "rubyDark",
+    "emeraldLight",
+    "oceanLight",
+    "violetLight",
+    "grapeDark",
+    "tealDark",
+    "cyanLight",
+    "orangeLight",
+    "limeLight",
+    "pinkDark",
+    "yellowLight",
+  ])
+  .openapi("PresetKey");
+
+const ZodTenantSlugParam = z
+  .object({ tenantSlug: z.string().min(1) })
+  .openapi("TenantSlugParam");
+
+const ZodTenantThemeResponseData = z
+  .object({
+    presetKey: ZodPresetKey.nullable(),
+    overrides: ZodThemeOverrides.default({}),
+    logoUrl: z.string().url().nullable().default(null),
+    updatedAt: z.string().datetime().nullable(),
+    createdAt: z.string().datetime().nullable(),
+  })
+  .openapi("TenantThemeResponseData");
+
+const ZodTenantThemePutBody = z
+  .object({
+    presetKey: ZodPresetKey.nullable().optional(),
+    overrides: ZodThemeOverrides.optional(),
+    logoUrl: z.string().url().max(2048).nullable().optional(),
+  })
+  .strict()
+  .openapi("TenantThemePutBody");
 
 // ---------- Paths ----------
 export function registerAllPathsInOpenApiRegistry() {
@@ -736,6 +889,63 @@ export function registerAllPathsInOpenApiRegistry() {
       500: response500,
     },
   });
+
+  // ── Tenants — get theme
+  openApiRegistry.registerPath({
+    tags: ["Tenants"],
+    method: "get",
+    path: "/api/tenants/{tenantSlug}/theme",
+    security: [{ cookieAuth: [] }],
+    request: { params: ZodTenantSlugParam },
+    responses: {
+      200: {
+        description: "Tenant theme (preset, overrides, logo)",
+        content: {
+          "application/json": {
+            schema: successEnvelope(ZodTenantThemeResponseData),
+          },
+        },
+      },
+      401: response401,
+      403: response403,
+      404: response404,
+      429: response429,
+      500: response500,
+    },
+  });
+
+  // ── Tenants — save theme
+  openApiRegistry.registerPath({
+    tags: ["Tenants"],
+    method: "put",
+    path: "/api/tenants/{tenantSlug}/theme",
+    security: [{ cookieAuth: [] }],
+    request: {
+      headers: ZodIdempotencyHeaders,
+      params: ZodTenantSlugParam,
+      body: {
+        content: {
+          "application/json": { schema: ZodTenantThemePutBody },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: "Saved tenant theme",
+        content: {
+          "application/json": {
+            schema: successEnvelope(ZodTenantThemeResponseData),
+          },
+        },
+      },
+      400: response400,
+      401: response401,
+      403: response403,
+      404: response404,
+      429: response429,
+      500: response500,
+    },
+  });
 }
 
 // ---------- Build document ----------
@@ -759,6 +969,12 @@ export function buildOpenApiDocument() {
         "Simple, multi-tenant admin API. Responses use a standard success/error envelope. Auth is cookie-based session.",
     },
     servers,
-    tags: [{ name: "Auth" }, { name: "Products" }, { name: "System" }, { name: "TenantUsers" }],
+    tags: [
+      { name: "Auth" },
+      { name: "Products" },
+      { name: "System" },
+      { name: "TenantUsers" },
+      { name: 'Tenants' }, 
+    ],
   });
 }
