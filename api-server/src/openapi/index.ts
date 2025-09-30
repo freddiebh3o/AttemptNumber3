@@ -8,6 +8,7 @@ import { registerAuthPaths } from './paths/auth.js';
 import { registerProductPaths } from './paths/products.js';
 import { registerTenantUsersPaths } from './paths/tenantUsers.js';
 import { registerSystemPaths } from './paths/system.js';
+import { registerUploadPaths } from './paths/uploads.js';
 
 export function buildOpenApiDocument() {
   // Register all feature paths
@@ -16,6 +17,7 @@ export function buildOpenApiDocument() {
   registerTenantUsersPaths(registry);
   registerTenantPaths(registry);
   registerSystemPaths(registry);
+  registerUploadPaths(registry);
 
   const generator = new OpenApiGeneratorV3(registry.definitions);
 
@@ -35,10 +37,11 @@ export function buildOpenApiDocument() {
     servers,
     tags: [
       { name: 'Auth' },
-      { name: 'Products' },
       { name: 'System' },
       { name: 'TenantUsers' },
       { name: 'Tenants' },
+      { name: 'Uploads' },
+      { name: 'Products' },
     ],
   });
 }

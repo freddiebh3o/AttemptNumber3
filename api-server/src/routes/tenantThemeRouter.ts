@@ -11,8 +11,15 @@ import {
   getTenantThemeService,
   upsertTenantThemeService,
 } from '../services/tenantThemeService.js';
+import multer from 'multer';
+import { uploadImageToStorageService } from '../services/uploadService.js';
+import { Errors } from '../utils/httpErrors.js';
+import { prismaClientInstance } from '../db/prismaClient.js';
 
-// --- Zod shapes (mirror your frontend types) ---
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB for logos
+});
 
 // #RRGGBB
 const hex = z.string().regex(/^#(?:[0-9a-fA-F]{6})$/);
@@ -64,6 +71,54 @@ const putBodySchema = z.object({
 // --- Router ---
 
 export const tenantThemeRouter = Router();
+
+/** POST /api/tenants/:tenantSlug/logo  (admin+) */
+tenantThemeRouter.post(
+  '/:tenantSlug/logo',
+  idempotencyMiddleware(60),
+  requireAuthenticatedUserMiddleware,
+  requireRoleAtLeastMiddleware('ADMIN'),
+  validateRequestParamsWithZod(paramsSchema),
+  upload.single('file'),
+  async (req, res, next) => {
+    try {
+      const { tenantSlug } = req.validatedParams as z.infer<typeof paramsSchema>;
+      const tenantId = await ensureTenantIdForSlugAndSession(tenantSlug, req.currentTenantId);
+
+      const file = req.file;
+      if (!file) return next(Errors.validation('Missing file (field: "file")'));
+
+      const out = await uploadImageToStorageService({
+        tenantId,
+        kind: 'logo',
+        bytes: file.buffer,
+        contentType: file.mimetype,
+        originalName: file.originalname,
+        upsert: true, // allow replacing the logo path with new file name each time; still unique filename
+      });
+
+      const updated = await prismaClientInstance.tenantBranding.upsert({
+        where: { tenantId },
+        create: { tenantId, logoUrl: out.url, overridesJson: {}, presetKey: null },
+        update: { logoUrl: out.url },
+        select: { logoUrl: true, updatedAt: true, createdAt: true, overridesJson: true, presetKey: true },
+      });
+
+      return res.json(
+        createStandardSuccessResponse({
+          presetKey: updated.presetKey ?? null,
+          overrides: (updated.overridesJson as unknown) ?? {},
+          logoUrl: updated.logoUrl ?? null,
+          updatedAt: updated.updatedAt,
+          createdAt: updated.createdAt,
+          upload: out,
+        })
+      );
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
 
 tenantThemeRouter.get(
   '/:tenantSlug/theme',

@@ -375,6 +375,8 @@ Adding a new route:
   * Instead of this, any request that is made that requires the user to be logged in and they arent logged in, should be redirected to the login page automatically 
   * Whenever a user is logged out and redirected to the login page, it should show a clear reason on the login page as to why they were logged out
 
+* Admin logs
+
 * Admin branding
   * Suggested themes for different colour schemes 
   * Fully custom option
