@@ -11,7 +11,7 @@ import { sessionMiddleware } from "./middleware/sessionMiddleware.js";
 import { standardErrorHandler } from "./middleware/errorHandler.js";
 import { apiRouter } from "./routes/index.js";
 import { httpLoggingMiddleware } from "./middleware/httpLoggingMiddleware.js";
-import { buildOpenApiDocument } from "./openapi/openapi.js";
+import { buildOpenApiDocument } from "./openapi/index.js";
 import { createFixedWindowRateLimiterMiddleware } from "./middleware/rateLimiterMiddleware.js";
 
 export function createConfiguredExpressApplicationInstance() {

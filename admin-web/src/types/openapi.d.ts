@@ -199,6 +199,99 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/switch-tenant": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["SwitchTenantRequestBody"];
+                };
+            };
+            responses: {
+                /** @description Switched current tenant for the session */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: components["schemas"]["SwitchTenantResponseData"];
+                            error: unknown;
+                        };
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        "X-RateLimit-Limit": string;
+                        "X-RateLimit-Remaining": string;
+                        "X-RateLimit-Reset": string;
+                        "Retry-After": string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Internal Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/products": {
         parameters: {
             query?: never;
@@ -556,197 +649,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/auth/switch-tenant": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json": components["schemas"]["SwitchTenantRequestBody"];
-                };
-            };
-            responses: {
-                /** @description Switched current tenant for the session */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: true;
-                            data: components["schemas"]["SwitchTenantResponseData"];
-                            error: unknown;
-                        };
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorEnvelope"];
-                    };
-                };
-                /** @description Unauthorized */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorEnvelope"];
-                    };
-                };
-                /** @description Forbidden */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorEnvelope"];
-                    };
-                };
-                /** @description Too Many Requests */
-                429: {
-                    headers: {
-                        "X-RateLimit-Limit": string;
-                        "X-RateLimit-Remaining": string;
-                        "X-RateLimit-Reset": string;
-                        "Retry-After": string;
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorEnvelope"];
-                    };
-                };
-                /** @description Internal Error */
-                500: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorEnvelope"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Service health */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: true;
-                            data: components["schemas"]["HealthResponseData"];
-                            error: unknown;
-                        };
-                    };
-                };
-                /** @description Internal Error */
-                500: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorEnvelope"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/version": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Service version */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: true;
-                            data: components["schemas"]["VersionResponseData"];
-                            error: unknown;
-                        };
-                    };
-                };
-                /** @description Internal Error */
-                500: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorEnvelope"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/tenant-users": {
         parameters: {
             query?: never;
@@ -760,7 +662,7 @@ export interface paths {
                     limit?: number;
                     cursorId?: string;
                     q?: string;
-                    roleName?: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
+                    roleName?: components["schemas"]["RoleName"];
                     createdAtFrom?: string;
                     createdAtTo?: string;
                     updatedAtFrom?: string;
@@ -855,7 +757,17 @@ export interface paths {
                             /** @enum {boolean} */
                             success: true;
                             data: {
-                                user: components["schemas"]["TenantUserRecord"];
+                                user: {
+                                    userId: string;
+                                    /** Format: email */
+                                    userEmailAddress: string;
+                                    /** @enum {string} */
+                                    roleName: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
+                                    /** Format: date-time */
+                                    createdAt?: string;
+                                    /** Format: date-time */
+                                    updatedAt?: string;
+                                };
                             };
                             error: unknown;
                         };
@@ -960,7 +872,17 @@ export interface paths {
                             /** @enum {boolean} */
                             success: true;
                             data: {
-                                user: components["schemas"]["TenantUserRecord"];
+                                user: {
+                                    userId: string;
+                                    /** Format: email */
+                                    userEmailAddress: string;
+                                    /** @enum {string} */
+                                    roleName: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
+                                    /** Format: date-time */
+                                    createdAt?: string;
+                                    /** Format: date-time */
+                                    updatedAt?: string;
+                                };
                             };
                             error: unknown;
                         };
@@ -1205,9 +1127,7 @@ export interface paths {
         put: {
             parameters: {
                 query?: never;
-                header?: {
-                    "Idempotency-Key"?: string;
-                };
+                header?: never;
                 path: {
                     tenantSlug: string;
                 };
@@ -1300,6 +1220,104 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Service health */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: components["schemas"]["HealthResponseData"];
+                            error: unknown;
+                        };
+                    };
+                };
+                /** @description Internal Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Service version */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: components["schemas"]["VersionResponseData"];
+                            error: unknown;
+                        };
+                    };
+                };
+                /** @description Internal Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1323,10 +1341,11 @@ export interface components {
             password: string;
             tenantSlug: string;
         };
+        /** @enum {string} */
+        RoleName: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
         TenantMembership: {
             tenantSlug: string;
-            /** @enum {string} */
-            roleName: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
+            roleName: components["schemas"]["RoleName"];
         };
         MeResponseData: {
             user: {
@@ -1338,9 +1357,14 @@ export interface components {
             currentTenant: {
                 tenantId: string;
                 tenantSlug: string;
-                /** @enum {string} */
-                roleName: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
+                roleName: components["schemas"]["RoleName"];
             } | null;
+        };
+        SwitchTenantResponseData: {
+            hasSwitchedTenant: boolean;
+        };
+        SwitchTenantRequestBody: {
+            tenantSlug: string;
         };
         ProductRecord: {
             id: string;
@@ -1390,31 +1414,12 @@ export interface components {
             productPriceCents?: number;
             currentEntityVersion: number;
         };
-        SwitchTenantResponseData: {
-            hasSwitchedTenant: boolean;
-        };
-        SwitchTenantRequestBody: {
-            tenantSlug: string;
-        };
-        HealthResponseData: {
-            serviceName: string;
-            /**
-             * @default HEALTHY
-             * @enum {string}
-             */
-            healthStatus: "HEALTHY" | "UNHEALTHY";
-        };
-        VersionResponseData: {
-            serviceName: string;
-            semanticVersion: string;
-        };
         TenantUsersListResponseData: {
             items: {
                 userId: string;
                 /** Format: email */
                 userEmailAddress: string;
-                /** @enum {string} */
-                roleName: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
+                roleName: components["schemas"]["RoleName"];
                 /** Format: date-time */
                 createdAt: string;
                 /** Format: date-time */
@@ -1435,8 +1440,7 @@ export interface components {
                 };
                 filters: {
                     q?: string;
-                    /** @enum {string} */
-                    roleName?: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
+                    roleName?: components["schemas"]["RoleName"];
                     createdAtFrom?: string;
                     createdAtTo?: string;
                     updatedAtFrom?: string;
@@ -1444,30 +1448,17 @@ export interface components {
                 };
             };
         };
-        TenantUserRecord: {
-            userId: string;
-            /** Format: email */
-            userEmailAddress: string;
-            /** @enum {string} */
-            roleName: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
-            /** Format: date-time */
-            createdAt?: string;
-            /** Format: date-time */
-            updatedAt?: string;
-        };
         CreateTenantUserBody: {
             /** Format: email */
             email: string;
             password: string;
-            /** @enum {string} */
-            roleName: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
+            roleName: components["schemas"]["RoleName"];
         };
         UpdateTenantUserBody: {
             /** Format: email */
             email?: string;
             password?: string;
-            /** @enum {string} */
-            roleName?: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
+            roleName?: components["schemas"]["RoleName"];
         };
         /** @enum {string|null} */
         PresetKey: "classicBlue" | "rubyDark" | "emeraldLight" | "oceanLight" | "violetLight" | "grapeDark" | "tealDark" | "cyanLight" | "orangeLight" | "limeLight" | "pinkDark" | "yellowLight" | null;
@@ -1504,6 +1495,18 @@ export interface components {
             overrides?: components["schemas"]["ThemeOverrides"];
             /** Format: uri */
             logoUrl?: string | null;
+        };
+        HealthResponseData: {
+            serviceName: string;
+            /**
+             * @default HEALTHY
+             * @enum {string}
+             */
+            healthStatus: "HEALTHY" | "UNHEALTHY";
+        };
+        VersionResponseData: {
+            serviceName: string;
+            semanticVersion: string;
         };
     };
     responses: never;
