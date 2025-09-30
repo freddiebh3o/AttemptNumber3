@@ -367,7 +367,6 @@ Adding a new route:
 
 ## Future fetures
 * Image uploading with supabase storage.
-* Split the openapi.ts file up to make it more manageable
 * Create/Edit pages for users/products
 
 * Find a way to simulate what happens when a session expires 
