@@ -467,6 +467,7 @@ If you need initial data in the new environment:
 * [ ] Document URLs and secrets.
 
 ## Future fetures
+* CRUD for setting custom roles and assigning to users.
 * Remake the Readme with latest feature updates
 * Different branches/locations
   * Each product can have stock in any/all branches
