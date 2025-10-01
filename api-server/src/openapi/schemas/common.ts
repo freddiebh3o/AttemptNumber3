@@ -1,3 +1,4 @@
+/* api-server/src/openapi/schemas/common.ts */
 import { z } from 'zod';
 
 // Reusable role enum

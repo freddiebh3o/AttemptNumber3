@@ -8,14 +8,6 @@ generator client {
   provider = "prisma-client-js"
 }
 
-/// Simple RBAC for later service checks
-enum RoleName {
-  OWNER
-  ADMIN
-  EDITOR
-  VIEWER
-}
-
 
 model Permission {
   id          String            @id @default(cuid())
@@ -103,22 +95,15 @@ model UserTenantMembership {
   tenantId String
 
   // NEW: future source of truth
-  roleId   String?
-  role     Role?    @relation(fields: [roleId], references: [id], onDelete: SetNull)
-
-  // OLD: keep during migration, remove later
-  roleName RoleName?
-
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  roleId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  role      Role     @relation(fields: [roleId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([userId, tenantId])
-  @@index([tenantId])
-  @@index([userId])
-  @@index([tenantId, roleName])
+  @@unique([userId, tenantId], name: "userId_tenantId")
   @@index([roleId])
 }
 

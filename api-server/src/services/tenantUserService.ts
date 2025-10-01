@@ -1,174 +1,167 @@
 // api-server/src/services/tenantUserService.ts
-import { RoleName } from '@prisma/client'
-import bcrypt from 'bcryptjs'
-import { Errors } from '../utils/httpErrors.js'
-import { prismaClientInstance } from '../db/prismaClient.js'
-
-type SortField = 'createdAt' | 'updatedAt' | 'userEmailAddress' | 'roleName'
-type SortDir = 'asc' | 'desc'
-
-type ListUsersArgs = {
-  currentTenantId: string
-  limitOptional?: number
-  cursorIdOptional?: string
-  // filters
-  qOptional?: string
-  roleNameOptional?: RoleName
-  createdAtFromOptional?: string // 'YYYY-MM-DD'
-  createdAtToOptional?: string   // 'YYYY-MM-DD'
-  updatedAtFromOptional?: string // 'YYYY-MM-DD'
-  updatedAtToOptional?: string   // 'YYYY-MM-DD'
-  // sort
-  sortByOptional?: SortField
-  sortDirOptional?: SortDir
-  includeTotalOptional?: boolean
-}
+import { Prisma } from '@prisma/client';
+import bcrypt from 'bcryptjs';
+import { Errors } from '../utils/httpErrors.js';
+import { prismaClientInstance } from '../db/prismaClient.js';
 
 function addDays(date: Date, days: number) {
-  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000)
+  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 }
 
 async function countOwners(tenantId: string) {
+  const ownerRole = await prismaClientInstance.role.findUnique({
+    where: { tenantId_name: { tenantId, name: 'OWNER' } },
+    select: { id: true },
+  });
+  if (!ownerRole) return 0;
   return prismaClientInstance.userTenantMembership.count({
-    where: { tenantId, roleName: 'OWNER' },
-  })
+    where: { tenantId, roleId: ownerRole.id },
+  });
 }
 
 async function isOwner(tenantId: string, userId: string) {
   const m = await prismaClientInstance.userTenantMembership.findUnique({
     where: { userId_tenantId: { tenantId, userId } },
-    select: { roleName: true },
-  })
-  return m?.roleName === 'OWNER'
+    select: { role: { select: { name: true } } },
+  });
+  return m?.role?.name === 'OWNER';
 }
 
-
-export async function listUsersForCurrentTenantService(args: ListUsersArgs) {
+/**
+ * List tenant users with role info.
+ * Supports filters by email, roleId, roleName (contains), date ranges, and sorting (including role.name).
+ */
+export async function listUsersForCurrentTenantService(params: {
+  currentTenantId: string;
+  limitOptional?: number;
+  cursorIdOptional?: string;
+  // filters
+  qOptional?: string;
+  roleIdOptional?: string;         // exact roleId
+  roleNameOptional?: string;       // contains on role.name (case-insensitive)
+  createdAtFromOptional?: string;  // 'YYYY-MM-DD'
+  createdAtToOptional?: string;    // 'YYYY-MM-DD'
+  updatedAtFromOptional?: string;  // 'YYYY-MM-DD'
+  updatedAtToOptional?: string;    // 'YYYY-MM-DD'
+  // sort
+  sortByOptional?: 'createdAt' | 'updatedAt' | 'userEmailAddress' | 'role';
+  sortDirOptional?: 'asc' | 'desc';
+  includeTotalOptional?: boolean;
+}) {
   const {
     currentTenantId,
-    limitOptional,
+    limitOptional = 20,
     cursorIdOptional,
     qOptional,
+    roleIdOptional,
     roleNameOptional,
     createdAtFromOptional,
     createdAtToOptional,
     updatedAtFromOptional,
     updatedAtToOptional,
-    sortByOptional,
-    sortDirOptional,
-    includeTotalOptional,
-  } = args
+    sortByOptional = 'createdAt',
+    sortDirOptional = 'desc',
+    includeTotalOptional = false,
+  } = params;
 
-  const limit = Math.min(Math.max(limitOptional ?? 20, 1), 100)
-  const sortBy: SortField = sortByOptional ?? 'createdAt'
-  const sortDir: SortDir = sortDirOptional ?? 'desc'
+  // Build date filters (inclusive "to" by using < next day)
+  const createdAt: Prisma.DateTimeFilter = {};
+  if (createdAtFromOptional) createdAt.gte = new Date(createdAtFromOptional);
+  if (createdAtToOptional) createdAt.lt = addDays(new Date(createdAtToOptional), 1);
 
-  // Build nested user filter (email + dates)
-  let userFilter: any = {}
-  if (qOptional && qOptional.trim()) {
-    userFilter.userEmailAddress = { contains: qOptional.trim(), mode: 'insensitive' }
-  }
+  const updatedAt: Prisma.DateTimeFilter = {};
+  if (updatedAtFromOptional) updatedAt.gte = new Date(updatedAtFromOptional);
+  if (updatedAtToOptional) updatedAt.lt = addDays(new Date(updatedAtToOptional), 1);
 
-  let createdAtFilter: any = {}
-  if (createdAtFromOptional) {
-    const from = new Date(createdAtFromOptional)
-    if (!isNaN(from.getTime())) createdAtFilter.gte = from
-  }
-  if (createdAtToOptional) {
-    const to = new Date(createdAtToOptional)
-    if (!isNaN(to.getTime())) createdAtFilter.lt = addDays(to, 1) // inclusive end
-  }
-  if (Object.keys(createdAtFilter).length) {
-    userFilter = { ...userFilter, createdAt: createdAtFilter }
-  }
-
-  let updatedAtFilter: any = {}
-  if (updatedAtFromOptional) {
-    const from = new Date(updatedAtFromOptional)
-    if (!isNaN(from.getTime())) updatedAtFilter.gte = from
-  }
-  if (updatedAtToOptional) {
-    const to = new Date(updatedAtToOptional)
-    if (!isNaN(to.getTime())) updatedAtFilter.lt = addDays(to, 1)
-  }
-  if (Object.keys(updatedAtFilter).length) {
-    userFilter = { ...userFilter, updatedAt: updatedAtFilter }
-  }
-
-  // Membership-level where
-  const where: any = {
+  const where: Prisma.UserTenantMembershipWhereInput = {
     tenantId: currentTenantId,
-    ...(roleNameOptional ? { roleName: roleNameOptional } : {}),
-    ...(Object.keys(userFilter).length ? { user: userFilter } : {}),
-  }
+    ...(qOptional && {
+      user: { userEmailAddress: { contains: qOptional, mode: 'insensitive' } },
+    }),
+    ...(roleIdOptional && { roleId: roleIdOptional }),
+    ...(roleNameOptional && {
+      role: { name: { contains: roleNameOptional, mode: 'insensitive' } },
+    }),
+    ...((createdAt.gte || createdAt.lt) && { createdAt }),
+    ...((updatedAt.gte || updatedAt.lt) && { updatedAt }),
+  };
 
-  if (qOptional && qOptional.trim()) {
-    where.user = {
-      ...(where.user ?? {}),
-      userEmailAddress: { contains: qOptional.trim(), mode: 'insensitive' },
-    };
-  }
+  // Sort mapping (role => role.name)
+  const orderBy: Prisma.UserTenantMembershipOrderByWithRelationInput =
+    sortByOptional === 'userEmailAddress'
+      ? { user: { userEmailAddress: sortDirOptional } }
+      : sortByOptional === 'role'
+      ? { role: { name: sortDirOptional } }
+      : ({ [sortByOptional]: sortDirOptional } as Prisma.UserTenantMembershipOrderByWithRelationInput);
 
-  // Primary order + tie-breaker by membership.id
-  const orderByPrimary =
-    sortBy === 'userEmailAddress'
-      ? { user: { userEmailAddress: sortDir } }
-      : sortBy === 'roleName'
-      ? { roleName: sortDir }
-      : sortBy === 'createdAt'
-      ? { user: { createdAt: sortDir } }
-      : { user: { updatedAt: sortDir } }
+  const take = Math.max(1, Math.min(100, limitOptional));
+  const cursor = cursorIdOptional ? { id: cursorIdOptional } : undefined;
 
-  const orderBy: any[] = [orderByPrimary, { id: sortDir }]
-
-  const take = limit + 1
-
-  const rows = await prismaClientInstance.userTenantMembership.findMany({
-    where,
-    orderBy,
-    take,
-    ...(cursorIdOptional && { cursor: { id: cursorIdOptional }, skip: 1 }),
-    select: {
-      id: true,            // for cursor
-      roleName: true,
-      user: {
-        select: {
-          id: true,
-          userEmailAddress: true,
-          createdAt: true,
-          updatedAt: true,
+  const [rows, total] = await Promise.all([
+    prismaClientInstance.userTenantMembership.findMany({
+      where,
+      take,
+      ...(cursor && { skip: 1, cursor }),
+      orderBy,
+      select: {
+        id: true,
+        createdAt: true,
+        updatedAt: true,
+        user: { select: { id: true, userEmailAddress: true } },
+        role: {
+          select: {
+            id: true,
+            tenantId: true,
+            name: true,
+            description: true,
+            isSystem: true,
+            createdAt: true,
+            updatedAt: true,
+            permissions: { select: { permission: { select: { key: true } } } },
+          },
         },
       },
-    },
-  })
+    }),
+    includeTotalOptional
+      ? prismaClientInstance.userTenantMembership.count({ where })
+      : Promise.resolve(0),
+  ]);
 
-  const hasNextPage = rows.length > limit
-  const slice = hasNextPage ? rows.slice(0, limit) : rows
-  const nextCursor = hasNextPage ? slice[slice.length - 1]?.id ?? null : null
+  const items = rows.map((m) => ({
+    userId: m.user.id,
+    userEmailAddress: m.user.userEmailAddress,
+    role: m.role
+      ? {
+          id: m.role.id,
+          tenantId: m.role.tenantId,
+          name: m.role.name,
+          description: m.role.description ?? null,
+          isSystem: m.role.isSystem,
+          permissions: m.role.permissions.map((rp) => rp.permission.key),
+          createdAt: m.role.createdAt.toISOString(),
+          updatedAt: m.role.updatedAt.toISOString(),
+        }
+      : null,
+    createdAt: m.createdAt.toISOString(),
+    updatedAt: m.updatedAt.toISOString(),
+  }));
 
-  let totalCount: number | undefined
-  if (includeTotalOptional) {
-    totalCount = await prismaClientInstance.userTenantMembership.count({ where })
-  }
+  const last = rows.at(-1);
+  const nextCursor = last ? last.id : null;
 
   return {
-    items: slice.map((m) => ({
-      userId: m.user.id,
-      userEmailAddress: m.user.userEmailAddress,
-      roleName: m.roleName,
-      createdAt: m.user.createdAt.toISOString(),
-      updatedAt: m.user.updatedAt.toISOString(),
-    })),
+    items,
     pageInfo: {
-      hasNextPage,
+      hasNextPage: Boolean(nextCursor),
       nextCursor,
-      ...(totalCount !== undefined && { totalCount }),
+      ...(includeTotalOptional ? { totalCount: total } : {}),
     },
     applied: {
-      limit,
-      sort: { field: sortBy, direction: sortDir },
+      limit: take,
+      sort: { field: sortByOptional, direction: sortDirOptional },
       filters: {
         ...(qOptional ? { q: qOptional } : {}),
+        ...(roleIdOptional ? { roleId: roleIdOptional } : {}),
         ...(roleNameOptional ? { roleName: roleNameOptional } : {}),
         ...(createdAtFromOptional ? { createdAtFrom: createdAtFromOptional } : {}),
         ...(createdAtToOptional ? { createdAtTo: createdAtToOptional } : {}),
@@ -176,7 +169,7 @@ export async function listUsersForCurrentTenantService(args: ListUsersArgs) {
         ...(updatedAtToOptional ? { updatedAtTo: updatedAtToOptional } : {}),
       },
     },
-  }
+  };
 }
 
 /**
@@ -184,133 +177,202 @@ export async function listUsersForCurrentTenantService(args: ListUsersArgs) {
  * If a user with the same email exists, we attach membership (idempotent-ish).
  */
 export async function createOrAttachUserToTenantService(params: {
-  currentTenantId: string
-  email: string
-  password: string
-  roleName: RoleName
+  currentTenantId: string;
+  email: string;
+  password: string;
+  roleId: string;
 }) {
-  // Find existing user by email, else create
-  const existingUser = await prismaClientInstance.user.findUnique({
-    where: { userEmailAddress: params.email },
-  })
+  const { currentTenantId, email, password, roleId } = params;
 
-  let userId: string
-  if (!existingUser) {
-    const hashed = await bcrypt.hash(params.password, 10)
-    const user = await prismaClientInstance.user.create({
-      data: {
-        userEmailAddress: params.email,
-        userHashedPassword: hashed,
-      },
-    })
-    userId = user.id
-  } else {
-    userId = existingUser.id
+  // Validate role belongs to tenant
+  const role = await prismaClientInstance.role.findUnique({
+    where: { id: roleId },
+    select: {
+      id: true,
+      tenantId: true,
+      name: true,
+      description: true,
+      isSystem: true,
+      createdAt: true,
+      updatedAt: true,
+      permissions: { select: { permission: { select: { key: true } } } },
+    },
+  });
+  if (!role || role.tenantId !== currentTenantId) {
+    throw Errors.validation('Invalid role', 'Role not found for this tenant.');
   }
 
-  // Upsert membership for this tenant
+  // Find or create user
+  const existingUser = await prismaClientInstance.user.findUnique({
+    where: { userEmailAddress: email },
+  });
+
+  let userId: string;
+  if (!existingUser) {
+    const hashed = await bcrypt.hash(password, 10);
+    const user = await prismaClientInstance.user.create({
+      data: { userEmailAddress: email, userHashedPassword: hashed },
+      select: { id: true, userEmailAddress: true },
+    });
+    userId = user.id;
+  } else {
+    userId = existingUser.id;
+  }
+
+  // Upsert membership (roleId only; roleName deprecated)
   const membership = await prismaClientInstance.userTenantMembership.upsert({
-    where: { userId_tenantId: { userId, tenantId: params.currentTenantId } },
-    update: { roleName: params.roleName },
-    create: {
-      userId,
-      tenantId: params.currentTenantId,
-      roleName: params.roleName,
+    where: { userId_tenantId: { userId, tenantId: currentTenantId } },
+    update: { roleId: role.id },
+    create: { userId, tenantId: currentTenantId, roleId: role.id },
+    select: {
+      createdAt: true,
+      updatedAt: true,
+      user: { select: { id: true, userEmailAddress: true } },
     },
-  })
+  });
 
   return {
-    userId,
-    userEmailAddress: (existingUser?.userEmailAddress ?? params.email),
-    roleName: membership.roleName,
-  }
+    userId: membership.user.id,
+    userEmailAddress: membership.user.userEmailAddress,
+    role: {
+      id: role.id,
+      tenantId: role.tenantId,
+      name: role.name,
+      description: role.description ?? null,
+      isSystem: role.isSystem,
+      permissions: role.permissions.map((rp) => rp.permission.key),
+      createdAt: role.createdAt.toISOString(),
+      updatedAt: role.updatedAt.toISOString(),
+    },
+    createdAt: membership.createdAt.toISOString(),
+    updatedAt: membership.updatedAt.toISOString(),
+  };
 }
 
 export async function updateTenantUserService(params: {
-  currentTenantId: string
-  currentUserId: string            // ← NEW: who is performing the action
-  targetUserId: string
-  newEmailOptional?: string
-  newPasswordOptional?: string
-  newRoleNameOptional?: RoleName
+  currentTenantId: string;
+  currentUserId: string;  // actor
+  targetUserId: string;
+  newEmailOptional?: string;
+  newPasswordOptional?: string;
+  newRoleIdOptional?: string; // roleId, not roleName
 }) {
-  const { currentTenantId, currentUserId, targetUserId } = params
+  const { currentTenantId, currentUserId, targetUserId } = params;
 
+  // Ensure membership exists (grab current role)
   const membership = await prismaClientInstance.userTenantMembership.findUnique({
     where: { userId_tenantId: { userId: targetUserId, tenantId: currentTenantId } },
-  })
-  if (!membership) throw Errors.notFound('User is not a member of this tenant.')
+    select: {
+      user: { select: { id: true, userEmailAddress: true } },
+      role: { select: { id: true, name: true } },
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+  if (!membership) throw Errors.notFound('User is not a member of this tenant.');
 
-  // If changing role away from OWNER, protect the last OWNER
-  if (params.newRoleNameOptional && membership.roleName === 'OWNER' && params.newRoleNameOptional !== 'OWNER') {
-    const owners = await countOwners(currentTenantId)
-    if (owners <= 1) throw Errors.cantDeleteLastOwner()
-    // Optional: prevent self-demotion if that would leave you without OWNER—already covered by owners<=1
-  }
+  // Role change (protect last OWNER)
+  if (params.newRoleIdOptional !== undefined) {
+    const nextRole = await prismaClientInstance.role.findUnique({
+      where: { id: params.newRoleIdOptional },
+      select: { id: true, name: true, tenantId: true },
+    });
+    if (!nextRole || nextRole.tenantId !== currentTenantId) {
+      throw Errors.validation('Invalid role', 'Role not found for this tenant.');
+    }
 
-  // Apply membership role change first
-  if (params.newRoleNameOptional !== undefined) {
+    const currRoleName = membership.role?.name ?? null;
+    const nextRoleName = nextRole.name;
+
+    if (currRoleName === 'OWNER' && nextRoleName !== 'OWNER') {
+      const owners = await countOwners(currentTenantId);
+      if (owners <= 1) throw Errors.cantDeleteLastOwner();
+    }
+
     await prismaClientInstance.userTenantMembership.update({
       where: { userId_tenantId: { userId: targetUserId, tenantId: currentTenantId } },
-      data: { roleName: params.newRoleNameOptional },
-    })
+      data: { roleId: nextRole.id },
+    });
   }
 
-  // Optional: prevent user from locking themselves out by demoting own role below ADMIN
-  // (skip if you don't want this)
-  if (targetUserId === currentUserId) {
-    // nothing else to do—role change has already been applied safely
-  }
-
-  // Update user’s email/password
+  // Account updates
   if (params.newEmailOptional !== undefined || params.newPasswordOptional !== undefined) {
-    const data: { userEmailAddress?: string; userHashedPassword?: string } = {}
-    if (params.newEmailOptional !== undefined) data.userEmailAddress = params.newEmailOptional
+    const data: { userEmailAddress?: string; userHashedPassword?: string } = {};
+    if (params.newEmailOptional !== undefined) data.userEmailAddress = params.newEmailOptional;
     if (params.newPasswordOptional !== undefined) {
-      data.userHashedPassword = await bcrypt.hash(params.newPasswordOptional, 10)
+      data.userHashedPassword = await bcrypt.hash(params.newPasswordOptional, 10);
     }
-    await prismaClientInstance.user.update({ where: { id: targetUserId }, data })
+    await prismaClientInstance.user.update({ where: { id: targetUserId }, data });
   }
 
-  const user = await prismaClientInstance.user.findUnique({ where: { id: targetUserId } })
-  const updatedMembership = await prismaClientInstance.userTenantMembership.findUnique({
+  // Fresh selection with role + permissions
+  const fresh = await prismaClientInstance.userTenantMembership.findUnique({
     where: { userId_tenantId: { userId: targetUserId, tenantId: currentTenantId } },
-  })
-  if (!user || !updatedMembership) throw Errors.internal('State mismatch after update.')
+    select: {
+      createdAt: true,
+      updatedAt: true,
+      user: { select: { id: true, userEmailAddress: true } },
+      role: {
+        select: {
+          id: true,
+          tenantId: true,
+          name: true,
+          description: true,
+          isSystem: true,
+          createdAt: true,
+          updatedAt: true,
+          permissions: { select: { permission: { select: { key: true } } } },
+        },
+      },
+    },
+  });
+
+  if (!fresh || !fresh.user || !fresh.role) {
+    throw Errors.internal('State mismatch after update.');
+  }
 
   return {
-    userId: user.id,
-    userEmailAddress: user.userEmailAddress,
-    roleName: updatedMembership.roleName,
-    updatedAt: user.updatedAt.toISOString(),
-  }
+    userId: fresh.user.id,
+    userEmailAddress: fresh.user.userEmailAddress,
+    role: {
+      id: fresh.role.id,
+      tenantId: fresh.role.tenantId,
+      name: fresh.role.name,
+      description: fresh.role.description ?? null,
+      isSystem: fresh.role.isSystem,
+      permissions: fresh.role.permissions.map((rp) => rp.permission.key),
+      createdAt: fresh.role.createdAt.toISOString(),
+      updatedAt: fresh.role.updatedAt.toISOString(),
+    },
+    createdAt: fresh.createdAt.toISOString(),
+    updatedAt: fresh.updatedAt.toISOString(),
+  };
 }
+
 /**
  * Remove a user from the current tenant.
- * If that was their last membership, we keep the user record (simple POC decision).
  */
-
 export async function removeUserFromTenantService(params: {
-  currentTenantId: string
-  currentUserId: string           // ← NEW
-  targetUserId: string
+  currentTenantId: string;
+  currentUserId: string;
+  targetUserId: string;
 }) {
-  const { currentTenantId, currentUserId, targetUserId } = params
+  const { currentTenantId, currentUserId, targetUserId } = params;
 
   // If removing an OWNER, ensure there’s at least one other OWNER
   if (await isOwner(currentTenantId, targetUserId)) {
-    const owners = await countOwners(currentTenantId)
-    if (owners <= 1) throw Errors.cantDeleteLastOwner()
+    const owners = await countOwners(currentTenantId);
+    if (owners <= 1) throw Errors.cantDeleteLastOwner();
   }
 
-  // Optional: block self-removal if you’re the last OWNER
+  // Optional: block self-removal if that would leave no owners — already covered above
   if (currentUserId === targetUserId) {
-    // already covered by the check above when they are OWNER
+    // no-op
   }
 
   const deleted = await prismaClientInstance.userTenantMembership.deleteMany({
     where: { userId: targetUserId, tenantId: currentTenantId },
-  })
+  });
 
-  return { hasRemovedMembership: deleted.count > 0 }
+  return { hasRemovedMembership: deleted.count > 0 };
 }

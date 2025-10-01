@@ -1,6 +1,7 @@
+/* api-server/src/openapi/schemas/auth.ts */
 import { z } from 'zod';
-import { ZodRoleName } from './common.js';
 import { ZodPermissionKey } from '../components/rbac.js';
+import { ZodRoleName } from './common.js';
 
 export const ZodSignInRequestBody = z
   .object({
@@ -10,31 +11,38 @@ export const ZodSignInRequestBody = z
   })
   .openapi('SignInRequestBody');
 
+// Minimal role shape returned by /me
+export const ZodRoleBrief = z
+  .object({
+    id: z.string(),
+    name: ZodRoleName,
+  })
+  .openapi('RoleBrief');
+
 export const ZodTenantMembership = z
   .object({
     tenantSlug: z.string(),
-    roleName: ZodRoleName,
+    role: ZodRoleBrief, // role assigned within that tenant
   })
   .openapi('TenantMembership');
 
-  export const ZodMeResponseData = z.object({
+export const ZodMeResponseData = z
+  .object({
     user: z.object({
       id: z.string(),
       userEmailAddress: z.string().email(),
     }),
-    tenantMemberships: z.array(
-      z.object({
+    tenantMemberships: z.array(ZodTenantMembership),
+    currentTenant: z
+      .object({
+        tenantId: z.string(),
         tenantSlug: z.string(),
-        roleName: z.enum(['OWNER', 'ADMIN', 'EDITOR', 'VIEWER']).nullable().optional(), // legacy while migrating
+        role: ZodRoleBrief,
       })
-    ),
-    currentTenant: z.object({
-      tenantId: z.string(),
-      tenantSlug: z.string(),
-      roleName: z.enum(['OWNER', 'ADMIN', 'EDITOR', 'VIEWER']).nullable().optional(),
-    }).nullable(),
+      .nullable(),
     permissionsCurrentTenant: z.array(ZodPermissionKey),
-  }).openapi('MeResponseData');
+  })
+  .openapi('MeResponseData');
 
 export const ZodSwitchTenantRequestBody = z
   .object({

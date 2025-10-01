@@ -2,7 +2,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuthenticatedUserMiddleware } from "../middleware/sessionMiddleware.js";
-import { requirePermission } from '../middleware/permissionMiddleware.js';
+import { requirePermission } from "../middleware/permissionMiddleware.js";
 import {
   validateRequestBodyWithZod,
   validateRequestParamsWithZod,
@@ -15,7 +15,12 @@ import {
   updateTenantUserService,
   removeUserFromTenantService,
 } from "../services/tenantUserService.js";
-import { assertAuthed, assertHasQuery, assertHasBody, assertHasParams } from "../types/assertions.js";
+import {
+  assertAuthed,
+  assertHasQuery,
+  assertHasBody,
+  assertHasParams,
+} from "../types/assertions.js";
 import { createFixedWindowRateLimiterMiddleware } from "../middleware/rateLimiterMiddleware.js";
 
 export const tenantUserRouter = Router();
@@ -30,28 +35,33 @@ const tenantUsersRateLimiter = createFixedWindowRateLimiterMiddleware({
 
 tenantUserRouter.use(tenantUsersRateLimiter);
 
-const RoleEnum = z.enum(["OWNER", "ADMIN", "EDITOR", "VIEWER"]);
-
+// Query: support roleId and roleName (contains) filters; sort by roleName (role.name)
 const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional(),
   cursorId: z.string().min(1).optional(),
+
   // filters
   q: z.string().min(1).optional(),
-  roleName: RoleEnum.optional(),
-  createdAtFrom: z.string().regex(dateRegex, 'Use YYYY-MM-DD').optional(),
-  createdAtTo: z.string().regex(dateRegex, 'Use YYYY-MM-DD').optional(),
-  updatedAtFrom: z.string().regex(dateRegex, 'Use YYYY-MM-DD').optional(),
-  updatedAtTo: z.string().regex(dateRegex, 'Use YYYY-MM-DD').optional(),
+  roleId: z.string().min(1).optional(),
+  roleName: z.string().min(1).optional(), // contains filter on role.name
+  createdAtFrom: z.string().regex(dateRegex, "Use YYYY-MM-DD").optional(),
+  createdAtTo: z.string().regex(dateRegex, "Use YYYY-MM-DD").optional(),
+  updatedAtFrom: z.string().regex(dateRegex, "Use YYYY-MM-DD").optional(),
+  updatedAtTo: z.string().regex(dateRegex, "Use YYYY-MM-DD").optional(),
+
   // sort
-  sortBy: z.enum(["createdAt", "updatedAt", "userEmailAddress", "roleName"]).optional(),
+  sortBy: z
+    .enum(["createdAt", "updatedAt", "userEmailAddress", "role"])
+    .optional(),
   sortDir: z.enum(["asc", "desc"]).optional(),
+
   includeTotal: z.coerce.boolean().optional(),
 });
 
 tenantUserRouter.get(
   "/",
   requireAuthenticatedUserMiddleware,
-  requirePermission('users:manage'),
+  requirePermission("users:manage"),
   validateRequestQueryWithZod(listQuerySchema),
   async (req, res, next) => {
     try {
@@ -59,24 +69,60 @@ tenantUserRouter.get(
       assertHasQuery<z.infer<typeof listQuerySchema>>(req);
 
       const {
-        limit, cursorId, q, roleName,
-        createdAtFrom, createdAtTo, updatedAtFrom, updatedAtTo,
-        sortBy, sortDir, includeTotal,
+        limit,
+        cursorId,
+        q,
+        roleId,
+        roleName,
+        createdAtFrom,
+        createdAtTo,
+        updatedAtFrom,
+        updatedAtTo,
+        sortBy,
+        sortDir,
+        includeTotal,
       } = req.validatedQuery;
+
+      const sortByInternal:
+        | "createdAt"
+        | "updatedAt"
+        | "userEmailAddress"
+        | "role"
+        | undefined = sortBy
+        ? sortBy === "role"
+          ? "role"
+          : sortBy
+        : undefined;
 
       const result = await listUsersForCurrentTenantService({
         currentTenantId: req.currentTenantId,
+
         ...(limit !== undefined && { limitOptional: limit }),
         ...(cursorId !== undefined && { cursorIdOptional: cursorId }),
         ...(q !== undefined && { qOptional: q }),
+
+        // filters
+        ...(roleId !== undefined && { roleIdOptional: roleId }),
         ...(roleName !== undefined && { roleNameOptional: roleName }),
-        ...(createdAtFrom !== undefined && { createdAtFromOptional: createdAtFrom }),
+
+        // date filters
+        ...(createdAtFrom !== undefined && {
+          createdAtFromOptional: createdAtFrom,
+        }),
         ...(createdAtTo !== undefined && { createdAtToOptional: createdAtTo }),
-        ...(updatedAtFrom !== undefined && { updatedAtFromOptional: updatedAtFrom }),
+        ...(updatedAtFrom !== undefined && {
+          updatedAtFromOptional: updatedAtFrom,
+        }),
         ...(updatedAtTo !== undefined && { updatedAtToOptional: updatedAtTo }),
-        ...(sortBy !== undefined && { sortByOptional: sortBy }),
+
+        // sort
+        ...(sortByInternal !== undefined && { sortByOptional: sortByInternal }),
         ...(sortDir !== undefined && { sortDirOptional: sortDir }),
-        ...(includeTotal !== undefined && { includeTotalOptional: includeTotal }),
+
+        // totals
+        ...(includeTotal !== undefined && {
+          includeTotalOptional: includeTotal,
+        }),
       });
 
       return res.status(200).json(createStandardSuccessResponse(result));
@@ -90,13 +136,13 @@ tenantUserRouter.get(
 const createBodySchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
-  roleName: RoleEnum,
+  roleId: z.string(), // roleId now required
 });
 
 tenantUserRouter.post(
   "/",
   requireAuthenticatedUserMiddleware,
-  requirePermission('users:manage'),
+  requirePermission("users:manage"),
   validateRequestBodyWithZod(createBodySchema),
   async (req, res, next) => {
     try {
@@ -104,34 +150,36 @@ tenantUserRouter.post(
       assertHasBody<z.infer<typeof createBodySchema>>(req);
 
       const { currentTenantId } = req;
-      const { email, password, roleName } = req.validatedBody;
+      const { email, password, roleId } = req.validatedBody;
 
       const created = await createOrAttachUserToTenantService({
         currentTenantId,
         email,
         password,
-        roleName,
+        roleId,
       });
 
-      return res.status(201).json(createStandardSuccessResponse({ user: created }));
+      return res
+        .status(201)
+        .json(createStandardSuccessResponse({ user: created }));
     } catch (err) {
       return next(err);
     }
   }
 );
 
-//PUT /api/tenant-users/:userId
+// PUT /api/tenant-users/:userId
 const updateParamsSchema = z.object({ userId: z.string().min(1) });
 const updateBodySchema = z.object({
   email: z.string().email().optional(),
   password: z.string().min(8).optional(),
-  roleName: RoleEnum.optional(),
+  roleId: z.string().optional(), // roleId is optional on update
 });
 
 tenantUserRouter.put(
   "/:userId",
   requireAuthenticatedUserMiddleware,
-  requirePermission('users:manage'),
+  requirePermission("users:manage"),
   validateRequestParamsWithZod(updateParamsSchema),
   validateRequestBodyWithZod(updateBodySchema),
   async (req, res, next) => {
@@ -142,7 +190,7 @@ tenantUserRouter.put(
 
       const { currentTenantId, currentUserId } = req;
       const { userId } = req.validatedParams;
-      const { email, password, roleName } = req.validatedBody;
+      const { email, password, roleId } = req.validatedBody;
 
       const updated = await updateTenantUserService({
         currentTenantId,
@@ -150,10 +198,12 @@ tenantUserRouter.put(
         targetUserId: userId,
         ...(email !== undefined && { newEmailOptional: email }),
         ...(password !== undefined && { newPasswordOptional: password }),
-        ...(roleName !== undefined && { newRoleNameOptional: roleName }),
+        ...(roleId !== undefined && { newRoleIdOptional: roleId }),
       });
 
-      return res.status(200).json(createStandardSuccessResponse({ user: updated }));
+      return res
+        .status(200)
+        .json(createStandardSuccessResponse({ user: updated }));
     } catch (err) {
       return next(err);
     }
@@ -164,7 +214,7 @@ tenantUserRouter.put(
 tenantUserRouter.delete(
   "/:userId",
   requireAuthenticatedUserMiddleware,
-  requirePermission('users:manage'),
+  requirePermission("users:manage"),
   validateRequestParamsWithZod(updateParamsSchema),
   async (req, res, next) => {
     try {

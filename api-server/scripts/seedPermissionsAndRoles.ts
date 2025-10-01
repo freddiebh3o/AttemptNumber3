@@ -19,7 +19,7 @@ const PERMISSIONS = [
 
 const ROLE_DEFS = {
   OWNER:  ['products:read','products:write','users:manage','roles:manage','tenant:manage','theme:manage','uploads:write'],
-  ADMIN:  ['products:read','products:write','users:manage','theme:manage','uploads:write'], // no roles:manage, no tenant:manage (your call)
+  ADMIN:  ['products:read','products:write','users:manage','theme:manage','uploads:write'], // no roles:manage, no tenant:manage
   EDITOR: ['products:read','products:write','uploads:write'],
   VIEWER: ['products:read'],
 } as const;
@@ -35,13 +35,16 @@ async function main() {
       create: { key: p.key, description: p.description },
     });
   }
+
+  // Build a key->id map for quick linking
   const permMap = new Map(
     (await prisma.permission.findMany({ select: { id: true, key: true } }))
       .map(p => [p.key, p.id] as const)
   );
 
-  // 2) Per-tenant roles
+  // 2) Per-tenant roles + sync role-permissions
   const tenants = await prisma.tenant.findMany({ select: { id: true, tenantSlug: true } });
+
   for (const t of tenants) {
     for (const [roleName, keys] of Object.entries(ROLE_DEFS) as [RoleNameKey, readonly string[]][]) {
       const role = await prisma.role.upsert({
@@ -50,17 +53,17 @@ async function main() {
         create: { tenantId: t.id, name: roleName, description: `${roleName} (seeded)`, isSystem: true },
       });
 
-      // sync role permissions
+      // Desired permission ids for this role
       const wantIds = new Set(keys.map(k => permMap.get(k)!));
 
-      // existing links
+      // Current links
       const existing = await prisma.rolePermission.findMany({
         where: { roleId: role.id },
         select: { permissionId: true },
       });
       const haveIds = new Set(existing.map(e => e.permissionId));
 
-      // add missing
+      // Add missing
       const toAdd = [...wantIds].filter(id => !haveIds.has(id));
       if (toAdd.length) {
         await prisma.rolePermission.createMany({
@@ -69,7 +72,7 @@ async function main() {
         });
       }
 
-      // remove extras (keep tight)
+      // Remove extras
       const toRemove = [...haveIds].filter(id => !wantIds.has(id));
       if (toRemove.length) {
         await prisma.rolePermission.deleteMany({
@@ -79,30 +82,9 @@ async function main() {
     }
   }
 
-  // 3) Map old memberships (roleName) -> new roleId
-  const memberships = await prisma.userTenantMembership.findMany({
-    where: { roleId: null },
-    select: { id: true, tenantId: true, roleName: true },
-  });
+  // 3) (Removed) Legacy roleName -> roleId mapping
+  // Your schema no longer uses roleName; memberships should already have roleId.
 
-  for (const m of memberships) {
-    const rn = m.roleName as RoleNameKey | null;
-    if (!rn) continue; // no roleName? skip
-
-    const role = await prisma.role.findUnique({
-      where: { tenantId_name: { tenantId: m.tenantId, name: rn } },
-      select: { id: true },
-    });
-
-    if (role) {
-      await prisma.userTenantMembership.update({
-        where: { id: m.id },
-        data: { roleId: role.id },
-      });
-    }
-  }
-
-  // Optional: sanity log
   const countRoles = await prisma.role.count();
   const countLinks = await prisma.rolePermission.count();
   console.log(`Seed complete: ${PERMISSIONS.length} permissions, ${countRoles} roles, ${countLinks} role-permission links`);

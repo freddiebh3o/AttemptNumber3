@@ -662,12 +662,13 @@ export interface paths {
                     limit?: number;
                     cursorId?: string;
                     q?: string;
-                    roleName?: components["schemas"]["RoleName"];
+                    roleId?: string;
+                    roleName?: string;
                     createdAtFrom?: string;
                     createdAtTo?: string;
                     updatedAtFrom?: string;
                     updatedAtTo?: string;
-                    sortBy?: "createdAt" | "updatedAt" | "userEmailAddress" | "roleName";
+                    sortBy?: "createdAt" | "updatedAt" | "userEmailAddress" | "role";
                     sortDir?: "asc" | "desc";
                     includeTotal?: boolean;
                 };
@@ -757,17 +758,7 @@ export interface paths {
                             /** @enum {boolean} */
                             success: true;
                             data: {
-                                user: {
-                                    userId: string;
-                                    /** Format: email */
-                                    userEmailAddress: string;
-                                    /** @enum {string|null} */
-                                    roleName?: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER" | null;
-                                    /** Format: date-time */
-                                    createdAt?: string;
-                                    /** Format: date-time */
-                                    updatedAt?: string;
-                                };
+                                user: components["schemas"]["TenantUserRecord"];
                             };
                             error: unknown;
                         };
@@ -872,17 +863,7 @@ export interface paths {
                             /** @enum {boolean} */
                             success: true;
                             data: {
-                                user: {
-                                    userId: string;
-                                    /** Format: email */
-                                    userEmailAddress: string;
-                                    /** @enum {string|null} */
-                                    roleName?: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER" | null;
-                                    /** Format: date-time */
-                                    createdAt?: string;
-                                    /** Format: date-time */
-                                    updatedAt?: string;
-                                };
+                                user: components["schemas"]["TenantUserRecord"];
                             };
                             error: unknown;
                         };
@@ -1541,6 +1522,16 @@ export interface components {
             tenantSlug: string;
         };
         /** @enum {string} */
+        RoleName: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
+        RoleBrief: {
+            id: string;
+            name: components["schemas"]["RoleName"];
+        };
+        TenantMembership: {
+            tenantSlug: string;
+            role: components["schemas"]["RoleBrief"];
+        };
+        /** @enum {string} */
         PermissionKey: "products:read" | "products:write" | "users:manage" | "roles:manage" | "tenant:manage" | "theme:manage" | "uploads:write";
         MeResponseData: {
             user: {
@@ -1548,16 +1539,11 @@ export interface components {
                 /** Format: email */
                 userEmailAddress: string;
             };
-            tenantMemberships: {
-                tenantSlug: string;
-                /** @enum {string|null} */
-                roleName?: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER" | null;
-            }[];
+            tenantMemberships: components["schemas"]["TenantMembership"][];
             currentTenant: {
                 tenantId: string;
                 tenantSlug: string;
-                /** @enum {string|null} */
-                roleName?: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER" | null;
+                role: components["schemas"]["RoleBrief"];
             } | null;
             permissionsCurrentTenant: components["schemas"]["PermissionKey"][];
         };
@@ -1615,19 +1601,30 @@ export interface components {
             productPriceCents?: number;
             currentEntityVersion: number;
         };
-        /** @enum {string} */
-        RoleName: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
+        RoleSummary: {
+            id: string;
+            name: string;
+            description: string | null;
+            isSystem: boolean;
+            tenantId: string;
+            permissions: components["schemas"]["PermissionKey"][];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        } | null;
+        TenantUserRecord: {
+            userId: string;
+            /** Format: email */
+            userEmailAddress: string;
+            role: components["schemas"]["RoleSummary"];
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
         TenantUsersListResponseData: {
-            items: {
-                userId: string;
-                /** Format: email */
-                userEmailAddress: string;
-                roleName: components["schemas"]["RoleName"];
-                /** Format: date-time */
-                createdAt: string;
-                /** Format: date-time */
-                updatedAt: string;
-            }[];
+            items: components["schemas"]["TenantUserRecord"][];
             pageInfo: {
                 hasNextPage: boolean;
                 nextCursor?: string | null;
@@ -1637,13 +1634,14 @@ export interface components {
                 limit: number;
                 sort: {
                     /** @enum {string} */
-                    field: "createdAt" | "updatedAt" | "userEmailAddress" | "roleName";
+                    field: "createdAt" | "updatedAt" | "userEmailAddress" | "role";
                     /** @enum {string} */
                     direction: "asc" | "desc";
                 };
                 filters: {
                     q?: string;
-                    roleName?: components["schemas"]["RoleName"];
+                    roleId?: string;
+                    roleName?: string;
                     createdAtFrom?: string;
                     createdAtTo?: string;
                     updatedAtFrom?: string;
@@ -1655,13 +1653,13 @@ export interface components {
             /** Format: email */
             email: string;
             password: string;
-            roleName: components["schemas"]["RoleName"];
+            roleId: string;
         };
         UpdateTenantUserBody: {
             /** Format: email */
             email?: string;
             password?: string;
-            roleName?: components["schemas"]["RoleName"];
+            roleId?: string;
         };
         /** @enum {string|null} */
         PresetKey: "classicBlue" | "rubyDark" | "emeraldLight" | "oceanLight" | "violetLight" | "grapeDark" | "tealDark" | "cyanLight" | "orangeLight" | "limeLight" | "pinkDark" | "yellowLight" | null;

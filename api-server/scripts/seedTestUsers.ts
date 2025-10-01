@@ -1,3 +1,4 @@
+/* api-server/scripts/seedTestUsers.ts */
 /// <reference types="node" />
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
@@ -33,8 +34,8 @@ async function upsertUser(email: string, hashed: string) {
 async function upsertMembershipWithRole(userId: string, tenantId: string, roleId: string) {
   await prisma.userTenantMembership.upsert({
     where: { userId_tenantId: { userId, tenantId } },
-    update: { roleId, roleName: null }, // ensure new model path
-    create: { userId, tenantId, roleId, roleName: null },
+    update: { roleId },
+    create: { userId, tenantId, roleId },
   });
 }
 
