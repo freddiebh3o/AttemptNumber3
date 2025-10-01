@@ -4,6 +4,7 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import { useThemeStore } from "../../stores/theme";
 import { useAuthStore } from "../../stores/auth";
 import { usePermissions } from "../../hooks/usePermissions"; // <-- add
+import TenantSwitcher from './TenantSwitcher';
 
 export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const { tenantSlug } = useParams();
@@ -56,6 +57,8 @@ export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) 
       </Stack>
 
       <Divider />
+
+      <TenantSwitcher />
 
       <Group justify="space-between" px="xs">
         <Text size="xs" c="dimmed" lineClamp={1}>

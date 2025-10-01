@@ -467,6 +467,7 @@ If you need initial data in the new environment:
 * [ ] Document URLs and secrets.
 
 ## Future fetures
+* Fix bug when switching tenants. Seems to get stuck in an infinite loop of f
 * CRUD for setting custom roles and assigning to users.
 * Remake the Readme with latest feature updates
 * Different branches/locations

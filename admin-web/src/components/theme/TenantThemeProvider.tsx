@@ -6,7 +6,6 @@ import { baseTheme } from '../../theme/baseTheme';
 import { THEME_PRESETS } from '../../theme/presets';
 import { useThemeStore } from '../../stores/theme';
 import { getTenantThemeApiRequest } from '../../api/tenantTheme';
-import { notifications } from '@mantine/notifications';
 
 export default function TenantThemeProvider({ children }: { children: ReactNode }) {
   const { tenantSlug } = useParams();
@@ -29,12 +28,7 @@ export default function TenantThemeProvider({ children }: { children: ReactNode 
           updatedAt: res.data.updatedAt ?? null,
         });
       } catch (e: any) {
-        // Non-fatal: fall back to local defaults
-        // notifications.show({
-        //   color: 'red',
-        //   title: 'Theme',
-        //   message: e?.message ?? 'Failed to load theme',
-        // });
+        // Fail silently
       }
     })();
   }, [tenantSlug, key, setFromServer]);
