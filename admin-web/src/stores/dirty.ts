@@ -1,3 +1,4 @@
+// admin-web/src/stores/dirty.ts
 import { create } from 'zustand';
 
 type SaveHandler = () => Promise<void> | void;

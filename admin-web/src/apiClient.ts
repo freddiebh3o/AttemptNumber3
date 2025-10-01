@@ -1,3 +1,4 @@
+// admin-web/src/apiClient.ts
 export const apiBaseUrlFromEnvironmentVariable: string =
   import.meta.env.VITE_API_BASE_URL;
 
