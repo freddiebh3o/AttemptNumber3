@@ -16,6 +16,7 @@ import './index.css'
 import { RouteErrorBoundary } from './components/feedback/ErrorBoundary'
 import ThemeSettingsPage from './pages/ThemeSettingsPage';
 import RequirePermission from './components/rbac/RequirePermission'
+import RolesPage from './pages/RolesPage'
 
 const router = createBrowserRouter([
   {
@@ -57,6 +58,15 @@ const router = createBrowserRouter([
               </RequirePermission>
             ), 
             errorElement: <RouteErrorBoundary /> 
+          },
+          {
+            path: 'roles',
+            element: (
+              <RequirePermission perm="roles:manage">
+                <RolesPage />
+              </RequirePermission>
+            ),
+            errorElement: <RouteErrorBoundary />
           },
         ],
       },

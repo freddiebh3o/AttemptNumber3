@@ -1,19 +1,22 @@
 // api-server/src/services/roleService.ts
-import { Prisma } from '@prisma/client';
-import { prismaClientInstance as prisma } from '../db/prismaClient.js';
-import { Errors } from '../utils/httpErrors.js';
+import { Prisma } from "@prisma/client";
+import { prismaClientInstance as prisma } from "../db/prismaClient.js";
+import { Errors } from "../utils/httpErrors.js";
 
-const dateAddDays = (d: Date, n: number) => new Date(d.getTime() + n * 24 * 60 * 60 * 1000);
+const dateAddDays = (d: Date, n: number) =>
+  new Date(d.getTime() + n * 24 * 60 * 60 * 1000);
 const norm = (s: string) => s.trim(); // keep DB collation behavior; prevent " Admin " dupes
 
 async function getPermissionIdMap() {
-  const rows = await prisma.permission.findMany({ select: { id: true, key: true } });
-  return new Map(rows.map(r => [r.key, r.id] as const));
+  const rows = await prisma.permission.findMany({
+    select: { id: true, key: true },
+  });
+  return new Map(rows.map((r) => [r.key, r.id] as const));
 }
 
 export async function listPermissionsService() {
-  const rows = await prisma.permission.findMany({ orderBy: { key: 'asc' } });
-  return rows.map(p => ({
+  const rows = await prisma.permission.findMany({ orderBy: { key: "asc" } });
+  return rows.map((p) => ({
     id: p.id,
     key: p.key,
     description: p.description,
@@ -33,8 +36,8 @@ export async function listTenantRolesService(params: {
   createdAtToOptional?: string;
   updatedAtFromOptional?: string;
   updatedAtToOptional?: string;
-  sortByOptional?: 'name' | 'createdAt' | 'updatedAt' | 'isSystem';
-  sortDirOptional?: 'asc' | 'desc';
+  sortByOptional?: "name" | "createdAt" | "updatedAt" | "isSystem";
+  sortDirOptional?: "asc" | "desc";
   includeTotalOptional?: boolean;
 }) {
   const {
@@ -44,37 +47,52 @@ export async function listTenantRolesService(params: {
     qOptional,
     nameOptional,
     isSystemOptional,
-    createdAtFromOptional, createdAtToOptional,
-    updatedAtFromOptional, updatedAtToOptional,
-    sortByOptional = 'updatedAt',
-    sortDirOptional = 'desc',
+    createdAtFromOptional,
+    createdAtToOptional,
+    updatedAtFromOptional,
+    updatedAtToOptional,
+    sortByOptional = "updatedAt",
+    sortDirOptional = "desc",
     includeTotalOptional = false,
   } = params;
 
   const createdAt: Prisma.DateTimeFilter = {};
   if (createdAtFromOptional) createdAt.gte = new Date(createdAtFromOptional);
-  if (createdAtToOptional)   createdAt.lt  = dateAddDays(new Date(createdAtToOptional), 1);
+  if (createdAtToOptional)
+    createdAt.lt = dateAddDays(new Date(createdAtToOptional), 1);
 
   const updatedAt: Prisma.DateTimeFilter = {};
   if (updatedAtFromOptional) updatedAt.gte = new Date(updatedAtFromOptional);
-  if (updatedAtToOptional)   updatedAt.lt  = dateAddDays(new Date(updatedAtToOptional), 1);
+  if (updatedAtToOptional)
+    updatedAt.lt = dateAddDays(new Date(updatedAtToOptional), 1);
 
   const where: Prisma.RoleWhereInput = {
     tenantId: currentTenantId,
-    ...(qOptional && { OR: [
-      { name: { contains: qOptional, mode: 'insensitive' } },
-      { description: { contains: qOptional, mode: 'insensitive' } },
-    ]}),
-    ...(nameOptional && { name: { contains: nameOptional, mode: 'insensitive' } }),
+    ...(qOptional && {
+      OR: [
+        { name: { contains: qOptional, mode: "insensitive" } },
+        { description: { contains: qOptional, mode: "insensitive" } },
+      ],
+    }),
+    ...(nameOptional && {
+      name: { contains: nameOptional, mode: "insensitive" },
+    }),
     ...(isSystemOptional !== undefined && { isSystem: isSystemOptional }),
     ...((createdAt.gte || createdAt.lt) && { createdAt }),
     ...((updatedAt.gte || updatedAt.lt) && { updatedAt }),
   };
 
-  const orderBy: Prisma.RoleOrderByWithRelationInput =
-    sortByOptional === 'name' ? { name: sortDirOptional } :
-    sortByOptional === 'isSystem' ? { isSystem: sortDirOptional } :
-    ({ [sortByOptional]: sortDirOptional } as Prisma.RoleOrderByWithRelationInput);
+  const orderBy: Prisma.RoleOrderByWithRelationInput[] =
+    sortByOptional === "name"
+      ? [{ name: sortDirOptional }, { id: sortDirOptional }]
+      : sortByOptional === "isSystem"
+      ? [{ isSystem: sortDirOptional }, { id: sortDirOptional }]
+      : [
+          {
+            [sortByOptional]: sortDirOptional,
+          } as Prisma.RoleOrderByWithRelationInput,
+          { id: sortDirOptional },
+        ];
 
   const take = Math.max(1, Math.min(100, limitOptional));
   const cursor = cursorIdOptional ? { id: cursorIdOptional } : undefined;
@@ -84,7 +102,7 @@ export async function listTenantRolesService(params: {
       where,
       take,
       ...(cursor && { skip: 1, cursor }),
-      orderBy,
+      orderBy,                 // <— now an array
       select: {
         id: true, tenantId: true, name: true, description: true, isSystem: true,
         createdAt: true, updatedAt: true,
@@ -94,13 +112,13 @@ export async function listTenantRolesService(params: {
     includeTotalOptional ? prisma.role.count({ where }) : Promise.resolve(0),
   ]);
 
-  const items = rows.map(r => ({
+  const items = rows.map((r) => ({
     id: r.id,
-    tenantId: r.tenantId ?? '',
+    tenantId: r.tenantId ?? "",
     name: r.name,
     description: r.description ?? null,
     isSystem: r.isSystem,
-    permissions: r.permissions.map(p => p.permission.key).sort(),
+    permissions: r.permissions.map((p) => p.permission.key).sort(),
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
   }));
@@ -110,17 +128,27 @@ export async function listTenantRolesService(params: {
 
   return {
     items,
-    pageInfo: { hasNextPage: Boolean(nextCursor), nextCursor, ...(includeTotalOptional ? { totalCount: total } : {}) },
+    pageInfo: {
+      hasNextPage: Boolean(nextCursor),
+      nextCursor,
+      ...(includeTotalOptional ? { totalCount: total } : {}),
+    },
     applied: {
       limit: take,
       sort: { field: sortByOptional, direction: sortDirOptional },
       filters: {
         ...(qOptional ? { q: qOptional } : {}),
         ...(nameOptional ? { name: nameOptional } : {}),
-        ...(isSystemOptional !== undefined ? { isSystem: isSystemOptional } : {}),
-        ...(createdAtFromOptional ? { createdAtFrom: createdAtFromOptional } : {}),
+        ...(isSystemOptional !== undefined
+          ? { isSystem: isSystemOptional }
+          : {}),
+        ...(createdAtFromOptional
+          ? { createdAtFrom: createdAtFromOptional }
+          : {}),
         ...(createdAtToOptional ? { createdAtTo: createdAtToOptional } : {}),
-        ...(updatedAtFromOptional ? { updatedAtFrom: updatedAtFromOptional } : {}),
+        ...(updatedAtFromOptional
+          ? { updatedAtFrom: updatedAtFromOptional }
+          : {}),
         ...(updatedAtToOptional ? { updatedAtTo: updatedAtToOptional } : {}),
       },
     },
@@ -141,23 +169,37 @@ export async function createTenantRoleService(params: {
     where: { tenantId_name: { tenantId: currentTenantId, name: trimmedName } },
     select: { id: true },
   });
-  if (existing) throw Errors.conflict('A role with this name already exists for this tenant.');
+  if (existing)
+    throw Errors.conflict(
+      "A role with this name already exists for this tenant."
+    );
 
   const permIdByKey = await getPermissionIdMap();
   const ids: string[] = [];
   for (const key of permissionKeys) {
     const id = permIdByKey.get(key);
-    if (!id) return Promise.reject(Errors.validation('Unknown permission key', `Invalid permission: ${key}`));
+    if (!id)
+      return Promise.reject(
+        Errors.validation(
+          "Unknown permission key",
+          `Invalid permission: ${key}`
+        )
+      );
     ids.push(id);
   }
 
   const role = await prisma.role.create({
-    data: { tenantId: currentTenantId, name: trimmedName, description, isSystem: false },
+    data: {
+      tenantId: currentTenantId,
+      name: trimmedName,
+      description,
+      isSystem: false,
+    },
   });
 
   if (ids.length) {
     await prisma.rolePermission.createMany({
-      data: ids.map(permissionId => ({ roleId: role.id, permissionId })),
+      data: ids.map((permissionId) => ({ roleId: role.id, permissionId })),
       skipDuplicates: true,
     });
   }
@@ -165,19 +207,25 @@ export async function createTenantRoleService(params: {
   const withPerms = await prisma.role.findUnique({
     where: { id: role.id },
     select: {
-      id: true, tenantId: true, name: true, description: true, isSystem: true, createdAt: true, updatedAt: true,
+      id: true,
+      tenantId: true,
+      name: true,
+      description: true,
+      isSystem: true,
+      createdAt: true,
+      updatedAt: true,
       permissions: { select: { permission: { select: { key: true } } } },
     },
   });
-  if (!withPerms) throw Errors.internal('Role not found after creation');
+  if (!withPerms) throw Errors.internal("Role not found after creation");
 
   return {
     id: withPerms.id,
-    tenantId: withPerms.tenantId ?? '',
+    tenantId: withPerms.tenantId ?? "",
     name: withPerms.name,
     description: withPerms.description ?? null,
     isSystem: withPerms.isSystem,
-    permissions: withPerms.permissions.map(p => p.permission.key).sort(),
+    permissions: withPerms.permissions.map((p) => p.permission.key).sort(),
     createdAt: withPerms.createdAt.toISOString(),
     updatedAt: withPerms.updatedAt.toISOString(),
   };
@@ -195,28 +243,43 @@ export async function updateTenantRoleService(params: {
   const role = await prisma.role.findUnique({
     where: { id: roleId },
     select: {
-      id: true, tenantId: true, name: true, isSystem: true,
-      permissions: { select: { permissionId: true, permission: { select: { key: true } } } },
+      id: true,
+      tenantId: true,
+      name: true,
+      isSystem: true,
+      permissions: {
+        select: { permissionId: true, permission: { select: { key: true } } },
+      },
     },
   });
-  if (!role || role.tenantId !== currentTenantId) throw Errors.notFound('Role not found for this tenant.');
-  if (role.isSystem) throw Errors.conflict('System roles cannot be modified.');
+  if (!role || role.tenantId !== currentTenantId)
+    throw Errors.notFound("Role not found for this tenant.");
+  if (role.isSystem) throw Errors.conflict("System roles cannot be modified.");
 
   // Rename / description
-  if (params.nameOptional !== undefined || params.descriptionOptional !== undefined) {
+  if (
+    params.nameOptional !== undefined ||
+    params.descriptionOptional !== undefined
+  ) {
     const data: { name?: string; description?: string | null } = {};
     if (params.nameOptional !== undefined) {
       const newName = norm(params.nameOptional);
       if (newName !== role.name) {
         const dup = await prisma.role.findUnique({
-          where: { tenantId_name: { tenantId: currentTenantId, name: newName } },
+          where: {
+            tenantId_name: { tenantId: currentTenantId, name: newName },
+          },
           select: { id: true },
         });
-        if (dup) throw Errors.conflict('A role with this name already exists for this tenant.');
+        if (dup)
+          throw Errors.conflict(
+            "A role with this name already exists for this tenant."
+          );
       }
       data.name = newName;
     }
-    if (params.descriptionOptional !== undefined) data.description = params.descriptionOptional;
+    if (params.descriptionOptional !== undefined)
+      data.description = params.descriptionOptional;
     await prisma.role.update({ where: { id: roleId }, data });
   }
 
@@ -224,21 +287,25 @@ export async function updateTenantRoleService(params: {
   if (params.permissionKeysOptional !== undefined) {
     const permIdByKey = await getPermissionIdMap();
     const wantIds = new Set(
-      params.permissionKeysOptional.map(k => {
+      params.permissionKeysOptional.map((k) => {
         const id = permIdByKey.get(k);
-        if (!id) throw Errors.validation('Unknown permission key', `Invalid permission: ${k}`);
+        if (!id)
+          throw Errors.validation(
+            "Unknown permission key",
+            `Invalid permission: ${k}`
+          );
         return id;
       })
     );
 
-    const haveIds = new Set(role.permissions.map(p => p.permissionId));
+    const haveIds = new Set(role.permissions.map((p) => p.permissionId));
 
-    const toAdd = [...wantIds].filter(id => !haveIds.has(id));
-    const toRemove = [...haveIds].filter(id => !wantIds.has(id));
+    const toAdd = [...wantIds].filter((id) => !haveIds.has(id));
+    const toRemove = [...haveIds].filter((id) => !wantIds.has(id));
 
     if (toAdd.length) {
       await prisma.rolePermission.createMany({
-        data: toAdd.map(permissionId => ({ roleId, permissionId })),
+        data: toAdd.map((permissionId) => ({ roleId, permissionId })),
         skipDuplicates: true,
       });
     }
@@ -253,20 +320,25 @@ export async function updateTenantRoleService(params: {
   const fresh = await prisma.role.findUnique({
     where: { id: roleId },
     select: {
-      id: true, tenantId: true, name: true, description: true, isSystem: true,
-      createdAt: true, updatedAt: true,
+      id: true,
+      tenantId: true,
+      name: true,
+      description: true,
+      isSystem: true,
+      createdAt: true,
+      updatedAt: true,
       permissions: { select: { permission: { select: { key: true } } } },
     },
   });
-  if (!fresh) throw Errors.internal('State mismatch after update.');
+  if (!fresh) throw Errors.internal("State mismatch after update.");
 
   return {
     id: fresh.id,
-    tenantId: fresh.tenantId ?? '',
+    tenantId: fresh.tenantId ?? "",
     name: fresh.name,
     description: fresh.description ?? null,
     isSystem: fresh.isSystem,
-    permissions: fresh.permissions.map(p => p.permission.key).sort(),
+    permissions: fresh.permissions.map((p) => p.permission.key).sort(),
     createdAt: fresh.createdAt.toISOString(),
     updatedAt: fresh.updatedAt.toISOString(),
   };
@@ -282,11 +354,15 @@ export async function deleteTenantRoleService(params: {
     where: { id: roleId },
     select: { id: true, tenantId: true, isSystem: true },
   });
-  if (!role || role.tenantId !== currentTenantId) throw Errors.notFound('Role not found for this tenant.');
-  if (role.isSystem) throw Errors.conflict('System roles cannot be deleted.');
+  if (!role || role.tenantId !== currentTenantId)
+    throw Errors.notFound("Role not found for this tenant.");
+  if (role.isSystem) throw Errors.conflict("System roles cannot be deleted.");
 
   const inUse = await prisma.userTenantMembership.count({ where: { roleId } });
-  if (inUse > 0) throw Errors.conflict(`Role is in use by ${inUse} user(s) and cannot be deleted.`);
+  if (inUse > 0)
+    throw Errors.conflict(
+      `Role is in use by ${inUse} user(s) and cannot be deleted.`
+    );
 
   // rolePermission rows have composite PK; cascading deletes are configured on relations,
   // but we can be explicit:

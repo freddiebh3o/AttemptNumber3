@@ -43,13 +43,15 @@ roleRouter.get(
   }
 );
 
+const boolFromString = z.union([z.literal("true"), z.literal("false")]).transform(v => v === "true");
+
 // GET /api/roles
 const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional(),
   cursorId: z.string().min(1).optional(),
   q: z.string().min(1).optional(),
   name: z.string().min(1).optional(),
-  isSystem: z.coerce.boolean().optional(),
+  isSystem: boolFromString.optional(),
   createdAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   createdAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   updatedAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),

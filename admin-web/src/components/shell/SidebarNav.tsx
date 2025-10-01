@@ -51,6 +51,16 @@ export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) 
           />
         )}
 
+        {hasPerm("roles:manage") && (
+          <NavLink
+            label="Roles"
+            component={Link}
+            to={`${base}/roles`}
+            active={active(`${base}/roles`)}
+            onClick={onNavigate}
+          />
+        )}
+
         <Text size="sm" c="dimmed" px="xs" mt="sm">
           System
         </Text>
