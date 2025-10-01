@@ -1,48 +1,37 @@
 // admin-web/src/stores/auth.ts
-import { create } from 'zustand';
+import { create } from "zustand";
+import { meApiRequest } from "../api/auth";
 
-export type RoleName = 'OWNER' | 'ADMIN' | 'EDITOR' | 'VIEWER';
+type RoleName = "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
 
-export type Membership = {
-  tenantSlug: string;
-  roleName: RoleName;
-};
-
-export type CurrentTenant = {
-  tenantId: string;
-  tenantSlug: string;
-  roleName: RoleName;
-} | null;
+type TenantMembership = { tenantSlug: string; roleName: RoleName | null };
+type CurrentTenant = { tenantId: string; tenantSlug: string; roleName: RoleName | null } | null;
 
 type AuthState = {
-  // user
+  hydrated: boolean;
+
   currentUserId: string | null;
   currentUserEmail: string | null;
 
-  // tenant context
-  tenantMemberships: Membership[];
-  currentTenant: CurrentTenant;         // richer than just slug
-  currentTenantSlug: string | null;     // kept for convenience/URL sync
+  tenantMemberships: TenantMembership[];
+  currentTenant: CurrentTenant;
+  currentTenantSlug: string | null;
 
-  // lifecycle
-  hydrated: boolean;                    // has /me been applied?
+  permissionsCurrentTenant: string[];
 
-  // setters
-  setFromMe: (me: {
-    user: { id: string; userEmailAddress: string };
-    tenantMemberships: Membership[];
-    currentTenant: CurrentTenant;
-  }) => void;
-
-  setCurrentTenantSlug: (slug: string | null) => void; // keeps slug & currentTenant in sync when possible
+  // Actions
+  refreshFromServer: () => Promise<void>;
+  applySwitchTenant: (tenantSlug: string) => Promise<void>;
   clear: () => void;
 
-  // helpers/selectors
-  roleFor: (tenantSlug: string | null | undefined) => RoleName | null;
-  isAdminOrOwnerForCurrent: () => boolean;
+  // Convenience
+  hasPerm: (key: string) => boolean;
+  hasAnyPerm: (keys: string[]) => boolean;
 };
 
 export const useAuthStore = create<AuthState>((set, get) => ({
+  hydrated: false,
+
   currentUserId: null,
   currentUserEmail: null,
 
@@ -50,59 +39,68 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   currentTenant: null,
   currentTenantSlug: null,
 
-  hydrated: false,
+  permissionsCurrentTenant: [],
 
-  setFromMe: (me) =>
-    set(() => ({
-      currentUserId: me.user?.id ?? null,
-      currentUserEmail: me.user?.userEmailAddress ?? null,
-      tenantMemberships: me.tenantMemberships ?? [],
-      currentTenant: me.currentTenant ?? null,
-      currentTenantSlug: me.currentTenant?.tenantSlug ?? null,
-      hydrated: true,
-    })),
+  async refreshFromServer() {
+    try {
+      const resp = await meApiRequest();
+      const d = resp.data;
 
-  setCurrentTenantSlug: (slug) =>
-    set((s) => {
-      // try to keep currentTenant in sync with the chosen slug if membership exists
-      const match = slug
-        ? s.tenantMemberships.find((m) => m.tenantSlug === slug)
-        : undefined;
-      const nextTenant: CurrentTenant =
-        slug && match
+      set({
+        hydrated: true,
+        currentUserId: d.user.id ?? null,
+        currentUserEmail: d.user.userEmailAddress ?? null,
+        tenantMemberships: d.tenantMemberships.map((m) => ({
+          tenantSlug: m.tenantSlug,
+          roleName: m.roleName ?? null,
+        })),
+        currentTenant: d.currentTenant
           ? {
-              tenantId: s.currentTenant?.tenantId ?? '', // unknown id until /me refresh after server switch
-              tenantSlug: slug,
-              roleName: match.roleName,
+              tenantId: d.currentTenant.tenantId,
+              tenantSlug: d.currentTenant.tenantSlug,
+              roleName: d.currentTenant.roleName ?? null,
             }
-          : s.currentTenant && s.currentTenant.tenantSlug === slug
-          ? s.currentTenant
-          : null;
+          : null,
+        currentTenantSlug: d.currentTenant?.tenantSlug ?? null,
+        permissionsCurrentTenant: d.permissionsCurrentTenant ?? [],
+      });
+    } catch (_err) {
+      // On error (incl. 401), still mark hydrated so UI can react (e.g. show sign-in or “no access”)
+      set({
+        hydrated: true,
+        currentUserId: null,
+        currentUserEmail: null,
+        tenantMemberships: [],
+        currentTenant: null,
+        currentTenantSlug: null,
+        permissionsCurrentTenant: [],
+      });
+    }
+  },
 
-      return {
-        currentTenantSlug: slug,
-        currentTenant: nextTenant,
-      };
-    }),
+  async applySwitchTenant(_tenantSlug: string) {
+    // After /auth/switch-tenant succeeds, just refetch /me
+    await get().refreshFromServer();
+  },
 
-  clear: () =>
+  clear() {
     set({
+      hydrated: true,
       currentUserId: null,
       currentUserEmail: null,
       tenantMemberships: [],
       currentTenant: null,
       currentTenantSlug: null,
-      hydrated: false,
-    }),
-
-  roleFor: (tenantSlug) => {
-    if (!tenantSlug) return null;
-    const m = get().tenantMemberships.find((x) => x.tenantSlug === tenantSlug);
-    return m?.roleName ?? null;
+      permissionsCurrentTenant: [],
+    });
   },
 
-  isAdminOrOwnerForCurrent: () => {
-    const cur = get().currentTenant;
-    return cur?.roleName === 'ADMIN' || cur?.roleName === 'OWNER';
+  hasPerm(key: string) {
+    return get().permissionsCurrentTenant.includes(key);
+  },
+
+  hasAnyPerm(keys: string[]) {
+    const setPerms = new Set(get().permissionsCurrentTenant);
+    return keys.some((k) => setPerms.has(k));
   },
 }));

@@ -15,7 +15,7 @@
     "db:seed": "prisma db seed",
     "db:reset:dev": "prisma migrate reset --force --skip-generate --skip-seed && npm run db:deploy && npm run db:seed",
     "seed:rbac": "tsx ./scripts/seedPermissionsAndRoles.ts",
-     "seed:test-users": "tsx ./scripts/seedTestUsers.ts"
+    "seed:test-users": "tsx ./scripts/seedTestUsers.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -31,6 +31,7 @@ import type { ThemeOverrides } from "../stores/theme";
 import type { paths } from "../types/openapi";
 import { useDirtyStore } from "../stores/dirty";
 import ImageUploadCard from "../components/common/ImageUploadCard";
+import { useAuthStore } from "../stores/auth";
 
 const toShade = (v: unknown, fallback: MantineColorShade): MantineColorShade => {
   const n = typeof v === "number" ? v : Number(v);
@@ -85,6 +86,9 @@ export default function ThemeSettingsPage() {
   const setPreset = useThemeStore((s) => s.setPreset);
   const setLogoUrl = useThemeStore((s) => s.setLogoUrl);
   const reset = useThemeStore((s) => s.reset);
+
+  const canManageTheme = useAuthStore((s) => s.hasPerm("theme:manage"));
+  const canUpload = useAuthStore((s) => s.hasPerm("uploads:write"));
 
   // Global dirty store
   const { saving } = useDirtyStore();
@@ -287,10 +291,10 @@ export default function ThemeSettingsPage() {
           </Text>
         </Stack>
         <Group>
-          <Button variant="default" onClick={() => reset(key)}>
+          <Button variant="default" onClick={() => reset(key)} disabled={!canManageTheme}>
             Reset to defaults
           </Button>
-          <Button onClick={onClickSave} loading={saving} disabled={!tenantSlug}>
+          <Button onClick={onClickSave} loading={saving} disabled={!tenantSlug || !canManageTheme}>
             Save
           </Button>
         </Group>
@@ -389,7 +393,7 @@ export default function ThemeSettingsPage() {
             width={340}
             accept={["image/png", "image/jpeg", "image/webp", "image/svg+xml"]}
             maxBytes={2 * 1024 * 1024}
-            disabled={!tenantSlug}
+            disabled={!tenantSlug || !canUpload}
             onUpload={async (file) => {
               // call your API
               const resp = await uploadTenantLogoApiRequest({ tenantSlug: tenantSlug!, file });

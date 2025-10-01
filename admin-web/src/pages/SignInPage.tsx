@@ -1,36 +1,41 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { TextInput, PasswordInput, Button, Paper, Title, Stack } from '@mantine/core'
-import { notifications } from '@mantine/notifications'
-import { signInApiRequest, meApiRequest } from '../api/auth'
+/* admin-web/src/pages/SignInPage.tsx */
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { TextInput, PasswordInput, Button, Paper, Title, Stack } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
+import { signInApiRequest } from '../api/auth';
+import { useAuthStore } from '../stores/auth';
 
 export default function SignInPage() {
-  const navigate = useNavigate()
-  const [userEmailInputValue, setUserEmailInputValue] = useState('')
-  const [userPasswordInputValue, setUserPasswordInputValue] = useState('')
-  const [tenantSlugInputValue, setTenantSlugInputValue] = useState('')
-  const [isSubmittingSignInForm, setIsSubmittingSignInForm] = useState(false)
+  const navigate = useNavigate();
+  const [userEmailInputValue, setUserEmailInputValue] = useState('');
+  const [userPasswordInputValue, setUserPasswordInputValue] = useState('');
+  const [tenantSlugInputValue, setTenantSlugInputValue] = useState('');
+  const [isSubmittingSignInForm, setIsSubmittingSignInForm] = useState(false);
 
   async function handleSubmitSignInForm(event: React.FormEvent) {
-    event.preventDefault()
-    setIsSubmittingSignInForm(true)
+    event.preventDefault();
+    setIsSubmittingSignInForm(true);
     try {
-      await signInApiRequest({
-        email: userEmailInputValue,
-        password: userPasswordInputValue,
-        tenantSlug: tenantSlugInputValue,
-      })
-      await meApiRequest() // optional confirmation
-      notifications.show({ color: 'green', message: 'Signed in successfully.' })
-      navigate(`/${tenantSlugInputValue}/products`)
+      const email = userEmailInputValue.trim();
+      const password = userPasswordInputValue;
+      const tenantSlug = tenantSlugInputValue.trim().toLowerCase();
+
+      await signInApiRequest({ email, password, tenantSlug });
+
+      // 🔑 Hydrate the auth store BEFORE navigating so permission checks are ready
+      await useAuthStore.getState().refreshFromServer();
+
+      notifications.show({ color: 'green', message: 'Signed in successfully.' });
+      navigate(`/${tenantSlug}/products`);
     } catch (error: any) {
       notifications.show({
         color: 'red',
         title: 'Sign-in failed',
         message: error?.message ?? 'Unknown error',
-      })
+      });
     } finally {
-      setIsSubmittingSignInForm(false)
+      setIsSubmittingSignInForm(false);
     }
   }
 
@@ -70,7 +75,7 @@ export default function SignInPage() {
         </Paper>
       </div>
 
-      {/* Right: image (hidden on very small screens if you like) */}
+      {/* Right: image */}
       <div className="relative hidden md:block">
         <img
           src="/login-hero.jpg"
@@ -78,10 +83,7 @@ export default function SignInPage() {
           className="absolute inset-0 h-full w-full object-cover"
           loading="eager"
         />
-        {/* Optional overlay for contrast:
-        <div className="absolute inset-0 bg-black/10" />
-        */}
       </div>
     </div>
-  )
+  );
 }

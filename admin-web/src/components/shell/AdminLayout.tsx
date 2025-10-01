@@ -6,9 +6,19 @@ import HeaderBar from './HeaderBar';
 import SidebarNav from './SidebarNav';
 import TenantThemeProvider from '../theme/TenantThemeProvider';
 import DirtyNavigationGuard from '../nav/DirtyNavigationGuard';
+import { useEffect } from "react";
+import { useAuthStore } from "../../stores/auth";
 
 export default function AdminLayout() {
   const [opened, { toggle, close }] = useDisclosure(false);
+  const hydrated = useAuthStore((s) => s.hydrated);
+  const refreshFromServer = useAuthStore((s) => s.refreshFromServer);
+
+  useEffect(() => {
+    if (!hydrated) {
+      refreshFromServer().catch(() => {});
+    }
+  }, [hydrated, refreshFromServer]);
 
   return (
     <TenantThemeProvider>

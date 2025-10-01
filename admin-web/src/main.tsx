@@ -15,6 +15,7 @@ import '@mantine/dates/styles.css'
 import './index.css'
 import { RouteErrorBoundary } from './components/feedback/ErrorBoundary'
 import ThemeSettingsPage from './pages/ThemeSettingsPage';
+import RequirePermission from './components/rbac/RequirePermission'
 
 const router = createBrowserRouter([
   {
@@ -30,9 +31,33 @@ const router = createBrowserRouter([
         path: ':tenantSlug',
         element: <AdminLayout />, // <-- Shell applies only here
         children: [
-          { path: 'products', element: <ProductsPage />, errorElement: <RouteErrorBoundary /> },
-          { path: 'users', element: <TenantUsersPage />, errorElement: <RouteErrorBoundary /> },
-          { path: 'settings/theme', element: <ThemeSettingsPage />, errorElement: <RouteErrorBoundary /> },
+          { 
+            path: 'products', 
+            element: (
+              <RequirePermission perm="products:read">
+                <ProductsPage />
+              </RequirePermission>
+            ), 
+            errorElement: <RouteErrorBoundary /> 
+          },
+          { 
+            path: 'users', 
+            element: (
+              <RequirePermission perm="users:manage">
+                <TenantUsersPage />
+              </RequirePermission>
+            ), 
+            errorElement: <RouteErrorBoundary /> 
+          },
+          { 
+            path: 'settings/theme', 
+            element: (
+              <RequirePermission perm="theme:manage">
+                <ThemeSettingsPage />
+              </RequirePermission>
+            ), 
+            errorElement: <RouteErrorBoundary /> 
+          },
         ],
       },
     ],

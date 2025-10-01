@@ -30,11 +30,11 @@ export default function TenantThemeProvider({ children }: { children: ReactNode 
         });
       } catch (e: any) {
         // Non-fatal: fall back to local defaults
-        notifications.show({
-          color: 'red',
-          title: 'Theme',
-          message: e?.message ?? 'Failed to load theme',
-        });
+        // notifications.show({
+        //   color: 'red',
+        //   title: 'Theme',
+        //   message: e?.message ?? 'Failed to load theme',
+        // });
       }
     })();
   }, [tenantSlug, key, setFromServer]);
