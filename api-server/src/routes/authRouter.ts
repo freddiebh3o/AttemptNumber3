@@ -1,4 +1,4 @@
-// src/routes/authRouter.ts
+// api-server/src/routes/authRouter.ts
 import { Router } from 'express';
 import { z } from 'zod';
 import { createStandardSuccessResponse } from '../utils/standardResponse.js';

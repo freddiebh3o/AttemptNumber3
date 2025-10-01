@@ -1,3 +1,4 @@
+// api-server/src/openapi/components/uploads.ts
 import { z } from "zod";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { ZodTenantThemeResponseData } from "../schemas/tenants.js";

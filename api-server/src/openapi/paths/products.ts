@@ -1,3 +1,4 @@
+// api-server/src/openapi/paths/products.ts
 import { OpenAPIRegistry } from '@asteasolutions/zod-to-openapi';
 import { successEnvelope, RESPONSES } from '../components/envelopes.js';
 import {

@@ -1,3 +1,4 @@
+// api-server/src/services/authService.ts
 import bcrypt from 'bcryptjs';
 import { prismaClientInstance } from '../db/prismaClient.js';
 

@@ -1,3 +1,4 @@
+// api-server/src/openapi/schemas/products.ts
 import { z } from 'zod';
 
 export const ZodProductRecord = z

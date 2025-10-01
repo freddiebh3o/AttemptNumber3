@@ -1,3 +1,4 @@
+// api-server/src/openapi/schemas/system.ts
 import { z } from 'zod';
 
 export const ZodHealthResponseData = z

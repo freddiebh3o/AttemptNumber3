@@ -1,3 +1,4 @@
+// api-server/src/rbac/catalog.ts
 // Central RBAC catalog (single source of truth)
 
 export const PERMISSIONS = [

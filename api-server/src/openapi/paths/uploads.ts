@@ -1,4 +1,4 @@
-import { z } from 'zod';
+// api-server/src/openapi/paths/uploads.ts
 import { OpenAPIRegistry } from '@asteasolutions/zod-to-openapi';
 import { successEnvelope, RESPONSES, ZodRateLimitHeaders, errorEnvelope } from '../components/envelopes.js';
 import {

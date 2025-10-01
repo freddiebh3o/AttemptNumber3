@@ -1,3 +1,4 @@
+// api-server/src/integrations/supabaseClient.ts
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL!;
