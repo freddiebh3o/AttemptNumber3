@@ -257,9 +257,9 @@ export async function updateTenantUserService(params: {
   newPasswordOptional?: string;
   newRoleIdOptional?: string; // roleId, not roleName
 }) {
-  const { currentTenantId, currentUserId, targetUserId } = params;
+  const { currentTenantId, targetUserId } = params;
 
-  // Ensure membership exists (grab current role)
+  // Fetch membership and (maybe) nextRole outside tx for fast 404/validation
   const membership = await prismaClientInstance.userTenantMembership.findUnique({
     where: { userId_tenantId: { userId: targetUserId, tenantId: currentTenantId } },
     select: {
@@ -271,7 +271,7 @@ export async function updateTenantUserService(params: {
   });
   if (!membership) throw Errors.notFound('User is not a member of this tenant.');
 
-  // Role change (protect last OWNER)
+  let nextRoleId: string | undefined;
   if (params.newRoleIdOptional !== undefined) {
     const nextRole = await prismaClientInstance.role.findUnique({
       where: { id: params.newRoleIdOptional },
@@ -280,30 +280,51 @@ export async function updateTenantUserService(params: {
     if (!nextRole || nextRole.tenantId !== currentTenantId) {
       throw Errors.validation('Invalid role', 'Role not found for this tenant.');
     }
-
-    const currRoleName = membership.role?.name ?? null;
-    const nextRoleName = nextRole.name;
-
-    if (currRoleName === 'OWNER' && nextRoleName !== 'OWNER') {
-      const owners = await countOwners(currentTenantId);
-      if (owners <= 1) throw Errors.cantDeleteLastOwner();
-    }
-
-    await prismaClientInstance.userTenantMembership.update({
-      where: { userId_tenantId: { userId: targetUserId, tenantId: currentTenantId } },
-      data: { roleId: nextRole.id },
-    });
+    nextRoleId = nextRole.id;
   }
 
-  // Account updates
-  if (params.newEmailOptional !== undefined || params.newPasswordOptional !== undefined) {
-    const data: { userEmailAddress?: string; userHashedPassword?: string } = {};
-    if (params.newEmailOptional !== undefined) data.userEmailAddress = params.newEmailOptional;
-    if (params.newPasswordOptional !== undefined) {
-      data.userHashedPassword = await bcrypt.hash(params.newPasswordOptional, 10);
+  // Perform sensitive membership updates inside a transaction to avoid races
+  await prismaClientInstance.$transaction(async (tx) => {
+    // Handle role change with "last OWNER" protection
+    if (nextRoleId !== undefined) {
+      const currRoleName = membership.role?.name ?? null;
+
+      if (currRoleName === 'OWNER') {
+        // Re-check inside the transaction
+        const ownerRole = await tx.role.findUnique({
+          where: { tenantId_name: { tenantId: currentTenantId, name: 'OWNER' } },
+          select: { id: true },
+        });
+        if (!ownerRole) throw Errors.internal('OWNER role missing for tenant.');
+
+        const owners = await tx.userTenantMembership.count({
+          where: { tenantId: currentTenantId, roleId: ownerRole.id },
+        });
+
+        // Determine if the next role keeps the user as OWNER
+        const isNextOwner = nextRoleId === ownerRole.id;
+
+        if (!isNextOwner && owners <= 1) {
+          throw Errors.cantDeleteLastOwner();
+        }
+      }
+
+      await tx.userTenantMembership.update({
+        where: { userId_tenantId: { userId: targetUserId, tenantId: currentTenantId } },
+        data: { roleId: nextRoleId },
+      });
     }
-    await prismaClientInstance.user.update({ where: { id: targetUserId }, data });
-  }
+
+    // Account updates (email/password) — safe to do in the same tx
+    if (params.newEmailOptional !== undefined || params.newPasswordOptional !== undefined) {
+      const data: { userEmailAddress?: string; userHashedPassword?: string } = {};
+      if (params.newEmailOptional !== undefined) data.userEmailAddress = params.newEmailOptional;
+      if (params.newPasswordOptional !== undefined) {
+        data.userHashedPassword = await bcrypt.hash(params.newPasswordOptional, 10);
+      }
+      await tx.user.update({ where: { id: targetUserId }, data });
+    }
+  });
 
   // Fresh selection with role + permissions
   const fresh = await prismaClientInstance.userTenantMembership.findUnique({
@@ -357,22 +378,37 @@ export async function removeUserFromTenantService(params: {
   currentUserId: string;
   targetUserId: string;
 }) {
-  const { currentTenantId, currentUserId, targetUserId } = params;
+  const { currentTenantId, targetUserId } = params;
 
-  // If removing an OWNER, ensure there’s at least one other OWNER
-  if (await isOwner(currentTenantId, targetUserId)) {
-    const owners = await countOwners(currentTenantId);
-    if (owners <= 1) throw Errors.cantDeleteLastOwner();
-  }
+  // Do the sensitive check + delete in one transaction to prevent races
+  const result = await prismaClientInstance.$transaction(async (tx) => {
+    const ownerRole = await tx.role.findUnique({
+      where: { tenantId_name: { tenantId: currentTenantId, name: 'OWNER' } },
+      select: { id: true },
+    });
+    if (!ownerRole) throw Errors.internal('OWNER role missing for tenant.');
 
-  // Optional: block self-removal if that would leave no owners — already covered above
-  if (currentUserId === targetUserId) {
-    // no-op
-  }
+    // Is target currently an OWNER?
+    const targetMembership = await tx.userTenantMembership.findUnique({
+      where: { userId_tenantId: { userId: targetUserId, tenantId: currentTenantId } },
+      select: { roleId: true },
+    });
+    if (!targetMembership) return { hasRemovedMembership: false }; // nothing to do
 
-  const deleted = await prismaClientInstance.userTenantMembership.deleteMany({
-    where: { userId: targetUserId, tenantId: currentTenantId },
+    const isTargetOwner = targetMembership.roleId === ownerRole.id;
+    if (isTargetOwner) {
+      const owners = await tx.userTenantMembership.count({
+        where: { tenantId: currentTenantId, roleId: ownerRole.id },
+      });
+      if (owners <= 1) throw Errors.cantDeleteLastOwner();
+    }
+
+    const deleted = await tx.userTenantMembership.deleteMany({
+      where: { userId: targetUserId, tenantId: currentTenantId },
+    });
+
+    return { hasRemovedMembership: deleted.count > 0 };
   });
 
-  return { hasRemovedMembership: deleted.count > 0 };
+  return result;
 }

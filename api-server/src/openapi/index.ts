@@ -9,6 +9,7 @@ import { registerProductPaths } from './paths/products.js';
 import { registerTenantUsersPaths } from './paths/tenantUsers.js';
 import { registerSystemPaths } from './paths/system.js';
 import { registerUploadPaths } from './paths/uploads.js';
+import { registerRolePaths } from './paths/roles.js';
 
 export function buildOpenApiDocument() {
   // Register all feature paths
@@ -18,6 +19,7 @@ export function buildOpenApiDocument() {
   registerTenantPaths(registry);
   registerSystemPaths(registry);
   registerUploadPaths(registry);
+  registerRolePaths(registry);
 
   const generator = new OpenApiGeneratorV3(registry.definitions);
 
@@ -38,10 +40,11 @@ export function buildOpenApiDocument() {
     tags: [
       { name: 'Auth' },
       { name: 'System' },
-      { name: 'TenantUsers' },
       { name: 'Tenants' },
-      { name: 'Uploads' },
+      { name: 'TenantUsers' },
+      { name: 'Roles' },
       { name: 'Products' },
+      { name: 'Uploads' },
     ],
   });
 }
