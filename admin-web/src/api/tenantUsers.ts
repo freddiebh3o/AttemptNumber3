@@ -24,12 +24,13 @@ export async function listTenantUsersApiRequest(params?: {
   limit?: number;
   cursorId?: string;
   q?: string;
-  roleName?: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
+  roleId?: string;         // NEW: exact role id
+  roleName?: string;       // NEW: contains on role.name
   createdAtFrom?: string;
   createdAtTo?: string;
   updatedAtFrom?: string;
   updatedAtTo?: string;
-  sortBy?: "createdAt" | "updatedAt" | "userEmailAddress" | "roleName";
+  sortBy?: "createdAt" | "updatedAt" | "userEmailAddress" | "role"; // NOTE: 'role' not 'roleName'
   sortDir?: "asc" | "desc";
   includeTotal?: boolean;
 }) {
@@ -37,6 +38,7 @@ export async function listTenantUsersApiRequest(params?: {
   if (params?.limit !== undefined) search.set("limit", String(params.limit));
   if (params?.cursorId) search.set("cursorId", params.cursorId);
   if (params?.q) search.set("q", params.q);
+  if (params?.roleId) search.set("roleId", params.roleId);
   if (params?.roleName) search.set("roleName", params.roleName);
   if (params?.createdAtFrom) search.set("createdAtFrom", params.createdAtFrom);
   if (params?.createdAtTo) search.set("createdAtTo", params.createdAtTo);
@@ -45,6 +47,7 @@ export async function listTenantUsersApiRequest(params?: {
   if (params?.sortBy) search.set("sortBy", params.sortBy);
   if (params?.sortDir) search.set("sortDir", params.sortDir);
   if (params?.includeTotal) search.set("includeTotal", "1");
+
   const qs = search.toString();
   return httpRequestJson<ListUsers200>(`/api/tenant-users${qs ? `?${qs}` : ""}`);
 }
@@ -52,25 +55,25 @@ export async function listTenantUsersApiRequest(params?: {
 export async function createTenantUserApiRequest(
   params: CreateUserBody & { idempotencyKeyOptional?: string }
 ) {
+  const { idempotencyKeyOptional, ...body } = params; // don't send header fields in body
   return httpRequestJson<CreateUser201>("/api/tenant-users", {
     method: "POST",
-    body: JSON.stringify(params),
-    headers: params.idempotencyKeyOptional
-      ? { "Idempotency-Key": params.idempotencyKeyOptional }
+    body: JSON.stringify(body),
+    headers: idempotencyKeyOptional
+      ? { "Idempotency-Key": idempotencyKeyOptional }
       : undefined,
   });
 }
 
 export async function updateTenantUserApiRequest(
-  params: { userId: string } & UpdateUserBody & {
-      idempotencyKeyOptional?: string;
-    }
+  params: { userId: string } & UpdateUserBody & { idempotencyKeyOptional?: string }
 ) {
-  return httpRequestJson<UpdateUser200>(`/api/tenant-users/${params.userId}`, {
+  const { userId, idempotencyKeyOptional, ...body } = params; // only send UpdateUserBody in JSON
+  return httpRequestJson<UpdateUser200>(`/api/tenant-users/${userId}`, {
     method: "PUT",
-    body: JSON.stringify(params),
-    headers: params.idempotencyKeyOptional
-      ? { "Idempotency-Key": params.idempotencyKeyOptional }
+    body: JSON.stringify(body),
+    headers: idempotencyKeyOptional
+      ? { "Idempotency-Key": idempotencyKeyOptional }
       : undefined,
   });
 }

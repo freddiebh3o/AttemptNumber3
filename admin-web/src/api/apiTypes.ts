@@ -1,5 +1,6 @@
 // admin-web/src/api/apiTypes.ts
 export type StandardSuccessResponse<T> = { success: true; data: T; error: null }
+
 export type StandardError = {
   errorCode: string
   httpStatusCode: number
@@ -11,12 +12,39 @@ export type StandardErrorResponse = { success: false; data: null; error: Standar
 
 export type ApiEnvelope<T> = StandardSuccessResponse<T> | StandardErrorResponse
 
-export type MeResponseData = {
-  currentUserId: string
-  currentTenantId: string
-  tenantMemberships: Array<{ tenantSlug: string; roleName: 'OWNER' | 'ADMIN' | 'EDITOR' | 'VIEWER' }>
+// ----- RBAC types -----
+export type PermissionKey =
+  | 'products:read'
+  | 'products:write'
+  | 'users:manage'
+  | 'roles:manage'
+  | 'tenant:manage'
+  | 'theme:manage'
+  | 'uploads:write'
+
+export type RoleBrief = {
+  id: string
+  name: string // free-form (e.g. "OWNER", "ADMIN", or custom)
 }
 
+export type MeResponseData = {
+  user: {
+    id: string
+    userEmailAddress: string
+  }
+  tenantMemberships: Array<{
+    tenantSlug: string
+    role: RoleBrief
+  }>
+  currentTenant: {
+    tenantId: string
+    tenantSlug: string
+    role: RoleBrief
+  } | null
+  permissionsCurrentTenant: PermissionKey[]
+}
+
+// ----- Products -----
 export type ProductRecord = {
   id: string
   tenantId: string

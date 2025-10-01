@@ -36,7 +36,7 @@ export interface paths {
                             /** @enum {boolean} */
                             success: true;
                             data: {
-                                signedIn: boolean;
+                                isSignedIn: boolean;
                             };
                             error: unknown;
                         };
@@ -118,7 +118,7 @@ export interface paths {
                             /** @enum {boolean} */
                             success: true;
                             data: {
-                                signedOut: boolean;
+                                isSignedOut: boolean;
                             };
                             error: unknown;
                         };
@@ -1521,11 +1521,9 @@ export interface components {
             password: string;
             tenantSlug: string;
         };
-        /** @enum {string} */
-        RoleName: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
         RoleBrief: {
             id: string;
-            name: components["schemas"]["RoleName"];
+            name: string;
         };
         TenantMembership: {
             tenantSlug: string;

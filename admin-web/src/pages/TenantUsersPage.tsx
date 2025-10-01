@@ -1,9 +1,9 @@
 // admin-web/src/pages/TenantUsersPage.tsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, useSearchParams, useLocation, useNavigationType } from "react-router-dom";
 import {
   ActionIcon, Badge, Button, CloseButton, Group, Loader, NumberInput, Paper,
-  Select, Stack, Table, Text, TextInput, Title, rem, Tooltip, Grid
+  Stack, Table, Text, TextInput, Title, rem, Tooltip, Grid
 } from "@mantine/core";
 import { DatePickerInput } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
@@ -18,22 +18,16 @@ import {
   IconFilter, IconChevronDown, IconChevronUp, IconPlayerTrackNext, IconPlayerTrackPrev, IconLink
 } from "@tabler/icons-react";
 import { FilterBar } from "../components/common/FilterBar";
+import type { components } from "../types/openapi";
 
-type RoleName = "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
-type SortField = "createdAt" | "updatedAt" | "userEmailAddress" | "roleName";
+type SortField = "createdAt" | "updatedAt" | "userEmailAddress" | "role";
 type SortDir = "asc" | "desc";
 
-type UserRow = {
-  userId: string;
-  userEmailAddress: string;
-  roleName: RoleName;
-  createdAt?: string;
-  updatedAt?: string;
-};
+type UserRow = components["schemas"]["TenantUserRecord"];
 
 type UserFilters = {
   q: string;                    // email contains
-  roleName: RoleName | "";
+  roleName: string;
   createdAtFrom: string | null; // YYYY-MM-DD
   createdAtTo: string | null;
   updatedAtFrom: string | null;
@@ -59,12 +53,7 @@ export default function TenantUsersPage() {
   const location = useLocation();
   const navigationType = useNavigationType();
 
-  // perms
-  const memberships = useAuthStore((s) => s.tenantMemberships);
-  const isAdminOrOwner = useMemo(() => {
-    const m = memberships.find((x) => x.tenantSlug === tenantSlug);
-    return m?.roleName === "OWNER" || m?.roleName === "ADMIN";
-  }, [memberships, tenantSlug]);
+  const canManageUsers = useAuthStore((s) => s.hasPerm("users:manage"));
 
   // data state
   const [isLoading, setIsLoading] = useState(false);
@@ -113,7 +102,7 @@ export default function TenantUsersPage() {
     sortBy?: SortField;
     sortDir?: SortDir;
     q?: string | null | undefined;
-    roleName?: RoleName | null | undefined;
+    roleName?: string | null | undefined;
     createdAtFrom?: string | null | undefined;
     createdAtTo?: string | null | undefined;
     updatedAtFrom?: string | null | undefined;
@@ -183,7 +172,7 @@ export default function TenantUsersPage() {
     sortDirOverride?: SortDir;
     limitOverride?: number;
     qOverride?: string | null | undefined;
-    roleNameOverride?: RoleName | null | undefined;
+    roleNameOverride?: string | null | undefined;
     createdFromOverride?: string | null | undefined;
     createdToOverride?: string | null | undefined;
     updatedFromOverride?: string | null | undefined;
@@ -196,8 +185,8 @@ export default function TenantUsersPage() {
 
       const roleParam =
         opts?.roleNameOverride === undefined
-          ? (appliedFilters.roleName || undefined)
-          : (opts.roleNameOverride || undefined);
+          ? (appliedFilters.roleName.trim() || undefined)
+          : (opts.roleNameOverride?.trim() || undefined);
 
       const createdFromParam =
         opts?.createdFromOverride === undefined ? (appliedFilters.createdAtFrom || undefined) : (opts.createdFromOverride || undefined);
@@ -213,7 +202,7 @@ export default function TenantUsersPage() {
         limit: opts?.limitOverride ?? limit,
         cursorId: opts?.cursorId ?? cursorStack[pageIndex] ?? undefined,
         q: qParam,
-        roleName: roleParam as RoleName | undefined,
+        roleName: roleParam,
         createdAtFrom: createdFromParam,
         createdAtTo: createdToParam,
         updatedAtFrom: updatedFromParam,
@@ -225,6 +214,7 @@ export default function TenantUsersPage() {
 
       if (res.success) {
         const data = res.data;
+        // normalize API -> UI row shape
         setRows(data.items);
         setNextCursor(data.pageInfo.nextCursor ?? null);
         setHasNextPage(data.pageInfo.hasNextPage);
@@ -247,7 +237,7 @@ export default function TenantUsersPage() {
     sortDirOverride?: SortDir;
     limitOverride?: number;
     qOverride?: string | null | undefined;
-    roleNameOverride?: RoleName | null | undefined;
+    roleNameOverride?: string | null | undefined;
     createdFromOverride?: string | null | undefined;
     createdToOverride?: string | null | undefined;
     updatedFromOverride?: string | null | undefined;
@@ -276,7 +266,7 @@ export default function TenantUsersPage() {
     setUrlFromState({
       cursorId: null,
       q: values.q.trim() || null,
-      roleName: values.roleName || null,
+      roleName: values.roleName.trim() || null,
       createdAtFrom: values.createdAtFrom ?? null,
       createdAtTo: values.createdAtTo ?? null,
       updatedAtFrom: values.updatedAtFrom ?? null,
@@ -284,7 +274,7 @@ export default function TenantUsersPage() {
     });
     resetToFirstPageAndFetch({
       qOverride: values.q.trim() || null,
-      roleNameOverride: values.roleName || null,
+      roleNameOverride: values.roleName.trim() || null,
       createdFromOverride: values.createdAtFrom ?? null,
       createdToOverride: values.createdAtTo ?? null,
       updatedFromOverride: values.updatedAtFrom ?? null,
@@ -310,7 +300,7 @@ export default function TenantUsersPage() {
     const qpSortBy = searchParams.get("sortBy") as SortField | null;
     const qpSortDir = searchParams.get("sortDir") as SortDir | null;
     const qpQ = searchParams.get("q");
-    const qpRole = searchParams.get("roleName") as RoleName | null;
+    const qpRole = searchParams.get("roleName");
     const qpCreatedFrom = searchParams.get("createdAtFrom");
     const qpCreatedTo = searchParams.get("createdAtTo");
     const qpUpdatedFrom = searchParams.get("updatedAtFrom");
@@ -323,7 +313,7 @@ export default function TenantUsersPage() {
 
     setAppliedFilters({
       q: qpQ ?? "",
-      roleName: (qpRole as RoleName) ?? "",
+      roleName: qpRole ?? "",
       createdAtFrom: qpCreatedFrom ?? null,
       createdAtTo: qpCreatedTo ?? null,
       updatedAtFrom: qpUpdatedFrom ?? null,
@@ -340,7 +330,7 @@ export default function TenantUsersPage() {
       sortDirOverride: qpSortDir ?? undefined,
       limitOverride: !Number.isNaN(qpLimit) && qpLimit ? Math.max(1, Math.min(100, qpLimit)) : undefined,
       qOverride: qpQ ?? undefined,
-      roleNameOverride: (qpRole as RoleName | null) ?? undefined,
+      roleNameOverride: qpRole ?? undefined,
       createdFromOverride: qpCreatedFrom ?? undefined,
       createdToOverride: qpCreatedTo ?? undefined,
       updatedFromOverride: qpUpdatedFrom ?? undefined,
@@ -358,7 +348,7 @@ export default function TenantUsersPage() {
     const qpSortBy = sp.get("sortBy") as SortField | null;
     const qpSortDir = sp.get("sortDir") as SortDir | null;
     const qpQ = sp.get("q");
-    const qpRole = sp.get("roleName") as RoleName | null;
+    const qpRole = sp.get("roleName");
     const qpCreatedFrom = sp.get("createdAtFrom");
     const qpCreatedTo = sp.get("createdAtTo");
     const qpUpdatedFrom = sp.get("updatedAtFrom");
@@ -373,7 +363,7 @@ export default function TenantUsersPage() {
 
     setAppliedFilters({
       q: qpQ ?? "",
-      roleName: (qpRole as RoleName) ?? "",
+      roleName: qpRole ?? "",
       createdAtFrom: qpCreatedFrom ?? null,
       createdAtTo: qpCreatedTo ?? null,
       updatedAtFrom: qpUpdatedFrom ?? null,
@@ -390,7 +380,7 @@ export default function TenantUsersPage() {
       sortDirOverride: qpSortDir ?? undefined,
       limitOverride: !Number.isNaN(qpLimit) && qpLimit ? Math.max(1, Math.min(100, qpLimit)) : undefined,
       qOverride: qpQ ?? undefined,
-      roleNameOverride: (qpRole as RoleName | null) ?? undefined,
+      roleNameOverride: qpRole ?? undefined,
       createdFromOverride: qpCreatedFrom ?? undefined,
       createdToOverride: qpCreatedTo ?? undefined,
       updatedFromOverride: qpUpdatedFrom ?? undefined,
@@ -543,7 +533,7 @@ export default function TenantUsersPage() {
               leftSection={<IconPlus size={16} />}
               title="Add user"
               onClick={() => console.log("Add user")}
-              disabled={!isAdminOrOwner}
+              disabled={!canManageUsers}
             >
               Add user
             </Button>
@@ -575,18 +565,16 @@ export default function TenantUsersPage() {
             </Grid.Col>
 
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-              <Select
-                label="Role"
-                placeholder="Any role"
-                value={values.roleName || null}
-                onChange={(v) =>
+              <TextInput
+                label="Role (contains)"
+                placeholder="e.g. Owner, Admin, Editor…"
+                value={values.roleName}
+                onChange={(e) =>
                   setValues((prev) => ({
                     ...prev,
-                    roleName: (v as RoleName) ?? "",
+                    roleName: e.currentTarget.value,
                   }))
                 }
-                data={["OWNER", "ADMIN", "EDITOR", "VIEWER"]}
-                clearable
               />
             </Grid.Col>
 
@@ -732,16 +720,16 @@ export default function TenantUsersPage() {
                         </Group>
                       </Table.Th>
 
-                      <Table.Th scope="col" aria-sort={colAriaSort("roleName")}>
+                      <Table.Th scope="col" aria-sort={colAriaSort("role")}>
                         <Group gap={4} wrap="nowrap">
                           <span>Role</span>
                           <Tooltip label="Sort by role" withArrow>
                             <ActionIcon
                               variant="subtle" size="sm"
-                              onClick={() => applySort("roleName")}
-                              aria-label={sortButtonLabel("role", "roleName")}
+                              onClick={() => applySort("role")}
+                              aria-label={sortButtonLabel("role", "role")}
                             >
-                              {sortBy === "roleName" ? (sortDir === "asc" ? <IconArrowUp size={16} /> : <IconArrowDown size={16} />) : <IconArrowsSort size={16} />}
+                              {sortBy === "role" ? (sortDir === "asc" ? <IconArrowUp size={16} /> : <IconArrowDown size={16} />) : <IconArrowsSort size={16} />}
                             </ActionIcon>
                           </Tooltip>
                         </Group>
@@ -785,7 +773,7 @@ export default function TenantUsersPage() {
                     {rows!.map((r) => (
                       <Table.Tr key={r.userId}>
                         <Table.Td>{r.userEmailAddress}</Table.Td>
-                        <Table.Td><Badge>{r.roleName}</Badge></Table.Td>
+                        <Table.Td><Badge>{r.role?.name ?? "—"}</Badge></Table.Td>
                         <Table.Td>{r.createdAt ? new Date(r.createdAt).toLocaleString() : "—"}</Table.Td>
                         <Table.Td>{r.updatedAt ? new Date(r.updatedAt).toLocaleString() : "—"}</Table.Td>
                         <Table.Td className="flex justify-end">
@@ -794,7 +782,7 @@ export default function TenantUsersPage() {
                                 variant="light"
                                 size="md"
                                 onClick={() => console.log('open edit product')}
-                                disabled={!isAdminOrOwner}
+                                disabled={!canManageUsers}
                               >
                                 <IconPencil size={16} />
                               </ActionIcon>
@@ -803,7 +791,7 @@ export default function TenantUsersPage() {
                                 color="red"
                                 size="md"
                                 onClick={() => handleDelete(r.userId)}
-                                disabled={!isAdminOrOwner}
+                                disabled={!canManageUsers}
                               >
                                 <IconTrash size={16} />
                               </ActionIcon>

@@ -20,7 +20,7 @@ export function registerAuthPaths(registry: OpenAPIRegistry) {
     responses: {
       200: {
         description: 'Signed in',
-        content: { 'application/json': { schema: successEnvelope(z.object({ signedIn: z.boolean() })) } },
+        content: { 'application/json': { schema: successEnvelope(z.object({ isSignedIn: z.boolean() })) } },
       },
       400: RESPONSES[400],
       401: RESPONSES[401],
@@ -38,7 +38,7 @@ export function registerAuthPaths(registry: OpenAPIRegistry) {
       200: {
         description: 'Signed out',
         content: {
-          'application/json': { schema: successEnvelope(z.object({ signedOut: z.boolean() })) },
+          'application/json': { schema: successEnvelope(z.object({ isSignedOut: z.boolean() })) },
         },
       },
       500: RESPONSES[500],

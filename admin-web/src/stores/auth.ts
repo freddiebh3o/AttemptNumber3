@@ -2,10 +2,20 @@
 import { create } from "zustand";
 import { meApiRequest } from "../api/auth";
 
-type RoleName = "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
+type RoleLite = { id: string; name: string };
 
-type TenantMembership = { tenantSlug: string; roleName: RoleName | null };
-type CurrentTenant = { tenantId: string; tenantSlug: string; roleName: RoleName | null } | null;
+type TenantMembership = {
+  tenantSlug: string;
+  role: RoleLite | null; // comes from /auth/me
+};
+
+type CurrentTenant =
+  | {
+      tenantId: string;
+      tenantSlug: string;
+      role: RoleLite | null; // comes from /auth/me
+    }
+  | null;
 
 type AuthState = {
   hydrated: boolean;
@@ -17,6 +27,7 @@ type AuthState = {
   currentTenant: CurrentTenant;
   currentTenantSlug: string | null;
 
+  // Permissions for the current tenant
   permissionsCurrentTenant: string[];
 
   // Actions
@@ -46,26 +57,39 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const resp = await meApiRequest();
       const d = resp.data;
 
+      const memberships: TenantMembership[] = (d.tenantMemberships ?? []).map(
+        (m: any) => ({
+          tenantSlug: m.tenantSlug,
+          role: m.role
+            ? { id: m.role.id as string, name: m.role.name as string }
+            : null,
+        })
+      );
+
+      const current: CurrentTenant = d.currentTenant
+        ? {
+            tenantId: d.currentTenant.tenantId,
+            tenantSlug: d.currentTenant.tenantSlug,
+            role: d.currentTenant.role
+              ? {
+                  id: d.currentTenant.role.id as string,
+                  name: d.currentTenant.role.name as string,
+                }
+              : null,
+          }
+        : null;
+
       set({
         hydrated: true,
-        currentUserId: d.user.id ?? null,
-        currentUserEmail: d.user.userEmailAddress ?? null,
-        tenantMemberships: d.tenantMemberships.map((m) => ({
-          tenantSlug: m.tenantSlug,
-          roleName: m.roleName ?? null,
-        })),
-        currentTenant: d.currentTenant
-          ? {
-              tenantId: d.currentTenant.tenantId,
-              tenantSlug: d.currentTenant.tenantSlug,
-              roleName: d.currentTenant.roleName ?? null,
-            }
-          : null,
-        currentTenantSlug: d.currentTenant?.tenantSlug ?? null,
+        currentUserId: d.user?.id ?? null,
+        currentUserEmail: d.user?.userEmailAddress ?? null,
+        tenantMemberships: memberships,
+        currentTenant: current,
+        currentTenantSlug: current?.tenantSlug ?? null,
         permissionsCurrentTenant: d.permissionsCurrentTenant ?? [],
       });
-    } catch (_err) {
-      // On error (incl. 401), still mark hydrated so UI can react (e.g. show sign-in or “no access”)
+    } catch {
+      // Even on error/401, mark hydrated so the UI can show sign-in routes, etc.
       set({
         hydrated: true,
         currentUserId: null,

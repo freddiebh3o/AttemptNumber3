@@ -85,7 +85,7 @@ export default function ProductsPage() {
   const { tenantSlug } = useParams<{ tenantSlug: string }>();
 
   // Global memberships (no per-page /me calls)
-  const currentUserTenantMemberships = useAuthStore((s) => s.tenantMemberships);
+  const canWriteProducts = useAuthStore((s) => s.hasPerm("products:write"));
 
   // Data & paging state
   const [isLoadingProductsList, setIsLoadingProductsList] = useState(false);
@@ -115,13 +115,6 @@ export default function ProductsPage() {
   // Filters
   const [appliedFilters, setAppliedFilters] =
     useState<ProductFilters>(emptyProductFilters);
-
-  const isUserAdminOrOwnerForCurrentTenant = useMemo(() => {
-    const match = currentUserTenantMemberships.find(
-      (m) => m.tenantSlug === tenantSlug
-    );
-    return match?.roleName === "ADMIN" || match?.roleName === "OWNER";
-  }, [currentUserTenantMemberships, tenantSlug]);
 
   function applyAndFetch(values: ProductFilters) {
     setAppliedFilters(values);
@@ -681,7 +674,7 @@ export default function ProductsPage() {
 
             <Button
               onClick={() => console.log("New product")}
-              disabled={!isUserAdminOrOwnerForCurrentTenant}
+              disabled={!canWriteProducts}  
             >
               New product
             </Button>
@@ -1114,7 +1107,7 @@ export default function ProductsPage() {
                                 variant="light"
                                 size="md"
                                 onClick={() => console.log('open edit product')}
-                                disabled={!isUserAdminOrOwnerForCurrentTenant}
+                                disabled={!canWriteProducts}
                               >
                                 <IconPencil size={16} />
                               </ActionIcon>
@@ -1123,7 +1116,7 @@ export default function ProductsPage() {
                                 color="red"
                                 size="md"
                                 onClick={() => handleDeleteProduct(p.id)}
-                                disabled={!isUserAdminOrOwnerForCurrentTenant}
+                                disabled={!canWriteProducts}
                               >
                                 <IconTrash size={16} />
                               </ActionIcon>

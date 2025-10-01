@@ -100,28 +100,6 @@ npm run dev -- --port 5174
     responseTime: 863
 ```
 
----
-
-## Current Phases Completed
-
-1. API project setup (Express, Prisma, Postgres)
-2. Authentication (sessions, cookies, RBAC)
-3. Product CRUD API + validation
-4. Security hardening (helmet, CORS, body size limits, etc.)
-5. Minimal admin web UI (login + product list)
-   5.5. Structured logging
-6. OpenAPI spec + typed frontend API clients
-
----
-
-## Next Steps (Planned)
-
-* Phase 7: Dev vs Prod configs + deployment setup
-* Phase 8: Tenant/user management UI
-* Phase 9: Billing & subscriptions (Stripe)
-* Phase 10: Monitoring & metrics
-
----
 
 ## Database (Prisma + PostgreSQL)
 
@@ -351,51 +329,6 @@ Adding a new route:
 
 ---
 
-## Current Phases Completed
-
-1. API project setup (Express, Prisma, Postgres)
-2. Authentication (sessions, cookies, RBAC)
-3. Product CRUD API + validation
-4. Security hardening (helmet, CORS, body size limits, etc.)
-5. Minimal admin web UI (login + product list)
-   5.5. Structured logging
-6. OpenAPI spec + typed frontend API clients
-7. Deployed Development database(supabase) + server(Render) + frontend(Vercel)
-8. Tenant/User management APIs and UI, with rate limiting
-
----
-
-## Future fetures
-* Different branches/locations
-  * Each product can have stock in any/all branches
-  * Users can be assigned to one/many branches
-* Get more insight to how the RBAC works
-  * Is it compatible with being able to create custom roles?
-  * How specific can you be with these roles? e.g. can we specify which branches the user can access or specific features like stock management?
-
-* Create/Edit pages for users/products
-
-* Find a way to simulate what happens when a session expires 
-  * Current suspicion is that you are not automatically logged out 
-  * Instead, any request you make just fails with the notification 'Please sign in to continue'
-  * Instead of this, any request that is made that requires the user to be logged in and they arent logged in, should be redirected to the login page automatically 
-  * Whenever a user is logged out and redirected to the login page, it should show a clear reason on the login page as to why they were logged out
-
-* Admin logs
-
-* Admin branding
-  * Suggested themes for different colour schemes 
-  * Fully custom option
-  * Ability to upload image -> LocalStack -> Will localStack work on my dev/staging environment
-* Image uploading
-* Plan out feature roadmap
-* Monitoring & metrics
-  * Sentry
-  * Uptime monitor
-  * Prometheus?
-
----
-
 ## How to Add a New Environment (Prod or Another Staging)
 
 This checklist walks you through creating a **new isolated environment** (e.g., production) alongside your current dev/staging setup. It covers Supabase (DB), Render (API), and Vercel (Web UI), plus required env vars and cookie/CORS gotchas.
@@ -532,3 +465,35 @@ If you need initial data in the new environment:
 * [ ] (Optional) Seed data.
 * [ ] (Optional) Generate OpenAPI types against `/openapi.json`.
 * [ ] Document URLs and secrets.
+
+## Future fetures
+* Remake the Readme with latest feature updates
+* Different branches/locations
+  * Each product can have stock in any/all branches
+  * Users can be assigned to one/many branches
+* Get more insight to how the RBAC works
+  * Is it compatible with being able to create custom roles?
+  * How specific can you be with these roles? e.g. can we specify which branches the user can access or specific features like stock management?
+
+* Create/Edit pages for users/products
+
+* Find a way to simulate what happens when a session expires 
+  * Current suspicion is that you are not automatically logged out 
+  * Instead, any request you make just fails with the notification 'Please sign in to continue'
+  * Instead of this, any request that is made that requires the user to be logged in and they arent logged in, should be redirected to the login page automatically 
+  * Whenever a user is logged out and redirected to the login page, it should show a clear reason on the login page as to why they were logged out
+
+* Admin logs
+
+* Admin branding
+  * Suggested themes for different colour schemes 
+  * Fully custom option
+  * Ability to upload image -> LocalStack -> Will localStack work on my dev/staging environment
+* Image uploading
+* Plan out feature roadmap
+* Monitoring & metrics
+  * Sentry
+  * Uptime monitor
+  * Prometheus?
+
+---

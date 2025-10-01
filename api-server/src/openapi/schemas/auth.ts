@@ -1,7 +1,6 @@
 /* api-server/src/openapi/schemas/auth.ts */
 import { z } from 'zod';
 import { ZodPermissionKey } from '../components/rbac.js';
-import { ZodRoleName } from './common.js';
 
 export const ZodSignInRequestBody = z
   .object({
@@ -15,7 +14,7 @@ export const ZodSignInRequestBody = z
 export const ZodRoleBrief = z
   .object({
     id: z.string(),
-    name: ZodRoleName,
+    name: z.string(),
   })
   .openapi('RoleBrief');
 
