@@ -1,5 +1,6 @@
 // api-server/src/types/express.d.ts
 import "express-serve-static-core";
+import type { PermissionKey } from '../utils/permissions';
 
 declare module "express-serve-static-core" {
   interface Request {
@@ -12,5 +13,11 @@ declare module "express-serve-static-core" {
     validatedBody?: unknown;
     validatedQuery?: unknown;
     validatedParams?: unknown;
+  }
+}
+
+declare module 'express-serve-static-core' {
+  interface Request {
+    currentPermissionKeys?: Set<PermissionKey>;
   }
 }

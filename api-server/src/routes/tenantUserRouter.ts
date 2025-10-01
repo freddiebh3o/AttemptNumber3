@@ -2,7 +2,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuthenticatedUserMiddleware } from "../middleware/sessionMiddleware.js";
-import { requireRoleAtLeastMiddleware } from "../middleware/rbacMiddleware.js";
+import { requirePermission } from '../middleware/permissionMiddleware.js';
 import {
   validateRequestBodyWithZod,
   validateRequestParamsWithZod,
@@ -19,7 +19,6 @@ import { assertAuthed, assertHasQuery, assertHasBody, assertHasParams } from "..
 import { createFixedWindowRateLimiterMiddleware } from "../middleware/rateLimiterMiddleware.js";
 
 export const tenantUserRouter = Router();
-
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -52,7 +51,7 @@ const listQuerySchema = z.object({
 tenantUserRouter.get(
   "/",
   requireAuthenticatedUserMiddleware,
-  requireRoleAtLeastMiddleware("ADMIN"),
+  requirePermission('users:manage'),
   validateRequestQueryWithZod(listQuerySchema),
   async (req, res, next) => {
     try {
@@ -97,7 +96,7 @@ const createBodySchema = z.object({
 tenantUserRouter.post(
   "/",
   requireAuthenticatedUserMiddleware,
-  requireRoleAtLeastMiddleware("ADMIN"),
+  requirePermission('users:manage'),
   validateRequestBodyWithZod(createBodySchema),
   async (req, res, next) => {
     try {
@@ -132,7 +131,7 @@ const updateBodySchema = z.object({
 tenantUserRouter.put(
   "/:userId",
   requireAuthenticatedUserMiddleware,
-  requireRoleAtLeastMiddleware("ADMIN"),
+  requirePermission('users:manage'),
   validateRequestParamsWithZod(updateParamsSchema),
   validateRequestBodyWithZod(updateBodySchema),
   async (req, res, next) => {
@@ -165,7 +164,7 @@ tenantUserRouter.put(
 tenantUserRouter.delete(
   "/:userId",
   requireAuthenticatedUserMiddleware,
-  requireRoleAtLeastMiddleware("ADMIN"),
+  requirePermission('users:manage'),
   validateRequestParamsWithZod(updateParamsSchema),
   async (req, res, next) => {
     try {

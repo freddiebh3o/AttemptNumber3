@@ -9,7 +9,6 @@ import {
   validateRequestQueryWithZod,
 } from "../middleware/zodValidation.js";
 import { requireAuthenticatedUserMiddleware } from "../middleware/sessionMiddleware.js";
-import { requireRoleAtLeastMiddleware } from "../middleware/rbacMiddleware.js";
 import { idempotencyMiddleware } from "../middleware/idempotencyMiddleware.js";
 import {
   listProductsForCurrentTenantService,
@@ -19,6 +18,7 @@ import {
 } from "../services/productService.js";
 import { createFixedWindowRateLimiterMiddleware } from "../middleware/rateLimiterMiddleware.js";
 import { assertAuthed } from '../types/assertions.js'
+import { requirePermission } from '../middleware/permissionMiddleware.js';
 
 export const productRouter = Router();
 
@@ -72,6 +72,7 @@ const updateBodySchema = z.object({
 productRouter.get(
   "/",
   requireAuthenticatedUserMiddleware,
+  requirePermission('products:read'),
   validateRequestQueryWithZod(listQuerySchema),
   async (request, response, next) => {
     try {
@@ -120,7 +121,7 @@ productRouter.get(
 productRouter.post(
   "/",
   requireAuthenticatedUserMiddleware,
-  requireRoleAtLeastMiddleware("ADMIN"),
+  requirePermission('products:write'),
   idempotencyMiddleware(60), // 60-minute TTL for idempotency
   validateRequestBodyWithZod(createBodySchema),
   async (request, response, next) => {
@@ -148,7 +149,7 @@ productRouter.post(
 productRouter.put(
   "/:productId",
   requireAuthenticatedUserMiddleware,
-  requireRoleAtLeastMiddleware("ADMIN"),
+  requirePermission('products:write'),
   idempotencyMiddleware(60),
   validateRequestParamsWithZod(updateParamsSchema),
   validateRequestBodyWithZod(updateBodySchema),
@@ -186,7 +187,7 @@ productRouter.put(
 productRouter.delete(
   "/:productId",
   requireAuthenticatedUserMiddleware,
-  requireRoleAtLeastMiddleware("ADMIN"),
+  requirePermission('products:write'),
   validateRequestParamsWithZod(updateParamsSchema),
   async (request, response, next) => {
     try {

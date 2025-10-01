@@ -761,8 +761,8 @@ export interface paths {
                                     userId: string;
                                     /** Format: email */
                                     userEmailAddress: string;
-                                    /** @enum {string} */
-                                    roleName: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
+                                    /** @enum {string|null} */
+                                    roleName?: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER" | null;
                                     /** Format: date-time */
                                     createdAt?: string;
                                     /** Format: date-time */
@@ -876,8 +876,8 @@ export interface paths {
                                     userId: string;
                                     /** Format: email */
                                     userEmailAddress: string;
-                                    /** @enum {string} */
-                                    roleName: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
+                                    /** @enum {string|null} */
+                                    roleName?: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER" | null;
                                     /** Format: date-time */
                                     createdAt?: string;
                                     /** Format: date-time */
@@ -1541,23 +1541,25 @@ export interface components {
             tenantSlug: string;
         };
         /** @enum {string} */
-        RoleName: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
-        TenantMembership: {
-            tenantSlug: string;
-            roleName: components["schemas"]["RoleName"];
-        };
+        PermissionKey: "products:read" | "products:write" | "users:manage" | "roles:manage" | "tenant:manage" | "theme:manage" | "uploads:write";
         MeResponseData: {
             user: {
                 id: string;
                 /** Format: email */
                 userEmailAddress: string;
             };
-            tenantMemberships: components["schemas"]["TenantMembership"][];
+            tenantMemberships: {
+                tenantSlug: string;
+                /** @enum {string|null} */
+                roleName?: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER" | null;
+            }[];
             currentTenant: {
                 tenantId: string;
                 tenantSlug: string;
-                roleName: components["schemas"]["RoleName"];
+                /** @enum {string|null} */
+                roleName?: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER" | null;
             } | null;
+            permissionsCurrentTenant: components["schemas"]["PermissionKey"][];
         };
         SwitchTenantResponseData: {
             hasSwitchedTenant: boolean;
@@ -1613,6 +1615,8 @@ export interface components {
             productPriceCents?: number;
             currentEntityVersion: number;
         };
+        /** @enum {string} */
+        RoleName: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
         TenantUsersListResponseData: {
             items: {
                 userId: string;

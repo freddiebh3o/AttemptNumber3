@@ -17,6 +17,8 @@ import {
 import { requireAuthenticatedUserMiddleware } from '../middleware/sessionMiddleware.js'
 import { PrismaClient } from '@prisma/client'
 import { assertAuthed } from '../types/assertions.js'
+import type { PermissionKey } from '../utils/permissions.js';
+import { getPermissionKeysForUserInTenant } from '../services/permissionService.js';
 
 export const authRouter = Router()
 
@@ -67,6 +69,7 @@ authRouter.get('/me', requireAuthenticatedUserMiddleware, async (request, respon
     assertAuthed(request);
     const currentUserId: string = request.currentUserId
     const currentTenantId: string = request.currentTenantId
+    
 
     const prisma = new PrismaClient()
 
@@ -74,8 +77,8 @@ authRouter.get('/me', requireAuthenticatedUserMiddleware, async (request, respon
     const user = await prisma.user.findUnique({
       where: { id: currentUserId },
       select: { id: true, userEmailAddress: true },
-    })
-    if (!user) return next(Errors.authRequired())
+    });
+    if (!user) return next(Errors.authRequired());
 
     // 2) tenantMemberships: [{ tenantSlug, roleName }]
     // If your existing getUserMembershipsService already returns this exact shape, you can keep it.
@@ -83,18 +86,24 @@ authRouter.get('/me', requireAuthenticatedUserMiddleware, async (request, respon
     const tenantMemberships = await prisma.userTenantMembership.findMany({
       where: { userId: currentUserId },
       select: {
-        roleName: true,
+        roleName: true, // may be null during migration
         tenant: { select: { tenantSlug: true } },
       },
       orderBy: { createdAt: 'asc' },
-    }).then(rows => rows.map(r => ({ tenantSlug: r.tenant.tenantSlug, roleName: r.roleName })))
+    }).then(rows => rows.map(r => ({ tenantSlug: r.tenant.tenantSlug, roleName: r.roleName ?? null })));
 
     // 3) currentTenant: { tenantId, tenantSlug, roleName } | null
-    let currentTenant: { tenantId: string; tenantSlug: string; roleName: 'OWNER' | 'ADMIN' | 'EDITOR' | 'VIEWER' } | null = null
+    type CurrentTenantShape = {
+      tenantId: string;
+      tenantSlug: string;
+      roleName: 'OWNER' | 'ADMIN' | 'EDITOR' | 'VIEWER' | null;
+    };
+    let currentTenant: CurrentTenantShape | null = null;
+
     const tenant = await prisma.tenant.findUnique({
       where: { id: currentTenantId },
       select: { id: true, tenantSlug: true },
-    })
+    });
 
     if (tenant) {
       const membership = await prisma.userTenantMembership.findUnique({
@@ -107,18 +116,28 @@ authRouter.get('/me', requireAuthenticatedUserMiddleware, async (request, respon
         currentTenant = {
           tenantId: tenant.id,
           tenantSlug: tenant.tenantSlug,
-          roleName: membership.roleName,
+          roleName: membership.roleName as 'OWNER' | 'ADMIN' | 'EDITOR' | 'VIEWER',
         }
       }
+    }
+    
+    let permissionsCurrentTenant: PermissionKey[] = [];
+    if (currentTenant) {
+      const set = await getPermissionKeysForUserInTenant({
+        userId: currentUserId,
+        tenantId: currentTenantId,
+      });
+      permissionsCurrentTenant = Array.from(set).sort();
     }
 
     return response.status(200).json(
       createStandardSuccessResponse({
-        user,                 // { id, userEmailAddress }
-        tenantMemberships,    // [{ tenantSlug, roleName }]
-        currentTenant,        // { tenantId, tenantSlug, roleName } | null
+        user,
+        tenantMemberships,
+        currentTenant,
+        permissionsCurrentTenant,
       })
-    )
+    );
   } catch (error) {
     return next(error)
   }

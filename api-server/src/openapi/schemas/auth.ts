@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ZodRoleName } from './common.js';
+import { ZodPermissionKey } from '../components/rbac.js';
 
 export const ZodSignInRequestBody = z
   .object({
@@ -16,22 +17,24 @@ export const ZodTenantMembership = z
   })
   .openapi('TenantMembership');
 
-export const ZodMeResponseData = z
-  .object({
+  export const ZodMeResponseData = z.object({
     user: z.object({
       id: z.string(),
       userEmailAddress: z.string().email(),
     }),
-    tenantMemberships: z.array(ZodTenantMembership),
-    currentTenant: z
-      .object({
-        tenantId: z.string(),
+    tenantMemberships: z.array(
+      z.object({
         tenantSlug: z.string(),
-        roleName: ZodRoleName,
+        roleName: z.enum(['OWNER', 'ADMIN', 'EDITOR', 'VIEWER']).nullable().optional(), // legacy while migrating
       })
-      .nullable(),
-  })
-  .openapi('MeResponseData');
+    ),
+    currentTenant: z.object({
+      tenantId: z.string(),
+      tenantSlug: z.string(),
+      roleName: z.enum(['OWNER', 'ADMIN', 'EDITOR', 'VIEWER']).nullable().optional(),
+    }).nullable(),
+    permissionsCurrentTenant: z.array(ZodPermissionKey),
+  }).openapi('MeResponseData');
 
 export const ZodSwitchTenantRequestBody = z
   .object({

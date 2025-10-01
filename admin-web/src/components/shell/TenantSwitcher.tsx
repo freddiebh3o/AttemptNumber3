@@ -23,6 +23,7 @@ export default function TenantSwitcher() {
       if (hydrated) return;
       try {
         const me = await meApiRequest();
+        console.log('me', me);
         setFromMe({
           user: me.data.user,
           tenantMemberships: me.data.tenantMemberships ?? [],

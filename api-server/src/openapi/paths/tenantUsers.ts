@@ -13,7 +13,7 @@ export const ZodTenantUserEnvelope = z.object({
   user: z.object({
     userId: z.string(),
     userEmailAddress: z.string().email(),
-    roleName: z.enum(['OWNER', 'ADMIN', 'EDITOR', 'VIEWER']),
+    roleName: z.enum(['OWNER', 'ADMIN', 'EDITOR', 'VIEWER']).nullable().optional(),
     createdAt: z.string().datetime().optional(),
     updatedAt: z.string().datetime().optional(),
   }),

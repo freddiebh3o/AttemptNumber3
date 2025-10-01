@@ -4,7 +4,7 @@ import multer from 'multer';
 import { z } from 'zod';
 import { createStandardSuccessResponse } from '../utils/standardResponse.js';
 import { requireAuthenticatedUserMiddleware } from '../middleware/sessionMiddleware.js';
-import { requireRoleAtLeastMiddleware } from '../middleware/rbacMiddleware.js';
+import { requirePermission } from '../middleware/permissionMiddleware.js';
 import { Errors } from '../utils/httpErrors.js';
 import { uploadImageToStorageService, type UploadKind } from '../services/uploadService.js';
 
@@ -26,7 +26,7 @@ export const uploadRouter = Router();
 uploadRouter.post(
   '/images',
   requireAuthenticatedUserMiddleware,
-  requireRoleAtLeastMiddleware('EDITOR'),
+  requirePermission('uploads:write'),
   upload.single('file'),
   async (req, res, next) => {
     try {

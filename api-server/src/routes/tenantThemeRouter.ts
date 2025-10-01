@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { createStandardSuccessResponse } from '../utils/standardResponse.js';
 import { validateRequestBodyWithZod, validateRequestParamsWithZod } from '../middleware/zodValidation.js';
 import { requireAuthenticatedUserMiddleware } from '../middleware/sessionMiddleware.js';
-import { requireRoleAtLeastMiddleware } from '../middleware/rbacMiddleware.js';
+import { requirePermission } from '../middleware/permissionMiddleware.js';
 import { idempotencyMiddleware } from '../middleware/idempotencyMiddleware.js';
 import {
   ensureTenantIdForSlugAndSession,
@@ -77,7 +77,7 @@ tenantThemeRouter.post(
   '/:tenantSlug/logo',
   idempotencyMiddleware(60),
   requireAuthenticatedUserMiddleware,
-  requireRoleAtLeastMiddleware('ADMIN'),
+  requirePermission('theme:manage'),
   validateRequestParamsWithZod(paramsSchema),
   upload.single('file'),
   async (req, res, next) => {
@@ -123,7 +123,7 @@ tenantThemeRouter.post(
 tenantThemeRouter.get(
   '/:tenantSlug/theme',
   requireAuthenticatedUserMiddleware,
-  requireRoleAtLeastMiddleware('VIEWER'),
+  requirePermission('theme:manage'),
   validateRequestParamsWithZod(paramsSchema),
   async (req, res, next) => {
     try {
@@ -141,7 +141,7 @@ tenantThemeRouter.put(
   '/:tenantSlug/theme',
   idempotencyMiddleware(60),
   requireAuthenticatedUserMiddleware,
-  requireRoleAtLeastMiddleware('ADMIN'),
+  requirePermission('theme:manage'),
   validateRequestParamsWithZod(paramsSchema),
   validateRequestBodyWithZod(putBodySchema),
   async (req, res, next) => {
