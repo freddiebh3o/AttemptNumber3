@@ -28,6 +28,15 @@ const rateLimiter = createFixedWindowRateLimiterMiddleware({
 });
 roleRouter.use(rateLimiter);
 
+const csvToArray = z
+  .string()
+  .transform((s) =>
+    s
+      .split(",")
+      .map((v) => v.trim())
+      .filter(Boolean)
+  );
+
 // GET /api/permissions
 roleRouter.get(
   '/permissions',
@@ -51,7 +60,7 @@ const listQuerySchema = z.object({
   cursorId: z.string().min(1).optional(),
   q: z.string().min(1).optional(),
   name: z.string().min(1).optional(),
-  isSystem: boolFromString.optional(),
+  isSystem: z.coerce.boolean().optional(),
   createdAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   createdAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   updatedAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -59,6 +68,8 @@ const listQuerySchema = z.object({
   sortBy: z.enum(['name', 'createdAt', 'updatedAt', 'isSystem']).optional(),
   sortDir: z.enum(['asc', 'desc']).optional(),
   includeTotal: z.coerce.boolean().optional(),
+  permissionKeys: csvToArray.optional(),              // e.g. "products:read,uploads:write"
+  permMatch: z.enum(['any', 'all']).optional(),       // defaults to 'any' if omitted
 });
 
 roleRouter.get(
@@ -85,6 +96,8 @@ roleRouter.get(
         ...(req.validatedQuery.sortBy !== undefined && { sortByOptional: req.validatedQuery.sortBy }),
         ...(req.validatedQuery.sortDir !== undefined && { sortDirOptional: req.validatedQuery.sortDir }),
         ...(req.validatedQuery.includeTotal !== undefined && { includeTotalOptional: req.validatedQuery.includeTotal }),
+        ...(req.validatedQuery.permissionKeys !== undefined && { permissionKeysOptional: req.validatedQuery.permissionKeys }),
+        ...(req.validatedQuery.permMatch !== undefined && { permMatchOptional: req.validatedQuery.permMatch }),
       });
 
       return res.status(200).json(createStandardSuccessResponse(result));

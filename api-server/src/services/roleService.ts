@@ -39,6 +39,10 @@ export async function listTenantRolesService(params: {
   sortByOptional?: "name" | "createdAt" | "updatedAt" | "isSystem";
   sortDirOptional?: "asc" | "desc";
   includeTotalOptional?: boolean;
+
+  // NEW
+  permissionKeysOptional?: string[];
+  permMatchOptional?: "any" | "all";
 }) {
   const {
     currentTenantId,
@@ -54,6 +58,8 @@ export async function listTenantRolesService(params: {
     sortByOptional = "updatedAt",
     sortDirOptional = "desc",
     includeTotalOptional = false,
+    permissionKeysOptional,
+    permMatchOptional = "any",
   } = params;
 
   const createdAt: Prisma.DateTimeFilter = {};
@@ -82,15 +88,37 @@ export async function listTenantRolesService(params: {
     ...((updatedAt.gte || updatedAt.lt) && { updatedAt }),
   };
 
+  if (permissionKeysOptional && permissionKeysOptional.length > 0) {
+    const uniqueKeys = [...new Set(permissionKeysOptional)];
+  
+    if (permMatchOptional === "all") {
+      // Must contain EVERY selected permission
+      const allClauses: Prisma.RoleWhereInput[] = uniqueKeys.map((k) => ({
+        permissions: { some: { permission: { key: k } } },
+      }));
+  
+      const existingAND: Prisma.RoleWhereInput[] = Array.isArray(where.AND)
+        ? where.AND
+        : where.AND
+        ? [where.AND]
+        : [];
+  
+      where.AND = [...existingAND, ...allClauses];
+    } else {
+      // ANY: contains at least one of the selected permissions
+      where.permissions = {
+        some: { permission: { key: { in: uniqueKeys } } },
+      };
+    }
+  }
+
   const orderBy: Prisma.RoleOrderByWithRelationInput[] =
     sortByOptional === "name"
       ? [{ name: sortDirOptional }, { id: sortDirOptional }]
       : sortByOptional === "isSystem"
       ? [{ isSystem: sortDirOptional }, { id: sortDirOptional }]
       : [
-          {
-            [sortByOptional]: sortDirOptional,
-          } as Prisma.RoleOrderByWithRelationInput,
+          { [sortByOptional]: sortDirOptional } as Prisma.RoleOrderByWithRelationInput,
           { id: sortDirOptional },
         ];
 
@@ -102,10 +130,15 @@ export async function listTenantRolesService(params: {
       where,
       take,
       ...(cursor && { skip: 1, cursor }),
-      orderBy,                 // <— now an array
+      orderBy,
       select: {
-        id: true, tenantId: true, name: true, description: true, isSystem: true,
-        createdAt: true, updatedAt: true,
+        id: true,
+        tenantId: true,
+        name: true,
+        description: true,
+        isSystem: true,
+        createdAt: true,
+        updatedAt: true,
         permissions: { select: { permission: { select: { key: true } } } },
       },
     }),
@@ -139,17 +172,14 @@ export async function listTenantRolesService(params: {
       filters: {
         ...(qOptional ? { q: qOptional } : {}),
         ...(nameOptional ? { name: nameOptional } : {}),
-        ...(isSystemOptional !== undefined
-          ? { isSystem: isSystemOptional }
-          : {}),
-        ...(createdAtFromOptional
-          ? { createdAtFrom: createdAtFromOptional }
-          : {}),
+        ...(isSystemOptional !== undefined ? { isSystem: isSystemOptional } : {}),
+        ...(createdAtFromOptional ? { createdAtFrom: createdAtFromOptional } : {}),
         ...(createdAtToOptional ? { createdAtTo: createdAtToOptional } : {}),
-        ...(updatedAtFromOptional
-          ? { updatedAtFrom: updatedAtFromOptional }
-          : {}),
+        ...(updatedAtFromOptional ? { updatedAtFrom: updatedAtFromOptional } : {}),
         ...(updatedAtToOptional ? { updatedAtTo: updatedAtToOptional } : {}),
+        ...(permissionKeysOptional && permissionKeysOptional.length
+          ? { permissionKeys: permissionKeysOptional, permMatch: permMatchOptional }
+          : {}),
       },
     },
   };

@@ -9,7 +9,8 @@ export const ZodRoleIdParam = z.object({ roleId: z.string().min(1) }).openapi('R
 
 export const ZodPermissionRecord = z.object({
   id: z.string(),
-  key: z.string(),
+  // tighten this to the enum we already expose
+  key: ZodPermissionKey,
   description: z.string(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
@@ -26,6 +27,9 @@ export const ZodRoleRecord = z.object({
   updatedAt: z.string().datetime(),
 }).openapi('RoleRecord');
 
+// NEW: helper enum for match mode
+export const ZodPermMatch = z.enum(['any', 'all']).openapi('PermMatch');
+
 export const ZodListRolesQuery = z.object({
   limit: z.number().int().min(1).max(100).optional(),
   cursorId: z.string().optional(),
@@ -37,6 +41,16 @@ export const ZodListRolesQuery = z.object({
   createdAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   updatedAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   updatedAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+
+  // NEW: permission filters (CSV in query)
+  permissionKeys: z
+    .string()
+    .describe('CSV of permission keys, e.g. "products:read,uploads:write"')
+    .optional(),
+  permMatch: ZodPermMatch
+    .describe("How to match permissionKeys: 'any' (default) or 'all'")
+    .optional(),
+
   // sort
   sortBy: z.enum(['name', 'createdAt', 'updatedAt', 'isSystem']).optional(),
   sortDir: z.enum(['asc', 'desc']).optional(),
@@ -64,6 +78,9 @@ export const ZodRolesListResponseData = z.object({
       createdAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
       updatedAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
       updatedAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      // NEW: reflect what the service echoes back
+      permissionKeys: z.array(ZodPermissionKey).optional(),
+      permMatch: ZodPermMatch.optional(),
     }),
   }),
 }).openapi('RolesListResponseData');

@@ -23,6 +23,10 @@ type DeleteRole200 =
 type ListPermissions200 =
   paths["/api/permissions"]["get"]["responses"]["200"]["content"]["application/json"];
 
+export type RoleRecord = components["schemas"]["RoleRecord"];
+export type PermissionRecord = components["schemas"]["PermissionRecord"];
+export type PermissionKey = components["schemas"]["PermissionKey"];
+
 export async function listRolesApiRequest(params?: {
   limit?: number;
   cursorId?: string;
@@ -36,6 +40,9 @@ export async function listRolesApiRequest(params?: {
   sortBy?: "name" | "createdAt" | "updatedAt" | "isSystem";
   sortDir?: "asc" | "desc";
   includeTotal?: boolean;
+  // NEW: permission filters
+  permissionKeys?: string[] | PermissionKey[];
+  permMatch?: "any" | "all";
 }) {
   const search = new URLSearchParams();
   if (params?.limit != null) search.set("limit", String(params.limit));
@@ -50,6 +57,17 @@ export async function listRolesApiRequest(params?: {
   if (params?.sortBy) search.set("sortBy", params.sortBy);
   if (params?.sortDir) search.set("sortDir", params.sortDir);
   if (params?.includeTotal) search.set("includeTotal", "1");
+
+  // NEW: permission filters as CSV + match mode
+  const keys = params?.permissionKeys ?? [];
+  if (Array.isArray(keys) && keys.length > 0) {
+    search.set("permissionKeys", keys.join(","));
+    if (params?.permMatch) search.set("permMatch", params.permMatch);
+  } else if (typeof params?.permissionKeys === "string" && params.permissionKeys) {
+    search.set("permissionKeys", String(params.permissionKeys));
+    if (params?.permMatch) search.set("permMatch", params.permMatch);
+  }
+
   const qs = search.toString();
   return httpRequestJson<ListRoles200>(`/api/roles${qs ? `?${qs}` : ""}`);
 }
@@ -92,6 +110,3 @@ export async function deleteRoleApiRequest(
     headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
   });
 }
-
-export type RoleRecord = components["schemas"]["RoleRecord"];
-export type PermissionRecord = components["schemas"]["PermissionRecord"];

@@ -1,5 +1,4 @@
 // admin-web/src/pages/RolesPage.tsx
-// admin-web/src/pages/RolesPage.tsx
 import { useEffect, useMemo, useState } from "react";
 import {
   useSearchParams,
@@ -25,6 +24,8 @@ import {
   Grid,
   CloseButton,
   Select,
+  MultiSelect,
+  SegmentedControl,
 } from "@mantine/core";
 import { DatePickerInput } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
@@ -43,7 +44,13 @@ import {
   IconPlayerTrackPrev,
   IconLink,
 } from "@tabler/icons-react";
-import { listRolesApiRequest, deleteRoleApiRequest } from "../api/roles";
+import {
+  listRolesApiRequest,
+  deleteRoleApiRequest,
+  listPermissionsApiRequest,
+  type PermissionRecord,
+  type PermissionKey,
+} from "../api/roles";
 import type { components } from "../types/openapi";
 import { FilterBar } from "../components/common/FilterBar";
 import RoleUpsertModal from "../components/roles/RoleUpsertModal";
@@ -60,6 +67,9 @@ type RoleFilters = {
   createdAtTo: string | null;
   updatedAtFrom: string | null;
   updatedAtTo: string | null;
+  // NEW: permissions filter
+  permissionKeys: PermissionKey[];
+  permMatch: "any" | "all";
 };
 
 const emptyFilters: RoleFilters = {
@@ -70,6 +80,8 @@ const emptyFilters: RoleFilters = {
   createdAtTo: null,
   updatedAtFrom: null,
   updatedAtTo: null,
+  permissionKeys: [],
+  permMatch: "any",
 };
 
 export default function RolesPage() {
@@ -88,6 +100,10 @@ export default function RolesPage() {
   const [errorForBoundary, setErrorForBoundary] = useState<
     (Error & { httpStatusCode?: number; correlationId?: string }) | null
   >(null);
+
+  // permissions catalogue for multiselect
+  const [permLoading, setPermLoading] = useState(false);
+  const [permOptions, setPermOptions] = useState<PermissionRecord[]>([]);
 
   // pagination/cursor
   const [hasNextPage, setHasNextPage] = useState(false);
@@ -141,6 +157,15 @@ export default function RolesPage() {
     return `Sort by ${label}. Activate to sort ascending.`;
   }
 
+  const permissionChoices = useMemo(
+    () =>
+      permOptions
+        .slice()
+        .sort((a, b) => a.key.localeCompare(b.key))
+        .map((p) => ({ value: p.key, label: `${p.key} — ${p.description}` })),
+    [permOptions]
+  );
+
   function setUrlFromState(
     over?: Partial<{
       cursorId: string | null;
@@ -155,6 +180,8 @@ export default function RolesPage() {
       createdAtTo: string | null;
       updatedAtFrom: string | null;
       updatedAtTo: string | null;
+      permissionKeys: PermissionKey[] | null;
+      permMatch: "any" | "all" | null;
     }>
   ) {
     const p = new URLSearchParams();
@@ -192,6 +219,15 @@ export default function RolesPage() {
         ? over.updatedAtTo
         : appliedFilters.updatedAtTo;
 
+    const permKeysVal =
+      over && Object.prototype.hasOwnProperty.call(over, "permissionKeys")
+        ? over.permissionKeys ?? []
+        : appliedFilters.permissionKeys;
+    const permMatchVal =
+      over && Object.prototype.hasOwnProperty.call(over, "permMatch")
+        ? over.permMatch ?? null
+        : appliedFilters.permMatch ?? null;
+
     put("limit", over?.limit ?? limit);
     put("sortBy", over?.sortBy ?? sortBy);
     put("sortDir", over?.sortDir ?? sortDir);
@@ -202,6 +238,11 @@ export default function RolesPage() {
     put("createdAtTo", createdToVal);
     put("updatedAtFrom", updatedFromVal);
     put("updatedAtTo", updatedToVal);
+
+    if (permKeysVal && permKeysVal.length > 0) {
+      p.set("permissionKeys", permKeysVal.join(","));
+      if (permMatchVal) p.set("permMatch", permMatchVal);
+    }
 
     const cursor =
       over?.cursorId === undefined
@@ -228,6 +269,8 @@ export default function RolesPage() {
     createdToOverride?: string | null | undefined;
     updatedFromOverride?: string | null | undefined;
     updatedToOverride?: string | null | undefined;
+    permissionKeysOverride?: PermissionKey[] | null | undefined;
+    permMatchOverride?: "any" | "all" | undefined;
   }) {
     setIsLoading(true);
     try {
@@ -265,6 +308,15 @@ export default function RolesPage() {
           ? appliedFilters.updatedAtTo || undefined
           : opts.updatedToOverride || undefined;
 
+      const permKeysParam =
+        opts?.permissionKeysOverride === undefined
+          ? appliedFilters.permissionKeys
+          : opts.permissionKeysOverride ?? [];
+      const permMatchParam =
+        opts?.permMatchOverride === undefined
+          ? appliedFilters.permMatch
+          : opts.permMatchOverride;
+
       const res = await listRolesApiRequest({
         limit: opts?.limitOverride ?? limit,
         cursorId: opts?.cursorId ?? cursorStack[pageIndex] ?? undefined,
@@ -278,6 +330,15 @@ export default function RolesPage() {
         sortBy: opts?.sortByOverride ?? sortBy,
         sortDir: opts?.sortDirOverride ?? sortDir,
         includeTotal: opts?.includeTotal === true,
+        // NEW:
+        permissionKeys:
+          Array.isArray(permKeysParam) && permKeysParam.length > 0
+            ? permKeysParam
+            : undefined,
+        permMatch:
+          Array.isArray(permKeysParam) && permKeysParam.length > 0
+            ? permMatchParam
+            : undefined,
       });
 
       if (res.success) {
@@ -314,6 +375,8 @@ export default function RolesPage() {
     createdToOverride?: string | null | undefined;
     updatedFromOverride?: string | null | undefined;
     updatedToOverride?: string | null | undefined;
+    permissionKeysOverride?: PermissionKey[] | null | undefined;
+    permMatchOverride?: "any" | "all" | undefined;
   }) {
     setCursorStack([null]);
     setPageIndex(0);
@@ -330,6 +393,14 @@ export default function RolesPage() {
       createdAtTo: opts?.createdToOverride ?? null,
       updatedAtFrom: opts?.updatedFromOverride ?? null,
       updatedAtTo: opts?.updatedToOverride ?? null,
+      permissionKeys:
+        opts?.permissionKeysOverride === undefined
+          ? appliedFilters.permissionKeys
+          : opts.permissionKeysOverride ?? [],
+      permMatch:
+        opts?.permMatchOverride === undefined
+          ? appliedFilters.permMatch
+          : opts.permMatchOverride ?? "any",
     });
     void fetchPageWith({ includeTotal: true, cursorId: null, ...opts });
   }
@@ -345,6 +416,8 @@ export default function RolesPage() {
       createdAtTo: values.createdAtTo ?? null,
       updatedAtFrom: values.updatedAtFrom ?? null,
       updatedAtTo: values.updatedAtTo ?? null,
+      permissionKeys: values.permissionKeys,
+      permMatch: values.permissionKeys.length ? values.permMatch : null,
     });
     resetToFirstPageAndFetch({
       qOverride: values.q.trim() || null,
@@ -354,11 +427,32 @@ export default function RolesPage() {
       createdToOverride: values.createdAtTo ?? null,
       updatedFromOverride: values.updatedAtFrom ?? null,
       updatedToOverride: values.updatedAtTo ?? null,
+      permissionKeysOverride: values.permissionKeys,
+      permMatchOverride: values.permissionKeys.length
+        ? values.permMatch
+        : "any",
     });
   }
   function clearAllFiltersAndFetch() {
     applyAndFetch(emptyFilters);
   }
+
+  // Load permission catalogue for the multiselect (once when page opens)
+  useEffect(() => {
+    let cancelled = false;
+    setPermLoading(true);
+    listPermissionsApiRequest()
+      .then((res) => {
+        if (cancelled) return;
+        if (res.success) {
+          setPermOptions(res.data.permissions);
+        }
+      })
+      .finally(() => setPermLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // initial load / tenant change
   useEffect(() => {
@@ -388,6 +482,15 @@ export default function RolesPage() {
     const qpUpdatedTo = searchParams.get("updatedAtTo");
     const qpCursor = searchParams.get("cursorId");
 
+    // NEW: permission filters from URL (CSV)
+    const qpPermKeysCSV = searchParams.get("permissionKeys") || "";
+    const qpPermKeys = qpPermKeysCSV
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean) as PermissionKey[];
+    const qpPermMatch =
+      (searchParams.get("permMatch") as "any" | "all" | null) ?? "any";
+
     if (!Number.isNaN(qpLimit) && qpLimit)
       setLimit(Math.max(1, Math.min(100, qpLimit)));
     if (qpSortBy) setSortBy(qpSortBy);
@@ -401,6 +504,8 @@ export default function RolesPage() {
       createdAtTo: qpCreatedTo ?? null,
       updatedAtFrom: qpUpdatedFrom ?? null,
       updatedAtTo: qpUpdatedTo ?? null,
+      permissionKeys: qpPermKeys,
+      permMatch: qpPermKeys.length ? qpPermMatch : "any",
     });
 
     setCursorStack([qpCursor ?? null]);
@@ -422,6 +527,8 @@ export default function RolesPage() {
       createdToOverride: qpCreatedTo ?? undefined,
       updatedFromOverride: qpUpdatedFrom ?? undefined,
       updatedToOverride: qpUpdatedTo ?? undefined,
+      permissionKeysOverride: qpPermKeys.length ? qpPermKeys : undefined,
+      permMatchOverride: qpPermKeys.length ? qpPermMatch : undefined,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantSlug]);
@@ -445,6 +552,14 @@ export default function RolesPage() {
     const qpPage = Number(sp.get("page") ?? "1");
     const newPageIndex = Number.isFinite(qpPage) && qpPage > 0 ? qpPage - 1 : 0;
 
+    // NEW: permission filters from URL (CSV)
+    const qpPermKeysCSV = sp.get("permissionKeys") || "";
+    const qpPermKeys = qpPermKeysCSV
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean) as PermissionKey[];
+    const qpPermMatch = (sp.get("permMatch") as "any" | "all" | null) ?? "any";
+
     if (!Number.isNaN(qpLimit) && qpLimit)
       setLimit(Math.max(1, Math.min(100, qpLimit)));
     if (qpSortBy) setSortBy(qpSortBy);
@@ -458,6 +573,8 @@ export default function RolesPage() {
       createdAtTo: qpCreatedTo ?? null,
       updatedAtFrom: qpUpdatedFrom ?? null,
       updatedAtTo: qpUpdatedTo ?? null,
+      permissionKeys: qpPermKeys,
+      permMatch: qpPermKeys.length ? qpPermMatch : "any",
     });
 
     setCursorStack([qpCursor ?? null]);
@@ -479,6 +596,8 @@ export default function RolesPage() {
       createdToOverride: qpCreatedTo ?? undefined,
       updatedFromOverride: qpUpdatedFrom ?? undefined,
       updatedToOverride: qpUpdatedTo ?? undefined,
+      permissionKeysOverride: qpPermKeys.length ? qpPermKeys : undefined,
+      permMatchOverride: qpPermKeys.length ? qpPermMatch : undefined,
     });
   }, [location.key, navigationType, tenantSlug]);
 
@@ -561,7 +680,10 @@ export default function RolesPage() {
   }
 
   const activeFilterChips = useMemo(() => {
-    const chips: { key: keyof RoleFilters; label: string }[] = [];
+    const chips: {
+      key: keyof RoleFilters | "permissionKeys";
+      label: string;
+    }[] = [];
     if (appliedFilters.q.trim())
       chips.push({ key: "q", label: `search: "${appliedFilters.q.trim()}"` });
     if (appliedFilters.name.trim())
@@ -591,10 +713,18 @@ export default function RolesPage() {
         key: "updatedAtTo",
         label: `updated ≤ ${appliedFilters.updatedAtTo}`,
       });
+    if (appliedFilters.permissionKeys.length > 0) {
+      chips.push({
+        key: "permissionKeys" as const,
+        label: `perms (${
+          appliedFilters.permMatch
+        }): ${appliedFilters.permissionKeys.join(", ")}`,
+      });
+    }
     return chips;
   }, [appliedFilters]);
 
-  function clearOneChip(key: keyof RoleFilters) {
+  function clearOneChip(key: keyof RoleFilters | "permissionKeys") {
     const next: RoleFilters = {
       ...appliedFilters,
       q: key === "q" ? "" : appliedFilters.q,
@@ -606,6 +736,9 @@ export default function RolesPage() {
       updatedAtFrom:
         key === "updatedAtFrom" ? null : appliedFilters.updatedAtFrom,
       updatedAtTo: key === "updatedAtTo" ? null : appliedFilters.updatedAtTo,
+      permissionKeys:
+        key === "permissionKeys" ? [] : appliedFilters.permissionKeys,
+      permMatch: key === "permissionKeys" ? "any" : appliedFilters.permMatch,
     };
     applyAndFetch(next);
   }
@@ -776,6 +909,46 @@ export default function RolesPage() {
                 clearable
               />
             </Grid.Col>
+
+            <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+
+            </Grid.Col>
+
+            {/* NEW: permission multiselect + match mode */}
+            <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+              <SegmentedControl
+                w={150}
+                aria-label="Permission match mode"
+                value={values.permMatch}
+                onChange={(v) =>
+                  setValues({
+                    ...values,
+                    permMatch: (v as "any" | "all") ?? "any",
+                  })
+                }
+                data={[
+                  { value: "any", label: "Any" },
+                  { value: "all", label: "All" },
+                ]}
+              />
+
+              <MultiSelect
+                label="Permissions (any/all)"
+                placeholder={
+                  permLoading ? "Loading permissions…" : "Select permissions"
+                }
+                data={permissionChoices}
+                value={values.permissionKeys}
+                onChange={(v) =>
+                  setValues({ ...values, permissionKeys: v as PermissionKey[] })
+                }
+                searchable
+                clearable
+                disabled={permLoading}
+                nothingFoundMessage="No permissions"
+                maxDropdownHeight={260}
+              />
+            </Grid.Col>
           </Grid>
         )}
       </FilterBar>
@@ -814,10 +987,6 @@ export default function RolesPage() {
             </Group>
           </Group>
 
-          {/* Errors */}
-          {/* If you throw into a boundary elsewhere, keep this minimal. */}
-          {/* <Alert color="red" mb="md" title="Error">{error}</Alert> */}
-
           {rows === null || isLoading ? (
             <div
               className="flex items-center justify-center p-8"
@@ -847,7 +1016,9 @@ export default function RolesPage() {
                           aria-label={`Clear ${chip.label}`}
                           onClick={(e) => {
                             e.stopPropagation();
-                            clearOneChip(chip.key);
+                            clearOneChip(
+                              chip.key as keyof RoleFilters | "permissionKeys"
+                            );
                           }}
                         />
                       }
@@ -929,9 +1100,9 @@ export default function RolesPage() {
                         </Group>
                       </Table.Th>
 
-                      <Table.Th scope="col">System</Table.Th>
+                      <Table.Th scope="col" className="min-w-[100px]">System</Table.Th>
 
-                      <Table.Th scope="col">Permissions</Table.Th>
+                      <Table.Th scope="col" className="min-w-[150px]">Permissions</Table.Th>
 
                       <Table.Th
                         scope="col"

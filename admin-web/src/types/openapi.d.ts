@@ -1586,6 +1586,10 @@ export interface paths {
                     createdAtTo?: string;
                     updatedAtFrom?: string;
                     updatedAtTo?: string;
+                    /** @description CSV of permission keys, e.g. "products:read,uploads:write" */
+                    permissionKeys?: string;
+                    /** @description How to match permissionKeys: 'any' (default) or 'all' */
+                    permMatch?: "any" | "all";
                     sortBy?: "name" | "createdAt" | "updatedAt" | "isSystem";
                     sortDir?: "asc" | "desc";
                     includeTotal?: boolean;
@@ -2180,7 +2184,7 @@ export interface components {
         };
         PermissionRecord: {
             id: string;
-            key: string;
+            key: components["schemas"]["PermissionKey"];
             description: string;
             /** Format: date-time */
             createdAt: string;
@@ -2199,6 +2203,8 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
         };
+        /** @enum {string} */
+        PermMatch: "any" | "all";
         RolesListResponseData: {
             items: components["schemas"]["RoleRecord"][];
             pageInfo: {
@@ -2222,6 +2228,8 @@ export interface components {
                     createdAtTo?: string;
                     updatedAtFrom?: string;
                     updatedAtTo?: string;
+                    permissionKeys?: components["schemas"]["PermissionKey"][];
+                    permMatch?: components["schemas"]["PermMatch"];
                 };
             };
         };
