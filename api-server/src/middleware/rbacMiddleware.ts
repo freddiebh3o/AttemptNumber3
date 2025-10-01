@@ -23,7 +23,7 @@ export function requireRoleAtLeastMiddleware(requiredRoleName: 'VIEWER' | 'EDITO
     })
     if (!membershipRecord) return next(Errors.permissionDenied())
 
-    const currentRoleRank = rolePrivilegeRankMap[membershipRecord.roleName] ?? 0
+    const currentRoleRank = rolePrivilegeRankMap[membershipRecord.roleName as 'OWNER' | 'ADMIN' | 'EDITOR' | 'VIEWER'] ?? 0
     const requiredRoleRank = rolePrivilegeRankMap[requiredRoleName] ?? 999
     if (currentRoleRank < requiredRoleRank) return next(Errors.permissionDenied())
 
