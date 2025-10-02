@@ -26,7 +26,7 @@ const productSkuRegex = /^[A-Z0-9-]{3,40}$/;
 
 const productRateLimiterMiddleware = createFixedWindowRateLimiterMiddleware({
   windowSeconds: 60,
-  limit: 60,
+  limit: 300,
   bucketScope: "ip+session",
 });
 

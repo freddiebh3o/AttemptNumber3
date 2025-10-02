@@ -29,7 +29,13 @@ async function isOwner(tenantId: string, userId: string) {
 
 /**
  * List tenant users with role info.
- * Supports filters by email, roleId, roleName (contains), date ranges, and sorting (including role.name).
+ * Supports filters by email, roleId, roleName (contains), date ranges,
+ * and sorting (including role.name).
+ *
+ * Deterministic pagination:
+ * - orderBy always includes `id` as a tie-breaker
+ * - fetch `limit+1` rows to detect next page
+ * - when using a cursor, skip the cursor row itself
  */
 export async function listUsersForCurrentTenantService(params: {
   currentTenantId: string;
@@ -86,23 +92,27 @@ export async function listUsersForCurrentTenantService(params: {
     ...((updatedAt.gte || updatedAt.lt) && { updatedAt }),
   };
 
-  // Sort mapping (role => role.name)
-  const orderBy: Prisma.UserTenantMembershipOrderByWithRelationInput =
+  // Deterministic order with `id` tie-breaker
+  const orderBy: Prisma.UserTenantMembershipOrderByWithRelationInput[] =
     sortByOptional === 'userEmailAddress'
-      ? { user: { userEmailAddress: sortDirOptional } }
+      ? [{ user: { userEmailAddress: sortDirOptional } }, { id: sortDirOptional }]
       : sortByOptional === 'role'
-      ? { role: { name: sortDirOptional } }
-      : ({ [sortByOptional]: sortDirOptional } as Prisma.UserTenantMembershipOrderByWithRelationInput);
+      ? [{ role: { name: sortDirOptional } }, { id: sortDirOptional }]
+      : [
+          { [sortByOptional]: sortDirOptional } as Prisma.UserTenantMembershipOrderByWithRelationInput,
+          { id: sortDirOptional },
+        ];
 
-  const take = Math.max(1, Math.min(100, limitOptional));
+  const limit = Math.max(1, Math.min(100, limitOptional));
+  const take = limit + 1; // fetch one extra to detect next page
   const cursor = cursorIdOptional ? { id: cursorIdOptional } : undefined;
 
   const [rows, total] = await Promise.all([
     prismaClientInstance.userTenantMembership.findMany({
       where,
-      take,
-      ...(cursor && { skip: 1, cursor }),
       orderBy,
+      take,
+      ...(cursor && { cursor, skip: 1 }), // exclude the cursor row
       select: {
         id: true,
         createdAt: true,
@@ -127,7 +137,11 @@ export async function listUsersForCurrentTenantService(params: {
       : Promise.resolve(0),
   ]);
 
-  const items = rows.map((m) => ({
+  // Page window & hasNext
+  const hasNextPage = rows.length > limit;
+  const pageRows = hasNextPage ? rows.slice(0, limit) : rows;
+
+  const items = pageRows.map((m) => ({
     userId: m.user.id,
     userEmailAddress: m.user.userEmailAddress,
     role: m.role
@@ -146,18 +160,17 @@ export async function listUsersForCurrentTenantService(params: {
     updatedAt: m.updatedAt.toISOString(),
   }));
 
-  const last = rows.at(-1);
-  const nextCursor = last ? last.id : null;
+  const nextCursor = hasNextPage ? pageRows[pageRows.length - 1]?.id ?? null : null;
 
   return {
     items,
     pageInfo: {
-      hasNextPage: Boolean(nextCursor),
+      hasNextPage,
       nextCursor,
       ...(includeTotalOptional ? { totalCount: total } : {}),
     },
     applied: {
-      limit: take,
+      limit, // return the real page size, not `take`
       sort: { field: sortByOptional, direction: sortDirOptional },
       filters: {
         ...(qOptional ? { q: qOptional } : {}),

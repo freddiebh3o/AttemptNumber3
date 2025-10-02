@@ -23,7 +23,7 @@ export const roleRouter = Router();
 
 const rateLimiter = createFixedWindowRateLimiterMiddleware({
   windowSeconds: 60,
-  limit: 60,
+  limit: 300,
   bucketScope: 'ip+session',
 });
 roleRouter.use(rateLimiter);

@@ -322,13 +322,24 @@ export default function ProductsPage() {
 
       if (response.success) {
         const data = response.data;
-        setProductsListRecords(data.items);
-        setNextCursor(data.pageInfo.nextCursor ?? null);
-        setHasNextPage(data.pageInfo.hasNextPage);
-        if (
-          opts?.includeTotal &&
-          typeof data.pageInfo.totalCount === "number"
-        ) {
+        const items = data.items ?? [];
+        const effectiveLimit = opts?.limitOverride ?? limit;
+      
+        // Save rows first
+        setProductsListRecords(items);
+      
+        // Derive next page more defensively, mirroring Roles
+        const serverHasNext = Boolean(data.pageInfo.hasNextPage);
+        const serverNextCursor = data.pageInfo.nextCursor ?? null;
+      
+        // Only trust "hasNextPage" if we actually got a full page AND a cursor
+        const clientHasNext =
+          serverHasNext && items.length === effectiveLimit && !!serverNextCursor;
+      
+        setHasNextPage(clientHasNext);
+        setNextCursor(clientHasNext ? serverNextCursor : null);
+      
+        if (opts?.includeTotal && typeof data.pageInfo.totalCount === "number") {
           setTotalCount(data.pageInfo.totalCount);
         }
       } else {
@@ -519,7 +530,7 @@ export default function ProductsPage() {
       setCursorStack((prev) => [...prev.slice(0, pageIndex + 1), nextCursor]);
       setPageIndex(newIndex);
       setUrlFromState({ cursorId: nextCursor, page: newIndex + 1 });
-      setTimeout(() => void fetchPageWith(), 0);
+      await fetchPageWith({ cursorId: nextCursor });
     } finally {
       setIsPaginating(false);
     }
@@ -533,7 +544,7 @@ export default function ProductsPage() {
       const newIndex = pageIndex - 1;
       setPageIndex(newIndex);
       setUrlFromState({ cursorId: prevCursor, page: newIndex + 1 });
-      setTimeout(() => void fetchPageWith(), 0);
+      await fetchPageWith({ cursorId: prevCursor });
     } finally {
       setIsPaginating(false);
     }

@@ -90,19 +90,19 @@ export async function listTenantRolesService(params: {
 
   if (permissionKeysOptional && permissionKeysOptional.length > 0) {
     const uniqueKeys = [...new Set(permissionKeysOptional)];
-  
+
     if (permMatchOptional === "all") {
       // Must contain EVERY selected permission
       const allClauses: Prisma.RoleWhereInput[] = uniqueKeys.map((k) => ({
         permissions: { some: { permission: { key: k } } },
       }));
-  
+
       const existingAND: Prisma.RoleWhereInput[] = Array.isArray(where.AND)
         ? where.AND
         : where.AND
         ? [where.AND]
         : [];
-  
+
       where.AND = [...existingAND, ...allClauses];
     } else {
       // ANY: contains at least one of the selected permissions
@@ -118,17 +118,21 @@ export async function listTenantRolesService(params: {
       : sortByOptional === "isSystem"
       ? [{ isSystem: sortDirOptional }, { id: sortDirOptional }]
       : [
-          { [sortByOptional]: sortDirOptional } as Prisma.RoleOrderByWithRelationInput,
+          {
+            [sortByOptional]: sortDirOptional,
+          } as Prisma.RoleOrderByWithRelationInput,
           { id: sortDirOptional },
         ];
 
   const take = Math.max(1, Math.min(100, limitOptional));
   const cursor = cursorIdOptional ? { id: cursorIdOptional } : undefined;
 
-  const [rows, total] = await Promise.all([
+  const takePlusOne = Math.min(101, take + 1);
+
+  const [rawRows, total] = await Promise.all([
     prisma.role.findMany({
       where,
-      take,
+      take: takePlusOne,
       ...(cursor && { skip: 1, cursor }),
       orderBy,
       select: {
@@ -145,7 +149,11 @@ export async function listTenantRolesService(params: {
     includeTotalOptional ? prisma.role.count({ where }) : Promise.resolve(0),
   ]);
 
-  const items = rows.map((r) => ({
+  const hasNextPage = rawRows.length > take;
+  const pageRows = hasNextPage ? rawRows.slice(0, take) : rawRows;
+  const nextCursor = hasNextPage ? pageRows[pageRows.length - 1]!.id : null;
+
+  const items = pageRows.map((r) => ({
     id: r.id,
     tenantId: r.tenantId ?? "",
     name: r.name,
@@ -156,13 +164,10 @@ export async function listTenantRolesService(params: {
     updatedAt: r.updatedAt.toISOString(),
   }));
 
-  const last = rows.at(-1);
-  const nextCursor = last ? last.id : null;
-
   return {
     items,
     pageInfo: {
-      hasNextPage: Boolean(nextCursor),
+      hasNextPage,
       nextCursor,
       ...(includeTotalOptional ? { totalCount: total } : {}),
     },
@@ -172,13 +177,22 @@ export async function listTenantRolesService(params: {
       filters: {
         ...(qOptional ? { q: qOptional } : {}),
         ...(nameOptional ? { name: nameOptional } : {}),
-        ...(isSystemOptional !== undefined ? { isSystem: isSystemOptional } : {}),
-        ...(createdAtFromOptional ? { createdAtFrom: createdAtFromOptional } : {}),
+        ...(isSystemOptional !== undefined
+          ? { isSystem: isSystemOptional }
+          : {}),
+        ...(createdAtFromOptional
+          ? { createdAtFrom: createdAtFromOptional }
+          : {}),
         ...(createdAtToOptional ? { createdAtTo: createdAtToOptional } : {}),
-        ...(updatedAtFromOptional ? { updatedAtFrom: updatedAtFromOptional } : {}),
+        ...(updatedAtFromOptional
+          ? { updatedAtFrom: updatedAtFromOptional }
+          : {}),
         ...(updatedAtToOptional ? { updatedAtTo: updatedAtToOptional } : {}),
         ...(permissionKeysOptional && permissionKeysOptional.length
-          ? { permissionKeys: permissionKeysOptional, permMatch: permMatchOptional }
+          ? {
+              permissionKeys: permissionKeysOptional,
+              permMatch: permMatchOptional,
+            }
           : {}),
       },
     },

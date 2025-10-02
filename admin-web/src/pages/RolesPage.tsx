@@ -619,23 +619,33 @@ export default function RolesPage() {
     setIsPaginating(true);
     try {
       const newIndex = pageIndex + 1;
+  
+      // Push the cursor for the *next* page now
       setCursorStack((prev) => [...prev.slice(0, pageIndex + 1), nextCursor]);
       setPageIndex(newIndex);
+  
+      // Reflect it in the URL immediately
       setUrlFromState({ cursorId: nextCursor, page: newIndex + 1 });
-      setTimeout(() => void fetchPageWith(), 0);
+  
+      // IMPORTANT: fetch using the explicit cursor we just got from the server
+      await fetchPageWith({ cursorId: nextCursor });
     } finally {
       setIsPaginating(false);
     }
   }
+  
   async function goPrevPage() {
     if (pageIndex === 0) return;
     setIsPaginating(true);
     try {
       const prevCursor = cursorStack[pageIndex - 1] ?? null;
       const newIndex = pageIndex - 1;
+  
       setPageIndex(newIndex);
       setUrlFromState({ cursorId: prevCursor, page: newIndex + 1 });
-      setTimeout(() => void fetchPageWith(), 0);
+  
+      // IMPORTANT: fetch using the explicit previous cursor
+      await fetchPageWith({ cursorId: prevCursor });
     } finally {
       setIsPaginating(false);
     }

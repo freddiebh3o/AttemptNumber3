@@ -29,7 +29,7 @@ const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
 const tenantUsersRateLimiter = createFixedWindowRateLimiterMiddleware({
   windowSeconds: 60,
-  limit: 60,
+  limit: 300,
   bucketScope: "ip+session",
 });
 

@@ -1,9 +1,28 @@
 // admin-web/src/pages/TenantUsersPage.tsx
 import { useEffect, useState, useMemo } from "react";
-import { useParams, useSearchParams, useLocation, useNavigationType } from "react-router-dom";
 import {
-  ActionIcon, Badge, Button, CloseButton, Group, Loader, NumberInput, Paper,
-  Stack, Table, Text, TextInput, Title, rem, Tooltip, Grid
+  useParams,
+  useSearchParams,
+  useLocation,
+  useNavigationType,
+} from "react-router-dom";
+import {
+  ActionIcon,
+  Badge,
+  Button,
+  CloseButton,
+  Group,
+  Loader,
+  NumberInput,
+  Paper,
+  Stack,
+  Table,
+  Text,
+  TextInput,
+  Title,
+  rem,
+  Tooltip,
+  Grid,
 } from "@mantine/core";
 import { DatePickerInput } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
@@ -14,8 +33,19 @@ import {
 import { handlePageError } from "../utils/pageError";
 import { useAuthStore } from "../stores/auth";
 import {
-  IconPlus, IconPencil, IconTrash, IconRefresh, IconArrowsSort, IconArrowUp, IconArrowDown,
-  IconFilter, IconChevronDown, IconChevronUp, IconPlayerTrackNext, IconPlayerTrackPrev, IconLink
+  IconPlus,
+  IconPencil,
+  IconTrash,
+  IconRefresh,
+  IconArrowsSort,
+  IconArrowUp,
+  IconArrowDown,
+  IconFilter,
+  IconChevronDown,
+  IconChevronUp,
+  IconPlayerTrackNext,
+  IconPlayerTrackPrev,
+  IconLink,
 } from "@tabler/icons-react";
 import { FilterBar } from "../components/common/FilterBar";
 import type { components } from "../types/openapi";
@@ -26,7 +56,7 @@ type SortDir = "asc" | "desc";
 type UserRow = components["schemas"]["TenantUserRecord"];
 
 type UserFilters = {
-  q: string;                    // email contains
+  q: string; // email contains
   roleName: string;
   createdAtFrom: string | null; // YYYY-MM-DD
   createdAtTo: string | null;
@@ -58,7 +88,9 @@ export default function TenantUsersPage() {
   // data state
   const [isLoading, setIsLoading] = useState(false);
   const [rows, setRows] = useState<UserRow[] | null>(null);
-  const [errorForBoundary, setErrorForBoundary] = useState<(Error & { httpStatusCode?: number; correlationId?: string }) | null>(null);
+  const [errorForBoundary, setErrorForBoundary] = useState<
+    (Error & { httpStatusCode?: number; correlationId?: string }) | null
+  >(null);
 
   // pagination/cursor
   const [hasNextPage, setHasNextPage] = useState(false);
@@ -77,12 +109,15 @@ export default function TenantUsersPage() {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   // filters
-  const [appliedFilters, setAppliedFilters] = useState<UserFilters>(emptyUserFilters);
+  const [appliedFilters, setAppliedFilters] =
+    useState<UserFilters>(emptyUserFilters);
 
   if (errorForBoundary) throw errorForBoundary;
 
   // helpers
-  function nextDir(dir: SortDir) { return dir === "asc" ? "desc" : "asc"; }
+  function nextDir(dir: SortDir) {
+    return dir === "asc" ? "desc" : "asc";
+  }
   function colAriaSort(field: SortField): "ascending" | "descending" | "none" {
     if (sortBy !== field) return "none";
     return sortDir === "asc" ? "ascending" : "descending";
@@ -123,26 +158,30 @@ export default function TenantUsersPage() {
 
     const roleVal =
       overrides?.roleName === undefined
-        ? (appliedFilters.roleName || null)
-        : (overrides.roleName || null);
+        ? appliedFilters.roleName.trim() || null
+        : overrides.roleName?.toString().trim() || null;
 
     const createdFromVal =
-      overrides && Object.prototype.hasOwnProperty.call(overrides, "createdAtFrom")
+      overrides &&
+      Object.prototype.hasOwnProperty.call(overrides, "createdAtFrom")
         ? overrides.createdAtFrom
         : appliedFilters.createdAtFrom;
 
     const createdToVal =
-      overrides && Object.prototype.hasOwnProperty.call(overrides, "createdAtTo")
+      overrides &&
+      Object.prototype.hasOwnProperty.call(overrides, "createdAtTo")
         ? overrides.createdAtTo
         : appliedFilters.createdAtTo;
 
     const updatedFromVal =
-      overrides && Object.prototype.hasOwnProperty.call(overrides, "updatedAtFrom")
+      overrides &&
+      Object.prototype.hasOwnProperty.call(overrides, "updatedAtFrom")
         ? overrides.updatedAtFrom
         : appliedFilters.updatedAtFrom;
 
     const updatedToVal =
-      overrides && Object.prototype.hasOwnProperty.call(overrides, "updatedAtTo")
+      overrides &&
+      Object.prototype.hasOwnProperty.call(overrides, "updatedAtTo")
         ? overrides.updatedAtTo
         : appliedFilters.updatedAtTo;
 
@@ -156,10 +195,13 @@ export default function TenantUsersPage() {
     put("updatedAtFrom", updatedFromVal);
     put("updatedAtTo", updatedToVal);
 
-    const cursor = overrides?.cursorId === undefined ? (cursorStack[pageIndex] ?? null) : overrides.cursorId;
+    const cursor =
+      overrides?.cursorId === undefined
+        ? cursorStack[pageIndex] ?? null
+        : overrides.cursorId;
     if (cursor) params.set("cursorId", cursor);
 
-    const pageToWrite = overrides?.page ?? (pageIndex + 1);
+    const pageToWrite = overrides?.page ?? pageIndex + 1;
     put("page", pageToWrite);
 
     setSearchParams(params, { replace: false });
@@ -181,22 +223,32 @@ export default function TenantUsersPage() {
     setIsLoading(true);
     try {
       const qParam =
-        opts?.qOverride === undefined ? (appliedFilters.q.trim() || undefined) : (opts.qOverride || undefined);
+        opts?.qOverride === undefined
+          ? appliedFilters.q.trim() || undefined
+          : opts.qOverride || undefined;
 
       const roleParam =
         opts?.roleNameOverride === undefined
-          ? (appliedFilters.roleName.trim() || undefined)
-          : (opts.roleNameOverride?.trim() || undefined);
+          ? appliedFilters.roleName.trim() || undefined
+          : opts.roleNameOverride?.trim() || undefined;
 
       const createdFromParam =
-        opts?.createdFromOverride === undefined ? (appliedFilters.createdAtFrom || undefined) : (opts.createdFromOverride || undefined);
+        opts?.createdFromOverride === undefined
+          ? appliedFilters.createdAtFrom || undefined
+          : opts.createdFromOverride || undefined;
       const createdToParam =
-        opts?.createdToOverride === undefined ? (appliedFilters.createdAtTo || undefined) : (opts.createdToOverride || undefined);
+        opts?.createdToOverride === undefined
+          ? appliedFilters.createdAtTo || undefined
+          : opts.createdToOverride || undefined;
 
       const updatedFromParam =
-        opts?.updatedFromOverride === undefined ? (appliedFilters.updatedAtFrom || undefined) : (opts.updatedFromOverride || undefined);
+        opts?.updatedFromOverride === undefined
+          ? appliedFilters.updatedAtFrom || undefined
+          : opts.updatedFromOverride || undefined;
       const updatedToParam =
-        opts?.updatedToOverride === undefined ? (appliedFilters.updatedAtTo || undefined) : (opts.updatedToOverride || undefined);
+        opts?.updatedToOverride === undefined
+          ? appliedFilters.updatedAtTo || undefined
+          : opts.updatedToOverride || undefined;
 
       const res = await listTenantUsersApiRequest({
         limit: opts?.limitOverride ?? limit,
@@ -214,15 +266,34 @@ export default function TenantUsersPage() {
 
       if (res.success) {
         const data = res.data;
-        // normalize API -> UI row shape
+
+        // Update rows first
         setRows(data.items);
-        setNextCursor(data.pageInfo.nextCursor ?? null);
-        setHasNextPage(data.pageInfo.hasNextPage);
-        if (opts?.includeTotal && typeof data.pageInfo.totalCount === "number") {
+
+        // Server flags
+        const serverHasNext =
+          Boolean(data.pageInfo.hasNextPage) &&
+          Boolean(data.pageInfo.nextCursor);
+
+        // Client-side guard: if we received fewer than we asked for, there is no next page
+        const requested = opts?.limitOverride ?? limit;
+        const clientSeesEnd = data.items.length < requested;
+
+        const saneHasNext = serverHasNext && !clientSeesEnd;
+
+        setHasNextPage(saneHasNext);
+        setNextCursor(saneHasNext ? data.pageInfo.nextCursor ?? null : null);
+
+        if (
+          opts?.includeTotal &&
+          typeof data.pageInfo.totalCount === "number"
+        ) {
           setTotalCount(data.pageInfo.totalCount);
         }
       } else {
-        const e = Object.assign(new Error("Failed to load users"), { httpStatusCode: 500 });
+        const e = Object.assign(new Error("Failed to load users"), {
+          httpStatusCode: 500,
+        });
         setErrorForBoundary(e);
       }
     } catch (e: any) {
@@ -294,7 +365,8 @@ export default function TenantUsersPage() {
     setErrorForBoundary(null);
 
     const qpPage = Number(searchParams.get("page") ?? "1");
-    const initialPageIndex = Number.isFinite(qpPage) && qpPage > 0 ? qpPage - 1 : 0;
+    const initialPageIndex =
+      Number.isFinite(qpPage) && qpPage > 0 ? qpPage - 1 : 0;
 
     const qpLimit = Number(searchParams.get("limit"));
     const qpSortBy = searchParams.get("sortBy") as SortField | null;
@@ -307,7 +379,8 @@ export default function TenantUsersPage() {
     const qpUpdatedTo = searchParams.get("updatedAtTo");
     const qpCursor = searchParams.get("cursorId");
 
-    if (!Number.isNaN(qpLimit) && qpLimit) setLimit(Math.max(1, Math.min(100, qpLimit)));
+    if (!Number.isNaN(qpLimit) && qpLimit)
+      setLimit(Math.max(1, Math.min(100, qpLimit)));
     if (qpSortBy) setSortBy(qpSortBy);
     if (qpSortDir) setSortDir(qpSortDir);
 
@@ -328,7 +401,10 @@ export default function TenantUsersPage() {
       cursorId: qpCursor ?? null,
       sortByOverride: qpSortBy ?? undefined,
       sortDirOverride: qpSortDir ?? undefined,
-      limitOverride: !Number.isNaN(qpLimit) && qpLimit ? Math.max(1, Math.min(100, qpLimit)) : undefined,
+      limitOverride:
+        !Number.isNaN(qpLimit) && qpLimit
+          ? Math.max(1, Math.min(100, qpLimit))
+          : undefined,
       qOverride: qpQ ?? undefined,
       roleNameOverride: qpRole ?? undefined,
       createdFromOverride: qpCreatedFrom ?? undefined,
@@ -357,7 +433,8 @@ export default function TenantUsersPage() {
     const qpPage = Number(sp.get("page") ?? "1");
     const newPageIndex = Number.isFinite(qpPage) && qpPage > 0 ? qpPage - 1 : 0;
 
-    if (!Number.isNaN(qpLimit) && qpLimit) setLimit(Math.max(1, Math.min(100, qpLimit)));
+    if (!Number.isNaN(qpLimit) && qpLimit)
+      setLimit(Math.max(1, Math.min(100, qpLimit)));
     if (qpSortBy) setSortBy(qpSortBy);
     if (qpSortDir) setSortDir(qpSortDir);
 
@@ -378,7 +455,10 @@ export default function TenantUsersPage() {
       cursorId: qpCursor ?? null,
       sortByOverride: qpSortBy ?? undefined,
       sortDirOverride: qpSortDir ?? undefined,
-      limitOverride: !Number.isNaN(qpLimit) && qpLimit ? Math.max(1, Math.min(100, qpLimit)) : undefined,
+      limitOverride:
+        !Number.isNaN(qpLimit) && qpLimit
+          ? Math.max(1, Math.min(100, qpLimit))
+          : undefined,
       qOverride: qpQ ?? undefined,
       roleNameOverride: qpRole ?? undefined,
       createdFromOverride: qpCreatedFrom ?? undefined,
@@ -386,14 +466,18 @@ export default function TenantUsersPage() {
       updatedFromOverride: qpUpdatedFrom ?? undefined,
       updatedToOverride: qpUpdatedTo ?? undefined,
     });
-  }, [location.key, navigationType, tenantSlug]);  
+  }, [location.key, navigationType, tenantSlug]);
 
   // sorting
   function applySort(nextField: SortField) {
-    const next = sortBy === nextField ? (sortDir === "asc" ? "desc" : "asc") : "asc";
+    const next =
+      sortBy === nextField ? (sortDir === "asc" ? "desc" : "asc") : "asc";
     setSortBy(nextField);
     setSortDir(next);
-    resetToFirstPageAndFetch({ sortByOverride: nextField, sortDirOverride: next });
+    resetToFirstPageAndFetch({
+      sortByOverride: nextField,
+      sortDirOverride: next,
+    });
   }
 
   // pagination
@@ -405,7 +489,7 @@ export default function TenantUsersPage() {
       setCursorStack((prev) => [...prev.slice(0, pageIndex + 1), nextCursor]);
       setPageIndex(newIndex);
       setUrlFromState({ cursorId: nextCursor, page: newIndex + 1 });
-      setTimeout(() => void fetchPageWith(), 0);
+      await fetchPageWith({ cursorId: nextCursor });
     } finally {
       setIsPaginating(false);
     }
@@ -418,7 +502,7 @@ export default function TenantUsersPage() {
       const newIndex = pageIndex - 1;
       setPageIndex(newIndex);
       setUrlFromState({ cursorId: prevCursor, page: newIndex + 1 });
-      setTimeout(() => void fetchPageWith(), 0);
+      await fetchPageWith({ cursorId: prevCursor });
     } finally {
       setIsPaginating(false);
     }
@@ -429,7 +513,11 @@ export default function TenantUsersPage() {
   const rangeStart = shownCount ? pageIndex * limit + 1 : 0;
   const rangeEnd = shownCount ? rangeStart + shownCount - 1 : 0;
   const rangeText =
-    shownCount === 0 ? "No results" : `Showing ${rangeStart}–${rangeEnd}${totalCount != null ? ` of ${totalCount}` : ""}`;
+    shownCount === 0
+      ? "No results"
+      : `Showing ${rangeStart}–${rangeEnd}${
+          totalCount != null ? ` of ${totalCount}` : ""
+        }`;
 
   async function handleDelete(userId: string) {
     try {
@@ -438,11 +526,17 @@ export default function TenantUsersPage() {
         idempotencyKeyOptional: `delete-${userId}-${Date.now()}`,
       });
       if (res.success) {
-        notifications.show({ color: "green", message: "User removed from tenant" });
+        notifications.show({
+          color: "green",
+          message: "User removed from tenant",
+        });
         resetToFirstPageAndFetch();
       }
     } catch (e: any) {
-      notifications.show({ color: "red", message: e?.message ?? "Delete failed" });
+      notifications.show({
+        color: "red",
+        message: e?.message ?? "Delete failed",
+      });
     }
   }
 
@@ -466,12 +560,30 @@ export default function TenantUsersPage() {
 
   const activeFilterChips = useMemo(() => {
     const chips: { key: keyof UserFilters; label: string }[] = [];
-    if (appliedFilters.q.trim()) chips.push({ key: "q", label: `search: "${appliedFilters.q.trim()}"` });
-    if (appliedFilters.roleName) chips.push({ key: "roleName", label: `role: ${appliedFilters.roleName}` });
-    if (appliedFilters.createdAtFrom) chips.push({ key: "createdAtFrom", label: `created ≥ ${appliedFilters.createdAtFrom}` });
-    if (appliedFilters.createdAtTo) chips.push({ key: "createdAtTo", label: `created ≤ ${appliedFilters.createdAtTo}` });
-    if (appliedFilters.updatedAtFrom) chips.push({ key: "updatedAtFrom", label: `updated ≥ ${appliedFilters.updatedAtFrom}` });
-    if (appliedFilters.updatedAtTo) chips.push({ key: "updatedAtTo", label: `updated ≤ ${appliedFilters.updatedAtTo}` });
+    if (appliedFilters.q.trim())
+      chips.push({ key: "q", label: `search: "${appliedFilters.q.trim()}"` });
+    const roleTrim = appliedFilters.roleName.trim();
+    if (roleTrim) chips.push({ key: "roleName", label: `role: ${roleTrim}` });
+    if (appliedFilters.createdAtFrom)
+      chips.push({
+        key: "createdAtFrom",
+        label: `created ≥ ${appliedFilters.createdAtFrom}`,
+      });
+    if (appliedFilters.createdAtTo)
+      chips.push({
+        key: "createdAtTo",
+        label: `created ≤ ${appliedFilters.createdAtTo}`,
+      });
+    if (appliedFilters.updatedAtFrom)
+      chips.push({
+        key: "updatedAtFrom",
+        label: `updated ≥ ${appliedFilters.updatedAtFrom}`,
+      });
+    if (appliedFilters.updatedAtTo)
+      chips.push({
+        key: "updatedAtTo",
+        label: `updated ≤ ${appliedFilters.updatedAtTo}`,
+      });
     return chips;
   }, [appliedFilters]);
 
@@ -479,10 +591,12 @@ export default function TenantUsersPage() {
     const next: UserFilters = {
       ...appliedFilters,
       q: key === "q" ? "" : appliedFilters.q,
-      roleName: key === "roleName" ? "" as const : appliedFilters.roleName,
-      createdAtFrom: key === "createdAtFrom" ? null : appliedFilters.createdAtFrom,
+      roleName: key === "roleName" ? ("" as const) : appliedFilters.roleName,
+      createdAtFrom:
+        key === "createdAtFrom" ? null : appliedFilters.createdAtFrom,
       createdAtTo: key === "createdAtTo" ? null : appliedFilters.createdAtTo,
-      updatedAtFrom: key === "updatedAtFrom" ? null : appliedFilters.updatedAtFrom,
+      updatedAtFrom:
+        key === "updatedAtFrom" ? null : appliedFilters.updatedAtFrom,
       updatedAtTo: key === "updatedAtTo" ? null : appliedFilters.updatedAtTo,
     };
     applyAndFetch(next);
@@ -495,7 +609,13 @@ export default function TenantUsersPage() {
         <Group justify="space-between" align="start" className="w-full">
           <Stack gap="1">
             <Title order={3}>All Users</Title>
-            <Text size="sm" c="dimmed" id={RANGE_ID} aria-live="polite" aria-atomic="true">
+            <Text
+              size="sm"
+              c="dimmed"
+              id={RANGE_ID}
+              aria-live="polite"
+              aria-atomic="true"
+            >
               {rangeText}
             </Text>
           </Stack>
@@ -513,7 +633,13 @@ export default function TenantUsersPage() {
               leftSection={<IconFilter size={16} />}
               variant={showFilters ? "filled" : "light"}
               onClick={() => setShowFilters((s) => !s)}
-              rightSection={showFilters ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />}
+              rightSection={
+                showFilters ? (
+                  <IconChevronUp size={16} />
+                ) : (
+                  <IconChevronDown size={16} />
+                )
+              }
               aria-expanded={showFilters}
               aria-controls={FILTER_PANEL_ID}
             >
@@ -559,7 +685,7 @@ export default function TenantUsersPage() {
                 value={values.q}
                 onChange={(e) => {
                   const val = e.currentTarget.value;
-                  setValues((prev) => ({ ...prev, q: val }))
+                  setValues((prev) => ({ ...prev, q: val }));
                 }}
               />
             </Grid.Col>
@@ -637,30 +763,45 @@ export default function TenantUsersPage() {
         )}
       </FilterBar>
 
-
       {/* Table + Controls */}
       <div className="py-4">
-        <Paper withBorder p="md" radius="md" className="bg-white max-h-[80vh] overflow-y-auto">
+        <Paper
+          withBorder
+          p="md"
+          radius="md"
+          className="bg-white max-h-[80vh] overflow-y-auto"
+        >
           <Group justify="space-between" mb="md">
             <Title order={4}>All Users</Title>
 
             <Group align="center" gap="xs">
-              <Text size="sm" c="dimmed">Per page</Text>
+              <Text size="sm" c="dimmed">
+                Per page
+              </Text>
               <NumberInput
                 value={limit}
                 onChange={(v) => {
-                  const n = typeof v === "number" ? v : v === "" ? 20 : Number(v);
+                  const n =
+                    typeof v === "number" ? v : v === "" ? 20 : Number(v);
                   const clamped = Math.max(1, Math.min(100, n));
                   setLimit(clamped);
                   resetToFirstPageAndFetch({ limitOverride: clamped });
                 }}
-                min={1} max={100} step={1} clampBehavior="strict" w={rem(90)}
+                min={1}
+                max={100}
+                step={1}
+                clampBehavior="strict"
+                w={rem(90)}
               />
             </Group>
           </Group>
 
           {rows === null || isLoading ? (
-            <div className="flex items-center justify-center p-8" role="status" aria-live="polite">
+            <div
+              className="flex items-center justify-center p-8"
+              role="status"
+              aria-live="polite"
+            >
               <Loader />
               <Text ml="sm">Loading users…</Text>
             </div>
@@ -668,7 +809,13 @@ export default function TenantUsersPage() {
             <>
               {/* Chips */}
               {activeFilterChips.length > 0 && (
-                <Group gap="xs" mb="sm" wrap="wrap" role="region" aria-label="Active filters">
+                <Group
+                  gap="xs"
+                  mb="sm"
+                  wrap="wrap"
+                  role="region"
+                  aria-label="Active filters"
+                >
                   {activeFilterChips.map((chip) => (
                     <Badge
                       key={chip.key as string}
@@ -676,14 +823,22 @@ export default function TenantUsersPage() {
                       rightSection={
                         <CloseButton
                           aria-label={`Clear ${chip.label}`}
-                          onClick={(e) => { e.stopPropagation(); clearOneChip(chip.key); }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            clearOneChip(chip.key);
+                          }}
                         />
                       }
                     >
                       {chip.label}
                     </Badge>
                   ))}
-                  <Button variant="subtle" size="xs" onClick={clearAllFiltersAndFetch} aria-label="Clear all filters">
+                  <Button
+                    variant="subtle"
+                    size="xs"
+                    onClick={clearAllFiltersAndFetch}
+                    aria-label="Clear all filters"
+                  >
                     Clear all
                   </Button>
                 </Group>
@@ -691,30 +846,68 @@ export default function TenantUsersPage() {
 
               {/* Empty state */}
               {!isLoading && (rows?.length ?? 0) === 0 ? (
-                <div className="py-16 text-center" role="region" aria-live="polite" aria-atomic="true">
-                  <Title order={4} mb="xs">No users match your filters</Title>
-                  <Text c="dimmed" mb="md">Try adjusting your filters or clear them to see all users.</Text>
+                <div
+                  className="py-16 text-center"
+                  role="region"
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
+                  <Title order={4} mb="xs">
+                    No users match your filters
+                  </Title>
+                  <Text c="dimmed" mb="md">
+                    Try adjusting your filters or clear them to see all users.
+                  </Text>
                   <Group justify="center">
-                    <Button onClick={clearAllFiltersAndFetch}>Clear all filters</Button>
-                    <Button variant="light" onClick={() => setShowFilters(true)} aria-controls={FILTER_PANEL_ID} aria-expanded={showFilters}>
+                    <Button onClick={clearAllFiltersAndFetch}>
+                      Clear all filters
+                    </Button>
+                    <Button
+                      variant="light"
+                      onClick={() => setShowFilters(true)}
+                      aria-controls={FILTER_PANEL_ID}
+                      aria-expanded={showFilters}
+                    >
                       Show filters
                     </Button>
                   </Group>
                 </div>
               ) : (
-                <Table id={TABLE_ID} striped withTableBorder withColumnBorders stickyHeader aria-describedby={RANGE_ID}>
+                <Table
+                  id={TABLE_ID}
+                  striped
+                  withTableBorder
+                  withColumnBorders
+                  stickyHeader
+                  aria-describedby={RANGE_ID}
+                >
                   <Table.Thead>
                     <Table.Tr>
-                      <Table.Th scope="col" aria-sort={colAriaSort("userEmailAddress")}>
+                      <Table.Th
+                        scope="col"
+                        aria-sort={colAriaSort("userEmailAddress")}
+                      >
                         <Group gap={4} wrap="nowrap">
                           <span>Email</span>
                           <Tooltip label="Sort by email" withArrow>
                             <ActionIcon
-                              variant="subtle" size="sm"
+                              variant="subtle"
+                              size="sm"
                               onClick={() => applySort("userEmailAddress")}
-                              aria-label={sortButtonLabel("email", "userEmailAddress")}
+                              aria-label={sortButtonLabel(
+                                "email",
+                                "userEmailAddress"
+                              )}
                             >
-                              {sortBy === "userEmailAddress" ? (sortDir === "asc" ? <IconArrowUp size={16} /> : <IconArrowDown size={16} />) : <IconArrowsSort size={16} />}
+                              {sortBy === "userEmailAddress" ? (
+                                sortDir === "asc" ? (
+                                  <IconArrowUp size={16} />
+                                ) : (
+                                  <IconArrowDown size={16} />
+                                )
+                              ) : (
+                                <IconArrowsSort size={16} />
+                              )}
                             </ActionIcon>
                           </Tooltip>
                         </Group>
@@ -725,41 +918,80 @@ export default function TenantUsersPage() {
                           <span>Role</span>
                           <Tooltip label="Sort by role" withArrow>
                             <ActionIcon
-                              variant="subtle" size="sm"
+                              variant="subtle"
+                              size="sm"
                               onClick={() => applySort("role")}
                               aria-label={sortButtonLabel("role", "role")}
                             >
-                              {sortBy === "role" ? (sortDir === "asc" ? <IconArrowUp size={16} /> : <IconArrowDown size={16} />) : <IconArrowsSort size={16} />}
+                              {sortBy === "role" ? (
+                                sortDir === "asc" ? (
+                                  <IconArrowUp size={16} />
+                                ) : (
+                                  <IconArrowDown size={16} />
+                                )
+                              ) : (
+                                <IconArrowsSort size={16} />
+                              )}
                             </ActionIcon>
                           </Tooltip>
                         </Group>
                       </Table.Th>
 
-                      <Table.Th scope="col" aria-sort={colAriaSort("createdAt")}>
+                      <Table.Th
+                        scope="col"
+                        aria-sort={colAriaSort("createdAt")}
+                      >
                         <Group gap={4} wrap="nowrap">
                           <span>Created</span>
                           <Tooltip label="Sort by created date" withArrow>
                             <ActionIcon
-                              variant="subtle" size="sm"
+                              variant="subtle"
+                              size="sm"
                               onClick={() => applySort("createdAt")}
-                              aria-label={sortButtonLabel("created", "createdAt")}
+                              aria-label={sortButtonLabel(
+                                "created",
+                                "createdAt"
+                              )}
                             >
-                              {sortBy === "createdAt" ? (sortDir === "asc" ? <IconArrowUp size={16} /> : <IconArrowDown size={16} />) : <IconArrowsSort size={16} />}
+                              {sortBy === "createdAt" ? (
+                                sortDir === "asc" ? (
+                                  <IconArrowUp size={16} />
+                                ) : (
+                                  <IconArrowDown size={16} />
+                                )
+                              ) : (
+                                <IconArrowsSort size={16} />
+                              )}
                             </ActionIcon>
                           </Tooltip>
                         </Group>
                       </Table.Th>
 
-                      <Table.Th scope="col" aria-sort={colAriaSort("updatedAt")}>
+                      <Table.Th
+                        scope="col"
+                        aria-sort={colAriaSort("updatedAt")}
+                      >
                         <Group gap={4} wrap="nowrap">
                           <span>Updated</span>
                           <Tooltip label="Sort by updated date" withArrow>
                             <ActionIcon
-                              variant="subtle" size="sm"
+                              variant="subtle"
+                              size="sm"
                               onClick={() => applySort("updatedAt")}
-                              aria-label={sortButtonLabel("updated", "updatedAt")}
+                              aria-label={sortButtonLabel(
+                                "updated",
+                                "updatedAt"
+                              )}
                             >
-                              {sortBy === "updatedAt" ? (sortDir === "asc" ? <IconArrowUp size={16} /> : <IconArrowDown size={16} />) : <IconArrowsSort size={16} />}
+                              {sortBy === "updatedAt" ? (
+                                sortDir === "asc" ? (
+                                  <IconArrowUp size={16} />
+                                ) : (
+                                  <IconArrowDown size={16} />
+                                )
+                              ) : (
+                                <IconArrowsSort size={16} />
+                              )}
                             </ActionIcon>
                           </Tooltip>
                         </Group>
@@ -773,28 +1005,38 @@ export default function TenantUsersPage() {
                     {rows!.map((r) => (
                       <Table.Tr key={r.userId}>
                         <Table.Td>{r.userEmailAddress}</Table.Td>
-                        <Table.Td><Badge>{r.role?.name ?? "—"}</Badge></Table.Td>
-                        <Table.Td>{r.createdAt ? new Date(r.createdAt).toLocaleString() : "—"}</Table.Td>
-                        <Table.Td>{r.updatedAt ? new Date(r.updatedAt).toLocaleString() : "—"}</Table.Td>
+                        <Table.Td>
+                          <Badge>{r.role?.name ?? "—"}</Badge>
+                        </Table.Td>
+                        <Table.Td>
+                          {r.createdAt
+                            ? new Date(r.createdAt).toLocaleString()
+                            : "—"}
+                        </Table.Td>
+                        <Table.Td>
+                          {r.updatedAt
+                            ? new Date(r.updatedAt).toLocaleString()
+                            : "—"}
+                        </Table.Td>
                         <Table.Td className="flex justify-end">
                           <Group gap="xs">
                             <ActionIcon
-                                variant="light"
-                                size="md"
-                                onClick={() => console.log('open edit product')}
-                                disabled={!canManageUsers}
-                              >
-                                <IconPencil size={16} />
-                              </ActionIcon>
-                              <ActionIcon
-                                variant="light"
-                                color="red"
-                                size="md"
-                                onClick={() => handleDelete(r.userId)}
-                                disabled={!canManageUsers}
-                              >
-                                <IconTrash size={16} />
-                              </ActionIcon>
+                              variant="light"
+                              size="md"
+                              onClick={() => console.log("open edit product")}
+                              disabled={!canManageUsers}
+                            >
+                              <IconPencil size={16} />
+                            </ActionIcon>
+                            <ActionIcon
+                              variant="light"
+                              color="red"
+                              size="md"
+                              onClick={() => handleDelete(r.userId)}
+                              disabled={!canManageUsers}
+                            >
+                              <IconTrash size={16} />
+                            </ActionIcon>
                           </Group>
                         </Table.Td>
                       </Table.Tr>
@@ -805,7 +1047,13 @@ export default function TenantUsersPage() {
 
               {/* Pagination */}
               <Group justify="space-between" mt="md">
-                <Text size="sm" c="dimmed" id={RANGE_ID} aria-live="polite" aria-atomic="true">
+                <Text
+                  size="sm"
+                  c="dimmed"
+                  id={RANGE_ID}
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
                   {rangeText}
                 </Text>
                 <Group gap="xs">
@@ -813,11 +1061,18 @@ export default function TenantUsersPage() {
                     variant="light"
                     leftSection={<IconPlayerTrackPrev size={16} />}
                     onClick={goPrevPage}
-                    disabled={isPaginating || pageIndex === 0 || (pageIndex > 0 && cursorStack[pageIndex - 1] === undefined)}
+                    disabled={
+                      isPaginating ||
+                      pageIndex === 0 ||
+                      (pageIndex > 0 &&
+                        cursorStack[pageIndex - 1] === undefined)
+                    }
                   >
                     Prev
                   </Button>
-                  <Text size="sm" c="dimmed">Page {pageIndex + 1}</Text>
+                  <Text size="sm" c="dimmed">
+                    Page {pageIndex + 1}
+                  </Text>
                   <Button
                     variant="light"
                     rightSection={<IconPlayerTrackNext size={16} />}

@@ -1,30 +1,31 @@
 // api-server/src/services/productService.ts
-import { prismaClientInstance } from '../db/prismaClient.js'
-import { Errors } from '../utils/httpErrors.js'
+import { prismaClientInstance } from '../db/prismaClient.js';
+import { Errors } from '../utils/httpErrors.js';
+import type { Prisma } from '@prisma/client';
 
-type SortField = 'createdAt' | 'updatedAt' | 'productName' | 'productPriceCents'
-type SortDir = 'asc' | 'desc'
+type SortField = 'createdAt' | 'updatedAt' | 'productName' | 'productPriceCents';
+type SortDir = 'asc' | 'desc';
 
 type ListProductsArgs = {
-  currentTenantId: string
-  limitOptional?: number
-  cursorIdOptional?: string
+  currentTenantId: string;
+  limitOptional?: number;
+  cursorIdOptional?: string;
   // filters
-  qOptional?: string
-  minPriceCentsOptional?: number
-  maxPriceCentsOptional?: number
-  createdAtFromOptional?: string // 'YYYY-MM-DD'
-  createdAtToOptional?: string   // 'YYYY-MM-DD'
-  updatedAtFromOptional?: string // 'YYYY-MM-DD'  // NEW
-  updatedAtToOptional?: string   // 'YYYY-MM-DD'  // NEW
+  qOptional?: string;
+  minPriceCentsOptional?: number;
+  maxPriceCentsOptional?: number;
+  createdAtFromOptional?: string; // YYYY-MM-DD
+  createdAtToOptional?: string;   // YYYY-MM-DD
+  updatedAtFromOptional?: string; // YYYY-MM-DD
+  updatedAtToOptional?: string;   // YYYY-MM-DD
   // sort
-  sortByOptional?: SortField
-  sortDirOptional?: SortDir
-  includeTotalOptional?: boolean
-}
+  sortByOptional?: SortField;
+  sortDirOptional?: SortDir;
+  includeTotalOptional?: boolean;
+};
 
 function addDays(date: Date, days: number) {
-  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000)
+  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 }
 
 export async function listProductsForCurrentTenantService(args: ListProductsArgs) {
@@ -42,14 +43,19 @@ export async function listProductsForCurrentTenantService(args: ListProductsArgs
     sortByOptional,
     sortDirOptional,
     includeTotalOptional,
-  } = args
+  } = args;
 
-  const limit = Math.min(Math.max(limitOptional ?? 20, 1), 100)
-  const sortBy: SortField = sortByOptional ?? 'createdAt'
-  const sortDir: SortDir = sortDirOptional ?? 'desc'
+  // Clamp limit
+  const limit = Math.min(Math.max(limitOptional ?? 20, 1), 100);
 
-  // Build WHERE
-  const priceFilter =
+  // Sort defaults
+  const sortBy: SortField = sortByOptional ?? 'createdAt';
+  const sortDir: SortDir = sortDirOptional ?? 'desc';
+
+  // --- WHERE construction ---
+
+  // Price range
+  const priceFilter: Prisma.ProductWhereInput =
     minPriceCentsOptional !== undefined || maxPriceCentsOptional !== undefined
       ? {
           productPriceCents: {
@@ -57,73 +63,63 @@ export async function listProductsForCurrentTenantService(args: ListProductsArgs
             ...(maxPriceCentsOptional !== undefined ? { lte: maxPriceCentsOptional } : {}),
           },
         }
-      : {}
+      : {};
 
-  // Dates: inclusive range for whole days. 'YYYY-MM-DD' is treated as UTC in JS Date.
-  let createdAtFilter: any = {}
+  // CreatedAt (inclusive dates)
+  const createdAt: Prisma.DateTimeFilter = {};
   if (createdAtFromOptional) {
-    const from = new Date(createdAtFromOptional)
-    if (!isNaN(from.getTime())) {
-      createdAtFilter = { ...createdAtFilter, gte: from }
-    }
+    const d = new Date(createdAtFromOptional);
+    if (!Number.isNaN(d.getTime())) createdAt.gte = d;
   }
   if (createdAtToOptional) {
-    const to = new Date(createdAtToOptional)
-    if (!isNaN(to.getTime())) {
-      createdAtFilter = { ...createdAtFilter, lt: addDays(to, 1) } // inclusive end
-    }
+    const d = new Date(createdAtToOptional);
+    if (!Number.isNaN(d.getTime())) createdAt.lt = addDays(d, 1);
   }
-  if (Object.keys(createdAtFilter).length > 0) {
-    createdAtFilter = { createdAt: createdAtFilter }
-  } else {
-    createdAtFilter = {}
-  }
+  const createdAtFilter: Prisma.ProductWhereInput =
+    createdAt.gte || createdAt.lt ? { createdAt } : {};
 
-  // NEW: updatedAt filter
-  let updatedAtFilter: any = {}
+  // UpdatedAt (inclusive dates)
+  const updatedAt: Prisma.DateTimeFilter = {};
   if (updatedAtFromOptional) {
-    const from = new Date(updatedAtFromOptional)
-    if (!isNaN(from.getTime())) {
-      updatedAtFilter = { ...updatedAtFilter, gte: from }
-    }
+    const d = new Date(updatedAtFromOptional);
+    if (!Number.isNaN(d.getTime())) updatedAt.gte = d;
   }
   if (updatedAtToOptional) {
-    const to = new Date(updatedAtToOptional)
-    if (!isNaN(to.getTime())) {
-      updatedAtFilter = { ...updatedAtFilter, lt: addDays(to, 1) } // inclusive end
-    }
+    const d = new Date(updatedAtToOptional);
+    if (!Number.isNaN(d.getTime())) updatedAt.lt = addDays(d, 1);
   }
-  if (Object.keys(updatedAtFilter).length > 0) {
-    updatedAtFilter = { updatedAt: updatedAtFilter }
-  } else {
-    updatedAtFilter = {}
-  }
+  const updatedAtFilter: Prisma.ProductWhereInput =
+    updatedAt.gte || updatedAt.lt ? { updatedAt } : {};
 
-  const searchFilter =
-    qOptional && qOptional.trim().length > 0
+  // Text search (name or SKU)
+  const searchFilter: Prisma.ProductWhereInput =
+    qOptional && qOptional.trim()
       ? {
           OR: [
             { productName: { contains: qOptional, mode: 'insensitive' } },
             { productSku: { contains: qOptional, mode: 'insensitive' } },
           ],
         }
-      : {}
+      : {};
 
-  const where = {
+  const where: Prisma.ProductWhereInput = {
     tenantId: currentTenantId,
     ...priceFilter,
     ...createdAtFilter,
-    ...updatedAtFilter, // NEW
+    ...updatedAtFilter,
     ...searchFilter,
-  } as const
+  };
 
-  // Deterministic ordering with id as tie-breaker
-  const orderBy: any[] = [{ [sortBy]: sortDir }]
-  orderBy.push({ id: sortDir })
+  // --- ORDER BY with deterministic tie-breaker ---
+  const orderBy: Prisma.ProductOrderByWithRelationInput[] = [
+    { [sortBy]: sortDir } as Prisma.ProductOrderByWithRelationInput,
+    { id: sortDir },
+  ];
 
-  const take = limit + 1 // fetch one extra to detect next page
+  // --- Cursor pagination with look-ahead ---
+  const take = limit + 1;
 
-  const findArgs: any = {
+  const findArgs: Prisma.ProductFindManyArgs = {
     where,
     orderBy,
     take,
@@ -137,21 +133,24 @@ export async function listProductsForCurrentTenantService(args: ListProductsArgs
       updatedAt: true,
       createdAt: true,
     },
-  }
+  };
 
   if (cursorIdOptional) {
-    findArgs.cursor = { id: cursorIdOptional }
-    findArgs.skip = 1 // exclude cursor row itself
+    findArgs.cursor = { id: cursorIdOptional };
+    findArgs.skip = 1; // exclude the cursor row itself
   }
 
-  const rows = await prismaClientInstance.product.findMany(findArgs)
-  const hasNextPage = rows.length > limit
-  const items = hasNextPage ? rows.slice(0, limit) : rows
-  const nextCursor = hasNextPage ? items[items.length - 1]?.id ?? null : null
+  const rows = await prismaClientInstance.product.findMany(findArgs);
 
-  let totalCount: number | undefined
+  // Look-ahead: if we got > limit, there is a next page
+  const hasNextPage = rows.length > limit;
+  const items = hasNextPage ? rows.slice(0, limit) : rows;
+  const nextCursor = hasNextPage ? items[items.length - 1]?.id ?? null : null;
+
+  // Optional total
+  let totalCount: number | undefined;
   if (includeTotalOptional) {
-    totalCount = await prismaClientInstance.product.count({ where })
+    totalCount = await prismaClientInstance.product.count({ where });
   }
 
   return {
@@ -170,20 +169,25 @@ export async function listProductsForCurrentTenantService(args: ListProductsArgs
         ...(maxPriceCentsOptional !== undefined ? { maxPriceCents: maxPriceCentsOptional } : {}),
         ...(createdAtFromOptional ? { createdAtFrom: createdAtFromOptional } : {}),
         ...(createdAtToOptional ? { createdAtTo: createdAtToOptional } : {}),
-        ...(updatedAtFromOptional ? { updatedAtFrom: updatedAtFromOptional } : {}), // NEW
-        ...(updatedAtToOptional ? { updatedAtTo: updatedAtToOptional } : {}),       // NEW
+        ...(updatedAtFromOptional ? { updatedAtFrom: updatedAtFromOptional } : {}),
+        ...(updatedAtToOptional ? { updatedAtTo: updatedAtToOptional } : {}),
       },
     },
-  }
+  };
 }
 
 export async function createProductForCurrentTenantService(params: {
-  currentTenantId: string
-  productNameInputValue: string
-  productSkuInputValue: string
-  productPriceCentsInputValue: number
+  currentTenantId: string;
+  productNameInputValue: string;
+  productSkuInputValue: string;
+  productPriceCentsInputValue: number;
 }) {
-  const { currentTenantId, productNameInputValue, productSkuInputValue, productPriceCentsInputValue } = params
+  const {
+    currentTenantId,
+    productNameInputValue,
+    productSkuInputValue,
+    productPriceCentsInputValue,
+  } = params;
   try {
     const created = await prismaClientInstance.product.create({
       data: {
@@ -192,15 +196,23 @@ export async function createProductForCurrentTenantService(params: {
         productSku: productSkuInputValue,
         productPriceCents: productPriceCentsInputValue,
       },
-      select: { id: true, productName: true, productSku: true, productPriceCents: true, entityVersion: true, updatedAt: true, createdAt: true },
-    })
-    return created
+      select: {
+        id: true,
+        productName: true,
+        productSku: true,
+        productPriceCents: true,
+        entityVersion: true,
+        updatedAt: true,
+        createdAt: true,
+      },
+    });
+    return created;
   } catch (error: any) {
     // Unique SKU per tenant
     if (error?.code === 'P2002') {
-      throw Errors.conflict('A product with this SKU already exists for this tenant.')
+      throw Errors.conflict('A product with this SKU already exists for this tenant.');
     }
-    throw error
+    throw error;
   }
 }
 
@@ -208,11 +220,11 @@ export async function createProductForCurrentTenantService(params: {
  * Optimistic concurrency
  */
 export async function updateProductForCurrentTenantService(params: {
-  currentTenantId: string
-  productIdPathParam: string
-  productNameInputValue?: string
-  productPriceCentsInputValue?: number
-  currentEntityVersionInputValue: number
+  currentTenantId: string;
+  productIdPathParam: string;
+  productNameInputValue?: string;
+  productPriceCentsInputValue?: number;
+  currentEntityVersionInputValue: number;
 }) {
   const {
     currentTenantId,
@@ -220,7 +232,7 @@ export async function updateProductForCurrentTenantService(params: {
     productNameInputValue,
     productPriceCentsInputValue,
     currentEntityVersionInputValue,
-  } = params
+  } = params;
 
   const updateResult = await prismaClientInstance.product.updateMany({
     where: {
@@ -233,28 +245,36 @@ export async function updateProductForCurrentTenantService(params: {
       ...(productPriceCentsInputValue !== undefined ? { productPriceCents: productPriceCentsInputValue } : {}),
       entityVersion: { increment: 1 },
     },
-  })
+  });
 
   if (updateResult.count === 0) {
-    throw Errors.conflict('The product was modified by someone else. Please reload and try again.')
+    throw Errors.conflict('The product was modified by someone else. Please reload and try again.');
   }
 
   const updated = await prismaClientInstance.product.findFirst({
     where: { id: productIdPathParam, tenantId: currentTenantId },
-    select: { id: true, productName: true, productSku: true, productPriceCents: true, entityVersion: true, updatedAt: true, createdAt: true },
-  })
-  if (!updated) throw Errors.notFound('Product not found.')
-  return updated
+    select: {
+      id: true,
+      productName: true,
+      productSku: true,
+      productPriceCents: true,
+      entityVersion: true,
+      updatedAt: true,
+      createdAt: true,
+    },
+  });
+  if (!updated) throw Errors.notFound('Product not found.');
+  return updated;
 }
 
 export async function deleteProductForCurrentTenantService(params: {
-  currentTenantId: string
-  productIdPathParam: string
+  currentTenantId: string;
+  productIdPathParam: string;
 }) {
-  const { currentTenantId, productIdPathParam } = params
+  const { currentTenantId, productIdPathParam } = params;
   const deleteResult = await prismaClientInstance.product.deleteMany({
     where: { id: productIdPathParam, tenantId: currentTenantId },
-  })
-  if (deleteResult.count === 0) throw Errors.notFound('Product not found.')
-  return { hasDeletedProduct: true }
+  });
+  if (deleteResult.count === 0) throw Errors.notFound('Product not found.');
+  return { hasDeletedProduct: true };
 }
