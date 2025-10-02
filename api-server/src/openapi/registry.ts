@@ -10,5 +10,5 @@ export const registry = new OpenAPIRegistry();
 registry.registerComponent('securitySchemes', 'cookieAuth', {
   type: 'apiKey',
   in: 'cookie',
-  name: 'session', // keep in sync with session cookie name
+  name: 'mt_session', // keep in sync with session cookie name
 });

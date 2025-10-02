@@ -468,6 +468,8 @@ If you need initial data in the new environment:
 
 ## Future fetures
 ### Features to complete by Monday
+* Fix any routers/services that are creating new prisma instances. Should always use the prismaClientInstance from this file api-server/src/db/prismaClient.ts
+
 * Different branches/locations
   * Each product can have stock in any/all branches
   * Users can be assigned to one/many branches
