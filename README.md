@@ -467,15 +467,18 @@ If you need initial data in the new environment:
 * [ ] Document URLs and secrets.
 
 ## Future fetures
-* Something seems to be going wrong with the rate limiting. Im getting shut out way too quickly.
-* CRUD for setting custom roles and assigning to users.
-* Remake the Readme with latest feature updates
 * Different branches/locations
   * Each product can have stock in any/all branches
   * Users can be assigned to one/many branches
-* Get more insight to how the RBAC works
-  * Is it compatible with being able to create custom roles?
-  * How specific can you be with these roles? e.g. can we specify which branches the user can access or specific features like stock management?
+  * Roles/Themes are global so apply to all branches/locations
+  * Down the line, when I start implementing orders into the system, i will want functionality that means users can only create orders for branches that they belong to
+* Admin logs
+  * Track each user actions so we can understand who changed what and when
+  * Have a page in system/API-logs that shows all actions by everyone 
+  * This page should also show any errors that have occured.
+  * Down the line, we will want a frontend feature, for example, on products, that allows you to see exactly who changed the product and when. This will apply to everything that you can change in the project, not just products. 
+  * This will be viewable by everyone so doesnt require any permissions to view other than being logged in.
+* Remake the Readme with latest feature updates
 
 * Create/Edit pages for users/products
 
@@ -485,13 +488,6 @@ If you need initial data in the new environment:
   * Instead of this, any request that is made that requires the user to be logged in and they arent logged in, should be redirected to the login page automatically 
   * Whenever a user is logged out and redirected to the login page, it should show a clear reason on the login page as to why they were logged out
 
-* Admin logs
-
-* Admin branding
-  * Suggested themes for different colour schemes 
-  * Fully custom option
-  * Ability to upload image -> LocalStack -> Will localStack work on my dev/staging environment
-* Image uploading
 * Plan out feature roadmap
 * Monitoring & metrics
   * Sentry
