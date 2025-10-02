@@ -65,14 +65,24 @@ export function createConfiguredExpressApplicationInstance() {
   // --- Rate limiters (scoped) ---
   const authLimiter = createFixedWindowRateLimiterMiddleware({
     windowSeconds: 60,
-    limit: 20,                 // tighter on auth
-    bucketScope: "ip+session", // combine IP + session when available
+    limit: 120,                 // ↑ from 20 → 120; adjust to taste
+    bucketScope: "ip+session",
+    name: "auth",               // ← NEW
+    // Skip lightweight reads that may happen frequently in the background
+    skip: (req) =>
+      req.method === "GET" &&
+      (
+        req.path === "/api/auth/me" ||
+        req.path === "/api/auth/session" ||
+        req.path === "/api/auth/refresh"
+      ),
   });
 
   const generalLimiter = createFixedWindowRateLimiterMiddleware({
     windowSeconds: 60,
-    limit: 300,
-    bucketScope: "ip",         // safe default for general routes
+    limit: 600, 
+    bucketScope: "ip+session", 
+    name: "general",
   });
 
   // Mount specific first, then general

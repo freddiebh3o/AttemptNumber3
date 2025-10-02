@@ -21,19 +21,10 @@ import {
   assertHasBody,
   assertHasParams,
 } from "../types/assertions.js";
-import { createFixedWindowRateLimiterMiddleware } from "../middleware/rateLimiterMiddleware.js";
 
 export const tenantUserRouter = Router();
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-
-const tenantUsersRateLimiter = createFixedWindowRateLimiterMiddleware({
-  windowSeconds: 60,
-  limit: 300,
-  bucketScope: "ip+session",
-});
-
-tenantUserRouter.use(tenantUsersRateLimiter);
 
 // Query: support roleId and roleName (contains) filters; sort by roleName (role.name)
 const listQuerySchema = z.object({

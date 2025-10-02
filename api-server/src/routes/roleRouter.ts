@@ -17,16 +17,8 @@ import {
   deleteTenantRoleService,
 } from '../services/roleService.js';
 import { assertAuthed, assertHasBody, assertHasParams, assertHasQuery } from '../types/assertions.js';
-import { createFixedWindowRateLimiterMiddleware } from '../middleware/rateLimiterMiddleware.js';
 
 export const roleRouter = Router();
-
-const rateLimiter = createFixedWindowRateLimiterMiddleware({
-  windowSeconds: 60,
-  limit: 300,
-  bucketScope: 'ip+session',
-});
-roleRouter.use(rateLimiter);
 
 const csvToArray = z
   .string()

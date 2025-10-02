@@ -20,6 +20,8 @@ export function createFixedWindowRateLimiterMiddleware(options: {
   windowSeconds: number;
   limit: number;
   bucketScope: "ip" | "session" | "ip+session";
+  name?: string;                         
+  skip?: (req: Request) => boolean;     
 }) {
   const windowMs = options.windowSeconds * 1000;
 
@@ -36,6 +38,10 @@ export function createFixedWindowRateLimiterMiddleware(options: {
       request.path === "/docs" ||
       request.path.startsWith("/docs/")
     ) {
+      return next();
+    }
+
+    if (options.skip && options.skip(request)) {
       return next();
     }
 
@@ -59,17 +65,17 @@ export function createFixedWindowRateLimiterMiddleware(options: {
         remaining: options.limit - 1,
         resetAtUnixMs: resetAt,
       });
-      setHeaders(response, options.limit - 1, options.limit, resetAt, now);
+      setHeaders(response, options.limit - 1, options.limit, resetAt, now, options.name);
       return next();
     }
 
     if (bucket.remaining > 0) {
       bucket.remaining -= 1;
-      setHeaders(response, bucket.remaining, options.limit, bucket.resetAtUnixMs, now);
+      setHeaders(response, bucket.remaining, options.limit, bucket.resetAtUnixMs, now, options.name);
       return next();
     }
 
-    setHeaders(response, 0, options.limit, bucket.resetAtUnixMs, now);
+    setHeaders(response, 0, options.limit, bucket.resetAtUnixMs, now, options.name);
     return response.status(429).json({
       success: false,
       data: null,
@@ -89,11 +95,13 @@ function setHeaders(
   remaining: number,
   limit: number,
   resetAtUnixMs: number,
-  nowMs: number
+  nowMs: number,
+  sourceName?: string 
 ) {
   res.setHeader("X-RateLimit-Limit", String(limit));
   res.setHeader("X-RateLimit-Remaining", String(Math.max(remaining, 0)));
   res.setHeader("X-RateLimit-Reset", String(Math.ceil(resetAtUnixMs / 1000)));
+  if (sourceName) res.setHeader("X-RateLimit-Source", sourceName);
 
   const retryAfterSec = Math.max(0, Math.ceil((resetAtUnixMs - nowMs) / 1000));
   res.setHeader("Retry-After", String(retryAfterSec));

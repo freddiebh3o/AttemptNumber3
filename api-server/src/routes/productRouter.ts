@@ -16,21 +16,12 @@ import {
   updateProductForCurrentTenantService,
   deleteProductForCurrentTenantService,
 } from "../services/productService.js";
-import { createFixedWindowRateLimiterMiddleware } from "../middleware/rateLimiterMiddleware.js";
 import { assertAuthed } from '../types/assertions.js'
 import { requirePermission } from '../middleware/permissionMiddleware.js';
 
 export const productRouter = Router();
 
 const productSkuRegex = /^[A-Z0-9-]{3,40}$/;
-
-const productRateLimiterMiddleware = createFixedWindowRateLimiterMiddleware({
-  windowSeconds: 60,
-  limit: 300,
-  bucketScope: "ip+session",
-});
-
-productRouter.use(productRateLimiterMiddleware)
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
