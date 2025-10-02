@@ -1,3 +1,4 @@
+// admin-web/src/api/uploads.ts
 import { httpRequestMultipart } from "./http";
 import type { paths } from "../types/openapi";
 
