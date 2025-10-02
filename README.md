@@ -467,20 +467,31 @@ If you need initial data in the new environment:
 * [ ] Document URLs and secrets.
 
 ## Future fetures
+### Features to complete by Monday
 * Different branches/locations
   * Each product can have stock in any/all branches
   * Users can be assigned to one/many branches
   * Roles/Themes are global so apply to all branches/locations
-  * Down the line, when I start implementing orders into the system, i will want functionality that means users can only create orders for branches that they belong to
+  * Down the line, when I start implementing orders into the system, I will want functionality that means users can only create orders for branches that they belong to
+  * Will likely require setting up a basic create/edit products page for this
+
 * Admin logs
   * Track each user actions so we can understand who changed what and when
   * Have a page in system/API-logs that shows all actions by everyone 
   * This page should also show any errors that have occured.
   * Down the line, we will want a frontend feature, for example, on products, that allows you to see exactly who changed the product and when. This will apply to everything that you can change in the project, not just products. 
   * This will be viewable by everyone so doesnt require any permissions to view other than being logged in.
-* Remake the Readme with latest feature updates
 
-* Create/Edit pages for users/products
+* Stock transfer between different branches/locations
+  * Effectively an 'order' between two branches 
+  * Will be able to exist in one of the following 'stages'
+    * Requested -> The item/items has been requested by one branch to another 
+    * Rejected -> The request has been rejected 
+    * Ordered -> The request has been accepted 
+    * Partially received -> The item/items that were ordered have only been partially received
+    * Complete -> The item/items have been received
+
+* Remake the Readme with latest feature updates
 
 * Find a way to simulate what happens when a session expires 
   * Current suspicion is that you are not automatically logged out 
@@ -488,7 +499,55 @@ If you need initial data in the new environment:
   * Instead of this, any request that is made that requires the user to be logged in and they arent logged in, should be redirected to the login page automatically 
   * Whenever a user is logged out and redirected to the login page, it should show a clear reason on the login page as to why they were logged out
 
-* Plan out feature roadmap
+* Create/Edit pages for users/products
+
+
+* Current existing tabs that we don't currently have 
+  * Dashboard -> Self explantory
+  * Maintenance 
+    * Where users manage different Customers or suppliers
+  * Purchasing 
+    * Where users order in products from suppliers and manage those orders
+      * Draft -> A draft order, not confirmed yet
+      * Ordered -> A confirmed order
+      * Partially received -> Items in the order have partially been received 
+      * Fully received -> All items in the order have been received
+      * Complete/Cancelled -> Order has been marked as complete or cancelled.
+    * Once an order has been completed, the stock ledger for that product is updated with the new stock
+  * Sales 
+    * Where users manage sales to customers
+      * Quotes -> A quote has been generated and a pro forma can be sent to the customer
+      * Sales order -> An order is created, and either paid for using cash/card, or using a ledger account where the user has credit on their account. 
+      * Picking note -> Once the order has been confirmed as paid for, the user can print a picking note, that tells them exactly where to find the product in the warehouse for the order. (this bit is going to be tricky because i believe it will require intergrating the warehouse scanner technology)
+      * Awaiting approval -> If the user is a ledger account (i.e. they havn't paid with cash/card) then the order requires approval
+      * Invoiced -> once the order has been approved, an invoice is sent to the customer so they can pay for the order
+      * Credit note -> If the user wants to refund the order, you can create a separate credit note to do so
+  * Stock transfer -> already explained above 
+  * Reporting -> various statistics
+    * Yearly sales comparison -> compare sales data from previous years
+    * External sales reps -> Compare the performace of your external sales representatives 
+    * Stock valuation report
+      * View the total FIFO valuation for each location 
+      * Maybe also include the top products you have the most value sunk into
+    * Inventory items -> Search feature to allow you to check the stock levels and FIFO costs of items in your inventory
+    * Aged stock report -> Check the historical data for the products in your inventory
+    * Nominal Transactions report -> View and compare nominal transactions -> not a clue what this is 
+    * Product transactions report -> View and compare product transactions -> Basically just a log of every event that happens for any given product, will be supported by the api logs work we do
+  * System Config
+    * Broadcast message -> Allows an admin to broadcast a message on the dashboard screen to all the other users for a given period of time 
+    * Managers' config -> Setting global settings like minimum and maximum gross profit 
+    * System logs -> All api system logs for the given tenant
+  * CMS -> you know what this is 
+  * Ledger -> Not a clue what this is? Some form of VIM to the D3 machine?
+  * Global search -> Ability to search for anything anywhere on the project and go straight there 
+    * Products 
+    * Customers 
+    * Suppliers 
+    * Sales orders 
+    * Purchase orders 
+  * AI Support -> Unlikely something i would do but could give it a good ole college try. 
+  
+
 * Monitoring & metrics
   * Sentry
   * Uptime monitor
