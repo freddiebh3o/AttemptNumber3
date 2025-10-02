@@ -69,8 +69,139 @@ model Tenant {
 
   roles       Role[]
 
+  branches Branch[]
+  userBranchMemberships UserBranchMembership[]
+  productStocks ProductStock[]
+  stockLots StockLot[]
+  stockLedgers StockLedger[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+enum StockMovementKind {
+  RECEIPT       // +qty into a new (or existing) lot
+  ADJUSTMENT    // +/- qty (e.g., audit correction)
+  CONSUMPTION   // -qty to fulfill/consume (e.g., order)
+  REVERSAL      // reverse a prior ledger movement
+}
+
+model Branch {
+  id         String  @id @default(cuid())
+  tenantId   String
+  tenant     Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  branchSlug String
+  branchName String
+  isActive   Boolean @default(true)
+
+  // Relations
+  memberships  UserBranchMembership[]
+  productStocks ProductStock[]
+  stockLots     StockLot[]
+  stockLedgers  StockLedger[]
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([tenantId, branchSlug])      // unique slug per tenant
+  @@index([tenantId])
+  @@index([tenantId, branchName])
+}
+
+model UserBranchMembership {
+  id       String @id @default(cuid())
+
+  userId   String
+  tenantId String
+  branchId String
+
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant   Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch   Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, branchId])  // one membership per user/branch
+  @@index([tenantId])
+  @@index([userId])
+  @@index([branchId])
+}
+
+model ProductStock {
+  id         String @id @default(cuid())
+
+  tenantId   String
+  branchId   String
+  productId  String
+
+  tenant     Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch     Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  product    Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  qtyOnHand   Int    @default(0) // sum of lot qtyRemaining
+  qtyAllocated Int   @default(0) // reserved for orders (future)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, branchId, productId])
+  @@index([branchId])
+  @@index([productId])
+}
+
+model StockLot {
+  id         String @id @default(cuid())
+
+  tenantId   String
+  branchId   String
+  productId  String
+
+  tenant     Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch     Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  product    Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  qtyReceived  Int
+  qtyRemaining Int
+
+  unitCostCents Int?        // optional now; useful later for valuation
+  sourceRef     String?     // PO/transfer ref (future)
+  receivedAt    DateTime @default(now())
+
+  ledgerEntries  StockLedger[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([tenantId, branchId, productId, receivedAt]) // FIFO scan
+  @@index([branchId, productId])
+}
+
+model StockLedger {
+  id         String @id @default(cuid())
+
+  tenantId   String
+  branchId   String
+  productId  String
+  lotId      String?
+
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch     Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  product    Product   @relation(fields: [productId], references: [id], onDelete: Restrict)
+  lot        StockLot? @relation(fields: [lotId], references: [id], onDelete: SetNull)
+
+  kind       StockMovementKind
+  qtyDelta   Int                  // + for RECEIPT/adjust-up; - for CONSUMPTION/adjust-down
+  reason     String?              // free text
+  actorUserId String?
+  actorUser  User?     @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  occurredAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId, branchId, productId, occurredAt])
+  @@index([kind])
 }
 
 /// A person that can belong to multiple tenants
@@ -83,6 +214,9 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  branchMemberships UserBranchMembership[]
+  stockLedgerEvents StockLedger[]
 
   @@index([createdAt])
   @@index([updatedAt])
@@ -121,6 +255,10 @@ model Product {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  stocks ProductStock[]
+  stockLots StockLot[]
+  stockLedgers StockLedger[]
 
   @@unique([tenantId, productSku])
   @@index([tenantId])

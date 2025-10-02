@@ -1978,7 +1978,7 @@ export interface components {
             role: components["schemas"]["RoleBrief"];
         };
         /** @enum {string} */
-        PermissionKey: "products:read" | "products:write" | "users:manage" | "roles:manage" | "tenant:manage" | "theme:manage" | "uploads:write";
+        PermissionKey: "products:read" | "products:write" | "users:manage" | "roles:manage" | "tenant:manage" | "theme:manage" | "uploads:write" | "branches:manage" | "stock:read" | "stock:write" | "stock:allocate";
         MeResponseData: {
             user: {
                 id: string;

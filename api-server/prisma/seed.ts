@@ -2,10 +2,21 @@
 /// <reference types="node" />
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import { provisionTenantRBAC } from '../src/services/roleProvisioningService.js';
+import { provisionTenantRBAC, ensurePermissionCatalog } from '../src/services/roleProvisioningService.js';
 
 const prisma = new PrismaClient();
 const PASSWORD = 'Password123!';
+
+type SlimBranch = { id: string; branchSlug: string };
+type SeededUser = { id: string; userEmailAddress: string };
+type SeededUsers = {
+  owner: SeededUser;
+  admin: SeededUser;
+  editor: SeededUser;
+  viewer: SeededUser;
+  mixed:  SeededUser;
+};
+
 
 async function upsertManyProductsForTenant(opts: {
   tenantId: string;
@@ -63,12 +74,15 @@ async function upsertMembershipWithRole(userId: string, tenantId: string, roleId
 }
 
 async function seedTenantsAndRBAC() {
+  // ⭐ NEW: ensure the global permission catalogue includes all current keys
+  await ensurePermissionCatalog(prisma);
+
   const acme = await prisma.tenant.upsert({
     where: { tenantSlug: 'acme' },
     update: {},
     create: { tenantSlug: 'acme', tenantName: 'Acme Incorporated' },
   });
-  await provisionTenantRBAC(acme.id, prisma); // ensures permissions + system roles
+  await provisionTenantRBAC(acme.id, prisma); // ensures/aligns system roles
 
   const globex = await prisma.tenant.upsert({
     where: { tenantSlug: 'globex' },
@@ -109,7 +123,7 @@ async function seedProducts(acmeId: string, globexId: string) {
   await upsertManyProductsForTenant({ tenantId: globexId, tenantPrefix: 'GLOBEX', startIndex: 100, count: 120 });
 }
 
-async function seedTestUsers(acmeId: string, globexId: string) {
+async function seedTestUsers(acmeId: string, globexId: string): Promise<SeededUsers> {
   const [ownerId, adminId, editorId, viewerId] = await Promise.all([
     getRoleId(acmeId, 'OWNER'),
     getRoleId(acmeId, 'ADMIN'),
@@ -124,11 +138,11 @@ async function seedTestUsers(acmeId: string, globexId: string) {
   const hashed = await bcrypt.hash(PASSWORD, 10);
 
   const [uOwner, uAdmin, uEditor, uViewer, uMixed] = await Promise.all([
-    upsertUser('owner@acme.test', hashed),
-    upsertUser('admin@acme.test', hashed),
+    upsertUser('owner@acme.test',  hashed),
+    upsertUser('admin@acme.test',  hashed),
     upsertUser('editor@acme.test', hashed),
     upsertUser('viewer@acme.test', hashed),
-    upsertUser('mixed@both.test', hashed),
+    upsertUser('mixed@both.test',  hashed),
   ]);
 
   await Promise.all([
@@ -137,11 +151,9 @@ async function seedTestUsers(acmeId: string, globexId: string) {
     upsertMembershipWithRole(uEditor.id, acmeId, editorId),
     upsertMembershipWithRole(uViewer.id, acmeId, viewerId),
 
-    // Mixed user across tenants
     upsertMembershipWithRole(uMixed.id, acmeId,   editorId),
     upsertMembershipWithRole(uMixed.id, globexId, globexViewerId),
 
-    // Ensure Globex editor is referenced
     upsertMembershipWithRole(uEditor.id, globexId, globexEditorId),
   ]);
 
@@ -155,17 +167,80 @@ async function seedTestUsers(acmeId: string, globexId: string) {
     { email: 'mixed@both.test',  tenant: 'globex', role: 'VIEWER' },
   ]);
   console.log('Password for all test users:', PASSWORD);
+
+  return {
+    owner: uOwner,
+    admin: uAdmin,
+    editor: uEditor,
+    viewer: uViewer,
+    mixed:  uMixed,
+  };
+}
+
+async function upsertBranchesForTenant(tenantId: string, slugPrefix: 'acme' | 'globex') {
+  const defs = [
+    { branchSlug: `${slugPrefix}-hq`,        branchName: 'HQ' },
+    { branchSlug: `${slugPrefix}-warehouse`, branchName: 'Warehouse' },
+    { branchSlug: `${slugPrefix}-retail-1`,  branchName: 'Retail #1' },
+  ];
+  const rows: SlimBranch[] = [];
+  for (const d of defs) {
+    const row = await prisma.branch.upsert({
+      where: { tenantId_branchSlug: { tenantId, branchSlug: d.branchSlug } },
+      update: { branchName: d.branchName, isActive: true },
+      create: { tenantId, ...d, isActive: true },
+      select: { id: true, branchSlug: true },
+    });
+    rows.push(row);
+  }
+  return rows; // [{id, branchSlug}, ...]
+}
+
+async function addUserToBranches(userId: string, tenantId: string, branchIds: string[]) {
+  for (const branchId of branchIds) {
+    await prisma.userBranchMembership.upsert({
+      where: { userId_branchId: { userId, branchId } },
+      update: {},
+      create: { userId, tenantId, branchId },
+    });
+  }
 }
 
 async function main() {
   // Tenants + RBAC
   const { acmeId, globexId } = await seedTenantsAndRBAC();
 
+  const acmeBranches   = await upsertBranchesForTenant(acmeId, 'acme');
+  const globexBranches = await upsertBranchesForTenant(globexId, 'globex');
+
   // Products
   await seedProducts(acmeId, globexId);
 
   // Users + memberships (includes an OWNER → has roles:manage)
   await seedTestUsers(acmeId, globexId);
+
+  const users = await seedTestUsers(acmeId, globexId);
+
+  // Pick specific branches (helpers to throw if not found)
+  const mustFind = (list: SlimBranch[], slug: string) => {
+    const b = list.find(x => x.branchSlug === slug);
+    if (!b) throw new Error(`Branch not found: ${slug}`);
+    return b;
+  };
+  
+  // after you create users (uOwner, uAdmin, uEditor, uViewer, uMixed) in seedTestUsers():
+  // Example (put at the end of seedTestUsers):
+  const acmeHQ        = mustFind(acmeBranches, 'acme-hq');
+  const acmeWarehouse = mustFind(acmeBranches, 'acme-warehouse');
+  const acmeRetail1   = mustFind(acmeBranches, 'acme-retail-1');
+  const globexHQ      = mustFind(globexBranches, 'globex-hq');
+
+  await addUserToBranches(users.owner.id, acmeId, [acmeHQ.id, acmeWarehouse.id, acmeRetail1.id]);
+  await addUserToBranches(users.admin.id, acmeId, [acmeHQ.id, acmeWarehouse.id]);
+  await addUserToBranches(users.editor.id, acmeId, [acmeHQ.id]);
+  await addUserToBranches(users.viewer.id, acmeId, [acmeRetail1.id]);
+  await addUserToBranches(users.mixed.id, acmeId,   [acmeHQ.id]);
+  await addUserToBranches(users.mixed.id, globexId, [globexHQ.id]);   // and globex
 
   console.log('Seed complete. Tenants: acme, globex');
 }

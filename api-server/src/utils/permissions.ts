@@ -1,4 +1,3 @@
-// api-server/src/utils/permissions.ts
 export const PERMISSION_KEYS = [
   // Products
   'products:read',
@@ -10,6 +9,10 @@ export const PERMISSION_KEYS = [
   // Theme & uploads
   'theme:manage',
   'uploads:write',
+  'branches:manage',
+  'stock:read',
+  'stock:write',
+  'stock:allocate',
 ] as const;
 
 export type PermissionKey = typeof PERMISSION_KEYS[number];
