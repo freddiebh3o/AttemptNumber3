@@ -61,6 +61,16 @@ export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) 
           />
         )}
 
+        {hasPerm("branches:manage") && (
+          <NavLink
+            label="Branches"
+            component={Link}
+            to={`${base}/branches`}
+            active={active(`${base}/branches`)}
+            onClick={onNavigate}
+          />
+        )}
+
         <Text size="sm" c="dimmed" px="xs" mt="sm">
           System
         </Text>
