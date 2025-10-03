@@ -6,6 +6,9 @@ type CreateProductRequestBody = NonNullable<
   paths["/api/products"]["post"]["requestBody"]
 >["content"]["application/json"];
 
+type GetProduct200Response =
+  paths["/api/products/{productId}"]["get"]["responses"]["200"]["content"]["application/json"];
+
 type CreateProduct201Response =
   paths["/api/products"]["post"]["responses"]["201"]["content"]["application/json"];
 
@@ -22,7 +25,10 @@ type ListProducts200Response =
 type DeleteProduct200Response =
   paths["/api/products/{productId}"]["delete"]["responses"]["200"]["content"]["application/json"];
 
-// Matches server query options (incl. new filters and updated sortBy)
+export async function getProductApiRequest(params: { productId: string }) {
+  return httpRequestJson<GetProduct200Response>(`/api/products/${params.productId}`);
+}
+
 export async function listProductsApiRequest(params?: {
   limit?: number;
   cursorId?: string;
@@ -45,6 +51,8 @@ export async function listProductsApiRequest(params?: {
   if (params?.maxPriceCents !== undefined) search.set("maxPriceCents", String(params.maxPriceCents));
   if (params?.createdAtFrom) search.set("createdAtFrom", params.createdAtFrom);
   if (params?.createdAtTo) search.set("createdAtTo", params.createdAtTo);
+  if (params?.updatedAtFrom) search.set("updatedAtFrom", params.updatedAtFrom);
+  if (params?.updatedAtTo) search.set("updatedAtTo", params.updatedAtTo);
   if (params?.sortBy) search.set("sortBy", params.sortBy);
   if (params?.sortDir) search.set("sortDir", params.sortDir);
   if (params?.includeTotal) search.set("includeTotal", "1");

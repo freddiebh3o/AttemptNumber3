@@ -19,6 +19,7 @@ import RequirePermission from './components/rbac/RequirePermission'
 import RolesPage from './pages/RolesPage'
 import BranchesPage from './pages/BranchesPage'
 import TenantUserPage from './pages/TenantUserPage'
+import ProductPage from './pages/ProductPage'
 
 const router = createBrowserRouter([
   {
@@ -42,6 +43,24 @@ const router = createBrowserRouter([
               </RequirePermission>
             ), 
             errorElement: <RouteErrorBoundary /> 
+          },
+          {
+            path: 'products/new',
+            element: (
+              <RequirePermission perm="products:write">
+                <ProductPage />
+              </RequirePermission>
+            ),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
+            path: 'products/:productId',
+            element: (
+              <RequirePermission perm="products:read">
+                <ProductPage />
+              </RequirePermission>
+            ),
+            errorElement: <RouteErrorBoundary />,
           },
           { 
             path: 'users', 

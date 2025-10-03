@@ -477,6 +477,8 @@ If you need initial data in the new environment:
   * Down the line, when I start implementing orders into the system, I will want functionality that means users can only create orders for branches that they belong to
   * Will likely require setting up a basic create/edit products page for this
 
+* Add branches response to the /me endpoint
+
 * Admin logs
   * Track each user actions so we can understand who changed what and when
   * Have a page in system/API-logs that shows all actions by everyone 

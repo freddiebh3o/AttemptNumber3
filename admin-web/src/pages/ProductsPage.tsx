@@ -44,6 +44,7 @@ import { handlePageError } from "../utils/pageError";
 import { useAuthStore } from "../stores/auth";
 import dayjs from "dayjs";
 import { FilterBar } from "../components/common/FilterBar";
+import { useNavigate } from "react-router-dom";
 
 type SortField =
   | "createdAt"
@@ -77,7 +78,7 @@ export default function ProductsPage() {
   const FILTER_PANEL_ID = "products-filter-panel";
   const TABLE_ID = "products-table";
   const RANGE_ID = "products-range";
-
+  const navigate = useNavigate();
 
   const [searchParams, setSearchParams] = useSearchParams();
   const navigationType = useNavigationType(); 
@@ -684,8 +685,8 @@ export default function ProductsPage() {
             </Button>
 
             <Button
-              onClick={() => console.log("New product")}
-              disabled={!canWriteProducts}  
+              onClick={() => navigate(`/${tenantSlug}/products/new`)} 
+              disabled={!canWriteProducts}
             >
               New product
             </Button>
@@ -1117,8 +1118,9 @@ export default function ProductsPage() {
                               <ActionIcon
                                 variant="light"
                                 size="md"
-                                onClick={() => console.log('open edit product')}
+                                onClick={() => navigate(`/${tenantSlug}/products/${p.id}`)}
                                 disabled={!canWriteProducts}
+                                title="Edit product"
                               >
                                 <IconPencil size={16} />
                               </ActionIcon>
