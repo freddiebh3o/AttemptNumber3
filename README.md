@@ -468,10 +468,6 @@ If you need initial data in the new environment:
 
 ## Future fetures
 ### Features to complete by Monday
-* Convert any reference to cents as it should be in pence
-  * Create a helper function on the frontend to convert pence into pounds for display values 
-  * FINAL FIX WHEN CREATING A PRODUCT (STILL SHOWING AS PENCE INSTEAD OF POUNDS)
-
 * Admin logs
   * Track each user actions so we can understand who changed what and when
   * Have a page in system/API-logs that shows all actions by everyone 
