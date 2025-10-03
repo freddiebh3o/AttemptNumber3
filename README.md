@@ -468,16 +468,12 @@ If you need initial data in the new environment:
 
 ## Future fetures
 ### Features to complete by Monday
-* Fix any routers/services that are creating new prisma instances. Should always use the prismaClientInstance from this file api-server/src/db/prismaClient.ts
-
-* Different branches/locations
-  * Each product can have stock in any/all branches
-  * Users can be assigned to one/many branches
-  * Roles/Themes are global so apply to all branches/locations
-  * Down the line, when I start implementing orders into the system, I will want functionality that means users can only create orders for branches that they belong to
-  * Will likely require setting up a basic create/edit products page for this
-
 * Add branches response to the /me endpoint
+
+* Make FIFO tab available when creating a product
+
+* Convert any reference to cents as it should be in pence
+  * Create a helper function on the frontend to convert pence into pounds for display values 
 
 * Admin logs
   * Track each user actions so we can understand who changed what and when
