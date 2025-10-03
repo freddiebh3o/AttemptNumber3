@@ -2,10 +2,20 @@
 import { z } from 'zod';
 import { ZodPermissionKey } from '../components/rbac.js';
 
-export const ZodRoleSummary = z
+export const ZodBranchSummary = z
   .object({
     id: z.string(),
-    name: z.string(), // free-form to support custom roles
+    branchName: z.string(),
+    isActive: z.boolean(),
+    createdAt: z.string().datetime(),
+    updatedAt: z.string().datetime(),
+  })
+  .openapi('BranchSummary');
+
+  export const ZodRoleSummary = z
+  .object({
+    id: z.string(),
+    name: z.string(),
     description: z.string().nullable(),
     isSystem: z.boolean(),
     tenantId: z.string(),
@@ -20,6 +30,7 @@ export const ZodTenantUserRecord = z
     userId: z.string(),
     userEmailAddress: z.string().email(),
     role: ZodRoleSummary.nullable(),
+    branches: z.array(ZodBranchSummary).default([]),
     createdAt: z.string().datetime().optional(),
     updatedAt: z.string().datetime().optional(),
   })
@@ -29,15 +40,13 @@ export const ZodListTenantUsersQuery = z
   .object({
     limit: z.number().int().min(1).max(100).optional(),
     cursorId: z.string().optional(),
-    // filters
     q: z.string().optional(),
     roleId: z.string().optional(),
-    roleName: z.string().optional(), // optional "contains" filter on role.name
+    roleName: z.string().optional(),
     createdAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     createdAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     updatedAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     updatedAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-    // sort
     sortBy: z.enum(['createdAt', 'updatedAt', 'userEmailAddress', 'role']).optional(),
     sortDir: z.enum(['asc', 'desc']).optional(),
     includeTotal: z.boolean().optional(),
@@ -76,6 +85,7 @@ export const ZodCreateTenantUserBody = z
     email: z.string().email(),
     password: z.string().min(8),
     roleId: z.string(),
+    branchIds: z.array(z.string()).optional(),
   })
   .openapi('CreateTenantUserBody');
 
@@ -84,5 +94,6 @@ export const ZodUpdateTenantUserBody = z
     email: z.string().email().optional(),
     password: z.string().min(8).optional(),
     roleId: z.string().optional(),
+    branchIds: z.array(z.string()).optional(),
   })
   .openapi('UpdateTenantUserBody');

@@ -49,6 +49,7 @@ import {
 } from "@tabler/icons-react";
 import { FilterBar } from "../components/common/FilterBar";
 import type { components } from "../types/openapi";
+import { useNavigate } from "react-router-dom";
 
 type SortField = "createdAt" | "updatedAt" | "userEmailAddress" | "role";
 type SortDir = "asc" | "desc";
@@ -82,6 +83,7 @@ export default function TenantUsersPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const navigationType = useNavigationType();
+  const navigate = useNavigate();
 
   const canManageUsers = useAuthStore((s) => s.hasPerm("users:manage"));
 
@@ -658,7 +660,7 @@ export default function TenantUsersPage() {
             <Button
               leftSection={<IconPlus size={16} />}
               title="Add user"
-              onClick={() => console.log("Add user")}
+              onClick={() => navigate(`/${tenantSlug}/users/new`)}   // <-- changed
               disabled={!canManageUsers}
             >
               Add user
@@ -937,6 +939,8 @@ export default function TenantUsersPage() {
                         </Group>
                       </Table.Th>
 
+                      <Table.Th scope="col">Branches</Table.Th>
+
                       <Table.Th
                         scope="col"
                         aria-sort={colAriaSort("createdAt")}
@@ -1005,8 +1009,26 @@ export default function TenantUsersPage() {
                     {rows!.map((r) => (
                       <Table.Tr key={r.userId}>
                         <Table.Td>{r.userEmailAddress}</Table.Td>
-                        <Table.Td>
+                        <Table.Td className="min-w-[90px]">
                           <Badge>{r.role?.name ?? "—"}</Badge>
+                        </Table.Td>
+                        <Table.Td className="min-w-[120px]">
+                          {r.branches && r.branches.length > 0 ? (
+                            <Group gap="xs" wrap="wrap">
+                              {r.branches.map((b) => (
+                                <Badge
+                                  key={b.id}
+                                  variant={b.isActive ? "light" : "outline"}
+                                  color={b.isActive ? undefined : "gray"}
+                                  title={b.isActive ? "Active branch" : "Inactive branch"}
+                                >
+                                  {b.branchName}
+                                </Badge>
+                              ))}
+                            </Group>
+                          ) : (
+                            <Text c="dimmed">—</Text>
+                          )}
                         </Table.Td>
                         <Table.Td>
                           {r.createdAt
@@ -1023,8 +1045,9 @@ export default function TenantUsersPage() {
                             <ActionIcon
                               variant="light"
                               size="md"
-                              onClick={() => console.log("open edit product")}
+                              onClick={() => navigate(`/${tenantSlug}/users/${r.userId}`)}
                               disabled={!canManageUsers}
+                              title="Edit user"
                             >
                               <IconPencil size={16} />
                             </ActionIcon>

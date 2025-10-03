@@ -14,6 +14,7 @@ import {
   createOrAttachUserToTenantService,
   updateTenantUserService,
   removeUserFromTenantService,
+  getUserForCurrentTenantService,
 } from "../services/tenantUserService.js";
 import {
   assertAuthed,
@@ -25,6 +26,7 @@ import {
 export const tenantUserRouter = Router();
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+const idParamsSchema = z.object({ userId: z.string().min(1) });
 
 // Query: support roleId and roleName (contains) filters; sort by roleName (role.name)
 const listQuerySchema = z.object({
@@ -123,11 +125,40 @@ tenantUserRouter.get(
   }
 );
 
+// GET /api/tenant-users/:userId
+tenantUserRouter.get(
+  "/:userId",
+  requireAuthenticatedUserMiddleware,
+  requirePermission("users:manage"),
+  validateRequestParamsWithZod(idParamsSchema),
+  async (req, res, next) => {
+    try {
+      assertAuthed(req);
+      assertHasParams<z.infer<typeof idParamsSchema>>(req);
+
+      const { currentTenantId } = req;
+      const { userId } = req.validatedParams;
+
+      const user = await getUserForCurrentTenantService({
+        currentTenantId,
+        targetUserId: userId,
+      });
+
+      return res
+        .status(200)
+        .json(createStandardSuccessResponse({ user }));
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
 // POST /api/tenant-users
 const createBodySchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
-  roleId: z.string(), // roleId now required
+  roleId: z.string(),
+  branchIds: z.array(z.string()).optional(),
 });
 
 tenantUserRouter.post(
@@ -141,18 +172,17 @@ tenantUserRouter.post(
       assertHasBody<z.infer<typeof createBodySchema>>(req);
 
       const { currentTenantId } = req;
-      const { email, password, roleId } = req.validatedBody;
+      const { email, password, roleId, branchIds } = req.validatedBody;
 
       const created = await createOrAttachUserToTenantService({
         currentTenantId,
         email,
         password,
         roleId,
+        ...(branchIds !== undefined && { branchIdsOptional: branchIds }),
       });
 
-      return res
-        .status(201)
-        .json(createStandardSuccessResponse({ user: created }));
+      return res.status(201).json(createStandardSuccessResponse({ user: created }));
     } catch (err) {
       return next(err);
     }
@@ -164,7 +194,8 @@ const updateParamsSchema = z.object({ userId: z.string().min(1) });
 const updateBodySchema = z.object({
   email: z.string().email().optional(),
   password: z.string().min(8).optional(),
-  roleId: z.string().optional(), // roleId is optional on update
+  roleId: z.string().optional(),
+  branchIds: z.array(z.string()).optional(),
 });
 
 tenantUserRouter.put(
@@ -181,7 +212,7 @@ tenantUserRouter.put(
 
       const { currentTenantId, currentUserId } = req;
       const { userId } = req.validatedParams;
-      const { email, password, roleId } = req.validatedBody;
+      const { email, password, roleId, branchIds } = req.validatedBody;
 
       const updated = await updateTenantUserService({
         currentTenantId,
@@ -190,11 +221,10 @@ tenantUserRouter.put(
         ...(email !== undefined && { newEmailOptional: email }),
         ...(password !== undefined && { newPasswordOptional: password }),
         ...(roleId !== undefined && { newRoleIdOptional: roleId }),
+        ...(branchIds !== undefined && { newBranchIdsOptional: branchIds }),
       });
 
-      return res
-        .status(200)
-        .json(createStandardSuccessResponse({ user: updated }));
+      return res.status(200).json(createStandardSuccessResponse({ user: updated }));
     } catch (err) {
       return next(err);
     }

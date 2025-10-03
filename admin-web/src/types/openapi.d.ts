@@ -837,7 +837,84 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    userId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Tenant user */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                user: components["schemas"]["TenantUserRecord"];
+                            };
+                            error: unknown;
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        "X-RateLimit-Limit": string;
+                        "X-RateLimit-Remaining": string;
+                        "X-RateLimit-Reset": string;
+                        "Retry-After": string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Internal Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
         put: {
             parameters: {
                 query?: never;
@@ -2807,11 +2884,22 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
         } | null;
+        BranchSummary: {
+            id: string;
+            branchName: string;
+            isActive: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
         TenantUserRecord: {
             userId: string;
             /** Format: email */
             userEmailAddress: string;
             role: components["schemas"]["RoleSummary"];
+            /** @default [] */
+            branches: components["schemas"]["BranchSummary"][];
             /** Format: date-time */
             createdAt?: string;
             /** Format: date-time */
@@ -2848,12 +2936,14 @@ export interface components {
             email: string;
             password: string;
             roleId: string;
+            branchIds?: string[];
         };
         UpdateTenantUserBody: {
             /** Format: email */
             email?: string;
             password?: string;
             roleId?: string;
+            branchIds?: string[];
         };
         /** @enum {string|null} */
         PresetKey: "classicBlue" | "rubyDark" | "emeraldLight" | "oceanLight" | "violetLight" | "grapeDark" | "tealDark" | "cyanLight" | "orangeLight" | "limeLight" | "pinkDark" | "yellowLight" | null;

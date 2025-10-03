@@ -18,6 +18,7 @@ import ThemeSettingsPage from './pages/ThemeSettingsPage';
 import RequirePermission from './components/rbac/RequirePermission'
 import RolesPage from './pages/RolesPage'
 import BranchesPage from './pages/BranchesPage'
+import TenantUserPage from './pages/TenantUserPage'
 
 const router = createBrowserRouter([
   {
@@ -50,6 +51,24 @@ const router = createBrowserRouter([
               </RequirePermission>
             ), 
             errorElement: <RouteErrorBoundary /> 
+          },
+          {
+            path: 'users/new',
+            element: (
+              <RequirePermission perm="users:manage">
+                <TenantUserPage />
+              </RequirePermission>
+            ),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
+            path: 'users/:userId',
+            element: (
+              <RequirePermission perm="users:manage">
+                <TenantUserPage />
+              </RequirePermission>
+            ),
+            errorElement: <RouteErrorBoundary />,
           },
           { 
             path: 'settings/theme', 

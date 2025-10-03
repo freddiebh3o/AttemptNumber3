@@ -20,6 +20,9 @@ type UpdateUser200 =
 type DeleteUser200 =
   paths["/api/tenant-users/{userId}"]["delete"]["responses"]["200"]["content"]["application/json"];
 
+type GetUser200 =
+  paths["/api/tenant-users/{userId}"]["get"]["responses"]["200"]["content"]["application/json"];
+
 export async function listTenantUsersApiRequest(params?: {
   limit?: number;
   cursorId?: string;
@@ -50,6 +53,10 @@ export async function listTenantUsersApiRequest(params?: {
 
   const qs = search.toString();
   return httpRequestJson<ListUsers200>(`/api/tenant-users${qs ? `?${qs}` : ""}`);
+}
+
+export async function getTenantUserApiRequest(params: { userId: string }) {
+  return httpRequestJson<GetUser200>(`/api/tenant-users/${params.userId}`);
 }
 
 export async function createTenantUserApiRequest(

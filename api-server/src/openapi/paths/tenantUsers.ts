@@ -6,11 +6,12 @@ import {
   ZodListTenantUsersQuery,
   ZodTenantUsersListResponseData,
   ZodUpdateTenantUserBody,
+  ZodTenantUserRecord,
 } from '../schemas/tenantUsers.js';
 import { z } from 'zod';
 
 const ZodTenantUserEnvelope = z.object({
-  user: ZodTenantUsersListResponseData.shape.items.element, // reuse single user shape
+  user: ZodTenantUserRecord,
 });
 
 export function registerTenantUsersPaths(registry: OpenAPIRegistry) {
@@ -27,6 +28,26 @@ export function registerTenantUsersPaths(registry: OpenAPIRegistry) {
       },
       401: RESPONSES[401],
       403: RESPONSES[403],
+      429: RESPONSES[429],
+      500: RESPONSES[500],
+    },
+  });
+
+  // ⬇️ NEW: get by id
+  registry.registerPath({
+    tags: ['TenantUsers'],
+    method: 'get',
+    path: '/api/tenant-users/{userId}',
+    security: [{ cookieAuth: [] }],
+    request: { params: z.object({ userId: z.string() }) },
+    responses: {
+      200: {
+        description: 'Tenant user',
+        content: { 'application/json': { schema: successEnvelope(ZodTenantUserEnvelope) } },
+      },
+      401: RESPONSES[401],
+      403: RESPONSES[403],
+      404: RESPONSES[404],
       429: RESPONSES[429],
       500: RESPONSES[500],
     },
@@ -68,10 +89,7 @@ export function registerTenantUsersPaths(registry: OpenAPIRegistry) {
       },
       400: RESPONSES[400],
       401: RESPONSES[401],
-      403: {
-        description: 'Forbidden',
-        content: { 'application/json': { schema: errorEnvelope } },
-      },
+      403: { description: 'Forbidden', content: { 'application/json': { schema: errorEnvelope } } },
       404: RESPONSES[404],
       409: RESPONSES[409],
       429: RESPONSES[429],

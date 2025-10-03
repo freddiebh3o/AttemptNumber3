@@ -3,28 +3,52 @@ import { Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { Errors } from '../utils/httpErrors.js';
 import { prismaClientInstance } from '../db/prismaClient.js';
+import type { Prisma as PrismaNS } from '@prisma/client';
 
 function addDays(date: Date, days: number) {
   return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 }
 
-async function countOwners(tenantId: string) {
-  const ownerRole = await prismaClientInstance.role.findUnique({
-    where: { tenantId_name: { tenantId, name: 'OWNER' } },
-    select: { id: true },
-  });
-  if (!ownerRole) return 0;
-  return prismaClientInstance.userTenantMembership.count({
-    where: { tenantId, roleId: ownerRole.id },
-  });
-}
+async function syncUserBranches(
+  tx: PrismaNS.TransactionClient,
+  tenantId: string,
+  userId: string,
+  branchIds: string[]
+) {
+  const unique = Array.from(new Set(branchIds ?? []));
 
-async function isOwner(tenantId: string, userId: string) {
-  const m = await prismaClientInstance.userTenantMembership.findUnique({
-    where: { userId_tenantId: { tenantId, userId } },
-    select: { role: { select: { name: true } } },
+  // Validate all belong to tenant
+  if (unique.length) {
+    const valid = await tx.branch.findMany({
+      where: { tenantId, id: { in: unique } },
+      select: { id: true },
+    });
+    if (valid.length !== unique.length) {
+      throw Errors.validation('Invalid branches', 'One or more branches do not belong to this tenant.');
+    }
+  }
+
+  // Existing memberships
+  const existing = await tx.userBranchMembership.findMany({
+    where: { tenantId, userId },
+    select: { branchId: true },
   });
-  return m?.role?.name === 'OWNER';
+  const existingIds = new Set(existing.map(e => e.branchId));
+
+  const toCreate = unique.filter(id => !existingIds.has(id));
+  const toDelete = [...existingIds].filter(id => !unique.includes(id));
+
+  if (toCreate.length) {
+    await tx.userBranchMembership.createMany({
+      data: toCreate.map(branchId => ({ tenantId, userId, branchId })),
+      skipDuplicates: true,
+    });
+  }
+  if (toDelete.length) {
+    await tx.userBranchMembership.deleteMany({
+      where: { tenantId, userId, branchId: { in: toDelete } },
+    });
+  }
 }
 
 /**
@@ -117,7 +141,26 @@ export async function listUsersForCurrentTenantService(params: {
         id: true,
         createdAt: true,
         updatedAt: true,
-        user: { select: { id: true, userEmailAddress: true } },
+        user: {
+          select: {
+            id: true,
+            userEmailAddress: true,
+            branchMemberships: {
+              where: { tenantId: currentTenantId },
+              select: {
+                branch: {
+                  select: {
+                    id: true,
+                    branchName: true,
+                    isActive: true,
+                    createdAt: true,
+                    updatedAt: true,
+                  },
+                },
+              },
+            },
+          },
+        },
         role: {
           select: {
             id: true,
@@ -156,6 +199,13 @@ export async function listUsersForCurrentTenantService(params: {
           updatedAt: m.role.updatedAt.toISOString(),
         }
       : null,
+    branches: (m.user.branchMemberships ?? []).map((bm) => ({
+      id: bm.branch.id,
+      branchName: bm.branch.branchName,
+      isActive: bm.branch.isActive,
+      createdAt: bm.branch.createdAt.toISOString(),
+      updatedAt: bm.branch.updatedAt.toISOString(),
+    })),
     createdAt: m.createdAt.toISOString(),
     updatedAt: m.updatedAt.toISOString(),
   }));
@@ -185,6 +235,81 @@ export async function listUsersForCurrentTenantService(params: {
   };
 }
 
+export async function getUserForCurrentTenantService(params: {
+  currentTenantId: string;
+  targetUserId: string;
+}) {
+  const { currentTenantId, targetUserId } = params;
+
+  const m = await prismaClientInstance.userTenantMembership.findUnique({
+    where: { userId_tenantId: { userId: targetUserId, tenantId: currentTenantId } },
+    select: {
+      createdAt: true,
+      updatedAt: true,
+      user: {
+        select: {
+          id: true,
+          userEmailAddress: true,
+          branchMemberships: {
+            where: { tenantId: currentTenantId },
+            select: {
+              branch: {
+                select: {
+                  id: true,
+                  branchName: true,
+                  isActive: true,
+                  createdAt: true,
+                  updatedAt: true,
+                },
+              },
+            },
+          },
+        },
+      },
+      role: {
+        select: {
+          id: true,
+          tenantId: true,
+          name: true,
+          description: true,
+          isSystem: true,
+          createdAt: true,
+          updatedAt: true,
+          permissions: { select: { permission: { select: { key: true } } } },
+        },
+      },
+    },
+  });
+
+  if (!m || !m.user) throw Errors.notFound('User is not a member of this tenant.');
+
+  return {
+    userId: m.user.id,
+    userEmailAddress: m.user.userEmailAddress,
+    role: m.role
+      ? {
+          id: m.role.id,
+          tenantId: m.role.tenantId,
+          name: m.role.name,
+          description: m.role.description ?? null,
+          isSystem: m.role.isSystem,
+          permissions: m.role.permissions.map((rp) => rp.permission.key),
+          createdAt: m.role.createdAt.toISOString(),
+          updatedAt: m.role.updatedAt.toISOString(),
+        }
+      : null,
+    branches: (m.user.branchMemberships ?? []).map((bm) => ({
+      id: bm.branch.id,
+      branchName: bm.branch.branchName,
+      isActive: bm.branch.isActive,
+      createdAt: bm.branch.createdAt.toISOString(),
+      updatedAt: bm.branch.updatedAt.toISOString(),
+    })),
+    createdAt: m.createdAt.toISOString(),
+    updatedAt: m.updatedAt.toISOString(),
+  };
+}
+
 /**
  * Create (or attach) a user to the current tenant with a role.
  * If a user with the same email exists, we attach membership (idempotent-ish).
@@ -194,20 +319,16 @@ export async function createOrAttachUserToTenantService(params: {
   email: string;
   password: string;
   roleId: string;
+  branchIdsOptional?: string[];
 }) {
-  const { currentTenantId, email, password, roleId } = params;
+  const { currentTenantId, email, password, roleId, branchIdsOptional } = params;
 
-  // Validate role belongs to tenant
+  // Validate role belongs to tenant (unchanged)
   const role = await prismaClientInstance.role.findUnique({
     where: { id: roleId },
     select: {
-      id: true,
-      tenantId: true,
-      name: true,
-      description: true,
-      isSystem: true,
-      createdAt: true,
-      updatedAt: true,
+      id: true, tenantId: true, name: true, description: true, isSystem: true,
+      createdAt: true, updatedAt: true,
       permissions: { select: { permission: { select: { key: true } } } },
     },
   });
@@ -215,7 +336,7 @@ export async function createOrAttachUserToTenantService(params: {
     throw Errors.validation('Invalid role', 'Role not found for this tenant.');
   }
 
-  // Find or create user
+  // Find or create user (unchanged)
   const existingUser = await prismaClientInstance.user.findUnique({
     where: { userEmailAddress: email },
   });
@@ -232,47 +353,40 @@ export async function createOrAttachUserToTenantService(params: {
     userId = existingUser.id;
   }
 
-  // Upsert membership (roleId only; roleName deprecated)
-  const membership = await prismaClientInstance.userTenantMembership.upsert({
-    where: { userId_tenantId: { userId, tenantId: currentTenantId } },
-    update: { roleId: role.id },
-    create: { userId, tenantId: currentTenantId, roleId: role.id },
-    select: {
-      createdAt: true,
-      updatedAt: true,
-      user: { select: { id: true, userEmailAddress: true } },
-    },
+  // Do membership and branch sync in a single tx
+  await prismaClientInstance.$transaction(async (tx) => {
+    await tx.userTenantMembership.upsert({
+      where: { userId_tenantId: { userId, tenantId: currentTenantId } },
+      update: { roleId: role.id },
+      create: { userId, tenantId: currentTenantId, roleId: role.id },
+      select: { id: true },
+    });
+
+    if (branchIdsOptional !== undefined) {
+      await syncUserBranches(tx, currentTenantId, userId, branchIdsOptional);
+    }
   });
 
-  return {
-    userId: membership.user.id,
-    userEmailAddress: membership.user.userEmailAddress,
-    role: {
-      id: role.id,
-      tenantId: role.tenantId,
-      name: role.name,
-      description: role.description ?? null,
-      isSystem: role.isSystem,
-      permissions: role.permissions.map((rp) => rp.permission.key),
-      createdAt: role.createdAt.toISOString(),
-      updatedAt: role.updatedAt.toISOString(),
-    },
-    createdAt: membership.createdAt.toISOString(),
-    updatedAt: membership.updatedAt.toISOString(),
-  };
+  // Return with role (and branches)
+  const fresh = await getUserForCurrentTenantService({
+    currentTenantId,
+    targetUserId: userId,
+  });
+  return fresh;
 }
 
 export async function updateTenantUserService(params: {
   currentTenantId: string;
-  currentUserId: string;  // actor
+  currentUserId: string;
   targetUserId: string;
   newEmailOptional?: string;
   newPasswordOptional?: string;
-  newRoleIdOptional?: string; // roleId, not roleName
+  newRoleIdOptional?: string;
+  newBranchIdsOptional?: string[];
 }) {
   const { currentTenantId, targetUserId } = params;
 
-  // Fetch membership and (maybe) nextRole outside tx for fast 404/validation
+  // prefetch membership/role (unchanged)
   const membership = await prismaClientInstance.userTenantMembership.findUnique({
     where: { userId_tenantId: { userId: targetUserId, tenantId: currentTenantId } },
     select: {
@@ -296,27 +410,20 @@ export async function updateTenantUserService(params: {
     nextRoleId = nextRole.id;
   }
 
-  // Perform sensitive membership updates inside a transaction to avoid races
   await prismaClientInstance.$transaction(async (tx) => {
-    // Handle role change with "last OWNER" protection
     if (nextRoleId !== undefined) {
       const currRoleName = membership.role?.name ?? null;
 
       if (currRoleName === 'OWNER') {
-        // Re-check inside the transaction
         const ownerRole = await tx.role.findUnique({
           where: { tenantId_name: { tenantId: currentTenantId, name: 'OWNER' } },
           select: { id: true },
         });
         if (!ownerRole) throw Errors.internal('OWNER role missing for tenant.');
-
         const owners = await tx.userTenantMembership.count({
           where: { tenantId: currentTenantId, roleId: ownerRole.id },
         });
-
-        // Determine if the next role keeps the user as OWNER
         const isNextOwner = nextRoleId === ownerRole.id;
-
         if (!isNextOwner && owners <= 1) {
           throw Errors.cantDeleteLastOwner();
         }
@@ -328,7 +435,7 @@ export async function updateTenantUserService(params: {
       });
     }
 
-    // Account updates (email/password) — safe to do in the same tx
+    // account updates (unchanged)
     if (params.newEmailOptional !== undefined || params.newPasswordOptional !== undefined) {
       const data: { userEmailAddress?: string; userHashedPassword?: string } = {};
       if (params.newEmailOptional !== undefined) data.userEmailAddress = params.newEmailOptional;
@@ -337,50 +444,18 @@ export async function updateTenantUserService(params: {
       }
       await tx.user.update({ where: { id: targetUserId }, data });
     }
+
+    if (params.newBranchIdsOptional !== undefined) {
+      await syncUserBranches(tx, currentTenantId, targetUserId, params.newBranchIdsOptional);
+    }
   });
 
-  // Fresh selection with role + permissions
-  const fresh = await prismaClientInstance.userTenantMembership.findUnique({
-    where: { userId_tenantId: { userId: targetUserId, tenantId: currentTenantId } },
-    select: {
-      createdAt: true,
-      updatedAt: true,
-      user: { select: { id: true, userEmailAddress: true } },
-      role: {
-        select: {
-          id: true,
-          tenantId: true,
-          name: true,
-          description: true,
-          isSystem: true,
-          createdAt: true,
-          updatedAt: true,
-          permissions: { select: { permission: { select: { key: true } } } },
-        },
-      },
-    },
+  // fresh selection, now with branches (reuse existing getter)
+  const fresh = await getUserForCurrentTenantService({
+    currentTenantId,
+    targetUserId,
   });
-
-  if (!fresh || !fresh.user || !fresh.role) {
-    throw Errors.internal('State mismatch after update.');
-  }
-
-  return {
-    userId: fresh.user.id,
-    userEmailAddress: fresh.user.userEmailAddress,
-    role: {
-      id: fresh.role.id,
-      tenantId: fresh.role.tenantId,
-      name: fresh.role.name,
-      description: fresh.role.description ?? null,
-      isSystem: fresh.role.isSystem,
-      permissions: fresh.role.permissions.map((rp) => rp.permission.key),
-      createdAt: fresh.role.createdAt.toISOString(),
-      updatedAt: fresh.role.updatedAt.toISOString(),
-    },
-    createdAt: fresh.createdAt.toISOString(),
-    updatedAt: fresh.updatedAt.toISOString(),
-  };
+  return fresh;
 }
 
 /**
