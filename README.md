@@ -468,10 +468,6 @@ If you need initial data in the new environment:
 
 ## Future fetures
 ### Features to complete by Monday
-* Add branches response to the /me endpoint
-
-* Make FIFO tab available when creating a product
-
 * Convert any reference to cents as it should be in pence
   * Create a helper function on the frontend to convert pence into pounds for display values 
 
