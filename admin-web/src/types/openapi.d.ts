@@ -578,13 +578,13 @@ export interface paths {
                     limit?: number;
                     cursorId?: string;
                     q?: string;
-                    minPriceCents?: number;
-                    maxPriceCents?: number;
+                    minPricePence?: number;
+                    maxPricePence?: number;
                     createdAtFrom?: string;
                     createdAtTo?: string;
                     updatedAtFrom?: string;
                     updatedAtTo?: string;
-                    sortBy?: "createdAt" | "updatedAt" | "productName" | "productPriceCents";
+                    sortBy?: "createdAt" | "updatedAt" | "productName" | "productPricePence";
                     sortDir?: "asc" | "desc";
                     includeTotal?: boolean;
                 };
@@ -2574,7 +2574,7 @@ export interface paths {
                         branchId: string;
                         productId: string;
                         qtyDelta: number;
-                        unitCostCents?: number;
+                        unitCostPence?: number;
                         reason?: string | null;
                         /** Format: date-time */
                         occurredAt?: string;
@@ -3113,7 +3113,7 @@ export interface components {
             tenantId: string;
             productName: string;
             productSku: string;
-            productPriceCents: number;
+            productPricePence: number;
             entityVersion: number;
             /** Format: date-time */
             createdAt: string;
@@ -3131,14 +3131,14 @@ export interface components {
                 limit: number;
                 sort: {
                     /** @enum {string} */
-                    field: "createdAt" | "updatedAt" | "productName" | "productPriceCents";
+                    field: "createdAt" | "updatedAt" | "productName" | "productPricePence";
                     /** @enum {string} */
                     direction: "asc" | "desc";
                 };
                 filters: {
                     q?: string;
-                    minPriceCents?: number;
-                    maxPriceCents?: number;
+                    minPricePence?: number;
+                    maxPricePence?: number;
                     createdAtFrom?: string;
                     createdAtTo?: string;
                     updatedAtFrom?: string;
@@ -3149,11 +3149,11 @@ export interface components {
         CreateProductRequestBody: {
             productName: string;
             productSku: string;
-            productPriceCents: number;
+            productPricePence: number;
         };
         UpdateProductRequestBody: {
             productName?: string;
-            productPriceCents?: number;
+            productPricePence?: number;
             currentEntityVersion: number;
         };
         RoleSummary: {
@@ -3414,7 +3414,7 @@ export interface components {
             productId: string;
             qtyReceived: number;
             qtyRemaining: number;
-            unitCostCents?: number | null;
+            unitCostPence?: number | null;
             sourceRef?: string | null;
             /** Format: date-time */
             receivedAt: string;
@@ -3461,7 +3461,7 @@ export interface components {
             branchId: string;
             productId: string;
             qty: number;
-            unitCostCents?: number | null;
+            unitCostPence?: number | null;
             sourceRef?: string | null;
             reason?: string | null;
             /** Format: date-time */
