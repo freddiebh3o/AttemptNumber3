@@ -121,10 +121,8 @@ function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
 }
 
 function toIsoStartOfDayUTC(d: string) {
-  // d is like "2025-10-01"
   return new Date(`${d}T00:00:00.000Z`).toISOString();
 }
-
 function toIsoEndOfDayUTC(d: string) {
   return new Date(`${d}T23:59:59.999Z`).toISOString();
 }
@@ -177,7 +175,11 @@ export const ProductFifoTab: React.FC<Props> = ({
   const [stockCostCents, setStockCostCents] = useState<number | "">("");
   const [stockReason, setStockReason] = useState<string>("");
   const [submittingStock, setSubmittingStock] = useState(false);
-  const branchMemberships = useAuthStore((s) => s.branchMembershipsCurrentTenant);
+
+  // Restrict branches by current-tenant memberships
+  const branchMemberships = useAuthStore(
+    (s) => s.branchMembershipsCurrentTenant
+  );
   const allowedBranchIds = useMemo(
     () => new Set(branchMemberships.map((b) => b.branchId)),
     [branchMemberships]
@@ -199,7 +201,7 @@ export const ProductFifoTab: React.FC<Props> = ({
             branchName: b.branchName,
           }));
           setBranches(items);
-          // From URL or default first
+
           const qpBranch = searchParams.get("branchId");
           const visible = items.filter((b: any) => allowedBranchIds.has(b.id));
 
@@ -208,7 +210,7 @@ export const ProductFifoTab: React.FC<Props> = ({
           } else if (!branchId && visible.length) {
             setBranchId(visible[0].id);
           } else if (!branchId && visible.length === 0) {
-            setBranchId(null); // no access to any branch
+            setBranchId(null);
           }
         }
       } catch (e) {
@@ -291,12 +293,13 @@ export const ProductFifoTab: React.FC<Props> = ({
       includeReset: true,
       cursorId: qpCursor ?? null,
       limitOverride:
-        !Number.isNaN(qpLimit) && qpLimit
-          ? Math.max(1, Math.min(100, qpLimit))
-          : undefined,
+        !Number.isNaN(qpLimit) && qpLimit ? Math.max(1, Math.min(100, qpLimit)) : undefined,
       sortDirOverride: qpSortDir,
       occurredFromOverride: qpFrom ?? undefined,
       occurredToOverride: qpTo ?? undefined,
+      kindsOverride: (qpKinds ? qpKinds.split(",").filter(Boolean) as LedgerRow["kind"][] : null),
+      minQtyOverride: qpMinQty !== null && qpMinQty !== "" ? Number(qpMinQty) : null,
+      maxQtyOverride: qpMaxQty !== null && qpMaxQty !== "" ? Number(qpMaxQty) : null,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [branchId]);
@@ -343,12 +346,13 @@ export const ProductFifoTab: React.FC<Props> = ({
       includeReset: true,
       cursorId: qpCursor ?? null,
       limitOverride:
-        !Number.isNaN(qpLimit) && qpLimit
-          ? Math.max(1, Math.min(100, qpLimit))
-          : undefined,
+        !Number.isNaN(qpLimit) && qpLimit ? Math.max(1, Math.min(100, qpLimit)) : undefined,
       sortDirOverride: qpSortDir,
       occurredFromOverride: qpFrom ?? undefined,
       occurredToOverride: qpTo ?? undefined,
+      kindsOverride: (qpKinds ? qpKinds.split(",").filter(Boolean) as LedgerRow["kind"][] : null),
+      minQtyOverride: qpMinQty !== null && qpMinQty !== "" ? Number(qpMinQty) : null,
+      maxQtyOverride: qpMaxQty !== null && qpMaxQty !== "" ? Number(qpMaxQty) : null,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.key, navigationType]);
@@ -433,8 +437,15 @@ export const ProductFifoTab: React.FC<Props> = ({
     limitOverride?: number;
     sortByOverride?: SortField; // currently unused by server (only direction supported)
     sortDirOverride?: SortDir;
-    occurredFromOverride?: string | undefined | null;
-    occurredToOverride?: string | undefined | null;
+
+    // date overrides
+    occurredFromOverride?: string | undefined | null; // pass null to clear, undefined to "use state"
+    occurredToOverride?: string | undefined | null; // pass null to clear, undefined to "use state"
+
+    // NEW: server filter overrides (pass null to clear, undefined to "use state")
+    kindsOverride?: LedgerRow["kind"][] | null;
+    minQtyOverride?: number | null;
+    maxQtyOverride?: number | null;
   }) {
     if (!branchId) return;
     setLedgerLoading(true);
@@ -444,29 +455,68 @@ export const ProductFifoTab: React.FC<Props> = ({
           ? opts.cursorId // use the provided value even if it's null (first page)
           : cursorStack[pageIndex] ?? null;
 
-        const hasFrom = opts && Object.prototype.hasOwnProperty.call(opts, "occurredFromOverride");
-        const hasTo   = opts && Object.prototype.hasOwnProperty.call(opts, "occurredToOverride");
-        
-        const occurredFromStr =
-          hasFrom ? (opts!.occurredFromOverride ?? null) : (appliedFilters.occurredFrom ?? null);
-        const occurredToStr =
-          hasTo   ? (opts!.occurredToOverride   ?? null) : (appliedFilters.occurredTo   ?? null);
-        
-        const res = await listStockLedgerApiRequest({
-          productId,
-          branchId,
-          limit: opts?.limitOverride ?? limit,
-          cursorId: effectiveCursor ?? undefined,
-          sortDir: opts?.sortDirOverride ?? sortDir,
-          occurredFrom: occurredFromStr ? toIsoStartOfDayUTC(occurredFromStr) : undefined,
-          occurredTo:   occurredToStr   ? toIsoEndOfDayUTC(occurredToStr)     : undefined,
-        });
+      // occurredFrom / occurredTo (null means explicitly clear, undefined means "use current state")
+      const hasFrom =
+        opts &&
+        Object.prototype.hasOwnProperty.call(opts, "occurredFromOverride");
+      const hasTo =
+        opts &&
+        Object.prototype.hasOwnProperty.call(opts, "occurredToOverride");
+
+      const occurredFromStr = hasFrom
+        ? opts!.occurredFromOverride ?? null
+        : appliedFilters.occurredFrom ?? null;
+      const occurredToStr = hasTo
+        ? opts!.occurredToOverride ?? null
+        : appliedFilters.occurredTo ?? null;
+
+      // Kinds / qty overrides (null means explicitly clear; undefined means "use current state")
+      const hasKinds =
+        opts && Object.prototype.hasOwnProperty.call(opts, "kindsOverride");
+      const hasMin =
+        opts && Object.prototype.hasOwnProperty.call(opts, "minQtyOverride");
+      const hasMax =
+        opts && Object.prototype.hasOwnProperty.call(opts, "maxQtyOverride");
+
+      const kindsArr: LedgerRow["kind"][] | undefined = hasKinds
+        ? opts!.kindsOverride && opts!.kindsOverride.length
+          ? opts!.kindsOverride
+          : undefined
+        : appliedFilters.kinds.length
+        ? appliedFilters.kinds
+        : undefined;
+
+      const minQtyNum: number | undefined = hasMin
+        ? opts!.minQtyOverride ?? undefined
+        : typeof appliedFilters.minQty === "number"
+        ? appliedFilters.minQty
+        : undefined;
+
+      const maxQtyNum: number | undefined = hasMax
+        ? opts!.maxQtyOverride ?? undefined
+        : typeof appliedFilters.maxQty === "number"
+        ? appliedFilters.maxQty
+        : undefined;
+
+      const res = await listStockLedgerApiRequest({
+        productId,
+        branchId,
+        limit: opts?.limitOverride ?? limit,
+        cursorId: effectiveCursor ?? undefined,
+        sortDir: opts?.sortDirOverride ?? sortDir,
+        occurredFrom: occurredFromStr
+          ? toIsoStartOfDayUTC(occurredFromStr)
+          : undefined,
+        occurredTo: occurredToStr ? toIsoEndOfDayUTC(occurredToStr) : undefined,
+        kinds: kindsArr,
+        minQty: minQtyNum,
+        maxQty: maxQtyNum,
+      });
 
       if (res.success) {
         const items = (res.data.items ?? []) as LedgerRow[];
         const effectiveLimit = opts?.limitOverride ?? limit;
 
-        // 🔑 Replace rows for this page
         setLedgerRows(items);
 
         const serverHasNext = Boolean(res.data.pageInfo?.hasNextPage);
@@ -489,7 +539,7 @@ export const ProductFifoTab: React.FC<Props> = ({
   // Apply filters (reset page)
   function applyAndFetch(values: LedgerFilters) {
     setAppliedFilters(values);
-  
+
     // reset paging + URL
     setCursorStack([null]);
     setPageIndex(0);
@@ -502,13 +552,17 @@ export const ProductFifoTab: React.FC<Props> = ({
       minQty: typeof values.minQty === "number" ? values.minQty : null,
       maxQty: typeof values.maxQty === "number" ? values.maxQty : null,
     });
-  
-    // IMPORTANT: pass the submitted values directly, preserving nulls
+
+    // IMPORTANT: pass overrides for all filters
     void fetchLedgerPage({
       includeReset: true,
       cursorId: null,
-      occurredFromOverride: values.occurredFrom === null ? null : values.occurredFrom,
+      occurredFromOverride:
+        values.occurredFrom === null ? null : values.occurredFrom,
       occurredToOverride: values.occurredTo === null ? null : values.occurredTo,
+      kindsOverride: values.kinds.length ? values.kinds : null,
+      minQtyOverride: typeof values.minQty === "number" ? values.minQty : null,
+      maxQtyOverride: typeof values.maxQty === "number" ? values.maxQty : null,
     });
   }
 
@@ -552,7 +606,7 @@ export const ProductFifoTab: React.FC<Props> = ({
         sortDirOverride: next,
       });
     } else {
-      // Client-side sort
+      // Client-side sort for kind/qty within current page
       setUrlFromState({ sortBy: nextField, sortDir: next });
     }
   }
@@ -586,26 +640,12 @@ export const ProductFifoTab: React.FC<Props> = ({
     }
   }
 
-  // Client-side filter & sort (within the current page)
+  // No client-side filtering anymore; only optional client-side sorting for kind/qty.
   const displayedRows = useMemo(() => {
     const rows = ledgerRows ?? [];
 
-    // Filter by kinds
-    let filtered = appliedFilters.kinds.length
-      ? rows.filter((r) => appliedFilters.kinds.includes(r.kind))
-      : rows;
-
-    // Qty range
-    const min = appliedFilters.minQty;
-    if (typeof min === "number")
-      filtered = filtered.filter((r) => r.qtyDelta >= min);
-    const max = appliedFilters.maxQty;
-    if (typeof max === "number")
-      filtered = filtered.filter((r) => r.qtyDelta <= max);
-
-    // Client-side sort for kind/qty; date sort direction can still be flipped on page
     const dir = sortDir === "asc" ? 1 : -1;
-    const sorted = [...filtered].sort((a, b) => {
+    const sorted = [...rows].sort((a, b) => {
       if (sortBy === "occurredAt") {
         const da = new Date(a.occurredAt).getTime();
         const db = new Date(b.occurredAt).getTime();
@@ -622,7 +662,7 @@ export const ProductFifoTab: React.FC<Props> = ({
     });
 
     return sorted;
-  }, [ledgerRows, appliedFilters, sortBy, sortDir]);
+  }, [ledgerRows, sortBy, sortDir]);
 
   // Range text (for current page)
   const shownCount = displayedRows.length ?? 0;
@@ -674,12 +714,10 @@ export const ProductFifoTab: React.FC<Props> = ({
   }
 
   const visibleBranches = useMemo(() => {
-    // If you want to show ALL branches when the user has no memberships returned,
-    // change the condition below accordingly. Here we restrict to the explicit list.
     if (allowedBranchIds.size === 0) return [];
     return branches.filter((b) => allowedBranchIds.has(b.id));
   }, [branches, allowedBranchIds]);
-  
+
   const branchOptions = useMemo(
     () => visibleBranches.map((b) => ({ value: b.id, label: b.branchName })),
     [visibleBranches]
@@ -720,7 +758,6 @@ export const ProductFifoTab: React.FC<Props> = ({
       await navigator.clipboard.writeText(href);
       notifications.show({ color: "green", message: "Shareable link copied." });
     } catch {
-      // Fallback for older browsers
       const ta = document.createElement("textarea");
       ta.value = href;
       ta.style.position = "fixed";
@@ -735,13 +772,11 @@ export const ProductFifoTab: React.FC<Props> = ({
 
   async function refreshBoth() {
     if (!branchId) return;
-  
-    // Reset/paginate ledger to first page in URL
+
     setCursorStack([null]);
     setPageIndex(0);
     setUrlFromState({ cursorId: null, page: 1 });
-  
-    // Refresh Levels
+
     try {
       setLoadingLevels(true);
       const levelsRes = await getStockLevelsApiRequest({ branchId, productId });
@@ -751,8 +786,7 @@ export const ProductFifoTab: React.FC<Props> = ({
     } finally {
       setLoadingLevels(false);
     }
-  
-    // Refresh Ledger (first page)
+
     setLedgerRows(null);
     void fetchLedgerPage({ includeReset: true, cursorId: null });
   }
@@ -867,7 +901,7 @@ export const ProductFifoTab: React.FC<Props> = ({
 
       {/* Ledger controls + table */}
       <Stack>
-        <Group justify="end"> 
+        <Group justify="end">
           <Button
             leftSection={<IconFilter size={16} />}
             variant={showFilters ? "filled" : "light"}
@@ -918,10 +952,6 @@ export const ProductFifoTab: React.FC<Props> = ({
                   searchable
                   clearable
                 />
-                <Text size="xs" c="dimmed" mt={4}>
-                  (Server sort supports date; kind and qty filters are
-                  client-side.)
-                </Text>
               </Grid.Col>
 
               <Grid.Col span={{ base: 12, sm: 6, md: 2 }}>
@@ -991,7 +1021,10 @@ export const ProductFifoTab: React.FC<Props> = ({
           radius="md"
           className="bg-white max-h-[70vh] overflow-y-auto"
         >
-          <Group justify="space-between" mb={activeFilterChips.length > 0 ? "0" : "md"}>
+          <Group
+            justify="space-between"
+            mb={activeFilterChips.length > 0 ? "0" : "md"}
+          >
             <Title order={5}>Ledger</Title>
 
             <Group align="center" gap="xs">
@@ -1005,7 +1038,6 @@ export const ProductFifoTab: React.FC<Props> = ({
                     typeof v === "number" ? v : v === "" ? 25 : Number(v);
                   const clamped = Math.max(1, Math.min(100, n));
                   setLimit(clamped);
-                  // reset pagination
                   setCursorStack([null]);
                   setPageIndex(0);
                   setUrlFromState({ cursorId: null, page: 1, limit: clamped });

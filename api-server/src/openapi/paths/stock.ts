@@ -120,7 +120,7 @@ export function registerStockPaths(registry: OpenAPIRegistry) {
     },
   });
 
-  // ADD: GET /api/stock/levels/bulk
+  // GET /api/stock/levels/bulk
   registry.registerPath({
     tags: ['Stock'],
     method: 'get',

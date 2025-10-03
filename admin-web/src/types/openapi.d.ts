@@ -2873,6 +2873,12 @@ export interface paths {
                     sortDir?: "asc" | "desc";
                     occurredFrom?: string;
                     occurredTo?: string;
+                    /** @description CSV of movement kinds (RECEIPT,ADJUSTMENT,CONSUMPTION,REVERSAL) */
+                    kinds?: string;
+                    /** @description Minimum qtyDelta inclusive */
+                    minQty?: number;
+                    /** @description Maximum qtyDelta inclusive */
+                    maxQty?: number;
                 };
                 header?: never;
                 path?: never;

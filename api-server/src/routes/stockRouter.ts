@@ -62,6 +62,9 @@ const ledgerListQuerySchema = z.object({
   sortDir: z.enum(['asc', 'desc']).optional(),
   occurredFrom: z.string().datetime().optional(),
   occurredTo: z.string().datetime().optional(),
+  kinds: z.string().optional(),                 // CSV of StockMovementKind
+  minQty: z.coerce.number().int().optional(),   // inclusive
+  maxQty: z.coerce.number().int().optional(),   // inclusive
 });
 
 const bulkLevelsQuerySchema = z.object({
@@ -211,7 +214,15 @@ stockRouter.get(
         sortDir,
         occurredFrom,
         occurredTo,
+        kinds,
+        minQty,
+        maxQty,
       } = req.validatedQuery as z.infer<typeof ledgerListQuerySchema>;
+
+      // parse CSV kinds → array
+      const kindsArray = kinds
+        ? kinds.split(',').map((s) => s.trim()).filter(Boolean)
+        : undefined;
 
       const data = await listStockLedgerService({
         currentTenantId: req.currentTenantId,
@@ -222,6 +233,9 @@ stockRouter.get(
         ...(sortDir ? { sortDirOptional: sortDir } : {}),
         ...(occurredFrom ? { occurredFromOptional: occurredFrom } : {}),
         ...(occurredTo ? { occurredToOptional: occurredTo } : {}),
+        ...(kindsArray ? { kindsOptional: kindsArray as any } : {}),
+        ...(minQty !== undefined ? { minQtyOptional: minQty } : {}),
+        ...(maxQty !== undefined ? { maxQtyOptional: maxQty } : {}),
       });
 
       return res.status(200).json(createStandardSuccessResponse(data));

@@ -388,6 +388,9 @@ export async function listStockLedgerService(params: {
   sortDirOptional?: 'asc' | 'desc';      // default: 'desc' (newest first)
   occurredFromOptional?: string;         // ISO
   occurredToOptional?: string;           // ISO
+  kindsOptional?: StockMovementKind[];
+  minQtyOptional?: number;
+  maxQtyOptional?: number;
 }) {
   const {
     currentTenantId,
@@ -398,6 +401,9 @@ export async function listStockLedgerService(params: {
     sortDirOptional,
     occurredFromOptional,
     occurredToOptional,
+    kindsOptional,
+    minQtyOptional,
+    maxQtyOptional,
   } = params;
 
   // Clamp limit
@@ -416,6 +422,17 @@ export async function listStockLedgerService(params: {
           occurredAt: {
             ...(occurredFromOptional ? { gte: new Date(occurredFromOptional) } : {}),
             ...(occurredToOptional ? { lt: new Date(occurredToOptional) } : {}),
+          },
+        }
+      : {}),
+    ...(kindsOptional && kindsOptional.length
+      ? { kind: { in: kindsOptional } }
+      : {}),
+    ...((minQtyOptional !== undefined || maxQtyOptional !== undefined)
+      ? {
+          qtyDelta: {
+            ...(minQtyOptional !== undefined ? { gte: minQtyOptional } : {}),
+            ...(maxQtyOptional !== undefined ? { lte: maxQtyOptional } : {}),
           },
         }
       : {}),
@@ -472,6 +489,9 @@ export async function listStockLedgerService(params: {
         ...(branchIdOptional ? { branchId: branchIdOptional } : {}),
         ...(occurredFromOptional ? { occurredFrom: occurredFromOptional } : {}),
         ...(occurredToOptional ? { occurredTo: occurredToOptional } : {}),
+        ...(kindsOptional && kindsOptional.length ? { kinds: kindsOptional } : {}),
+        ...(minQtyOptional !== undefined ? { minQty: minQtyOptional } : {}),
+        ...(maxQtyOptional !== undefined ? { maxQty: maxQtyOptional } : {}),
       },
     },
   };

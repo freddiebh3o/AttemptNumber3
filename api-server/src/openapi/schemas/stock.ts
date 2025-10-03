@@ -151,6 +151,9 @@ export const ZodStockLedgerListQuery = z.object({
   sortDir: z.enum(['asc', 'desc']).optional(),
   occurredFrom: z.string().datetime().optional(),
   occurredTo: z.string().datetime().optional(),
+  kinds: z.string().optional().openapi({ description: 'CSV of movement kinds (RECEIPT,ADJUSTMENT,CONSUMPTION,REVERSAL)' }),
+  minQty: z.number().int().optional().openapi({ description: 'Minimum qtyDelta inclusive' }),
+  maxQty: z.number().int().optional().openapi({ description: 'Maximum qtyDelta inclusive' }),
 }).openapi('StockLedgerListQuery');
 
 // light PageInfo

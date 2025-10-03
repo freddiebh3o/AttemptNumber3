@@ -1,4 +1,3 @@
-// admin-web/src/api/stock.ts
 import { httpRequestJson } from "./http";
 import type { paths } from "../types/openapi";
 
@@ -65,8 +64,11 @@ export async function listStockLedgerApiRequest(params: {
   limit?: number;
   cursorId?: string;
   sortDir?: "asc" | "desc";
-  occurredFrom?: string; // ISO
-  occurredTo?: string;   // ISO
+  occurredFrom?: string;   // ISO
+  occurredTo?: string;     // ISO
+  kinds?: Array<"RECEIPT" | "ADJUSTMENT" | "CONSUMPTION" | "REVERSAL">;
+  minQty?: number;
+  maxQty?: number;
 }) {
   const qs = new URLSearchParams();
   qs.set("productId", params.productId);
@@ -76,6 +78,9 @@ export async function listStockLedgerApiRequest(params: {
   if (params.sortDir) qs.set("sortDir", params.sortDir);
   if (params.occurredFrom) qs.set("occurredFrom", params.occurredFrom);
   if (params.occurredTo) qs.set("occurredTo", params.occurredTo);
+  if (params.kinds && params.kinds.length) qs.set("kinds", params.kinds.join(","));
+  if (typeof params.minQty === "number") qs.set("minQty", String(params.minQty));
+  if (typeof params.maxQty === "number") qs.set("maxQty", String(params.maxQty));
 
   return httpRequestJson<ListLedger200>(`/api/stock/ledger?${qs.toString()}`);
 }
