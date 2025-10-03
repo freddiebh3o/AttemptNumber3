@@ -15,6 +15,8 @@ import {
   adjustStock,
   consumeStock,
   getStockLevelsForProductService,
+  listStockLedgerService,
+  getStockLevelsBulkService,
 } from '../services/stockService.js';
 
 export const stockRouter = Router();
@@ -49,6 +51,20 @@ const consumeBodySchema = z.object({
 
 const levelsQuerySchema = z.object({
   branchId: z.string().min(1),
+  productId: z.string().min(1),
+});
+
+const ledgerListQuerySchema = z.object({
+  productId: z.string().min(1),
+  branchId: z.string().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  cursorId: z.string().min(1).optional(),
+  sortDir: z.enum(['asc', 'desc']).optional(),
+  occurredFrom: z.string().datetime().optional(),
+  occurredTo: z.string().datetime().optional(),
+});
+
+const bulkLevelsQuerySchema = z.object({
   productId: z.string().min(1),
 });
 
@@ -172,6 +188,64 @@ stockRouter.get(
       });
 
       return res.status(200).json(createStandardSuccessResponse(result));
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
+// GET /api/stock/ledger (cursor-paged list)
+stockRouter.get(
+  '/ledger',
+  requireAuthenticatedUserMiddleware,
+  requirePermission('stock:read'),
+  validateRequestQueryWithZod(ledgerListQuerySchema),
+  async (req, res, next) => {
+    try {
+      assertAuthed(req);
+      const {
+        productId,
+        branchId,
+        limit,
+        cursorId,
+        sortDir,
+        occurredFrom,
+        occurredTo,
+      } = req.validatedQuery as z.infer<typeof ledgerListQuerySchema>;
+
+      const data = await listStockLedgerService({
+        currentTenantId: req.currentTenantId,
+        productId,
+        ...(branchId ? { branchIdOptional: branchId } : {}),
+        ...(limit !== undefined ? { limitOptional: limit } : {}),
+        ...(cursorId ? { cursorIdOptional: cursorId } : {}),
+        ...(sortDir ? { sortDirOptional: sortDir } : {}),
+        ...(occurredFrom ? { occurredFromOptional: occurredFrom } : {}),
+        ...(occurredTo ? { occurredToOptional: occurredTo } : {}),
+      });
+
+      return res.status(200).json(createStandardSuccessResponse(data));
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
+// GET /api/stock/levels/bulk (all active branches)
+stockRouter.get(
+  '/levels/bulk',
+  requireAuthenticatedUserMiddleware,
+  requirePermission('stock:read'),
+  validateRequestQueryWithZod(bulkLevelsQuerySchema),
+  async (req, res, next) => {
+    try {
+      assertAuthed(req);
+      const { productId } = req.validatedQuery as z.infer<typeof bulkLevelsQuerySchema>;
+      const data = await getStockLevelsBulkService({
+        currentTenantId: req.currentTenantId,
+        productId,
+      });
+      return res.status(200).json(createStandardSuccessResponse(data));
     } catch (err) {
       return next(err);
     }

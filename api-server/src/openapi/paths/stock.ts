@@ -10,6 +10,10 @@ import {
   ZodAdjustStockResponseData,
   ZodConsumeStockResponseData,
   ZodStockLevelsResponseData,
+  ZodStockLedgerListQuery,
+  ZodStockLedgerListResponseData,
+  ZodStockLevelsBulkQuery,
+  ZodStockLevelsBulkResponseData,
 } from '../schemas/stock.js';
 
 export function registerStockPaths(registry: OpenAPIRegistry) {
@@ -87,6 +91,46 @@ export function registerStockPaths(registry: OpenAPIRegistry) {
       200: {
         description: 'Current stock levels + open FIFO lots',
         content: { 'application/json': { schema: successEnvelope(ZodStockLevelsResponseData) } },
+      },
+      400: RESPONSES[400],
+      401: RESPONSES[401],
+      403: RESPONSES[403],
+      429: RESPONSES[429],
+      500: RESPONSES[500],
+    },
+  });
+
+  // GET /api/stock/ledger
+  registry.registerPath({
+    tags: ['Stock'],
+    method: 'get',
+    path: '/api/stock/ledger',
+    security: [{ cookieAuth: [] }],
+    request: { query: ZodStockLedgerListQuery },
+    responses: {
+      200: {
+        description: 'Stock ledger rows (cursor-paged)',
+        content: { 'application/json': { schema: successEnvelope(ZodStockLedgerListResponseData) } },
+      },
+      400: RESPONSES[400],
+      401: RESPONSES[401],
+      403: RESPONSES[403],
+      429: RESPONSES[429],
+      500: RESPONSES[500],
+    },
+  });
+
+  // ADD: GET /api/stock/levels/bulk
+  registry.registerPath({
+    tags: ['Stock'],
+    method: 'get',
+    path: '/api/stock/levels/bulk',
+    security: [{ cookieAuth: [] }],
+    request: { query: ZodStockLevelsBulkQuery },
+    responses: {
+      200: {
+        description: 'All-branches stock levels for a product',
+        content: { 'application/json': { schema: successEnvelope(ZodStockLevelsBulkResponseData) } },
       },
       400: RESPONSES[400],
       401: RESPONSES[401],

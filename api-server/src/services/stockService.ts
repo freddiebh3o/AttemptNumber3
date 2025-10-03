@@ -217,10 +217,11 @@ export async function adjustStock(
     qtyDelta: number;
     reason?: string | null | undefined;
     occurredAt?: string | undefined;
+    unitCostCents?: number | null | undefined;
   }
 ) {
   const { currentTenantId, currentUserId } = ids;
-  const { branchId, productId, qtyDelta, reason, occurredAt } = input;
+  const { branchId, productId, qtyDelta, reason, occurredAt, unitCostCents } = input;
 
   if (qtyDelta === 0) throw Errors.validation('qtyDelta must be non-zero');
 
@@ -238,20 +239,20 @@ export async function adjustStock(
           productId,
           qtyReceived: qtyDelta,
           qtyRemaining: qtyDelta,
-          unitCostCents: null,
+          unitCostCents: unitCostCents!,
           sourceRef: null,
           receivedAt: toDateMaybe(occurredAt),
         },
         select: { id: true, qtyReceived: true, qtyRemaining: true, receivedAt: true },
       });
-
+      
       const ledger = await tx.stockLedger.create({
         data: {
           tenantId: currentTenantId,
           branchId,
           productId,
           lotId: lot.id,
-          kind: StockMovementKind.ADJUSTMENT,
+          kind: StockMovementKind.ADJUSTMENT, // stays ADJUSTMENT
           qtyDelta: qtyDelta,
           reason: reason ?? 'adjust-up',
           actorUserId: currentUserId,
@@ -375,4 +376,178 @@ export async function getStockLevelsForProductService(params: {
       },
     lots,
   };
+}
+
+// listStockLedgerService (cursor-paged, newest first)
+export async function listStockLedgerService(params: {
+  currentTenantId: string;
+  productId: string;
+  branchIdOptional?: string;
+  limitOptional?: number;
+  cursorIdOptional?: string;
+  sortDirOptional?: 'asc' | 'desc';      // default: 'desc' (newest first)
+  occurredFromOptional?: string;         // ISO
+  occurredToOptional?: string;           // ISO
+}) {
+  const {
+    currentTenantId,
+    productId,
+    branchIdOptional,
+    limitOptional,
+    cursorIdOptional,
+    sortDirOptional,
+    occurredFromOptional,
+    occurredToOptional,
+  } = params;
+
+  // Clamp limit
+  const limit = Math.min(Math.max(limitOptional ?? 20, 1), 100);
+  const sortDir: 'asc' | 'desc' = sortDirOptional ?? 'desc';
+
+  // Validate product belongs to tenant (re-use helper)
+  await ensureProductBelongsToTenant(currentTenantId, productId);
+
+  const where: Prisma.StockLedgerWhereInput = {
+    tenantId: currentTenantId,
+    productId,
+    ...(branchIdOptional ? { branchId: branchIdOptional } : {}),
+    ...(occurredFromOptional || occurredToOptional
+      ? {
+          occurredAt: {
+            ...(occurredFromOptional ? { gte: new Date(occurredFromOptional) } : {}),
+            ...(occurredToOptional ? { lt: new Date(occurredToOptional) } : {}),
+          },
+        }
+      : {}),
+  };
+
+  const orderBy: Prisma.StockLedgerOrderByWithRelationInput[] = [
+    { occurredAt: sortDir },
+    { id: sortDir }, // deterministic tiebreak
+  ];
+
+  const take = limit + 1;
+
+  const findArgs: Prisma.StockLedgerFindManyArgs = {
+    where,
+    orderBy,
+    take,
+    select: {
+      id: true,
+      tenantId: true,
+      branchId: true,
+      productId: true,
+      lotId: true,
+      kind: true,
+      qtyDelta: true,
+      reason: true,
+      actorUserId: true,
+      occurredAt: true,
+      createdAt: true,
+    },
+  };
+
+  if (cursorIdOptional) {
+    findArgs.cursor = { id: cursorIdOptional };
+    findArgs.skip = 1;
+  }
+
+  const rows = await prismaClientInstance.stockLedger.findMany(findArgs);
+
+  const hasNextPage = rows.length > limit;
+  const items = hasNextPage ? rows.slice(0, limit) : rows;
+  const nextCursor = hasNextPage ? items[items.length - 1]?.id ?? null : null;
+
+  return {
+    items,
+    pageInfo: {
+      hasNextPage,
+      nextCursor,
+    },
+    applied: {
+      limit,
+      sort: { field: 'occurredAt', direction: sortDir },
+      filters: {
+        productId,
+        ...(branchIdOptional ? { branchId: branchIdOptional } : {}),
+        ...(occurredFromOptional ? { occurredFrom: occurredFromOptional } : {}),
+        ...(occurredToOptional ? { occurredTo: occurredToOptional } : {}),
+      },
+    },
+  };
+}
+
+// getStockLevelsBulkService (all active branches for tenant)
+export async function getStockLevelsBulkService(params: {
+  currentTenantId: string;
+  productId: string;
+}) {
+  const { currentTenantId, productId } = params;
+
+  await ensureProductBelongsToTenant(currentTenantId, productId);
+
+  // Only active branches
+  const branches = await prismaClientInstance.branch.findMany({
+    where: { tenantId: currentTenantId, isActive: true },
+    select: { id: true, branchName: true },
+    orderBy: [{ branchName: 'asc' }, { id: 'asc' }],
+  });
+
+  if (branches.length === 0) return { items: [] as Array<{
+    branchId: string;
+    branchName: string;
+    productStock: { qtyOnHand: number; qtyAllocated: number };
+    lots: Awaited<ReturnType<typeof prismaClientInstance.stockLot.findMany>>;
+  }> };
+
+  // Gather levels per branch (in parallel)
+  const results = await Promise.all(
+    branches.map(async (b) => {
+      const [productStock, lots] = await Promise.all([
+        prismaClientInstance.productStock.findUnique({
+          where: {
+            tenantId_branchId_productId: {
+              tenantId: currentTenantId,
+              branchId: b.id,
+              productId,
+            },
+          },
+          select: { qtyOnHand: true, qtyAllocated: true, id: true, createdAt: true, updatedAt: true },
+        }),
+        prismaClientInstance.stockLot.findMany({
+          where: {
+            tenantId: currentTenantId,
+            branchId: b.id,
+            productId,
+            qtyRemaining: { gt: 0 },
+          },
+          orderBy: [{ receivedAt: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
+          select: {
+            id: true,
+            qtyReceived: true,
+            qtyRemaining: true,
+            unitCostCents: true,
+            sourceRef: true,
+            receivedAt: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        }),
+      ]);
+
+      return {
+        branchId: b.id,
+        branchName: b.branchName,
+        productStock:
+          productStock ?? {
+            qtyOnHand: 0,
+            qtyAllocated: 0,
+            // (id/createdAt/updatedAt omitted on purpose for bulk snapshot)
+          },
+        lots,
+      };
+    })
+  );
+
+  return { items: results };
 }

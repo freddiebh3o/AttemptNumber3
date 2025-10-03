@@ -17,6 +17,7 @@ import {
 import { requireAuthenticatedUserMiddleware } from '../middleware/sessionMiddleware.js';
 import { PrismaClient } from '@prisma/client';
 import { assertAuthed } from '../types/assertions.js';
+import { prismaClientInstance } from '../db/prismaClient.js';
 
 export const authRouter = Router();
 
@@ -68,10 +69,8 @@ authRouter.get('/me', requireAuthenticatedUserMiddleware, async (request, respon
     const currentUserId: string = request.currentUserId;
     const currentTenantId: string = request.currentTenantId;
 
-    const prisma = new PrismaClient();
-
     // 1) user { id, userEmailAddress }
-    const user = await prisma.user.findUnique({
+    const user = await prismaClientInstance.user.findUnique({
       where: { id: currentUserId },
       select: { id: true, userEmailAddress: true },
     });
@@ -96,13 +95,13 @@ authRouter.get('/me', requireAuthenticatedUserMiddleware, async (request, respon
       };
     } | null = null;
 
-    const tenant = await prisma.tenant.findUnique({
+    const tenant = await prismaClientInstance.tenant.findUnique({
       where: { id: currentTenantId },
       select: { id: true, tenantSlug: true },
     });
 
     if (tenant) {
-      const membership = await prisma.userTenantMembership.findUnique({
+      const membership = await prismaClientInstance.userTenantMembership.findUnique({
         where: { userId_tenantId: { userId: currentUserId, tenantId: tenant.id } },
         select: {
           role: {
@@ -172,11 +171,10 @@ authRouter.post(
       const decoded = verifySignedSessionToken(request.cookies?.['mt_session'] ?? '');
       if (!decoded) return next(Errors.authRequired());
 
-      const prisma = new PrismaClient();
-      const tenant = await prisma.tenant.findUnique({ where: { tenantSlug }, select: { id: true } });
+      const tenant = await prismaClientInstance.tenant.findUnique({ where: { tenantSlug }, select: { id: true } });
       if (!tenant) return next(Errors.notFound('Tenant not found.'));
 
-      const member = await prisma.userTenantMembership.findUnique({
+      const member = await prismaClientInstance.userTenantMembership.findUnique({
         where: { userId_tenantId: { userId: decoded.currentUserId, tenantId: tenant.id } },
         select: { userId: true },
       });

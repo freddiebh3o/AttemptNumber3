@@ -72,9 +72,18 @@ export const ZodAdjustStockRequestBody = z.object({
   branchId: z.string().min(1),
   productId: z.string().min(1),
   qtyDelta: z.number().int().refine(v => v !== 0, 'qtyDelta must be non-zero'),
+  unitCostCents: z.number().int().min(0).optional(),
   reason: z.string().max(500).nullable().optional(),
   occurredAt: z.string().datetime().optional(),
-}).openapi('AdjustStockRequestBody');
+}).superRefine((val, ctx) => {
+  if (val.qtyDelta > 0 && typeof val.unitCostCents !== 'number') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'unitCostCents is required when increasing stock (qtyDelta > 0)',
+      path: ['unitCostCents'],
+    });
+  }
+});
 
 export const ZodConsumeStockRequestBody = z.object({
   branchId: z.string().min(1),
@@ -89,7 +98,6 @@ export const ZodStockLevelsQuery = z.object({
   productId: z.string().min(1),
 }).openapi('StockLevelsQuery');
 
-// --- Response shapes ---
 // POST /stock/receive
 export const ZodReceiveStockResponseData = z.object({
   lot: ZodStockLotRecord,
@@ -133,3 +141,47 @@ export const ZodStockLevelsResponseData = z.object({
   productStock: ZodProductStockLevelsSnapshot,
   lots: z.array(ZodStockLotRecord),
 }).openapi('StockLevelsResponseData');
+
+// list ledger query & response
+export const ZodStockLedgerListQuery = z.object({
+  productId: z.string().min(1),
+  branchId: z.string().min(1).optional(),
+  limit: z.number().int().min(1).max(100).optional(),
+  cursorId: z.string().min(1).optional(),
+  sortDir: z.enum(['asc', 'desc']).optional(),
+  occurredFrom: z.string().datetime().optional(),
+  occurredTo: z.string().datetime().optional(),
+}).openapi('StockLedgerListQuery');
+
+// light PageInfo
+export const ZodPageInfo = z.object({
+  hasNextPage: z.boolean(),
+  nextCursor: z.string().nullable(),
+}).openapi('PageInfo');
+
+// Response
+export const ZodStockLedgerListResponseData = z.object({
+  items: z.array(ZodStockLedgerRecord),
+  pageInfo: ZodPageInfo,
+  applied: z.object({
+    limit: z.number().int(),
+    sort: z.object({ field: z.string(), direction: z.enum(['asc','desc']) }),
+    filters: z.record(z.string(), z.any()),
+  }),
+}).openapi('StockLedgerListResponseData');
+
+// --- ADD: bulk levels query & response ---
+export const ZodStockLevelsBulkQuery = z.object({
+  productId: z.string().min(1),
+}).openapi('StockLevelsBulkQuery');
+
+export const ZodStockLevelsBulkItem = z.object({
+  branchId: z.string(),
+  branchName: z.string(),
+  productStock: ZodProductStockLevelsSnapshot,
+  lots: z.array(ZodStockLotRecord),
+}).openapi('StockLevelsBulkItem');
+
+export const ZodStockLevelsBulkResponseData = z.object({
+  items: z.array(ZodStockLevelsBulkItem),
+}).openapi('StockLevelsBulkResponseData');

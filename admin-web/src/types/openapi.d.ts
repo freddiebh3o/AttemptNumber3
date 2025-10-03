@@ -2570,7 +2570,15 @@ export interface paths {
             };
             requestBody?: {
                 content: {
-                    "application/json": components["schemas"]["AdjustStockRequestBody"];
+                    "application/json": {
+                        branchId: string;
+                        productId: string;
+                        qtyDelta: number;
+                        unitCostCents?: number;
+                        reason?: string | null;
+                        /** Format: date-time */
+                        occurredAt?: string;
+                    };
                 };
             };
             responses: {
@@ -2785,6 +2793,194 @@ export interface paths {
                             /** @enum {boolean} */
                             success: true;
                             data: components["schemas"]["StockLevelsResponseData"];
+                            error: unknown;
+                        };
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        "X-RateLimit-Limit": string;
+                        "X-RateLimit-Remaining": string;
+                        "X-RateLimit-Reset": string;
+                        "Retry-After": string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Internal Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stock/ledger": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    productId: string;
+                    branchId?: string;
+                    limit?: number;
+                    cursorId?: string;
+                    sortDir?: "asc" | "desc";
+                    occurredFrom?: string;
+                    occurredTo?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Stock ledger rows (cursor-paged) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: components["schemas"]["StockLedgerListResponseData"];
+                            error: unknown;
+                        };
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        "X-RateLimit-Limit": string;
+                        "X-RateLimit-Remaining": string;
+                        "X-RateLimit-Reset": string;
+                        "Retry-After": string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Internal Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stock/levels/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    productId: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description All-branches stock levels for a product */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: components["schemas"]["StockLevelsBulkResponseData"];
                             error: unknown;
                         };
                     };
@@ -3278,14 +3474,6 @@ export interface components {
             }[];
             productStock: components["schemas"]["ProductStockRecord"];
         };
-        AdjustStockRequestBody: {
-            branchId: string;
-            productId: string;
-            qtyDelta: number;
-            reason?: string | null;
-            /** Format: date-time */
-            occurredAt?: string;
-        };
         ConsumeStockResponseData: {
             affected: {
                 lotId: string;
@@ -3312,6 +3500,34 @@ export interface components {
         StockLevelsResponseData: {
             productStock: components["schemas"]["ProductStockLevelsSnapshot"];
             lots: components["schemas"]["StockLotRecord"][];
+        };
+        PageInfo: {
+            hasNextPage: boolean;
+            nextCursor: string | null;
+        };
+        StockLedgerListResponseData: {
+            items: components["schemas"]["StockLedgerRecord"][];
+            pageInfo: components["schemas"]["PageInfo"];
+            applied: {
+                limit: number;
+                sort: {
+                    field: string;
+                    /** @enum {string} */
+                    direction: "asc" | "desc";
+                };
+                filters: {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        StockLevelsBulkItem: {
+            branchId: string;
+            branchName: string;
+            productStock: components["schemas"]["ProductStockLevelsSnapshot"];
+            lots: components["schemas"]["StockLotRecord"][];
+        };
+        StockLevelsBulkResponseData: {
+            items: components["schemas"]["StockLevelsBulkItem"][];
         };
     };
     responses: never;

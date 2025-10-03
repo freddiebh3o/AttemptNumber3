@@ -13,6 +13,8 @@ type ConsumeRes = paths["/api/stock/consume"]["post"]["responses"]["200"]["conte
 
 type LevelsQuery = NonNullable<paths["/api/stock/levels"]["get"]["parameters"]["query"]>;
 type LevelsRes = paths["/api/stock/levels"]["get"]["responses"]["200"]["content"]["application/json"];
+type ListLedger200 = paths["/api/stock/ledger"]["get"]["responses"]["200"]["content"]["application/json"];
+type BulkLevels200 = paths["/api/stock/levels/bulk"]["get"]["responses"]["200"]["content"]["application/json"];
 
 export async function receiveStockApiRequest(
   body: ReceiveReq & { idempotencyKeyOptional?: string }
@@ -55,4 +57,31 @@ export async function getStockLevelsApiRequest(query: LevelsQuery) {
   params.set("branchId", query.branchId);
   params.set("productId", query.productId);
   return httpRequestJson<LevelsRes>(`/api/stock/levels?${params.toString()}`);
+}
+
+export async function listStockLedgerApiRequest(params: {
+  productId: string;
+  branchId?: string;
+  limit?: number;
+  cursorId?: string;
+  sortDir?: "asc" | "desc";
+  occurredFrom?: string; // ISO
+  occurredTo?: string;   // ISO
+}) {
+  const qs = new URLSearchParams();
+  qs.set("productId", params.productId);
+  if (params.branchId) qs.set("branchId", params.branchId);
+  if (params.limit != null) qs.set("limit", String(params.limit));
+  if (params.cursorId) qs.set("cursorId", params.cursorId);
+  if (params.sortDir) qs.set("sortDir", params.sortDir);
+  if (params.occurredFrom) qs.set("occurredFrom", params.occurredFrom);
+  if (params.occurredTo) qs.set("occurredTo", params.occurredTo);
+
+  return httpRequestJson<ListLedger200>(`/api/stock/ledger?${qs.toString()}`);
+}
+
+export async function getStockLevelsBulkApiRequest(params: { productId: string }) {
+  const qs = new URLSearchParams();
+  qs.set("productId", params.productId);
+  return httpRequestJson<BulkLevels200>(`/api/stock/levels/bulk?${qs.toString()}`);
 }
