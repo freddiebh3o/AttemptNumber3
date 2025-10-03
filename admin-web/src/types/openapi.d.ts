@@ -3077,6 +3077,10 @@ export interface components {
         };
         /** @enum {string} */
         PermissionKey: "products:read" | "products:write" | "users:manage" | "roles:manage" | "tenant:manage" | "theme:manage" | "uploads:write" | "branches:manage" | "stock:read" | "stock:write" | "stock:allocate";
+        BranchMembershipBrief: {
+            branchId: string;
+            branchName: string;
+        };
         MeResponseData: {
             user: {
                 id: string;
@@ -3090,6 +3094,7 @@ export interface components {
                 role: components["schemas"]["RoleBrief"];
             } | null;
             permissionsCurrentTenant: components["schemas"]["PermissionKey"][];
+            branchMembershipsCurrentTenant: components["schemas"]["BranchMembershipBrief"][];
         };
         SwitchTenantResponseData: {
             hasSwitchedTenant: boolean;

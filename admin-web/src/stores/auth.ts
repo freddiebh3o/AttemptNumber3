@@ -9,6 +9,8 @@ type TenantMembership = {
   role: RoleLite | null; // comes from /auth/me
 };
 
+type BranchMembershipBrief = { branchId: string; branchName: string };
+
 type CurrentTenant =
   | {
       tenantId: string;
@@ -29,6 +31,8 @@ type AuthState = {
 
   // Permissions for the current tenant
   permissionsCurrentTenant: string[];
+
+  branchMembershipsCurrentTenant: BranchMembershipBrief[];
 
   // Actions
   refreshFromServer: () => Promise<void>;
@@ -51,6 +55,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   currentTenantSlug: null,
 
   permissionsCurrentTenant: [],
+  branchMembershipsCurrentTenant: [],
 
   async refreshFromServer() {
     try {
@@ -74,6 +79,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           : null,
         currentTenantSlug: d.currentTenant?.tenantSlug ?? null,
         permissionsCurrentTenant: d.permissionsCurrentTenant ?? [],
+        branchMembershipsCurrentTenant: d.branchMembershipsCurrentTenant ?? [],
       });
     } catch {
       set({
@@ -84,6 +90,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         currentTenant: null,
         currentTenantSlug: null,
         permissionsCurrentTenant: [],
+        branchMembershipsCurrentTenant: [],
       });
     }
   },
@@ -106,6 +113,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       currentTenant: null,
       currentTenantSlug: null,
       permissionsCurrentTenant: [],
+      branchMembershipsCurrentTenant: [],
     });
   },
 
@@ -116,5 +124,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   hasAnyPerm(keys: string[]) {
     const setPerms = new Set(get().permissionsCurrentTenant);
     return keys.some((k) => setPerms.has(k));
+  },
+
+  isMemberOfBranch(branchId: string) {
+    const setIds = new Set(get().branchMembershipsCurrentTenant.map(b => b.branchId));
+
+    return setIds.has(branchId);
   },
 }));

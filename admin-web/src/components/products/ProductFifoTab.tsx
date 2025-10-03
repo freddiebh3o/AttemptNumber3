@@ -51,6 +51,7 @@ import {
 } from "../../api/stock";
 import { handlePageError } from "../../utils/pageError";
 import { FilterBar } from "../common/FilterBar";
+import { useAuthStore } from "../../stores/auth";
 
 type Branch = { id: string; branchName: string };
 
@@ -123,6 +124,7 @@ function toIsoStartOfDayUTC(d: string) {
   // d is like "2025-10-01"
   return new Date(`${d}T00:00:00.000Z`).toISOString();
 }
+
 function toIsoEndOfDayUTC(d: string) {
   return new Date(`${d}T23:59:59.999Z`).toISOString();
 }
@@ -175,6 +177,11 @@ export const ProductFifoTab: React.FC<Props> = ({
   const [stockCostCents, setStockCostCents] = useState<number | "">("");
   const [stockReason, setStockReason] = useState<string>("");
   const [submittingStock, setSubmittingStock] = useState(false);
+  const branchMemberships = useAuthStore((s) => s.branchMembershipsCurrentTenant);
+  const allowedBranchIds = useMemo(
+    () => new Set(branchMemberships.map((b) => b.branchId)),
+    [branchMemberships]
+  );
 
   // Load branches
   useEffect(() => {
@@ -194,10 +201,14 @@ export const ProductFifoTab: React.FC<Props> = ({
           setBranches(items);
           // From URL or default first
           const qpBranch = searchParams.get("branchId");
-          if (qpBranch && items.some((b) => b.id === qpBranch)) {
+          const visible = items.filter((b: any) => allowedBranchIds.has(b.id));
+
+          if (qpBranch && visible.some((b) => b.id === qpBranch)) {
             setBranchId(qpBranch);
-          } else if (!branchId && items.length) {
-            setBranchId(items[0].id);
+          } else if (!branchId && visible.length) {
+            setBranchId(visible[0].id);
+          } else if (!branchId && visible.length === 0) {
+            setBranchId(null); // no access to any branch
           }
         }
       } catch (e) {
@@ -662,9 +673,16 @@ export const ProductFifoTab: React.FC<Props> = ({
     applyAndFetch(next);
   }
 
+  const visibleBranches = useMemo(() => {
+    // If you want to show ALL branches when the user has no memberships returned,
+    // change the condition below accordingly. Here we restrict to the explicit list.
+    if (allowedBranchIds.size === 0) return [];
+    return branches.filter((b) => allowedBranchIds.has(b.id));
+  }, [branches, allowedBranchIds]);
+  
   const branchOptions = useMemo(
-    () => branches.map((b) => ({ value: b.id, label: b.branchName })),
-    [branches]
+    () => visibleBranches.map((b) => ({ value: b.id, label: b.branchName })),
+    [visibleBranches]
   );
 
   // Adjust helpers

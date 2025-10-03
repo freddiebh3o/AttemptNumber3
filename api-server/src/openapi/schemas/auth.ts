@@ -10,6 +10,14 @@ export const ZodSignInRequestBody = z
   })
   .openapi('SignInRequestBody');
 
+export const ZodBranchMembershipBrief = z
+  .object({
+    branchId: z.string(),
+    branchName: z.string(),
+  })
+  .openapi('BranchMembershipBrief');
+
+
 // Minimal role shape returned by /me
 export const ZodRoleBrief = z
   .object({
@@ -40,6 +48,7 @@ export const ZodMeResponseData = z
       })
       .nullable(),
     permissionsCurrentTenant: z.array(ZodPermissionKey),
+    branchMembershipsCurrentTenant: z.array(ZodBranchMembershipBrief),
   })
   .openapi('MeResponseData');
 
@@ -54,3 +63,4 @@ export const ZodSwitchTenantResponseData = z
     hasSwitchedTenant: z.boolean(),
   })
   .openapi('SwitchTenantResponseData');
+

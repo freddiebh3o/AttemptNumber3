@@ -36,7 +36,6 @@ export async function verifyUserCredentialsForTenantService(params: {
   return { matchedUserId: membership.userId, matchedTenantId: membership.tenantId };
 }
 
-
 export async function getUserMembershipsService(params: { currentUserId: string }) {
   const { currentUserId } = params;
 
@@ -74,5 +73,30 @@ export async function getUserMembershipsService(params: { currentUserId: string 
           updatedAt: m.role.updatedAt.toISOString(),
         }
       : null,
+  }));
+}
+
+export async function getUserBranchMembershipsForTenantService(params: {
+  currentUserId: string;
+  currentTenantId: string;
+}) {
+  const { currentUserId, currentTenantId } = params;
+
+  // Assumes a join table like userBranchMembership with (userId, branchId),
+  // and Branch has (id, branchName, tenantId)
+  const memberships = await prismaClientInstance.userBranchMembership.findMany({
+    where: {
+      userId: currentUserId,
+      branch: { tenantId: currentTenantId },
+    },
+    select: {
+      branch: { select: { id: true, branchName: true } },
+    },
+    orderBy: [{ branch: { branchName: 'asc' } }],
+  });
+
+  return memberships.map((m) => ({
+    branchId: m.branch.id,
+    branchName: m.branch.branchName,
   }));
 }

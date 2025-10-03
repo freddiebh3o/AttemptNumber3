@@ -13,9 +13,9 @@ import {
 import {
   verifyUserCredentialsForTenantService,
   getUserMembershipsService,
+  getUserBranchMembershipsForTenantService,
 } from '../services/authService.js';
 import { requireAuthenticatedUserMiddleware } from '../middleware/sessionMiddleware.js';
-import { PrismaClient } from '@prisma/client';
 import { assertAuthed } from '../types/assertions.js';
 import { prismaClientInstance } from '../db/prismaClient.js';
 
@@ -141,6 +141,11 @@ authRouter.get('/me', requireAuthenticatedUserMiddleware, async (request, respon
     const permissionsCurrentTenant =
       currentTenant?.role?.permissions ? [...currentTenant.role.permissions].sort() : [];
 
+    const branchMembershipsCurrentTenant = await getUserBranchMembershipsForTenantService({
+      currentUserId,
+      currentTenantId,
+    });
+
     return response
       .status(200)
       .json(
@@ -149,6 +154,7 @@ authRouter.get('/me', requireAuthenticatedUserMiddleware, async (request, respon
           tenantMemberships,    // [{ tenantSlug, role: { id, name, description?, isSystem, permissions[] ... } | null }]
           currentTenant,        // { tenantId, tenantSlug, role }
           permissionsCurrentTenant,
+          branchMembershipsCurrentTenant,
         })
       );
   } catch (error) {
