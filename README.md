@@ -475,12 +475,6 @@ If you need initial data in the new environment:
   * Down the line, we will want a frontend feature, for example, on products, that allows you to see exactly who changed the product and when. This will apply to everything that you can change in the project, not just products. 
   * This will be viewable by everyone so doesnt require any permissions to view other than being logged in.
 
-* Feature flag to determine what type of stock management you want to use? 
-  * FIFO -> First in first out 
-  * LIFO -> Last in first out 
-  * Weighted average cost -> Uses average price 
-  * Specific identification -> Values each item separately 
-  * FEFO -> First expired first out
 
 * Stock transfer between different branches/locations
   * Effectively an 'order' between two branches 
@@ -499,8 +493,14 @@ If you need initial data in the new environment:
   * Instead of this, any request that is made that requires the user to be logged in and they arent logged in, should be redirected to the login page automatically 
   * Whenever a user is logged out and redirected to the login page, it should show a clear reason on the login page as to why they were logged out
 
-* Create/Edit pages for users/products
 
+### The rest
+* Feature flag to determine what type of stock management you want to use? 
+  * FIFO -> First in first out 
+  * LIFO -> Last in first out 
+  * Weighted average cost -> Uses average price 
+  * Specific identification -> Values each item separately 
+  * FEFO -> First expired first out
 
 * Current existing tabs that we don't currently have 
   * Dashboard -> Self explantory
