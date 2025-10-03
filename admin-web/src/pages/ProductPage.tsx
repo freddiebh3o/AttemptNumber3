@@ -70,7 +70,7 @@ export default function ProductPage() {
           const p = res.data.product;
           setName(p.productName);
           setSku(p.productSku);
-          setPrice(p.productPriceCents);
+          setPrice(p.productPricePence);
           setEntityVersion(p.entityVersion);
         }
       } catch (e) {
@@ -94,7 +94,7 @@ export default function ProductPage() {
       return;
     }
     if (price === "" || price < 0) {
-      notifications.show({ color: "red", message: "Price (cents) required" });
+      notifications.show({ color: "red", message: "Price (pence) required" });
       return;
     }
 
@@ -106,7 +106,7 @@ export default function ProductPage() {
         const res = await createProductApiRequest({
           productName: name.trim(),
           productSku: sku.trim(),
-          productPriceCents: Number(price),
+          productPricePence: Number(price),
           idempotencyKeyOptional: key,
         });
         if (res.success) {
@@ -122,7 +122,7 @@ export default function ProductPage() {
         const res = await updateProductApiRequest({
           productId,
           ...(name.trim() ? { productName: name.trim() } : {}),
-          ...(typeof price === "number" ? { productPriceCents: Number(price) } : {}),
+          ...(typeof price === "number" ? { productPricePence: Number(price) } : {}),
           currentEntityVersion: entityVersion,
           idempotencyKeyOptional: key,
         });

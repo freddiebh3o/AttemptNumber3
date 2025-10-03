@@ -50,7 +50,7 @@ export type ProductRecord = {
   tenantId: string
   productName: string
   productSku: string
-  productPriceCents: number
+  productPricePence: number
   entityVersion: number
   createdAt: string
   updatedAt: string

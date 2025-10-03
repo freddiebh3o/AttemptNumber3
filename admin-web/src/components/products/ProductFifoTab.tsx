@@ -1,4 +1,5 @@
 // admin-web/src/components/products/ProductFifoTab.tsx
+// admin-web/src/components/products/ProductFifoTab.tsx
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -22,8 +23,8 @@ import {
   CloseButton,
   rem,
   Badge as MantineBadge,
+  MultiSelect, // <- consolidate MultiSelect import here
 } from "@mantine/core";
-import { MultiSelect } from "@mantine/core";
 import { DatePickerInput } from "@mantine/dates";
 import {
   IconArrowsSort,
@@ -52,6 +53,7 @@ import {
 import { handlePageError } from "../../utils/pageError";
 import { FilterBar } from "../common/FilterBar";
 import { useAuthStore } from "../../stores/auth";
+import { formatPenceAsGBP } from "../../utils/money"; // <- use new helper to format values
 
 type Branch = { id: string; branchName: string };
 
@@ -113,11 +115,7 @@ function nextDir(dir: "asc" | "desc"): "asc" | "desc" {
 
 function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
   if (!active) return <IconArrowsSort size={16} />;
-  return dir === "asc" ? (
-    <IconArrowUp size={16} />
-  ) : (
-    <IconArrowDown size={16} />
-  );
+  return dir === "asc" ? <IconArrowUp size={16} /> : <IconArrowDown size={16} />;
 }
 
 function toIsoStartOfDayUTC(d: string) {
@@ -127,10 +125,7 @@ function toIsoEndOfDayUTC(d: string) {
   return new Date(`${d}T23:59:59.999Z`).toISOString();
 }
 
-export const ProductFifoTab: React.FC<Props> = ({
-  productId,
-  canWriteProducts,
-}) => {
+export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts }) => {
   // URL sync
   const [searchParams, setSearchParams] = useSearchParams();
   const navigationType = useNavigationType();
@@ -168,18 +163,14 @@ export const ProductFifoTab: React.FC<Props> = ({
 
   // Modal state
   const [stockModalOpen, setStockModalOpen] = useState(false);
-  const [stockMode, setStockMode] = useState<"increase" | "decrease">(
-    "increase"
-  );
+  const [stockMode, setStockMode] = useState<"increase" | "decrease">("increase");
   const [stockQty, setStockQty] = useState<number | "">("");
   const [stockCostCents, setStockCostCents] = useState<number | "">("");
   const [stockReason, setStockReason] = useState<string>("");
   const [submittingStock, setSubmittingStock] = useState(false);
 
   // Restrict branches by current-tenant memberships
-  const branchMemberships = useAuthStore(
-    (s) => s.branchMembershipsCurrentTenant
-  );
+  const branchMemberships = useAuthStore((s) => s.branchMembershipsCurrentTenant);
   const allowedBranchIds = useMemo(
     () => new Set(branchMemberships.map((b) => b.branchId)),
     [branchMemberships]
@@ -277,10 +268,8 @@ export const ProductFifoTab: React.FC<Props> = ({
       kinds: qpKinds
         ? (qpKinds.split(",").filter(Boolean) as LedgerRow["kind"][])
         : [],
-      minQty:
-        qpMinQty !== null ? (qpMinQty === "" ? "" : Number(qpMinQty)) : "",
-      maxQty:
-        qpMaxQty !== null ? (qpMaxQty === "" ? "" : Number(qpMaxQty)) : "",
+      minQty: qpMinQty !== null ? (qpMinQty === "" ? "" : Number(qpMinQty)) : "",
+      maxQty: qpMaxQty !== null ? (qpMaxQty === "" ? "" : Number(qpMaxQty)) : "",
       occurredFrom: qpFrom ?? null,
       occurredTo: qpTo ?? null,
     });
@@ -293,11 +282,15 @@ export const ProductFifoTab: React.FC<Props> = ({
       includeReset: true,
       cursorId: qpCursor ?? null,
       limitOverride:
-        !Number.isNaN(qpLimit) && qpLimit ? Math.max(1, Math.min(100, qpLimit)) : undefined,
+        !Number.isNaN(qpLimit) && qpLimit
+          ? Math.max(1, Math.min(100, qpLimit))
+          : undefined,
       sortDirOverride: qpSortDir,
       occurredFromOverride: qpFrom ?? undefined,
       occurredToOverride: qpTo ?? undefined,
-      kindsOverride: (qpKinds ? qpKinds.split(",").filter(Boolean) as LedgerRow["kind"][] : null),
+      kindsOverride: qpKinds
+        ? (qpKinds.split(",").filter(Boolean) as LedgerRow["kind"][])
+        : null,
       minQtyOverride: qpMinQty !== null && qpMinQty !== "" ? Number(qpMinQty) : null,
       maxQtyOverride: qpMaxQty !== null && qpMaxQty !== "" ? Number(qpMaxQty) : null,
     });
@@ -330,10 +323,8 @@ export const ProductFifoTab: React.FC<Props> = ({
       kinds: qpKinds
         ? (qpKinds.split(",").filter(Boolean) as LedgerRow["kind"][])
         : [],
-      minQty:
-        qpMinQty !== null ? (qpMinQty === "" ? "" : Number(qpMinQty)) : "",
-      maxQty:
-        qpMaxQty !== null ? (qpMaxQty === "" ? "" : Number(qpMaxQty)) : "",
+      minQty: qpMinQty !== null ? (qpMinQty === "" ? "" : Number(qpMinQty)) : "",
+      maxQty: qpMaxQty !== null ? (qpMaxQty === "" ? "" : Number(qpMaxQty)) : "",
       occurredFrom: qpFrom ?? null,
       occurredTo: qpTo ?? null,
     });
@@ -346,11 +337,15 @@ export const ProductFifoTab: React.FC<Props> = ({
       includeReset: true,
       cursorId: qpCursor ?? null,
       limitOverride:
-        !Number.isNaN(qpLimit) && qpLimit ? Math.max(1, Math.min(100, qpLimit)) : undefined,
+        !Number.isNaN(qpLimit) && qpLimit
+          ? Math.max(1, Math.min(100, qpLimit))
+          : undefined,
       sortDirOverride: qpSortDir,
       occurredFromOverride: qpFrom ?? undefined,
       occurredToOverride: qpTo ?? undefined,
-      kindsOverride: (qpKinds ? qpKinds.split(",").filter(Boolean) as LedgerRow["kind"][] : null),
+      kindsOverride: qpKinds
+        ? (qpKinds.split(",").filter(Boolean) as LedgerRow["kind"][])
+        : null,
       minQtyOverride: qpMinQty !== null && qpMinQty !== "" ? Number(qpMinQty) : null,
       maxQtyOverride: qpMaxQty !== null && qpMaxQty !== "" ? Number(qpMaxQty) : null,
     });
@@ -442,7 +437,7 @@ export const ProductFifoTab: React.FC<Props> = ({
     occurredFromOverride?: string | undefined | null; // pass null to clear, undefined to "use state"
     occurredToOverride?: string | undefined | null; // pass null to clear, undefined to "use state"
 
-    // NEW: server filter overrides (pass null to clear, undefined to "use state")
+    // server filter overrides (pass null to clear, undefined to "use state")
     kindsOverride?: LedgerRow["kind"][] | null;
     minQtyOverride?: number | null;
     maxQtyOverride?: number | null;
@@ -452,16 +447,13 @@ export const ProductFifoTab: React.FC<Props> = ({
     try {
       const effectiveCursor =
         opts && Object.prototype.hasOwnProperty.call(opts, "cursorId")
-          ? opts.cursorId // use the provided value even if it's null (first page)
+          ? opts.cursorId
           : cursorStack[pageIndex] ?? null;
 
-      // occurredFrom / occurredTo (null means explicitly clear, undefined means "use current state")
       const hasFrom =
-        opts &&
-        Object.prototype.hasOwnProperty.call(opts, "occurredFromOverride");
+        opts && Object.prototype.hasOwnProperty.call(opts, "occurredFromOverride");
       const hasTo =
-        opts &&
-        Object.prototype.hasOwnProperty.call(opts, "occurredToOverride");
+        opts && Object.prototype.hasOwnProperty.call(opts, "occurredToOverride");
 
       const occurredFromStr = hasFrom
         ? opts!.occurredFromOverride ?? null
@@ -470,7 +462,6 @@ export const ProductFifoTab: React.FC<Props> = ({
         ? opts!.occurredToOverride ?? null
         : appliedFilters.occurredTo ?? null;
 
-      // Kinds / qty overrides (null means explicitly clear; undefined means "use current state")
       const hasKinds =
         opts && Object.prototype.hasOwnProperty.call(opts, "kindsOverride");
       const hasMin =
@@ -504,9 +495,7 @@ export const ProductFifoTab: React.FC<Props> = ({
         limit: opts?.limitOverride ?? limit,
         cursorId: effectiveCursor ?? undefined,
         sortDir: opts?.sortDirOverride ?? sortDir,
-        occurredFrom: occurredFromStr
-          ? toIsoStartOfDayUTC(occurredFromStr)
-          : undefined,
+        occurredFrom: occurredFromStr ? toIsoStartOfDayUTC(occurredFromStr) : undefined,
         occurredTo: occurredToStr ? toIsoEndOfDayUTC(occurredToStr) : undefined,
         kinds: kindsArr,
         minQty: minQtyNum,
@@ -522,9 +511,7 @@ export const ProductFifoTab: React.FC<Props> = ({
         const serverHasNext = Boolean(res.data.pageInfo?.hasNextPage);
         const serverNextCursor = res.data.pageInfo?.nextCursor ?? null;
         const clientHasNext =
-          serverHasNext &&
-          items.length === effectiveLimit &&
-          !!serverNextCursor;
+          serverHasNext && items.length === effectiveLimit && !!serverNextCursor;
 
         setHasNextPage(clientHasNext);
         setNextCursor(clientHasNext ? serverNextCursor : null);
@@ -540,7 +527,6 @@ export const ProductFifoTab: React.FC<Props> = ({
   function applyAndFetch(values: LedgerFilters) {
     setAppliedFilters(values);
 
-    // reset paging + URL
     setCursorStack([null]);
     setPageIndex(0);
     setUrlFromState({
@@ -553,12 +539,10 @@ export const ProductFifoTab: React.FC<Props> = ({
       maxQty: typeof values.maxQty === "number" ? values.maxQty : null,
     });
 
-    // IMPORTANT: pass overrides for all filters
     void fetchLedgerPage({
       includeReset: true,
       cursorId: null,
-      occurredFromOverride:
-        values.occurredFrom === null ? null : values.occurredFrom,
+      occurredFromOverride: values.occurredFrom === null ? null : values.occurredFrom,
       occurredToOverride: values.occurredTo === null ? null : values.occurredTo,
       kindsOverride: values.kinds.length ? values.kinds : null,
       minQtyOverride: typeof values.minQty === "number" ? values.minQty : null,
@@ -594,17 +578,8 @@ export const ProductFifoTab: React.FC<Props> = ({
       // Server-side sort direction only
       setCursorStack([null]);
       setPageIndex(0);
-      setUrlFromState({
-        cursorId: null,
-        page: 1,
-        sortBy: nextField,
-        sortDir: next,
-      });
-      void fetchLedgerPage({
-        includeReset: true,
-        cursorId: null,
-        sortDirOverride: next,
-      });
+      setUrlFromState({ cursorId: null, page: 1, sortBy: nextField, sortDir: next });
+      void fetchLedgerPage({ includeReset: true, cursorId: null, sortDirOverride: next });
     } else {
       // Client-side sort for kind/qty within current page
       setUrlFromState({ sortBy: nextField, sortDir: next });
@@ -668,8 +643,7 @@ export const ProductFifoTab: React.FC<Props> = ({
   const shownCount = displayedRows.length ?? 0;
   const rangeStart = shownCount ? pageIndex * limit + 1 : 0;
   const rangeEnd = shownCount ? rangeStart + shownCount - 1 : 0;
-  const rangeText =
-    shownCount === 0 ? "No results" : `Showing ${rangeStart}–${rangeEnd}`;
+  const rangeText = shownCount === 0 ? "No results" : `Showing ${rangeStart}–${rangeEnd}`;
 
   // Active filter chips
   const activeFilterChips = useMemo(() => {
@@ -678,30 +652,19 @@ export const ProductFifoTab: React.FC<Props> = ({
       label: string;
     }[] = [];
     if (appliedFilters.kinds.length)
-      chips.push({
-        key: "kinds",
-        label: `kind: ${appliedFilters.kinds.join(", ")}`,
-      });
+      chips.push({ key: "kinds", label: `kind: ${appliedFilters.kinds.join(", ")}` });
     if (typeof appliedFilters.minQty === "number")
       chips.push({ key: "minQty", label: `qty ≥ ${appliedFilters.minQty}` });
     if (typeof appliedFilters.maxQty === "number")
       chips.push({ key: "maxQty", label: `qty ≤ ${appliedFilters.maxQty}` });
     if (appliedFilters.occurredFrom)
-      chips.push({
-        key: "occurredFrom",
-        label: `date ≥ ${appliedFilters.occurredFrom}`,
-      });
+      chips.push({ key: "occurredFrom", label: `date ≥ ${appliedFilters.occurredFrom}` });
     if (appliedFilters.occurredTo)
-      chips.push({
-        key: "occurredTo",
-        label: `date ≤ ${appliedFilters.occurredTo}`,
-      });
+      chips.push({ key: "occurredTo", label: `date ≤ ${appliedFilters.occurredTo}` });
     return chips;
   }, [appliedFilters]);
 
-  function clearOneChip(
-    key: keyof LedgerFilters | "kinds" | "minQty" | "maxQty"
-  ) {
+  function clearOneChip(key: keyof LedgerFilters | "kinds" | "minQty" | "maxQty") {
     const next: LedgerFilters = {
       ...appliedFilters,
       kinds: key === "kinds" ? [] : appliedFilters.kinds,
@@ -724,11 +687,7 @@ export const ProductFifoTab: React.FC<Props> = ({
   );
 
   // Adjust helpers
-  async function doAdjust(
-    delta: number,
-    reason?: string,
-    unitCostCents?: number
-  ) {
+  async function doAdjust(delta: number, reason?: string, unitCostCents?: number) {
     if (!productId || !branchId || delta === 0) return;
     const key = (crypto as any)?.randomUUID?.() ?? String(Date.now());
     const res = await adjustStockApiRequest({
@@ -736,7 +695,7 @@ export const ProductFifoTab: React.FC<Props> = ({
       productId,
       qtyDelta: delta,
       ...(typeof unitCostCents === "number" ? { unitCostCents } : {}),
-      ...(reason?.trim() ? { reason: reason.trim() } : {}),
+      ...(reason?.trim ? { reason: reason.trim() } : {}),
       idempotencyKeyOptional: key,
     });
     if (res.success) {
@@ -802,11 +761,7 @@ export const ProductFifoTab: React.FC<Props> = ({
             value={branchId}
             onChange={(v) => {
               setBranchId(v);
-              setUrlFromState({
-                branchId: v ?? undefined,
-                cursorId: null,
-                page: 1,
-              });
+              setUrlFromState({ branchId: v ?? undefined, cursorId: null, page: 1 });
               setCursorStack([null]);
               setPageIndex(0);
               setLedgerRows(null);
@@ -836,10 +791,7 @@ export const ProductFifoTab: React.FC<Props> = ({
               Refresh
             </Button>
 
-            <Button
-              onClick={() => setStockModalOpen(true)}
-              disabled={!branchId || !canWriteProducts}
-            >
+            <Button onClick={() => setStockModalOpen(true)} disabled={!branchId || !canWriteProducts}>
               Adjust stock
             </Button>
           </Group>
@@ -848,11 +800,7 @@ export const ProductFifoTab: React.FC<Props> = ({
 
       {/* Levels (context) */}
       {loadingLevels ? (
-        <div
-          className="flex items-center justify-center p-8"
-          role="status"
-          aria-live="polite"
-        >
+        <div className="flex items-center justify-center p-8" role="status" aria-live="polite">
           <Group gap="sm">
             <Loader size="sm" />
             <Text>Loading levels…</Text>
@@ -862,8 +810,7 @@ export const ProductFifoTab: React.FC<Props> = ({
         <Paper withBorder radius="md" p="md">
           <Stack gap="sm">
             <Text size="sm">
-              On hand: <b>{levels.productStock.qtyOnHand}</b> (allocated:{" "}
-              {levels.productStock.qtyAllocated})
+              On hand: <b>{levels.productStock.qtyOnHand}</b> (allocated: {levels.productStock.qtyAllocated})
             </Text>
             <Table striped withTableBorder withColumnBorders stickyHeader>
               <Table.Thead>
@@ -871,7 +818,7 @@ export const ProductFifoTab: React.FC<Props> = ({
                   <Table.Th>Lot</Table.Th>
                   <Table.Th>Received</Table.Th>
                   <Table.Th>Remaining</Table.Th>
-                  <Table.Th>Unit cost (¢)</Table.Th>
+                  <Table.Th>Unit cost</Table.Th>
                   <Table.Th>Source</Table.Th>
                   <Table.Th>Received at</Table.Th>
                 </Table.Tr>
@@ -884,11 +831,13 @@ export const ProductFifoTab: React.FC<Props> = ({
                     </Table.Td>
                     <Table.Td>{lot.qtyReceived}</Table.Td>
                     <Table.Td>{lot.qtyRemaining}</Table.Td>
-                    <Table.Td>{lot.unitCostCents ?? "—"}</Table.Td>
-                    <Table.Td>{lot.sourceRef ?? "—"}</Table.Td>
                     <Table.Td>
-                      {new Date(lot.receivedAt).toLocaleString()}
+                      {typeof lot.unitCostCents === "number"
+                        ? formatPenceAsGBP(lot.unitCostCents)
+                        : "—"}
                     </Table.Td>
+                    <Table.Td>{lot.sourceRef ?? "—"}</Table.Td>
+                    <Table.Td>{new Date(lot.receivedAt).toLocaleString()}</Table.Td>
                   </Table.Tr>
                 ))}
               </Table.Tbody>
@@ -906,13 +855,7 @@ export const ProductFifoTab: React.FC<Props> = ({
             leftSection={<IconFilter size={16} />}
             variant={showFilters ? "filled" : "light"}
             onClick={() => setShowFilters((s) => !s)}
-            rightSection={
-              showFilters ? (
-                <IconChevronUp size={16} />
-              ) : (
-                <IconChevronDown size={16} />
-              )
-            }
+            rightSection={showFilters ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />}
             fullWidth={false}
             aria-expanded={showFilters}
             aria-controls={FILTER_PANEL_ID}
@@ -944,10 +887,7 @@ export const ProductFifoTab: React.FC<Props> = ({
                   ]}
                   value={values.kinds as string[]}
                   onChange={(vals) =>
-                    setValues((prev) => ({
-                      ...prev,
-                      kinds: vals as LedgerRow["kind"][],
-                    }))
+                    setValues((prev) => ({ ...prev, kinds: vals as LedgerRow["kind"][] }))
                   }
                   searchable
                   clearable
@@ -962,8 +902,7 @@ export const ProductFifoTab: React.FC<Props> = ({
                   onChange={(v) =>
                     setValues((prev) => ({
                       ...prev,
-                      minQty:
-                        typeof v === "number" ? v : v === "" ? "" : Number(v),
+                      minQty: typeof v === "number" ? v : v === "" ? "" : Number(v),
                     }))
                   }
                 />
@@ -977,8 +916,7 @@ export const ProductFifoTab: React.FC<Props> = ({
                   onChange={(v) =>
                     setValues((prev) => ({
                       ...prev,
-                      maxQty:
-                        typeof v === "number" ? v : v === "" ? "" : Number(v),
+                      maxQty: typeof v === "number" ? v : v === "" ? "" : Number(v),
                     }))
                   }
                 />
@@ -989,9 +927,7 @@ export const ProductFifoTab: React.FC<Props> = ({
                   label="Date from"
                   placeholder="YYYY-MM-DD"
                   value={values.occurredFrom}
-                  onChange={(v) =>
-                    setValues((prev) => ({ ...prev, occurredFrom: v }))
-                  }
+                  onChange={(v) => setValues((prev) => ({ ...prev, occurredFrom: v }))}
                   valueFormat="YYYY-MM-DD"
                   popoverProps={{ withinPortal: true }}
                   clearable
@@ -1003,9 +939,7 @@ export const ProductFifoTab: React.FC<Props> = ({
                   label="Date to"
                   placeholder="YYYY-MM-DD"
                   value={values.occurredTo}
-                  onChange={(v) =>
-                    setValues((prev) => ({ ...prev, occurredTo: v }))
-                  }
+                  onChange={(v) => setValues((prev) => ({ ...prev, occurredTo: v }))}
                   valueFormat="YYYY-MM-DD"
                   popoverProps={{ withinPortal: true }}
                   clearable
@@ -1015,16 +949,8 @@ export const ProductFifoTab: React.FC<Props> = ({
           )}
         </FilterBar>
 
-        <Paper
-          withBorder
-          p="md"
-          radius="md"
-          className="bg-white max-h-[70vh] overflow-y-auto"
-        >
-          <Group
-            justify="space-between"
-            mb={activeFilterChips.length > 0 ? "0" : "md"}
-          >
+        <Paper withBorder p="md" radius="md" className="bg-white max-h-[70vh] overflow-y-auto">
+          <Group justify="space-between" mb={activeFilterChips.length > 0 ? "0" : "md"}>
             <Title order={5}>Ledger</Title>
 
             <Group align="center" gap="xs">
@@ -1034,19 +960,14 @@ export const ProductFifoTab: React.FC<Props> = ({
               <NumberInput
                 value={limit}
                 onChange={(v) => {
-                  const n =
-                    typeof v === "number" ? v : v === "" ? 25 : Number(v);
+                  const n = typeof v === "number" ? v : v === "" ? 25 : Number(v);
                   const clamped = Math.max(1, Math.min(100, n));
                   setLimit(clamped);
                   setCursorStack([null]);
                   setPageIndex(0);
                   setUrlFromState({ cursorId: null, page: 1, limit: clamped });
                   setLedgerRows(null);
-                  void fetchLedgerPage({
-                    includeReset: true,
-                    cursorId: null,
-                    limitOverride: clamped,
-                  });
+                  void fetchLedgerPage({ includeReset: true, cursorId: null, limitOverride: clamped });
                 }}
                 min={1}
                 max={100}
@@ -1059,13 +980,7 @@ export const ProductFifoTab: React.FC<Props> = ({
 
           {/* Active filter chips */}
           {activeFilterChips.length > 0 && (
-            <Group
-              gap="xs"
-              mb="sm"
-              wrap="wrap"
-              role="region"
-              aria-label="Active filters"
-            >
+            <Group gap="xs" mb="sm" wrap="wrap" role="region" aria-label="Active filters">
               {activeFilterChips.map((chip) => (
                 <MantineBadge
                   key={chip.key as string}
@@ -1083,23 +998,14 @@ export const ProductFifoTab: React.FC<Props> = ({
                   {chip.label}
                 </MantineBadge>
               ))}
-              <Button
-                variant="subtle"
-                size="xs"
-                onClick={clearAllFiltersAndFetch}
-                aria-label="Clear all filters"
-              >
+              <Button variant="subtle" size="xs" onClick={clearAllFiltersAndFetch} aria-label="Clear all filters">
                 Clear all
               </Button>
             </Group>
           )}
 
           {ledgerRows === null || ledgerLoading ? (
-            <div
-              className="flex items-center justify-center p-8"
-              role="status"
-              aria-live="polite"
-            >
+            <div className="flex items-center justify-center p-8" role="status" aria-live="polite">
               <Loader />
               <Text ml="sm">Loading ledger…</Text>
             </div>
@@ -1109,10 +1015,7 @@ export const ProductFifoTab: React.FC<Props> = ({
             </Alert>
           ) : (
             <>
-              <div
-                className="max-h-[55vh] overflow-y-auto"
-                aria-busy={ledgerLoading}
-              >
+              <div className="max-h-[55vh] overflow-y-auto" aria-busy={ledgerLoading}>
                 <Table
                   id={TABLE_ID}
                   striped
@@ -1123,10 +1026,7 @@ export const ProductFifoTab: React.FC<Props> = ({
                 >
                   <Table.Thead>
                     <Table.Tr>
-                      <Table.Th
-                        scope="col"
-                        aria-sort={colAriaSort("occurredAt")}
-                      >
+                      <Table.Th scope="col" aria-sort={colAriaSort("occurredAt")}>
                         <Group gap={4} wrap="nowrap">
                           <span>Date</span>
                           <Tooltip label="Sort by date" withArrow>
@@ -1137,10 +1037,7 @@ export const ProductFifoTab: React.FC<Props> = ({
                               aria-label={sortButtonLabel("date", "occurredAt")}
                               aria-controls={TABLE_ID}
                             >
-                              <SortIcon
-                                active={sortBy === "occurredAt"}
-                                dir={sortDir}
-                              />
+                              <SortIcon active={sortBy === "occurredAt"} dir={sortDir} />
                             </ActionIcon>
                           </Tooltip>
                         </Group>
@@ -1157,10 +1054,7 @@ export const ProductFifoTab: React.FC<Props> = ({
                               aria-label={sortButtonLabel("kind", "kind")}
                               aria-controls={TABLE_ID}
                             >
-                              <SortIcon
-                                active={sortBy === "kind"}
-                                dir={sortDir}
-                              />
+                              <SortIcon active={sortBy === "kind"} dir={sortDir} />
                             </ActionIcon>
                           </Tooltip>
                         </Group>
@@ -1174,16 +1068,10 @@ export const ProductFifoTab: React.FC<Props> = ({
                               variant="subtle"
                               size="sm"
                               onClick={() => applySort("qtyDelta")}
-                              aria-label={sortButtonLabel(
-                                "quantity",
-                                "qtyDelta"
-                              )}
+                              aria-label={sortButtonLabel("quantity", "qtyDelta")}
                               aria-controls={TABLE_ID}
                             >
-                              <SortIcon
-                                active={sortBy === "qtyDelta"}
-                                dir={sortDir}
-                              />
+                              <SortIcon active={sortBy === "qtyDelta"} dir={sortDir} />
                             </ActionIcon>
                           </Tooltip>
                         </Group>
@@ -1192,22 +1080,16 @@ export const ProductFifoTab: React.FC<Props> = ({
                       <Table.Th>Lot</Table.Th>
                       <Table.Th>Reason</Table.Th>
                     </Table.Tr>
-                  </Table.Thead>
+                  </Table.Thead>P{}
 
                   <Table.Tbody>
                     {displayedRows.map((row) => (
                       <Table.Tr key={row.id}>
-                        <Table.Td>
-                          {new Date(row.occurredAt).toLocaleString()}
-                        </Table.Td>
+                        <Table.Td>{new Date(row.occurredAt).toLocaleString()}</Table.Td>
                         <Table.Td>{row.kind}</Table.Td>
                         <Table.Td>{row.qtyDelta}</Table.Td>
                         <Table.Td>
-                          {row.lotId ? (
-                            <Badge>{row.lotId.slice(0, 6)}…</Badge>
-                          ) : (
-                            "—"
-                          )}
+                          {row.lotId ? <Badge>{row.lotId.slice(0, 6)}…</Badge> : "—"}
                         </Table.Td>
                         <Table.Td>{row.reason ?? "—"}</Table.Td>
                       </Table.Tr>
@@ -1218,13 +1100,7 @@ export const ProductFifoTab: React.FC<Props> = ({
 
               {/* Pagination + range */}
               <Group justify="space-between" mt="md">
-                <Text
-                  id={RANGE_ID}
-                  size="sm"
-                  c="dimmed"
-                  aria-live="polite"
-                  aria-atomic="true"
-                >
+                <Text id={RANGE_ID} size="sm" c="dimmed" aria-live="polite" aria-atomic="true">
                   {rangeText}
                 </Text>
                 <Group gap="xs">
@@ -1232,12 +1108,7 @@ export const ProductFifoTab: React.FC<Props> = ({
                     variant="light"
                     leftSection={<IconPlayerTrackPrev size={16} />}
                     onClick={goPrevPage}
-                    disabled={
-                      isPaginating ||
-                      pageIndex === 0 ||
-                      (pageIndex > 0 &&
-                        cursorStack[pageIndex - 1] === undefined)
-                    }
+                    disabled={isPaginating || pageIndex === 0 || (pageIndex > 0 && cursorStack[pageIndex - 1] === undefined)}
                   >
                     Prev
                   </Button>
@@ -1297,7 +1168,7 @@ export const ProductFifoTab: React.FC<Props> = ({
 
           {stockMode === "increase" && (
             <NumberInput
-              label="Unit cost (cents)"
+              label="Unit cost (pence)" // <- label matches UI convention; API field remains unitCostCents
               placeholder="e.g. 1299"
               min={0}
               required
@@ -1324,42 +1195,28 @@ export const ProductFifoTab: React.FC<Props> = ({
           />
 
           <Group justify="flex-end">
-            <Button
-              variant="default"
-              onClick={() => setStockModalOpen(false)}
-              disabled={submittingStock}
-            >
+            <Button variant="default" onClick={() => setStockModalOpen(false)} disabled={submittingStock}>
               Cancel
             </Button>
             <Button
               loading={submittingStock}
               onClick={async () => {
                 if (!productId || !branchId) {
-                  notifications.show({
-                    color: "red",
-                    message: "Select a branch first.",
-                  });
+                  notifications.show({ color: "red", message: "Select a branch first." });
                   return;
                 }
                 const qty = typeof stockQty === "number" ? stockQty : 0;
                 if (qty <= 0) {
-                  notifications.show({
-                    color: "red",
-                    message: "Quantity must be greater than 0.",
-                  });
+                  notifications.show({ color: "red", message: "Quantity must be greater than 0." });
                   return;
                 }
 
                 setSubmittingStock(true);
                 try {
                   if (stockMode === "increase") {
-                    const cost =
-                      typeof stockCostCents === "number" ? stockCostCents : -1;
+                    const cost = typeof stockCostCents === "number" ? stockCostCents : -1;
                     if (cost < 0) {
-                      notifications.show({
-                        color: "red",
-                        message: "Unit cost (cents) is required.",
-                      });
+                      notifications.show({ color: "red", message: "Unit cost (pence) is required." });
                       setSubmittingStock(false);
                       return;
                     }

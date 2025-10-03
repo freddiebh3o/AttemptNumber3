@@ -1,4 +1,5 @@
 // admin-web/src/pages/ProductsPage.tsx
+// admin-web/src/pages/ProductsPage.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams, useLocation, useNavigationType } from "react-router-dom";
 import {
@@ -45,19 +46,20 @@ import { useAuthStore } from "../stores/auth";
 import dayjs from "dayjs";
 import { FilterBar } from "../components/common/FilterBar";
 import { useNavigate } from "react-router-dom";
+import { formatPenceAsGBP } from "../utils/money";  
 
 type SortField =
   | "createdAt"
   | "updatedAt"
   | "productName"
-  | "productPriceCents";
+  | "productPricePence";
 
 type SortDir = "asc" | "desc";
 
 type ProductFilters = {
   q: string;
-  minPriceCents: number | "";
-  maxPriceCents: number | "";
+  minPricePence: number | "";
+  maxPricePence: number | "";
   createdAtFrom: string | null;
   createdAtTo: string | null;
   updatedAtFrom: string | null;
@@ -66,8 +68,8 @@ type ProductFilters = {
 
 const emptyProductFilters: ProductFilters = {
   q: "",
-  minPriceCents: "",
-  maxPriceCents: "",
+  minPricePence: "",
+  maxPricePence: "",
   createdAtFrom: null,
   createdAtTo: null,
   updatedAtFrom: null,
@@ -81,7 +83,7 @@ export default function ProductsPage() {
   const navigate = useNavigate();
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigationType = useNavigationType(); 
+  const navigationType = useNavigationType();
   const location = useLocation();
   const { tenantSlug } = useParams<{ tenantSlug: string }>();
 
@@ -122,8 +124,8 @@ export default function ProductsPage() {
     setUrlFromState({
       cursorId: null,
       q: values.q.trim() || null,
-      minPriceCents: typeof values.minPriceCents === "number" ? values.minPriceCents : null,
-      maxPriceCents: typeof values.maxPriceCents === "number" ? values.maxPriceCents : null,
+      minPricePence: typeof values.minPricePence === "number" ? values.minPricePence : null,
+      maxPricePence: typeof values.maxPricePence === "number" ? values.maxPricePence : null,
       createdAtFrom: values.createdAtFrom ?? null,
       createdAtTo: values.createdAtTo ?? null,
       updatedAtFrom: values.updatedAtFrom ?? null,
@@ -131,15 +133,15 @@ export default function ProductsPage() {
     });
     resetToFirstPageAndFetch({
       qOverride: values.q.trim() || null,
-      minPriceOverride: typeof values.minPriceCents === "number" ? values.minPriceCents : null,
-      maxPriceOverride: typeof values.maxPriceCents === "number" ? values.maxPriceCents : null,
+      minPriceOverride: typeof values.minPricePence === "number" ? values.minPricePence : null,
+      maxPriceOverride: typeof values.maxPricePence === "number" ? values.maxPricePence : null,
       createdFromOverride: values.createdAtFrom ?? null,
       createdToOverride: values.createdAtTo ?? null,
       updatedFromOverride: values.updatedAtFrom ?? null,
       updatedToOverride: values.updatedAtTo ?? null,
     });
   }
-  
+
   function clearAllFiltersAndFetch() {
     applyAndFetch(emptyProductFilters);
   }
@@ -164,8 +166,8 @@ export default function ProductsPage() {
     sortBy?: SortField;
     sortDir?: SortDir;
     q?: string | null | undefined;
-    minPriceCents?: number | null | undefined;
-    maxPriceCents?: number | null | undefined;
+    minPricePence?: number | null | undefined;
+    maxPricePence?: number | null | undefined;
     createdAtFrom?: string | null | undefined;
     createdAtTo?: string | null | undefined;
     updatedAtFrom?: string | null | undefined;
@@ -186,18 +188,18 @@ export default function ProductsPage() {
         : overrides.q?.toString().trim() || null;
 
     const minVal =
-      overrides?.minPriceCents === undefined
-        ? typeof appliedFilters.minPriceCents === "number"
-          ? appliedFilters.minPriceCents
+      overrides?.minPricePence === undefined
+        ? typeof appliedFilters.minPricePence === "number"
+          ? appliedFilters.minPricePence
           : null
-        : overrides.minPriceCents;
+        : overrides.minPricePence;
 
     const maxVal =
-      overrides?.maxPriceCents === undefined
-        ? typeof appliedFilters.maxPriceCents === "number"
-          ? appliedFilters.maxPriceCents
+      overrides?.maxPricePence === undefined
+        ? typeof appliedFilters.maxPricePence === "number"
+          ? appliedFilters.maxPricePence
           : null
-        : overrides.maxPriceCents;
+        : overrides.maxPricePence;
 
     const createdFromVal =
       overrides &&
@@ -227,8 +229,8 @@ export default function ProductsPage() {
     put("sortBy", overrides?.sortBy ?? sortBy);
     put("sortDir", overrides?.sortDir ?? sortDir);
     put("q", qVal);
-    put("minPriceCents", minVal);
-    put("maxPriceCents", maxVal);
+    put("minPricePence", minVal);
+    put("maxPricePence", maxVal);
     put("createdAtFrom", createdFromVal);
     put("createdAtTo", createdToVal);
     put("updatedAtFrom", updatedFromVal);
@@ -270,8 +272,8 @@ export default function ProductsPage() {
 
       const minParam =
         opts?.minPriceOverride === undefined
-          ? typeof appliedFilters.minPriceCents === "number"
-            ? appliedFilters.minPriceCents
+          ? typeof appliedFilters.minPricePence === "number"
+            ? appliedFilters.minPricePence
             : undefined
           : opts.minPriceOverride == null
           ? undefined
@@ -279,8 +281,8 @@ export default function ProductsPage() {
 
       const maxParam =
         opts?.maxPriceOverride === undefined
-          ? typeof appliedFilters.maxPriceCents === "number"
-            ? appliedFilters.maxPriceCents
+          ? typeof appliedFilters.maxPricePence === "number"
+            ? appliedFilters.maxPricePence
             : undefined
           : opts.maxPriceOverride == null
           ? undefined
@@ -310,8 +312,8 @@ export default function ProductsPage() {
         limit: opts?.limitOverride ?? limit,
         cursorId: opts?.cursorId ?? cursorStack[pageIndex] ?? undefined,
         q: qParam,
-        minPriceCents: minParam,
-        maxPriceCents: maxParam,
+        minPricePence: minParam,
+        maxPricePence: maxParam,
         createdAtFrom: createdFromParam,
         createdAtTo: createdToParam,
         updatedAtFrom: updatedFromParam,
@@ -325,21 +327,21 @@ export default function ProductsPage() {
         const data = response.data;
         const items = data.items ?? [];
         const effectiveLimit = opts?.limitOverride ?? limit;
-      
+
         // Save rows first
         setProductsListRecords(items);
-      
-        // Derive next page more defensively, mirroring Roles
+
+        // Derive next page more defensively
         const serverHasNext = Boolean(data.pageInfo.hasNextPage);
         const serverNextCursor = data.pageInfo.nextCursor ?? null;
-      
+
         // Only trust "hasNextPage" if we actually got a full page AND a cursor
         const clientHasNext =
           serverHasNext && items.length === effectiveLimit && !!serverNextCursor;
-      
+
         setHasNextPage(clientHasNext);
         setNextCursor(clientHasNext ? serverNextCursor : null);
-      
+
         if (opts?.includeTotal && typeof data.pageInfo.totalCount === "number") {
           setTotalCount(data.pageInfo.totalCount);
         }
@@ -377,8 +379,8 @@ export default function ProductsPage() {
       sortBy: opts?.sortByOverride,
       sortDir: opts?.sortDirOverride,
       q: opts?.qOverride,
-      minPriceCents: opts?.minPriceOverride,
-      maxPriceCents: opts?.maxPriceOverride,
+      minPricePence: opts?.minPriceOverride,
+      maxPricePence: opts?.maxPriceOverride,
       createdAtFrom: opts?.createdFromOverride,
       createdAtTo: opts?.createdToOverride,
       updatedAtFrom: opts?.updatedFromOverride,
@@ -407,8 +409,8 @@ export default function ProductsPage() {
     const qpSortBy = searchParams.get("sortBy") as SortField | null;
     const qpSortDir = searchParams.get("sortDir") as SortDir | null;
     const qpQ = searchParams.get("q");
-    const qpMin = searchParams.get("minPriceCents");
-    const qpMax = searchParams.get("maxPriceCents");
+    const qpMin = searchParams.get("minPricePence");
+    const qpMax = searchParams.get("maxPricePence");
     const qpCreatedFrom = searchParams.get("createdAtFrom");
     const qpCreatedTo = searchParams.get("createdAtTo");
     const qpUpdatedFrom = searchParams.get("updatedAtFrom");
@@ -422,8 +424,8 @@ export default function ProductsPage() {
 
     setAppliedFilters({
       q: qpQ ?? "",
-      minPriceCents: qpMin !== null ? (qpMin === "" ? "" : Number(qpMin)) : "",
-      maxPriceCents: qpMax !== null ? (qpMax === "" ? "" : Number(qpMax)) : "",
+      minPricePence: qpMin !== null ? (qpMin === "" ? "" : Number(qpMin)) : "",
+      maxPricePence: qpMax !== null ? (qpMax === "" ? "" : Number(qpMax)) : "",
       createdAtFrom: qpCreatedFrom ?? null,
       createdAtTo: qpCreatedTo ?? null,
       updatedAtFrom: qpUpdatedFrom ?? null,
@@ -457,15 +459,15 @@ export default function ProductsPage() {
 
   useEffect(() => {
     if (navigationType !== 'POP') return; // only browser back/forward
-  
+
     const sp = new URLSearchParams(location.search);
-  
+
     const qpLimit = Number(sp.get("limit"));
     const qpSortBy = sp.get("sortBy") as SortField | null;
     const qpSortDir = sp.get("sortDir") as SortDir | null;
     const qpQ = sp.get("q");
-    const qpMin = sp.get("minPriceCents");
-    const qpMax = sp.get("maxPriceCents");
+    const qpMin = sp.get("minPricePence");
+    const qpMax = sp.get("maxPricePence");
     const qpCreatedFrom = sp.get("createdAtFrom");
     const qpCreatedTo = sp.get("createdAtTo");
     const qpUpdatedFrom = sp.get("updatedAtFrom");
@@ -473,25 +475,25 @@ export default function ProductsPage() {
     const qpCursor = sp.get("cursorId");
     const qpPage = Number(sp.get("page") ?? "1");
     const newPageIndex = Number.isFinite(qpPage) && qpPage > 0 ? qpPage - 1 : 0;
-  
+
     if (!Number.isNaN(qpLimit) && qpLimit) setLimit(Math.max(1, Math.min(100, qpLimit)));
     if (qpSortBy) setSortBy(qpSortBy);
     if (qpSortDir) setSortDir(qpSortDir);
-  
+
     setAppliedFilters({
       q: qpQ ?? "",
-      minPriceCents: qpMin !== null ? (qpMin === "" ? "" : Number(qpMin)) : "",
-      maxPriceCents: qpMax !== null ? (qpMax === "" ? "" : Number(qpMax)) : "",
+      minPricePence: qpMin !== null ? (qpMin === "" ? "" : Number(qpMin)) : "",
+      maxPricePence: qpMax !== null ? (qpMax === "" ? "" : Number(qpMax)) : "",
       createdAtFrom: qpCreatedFrom ?? null,
       createdAtTo: qpCreatedTo ?? null,
       updatedAtFrom: qpUpdatedFrom ?? null,
       updatedAtTo: qpUpdatedTo ?? null,
     });
-  
+
     // seed stack minimally; we may not know earlier cursors
     setCursorStack([qpCursor ?? null]);
     setPageIndex(newPageIndex);
-  
+
     void fetchPageWith({
       includeTotal: true,
       cursorId: qpCursor ?? null,
@@ -614,8 +616,8 @@ export default function ProductsPage() {
   const activeFilterChips = useMemo(() => {
     const chips: { key: keyof ProductFilters; label: string }[] = [];
     if (appliedFilters.q.trim()) chips.push({ key: "q", label: `search: "${appliedFilters.q.trim()}"` });
-    if (typeof appliedFilters.minPriceCents === "number") chips.push({ key: "minPriceCents", label: `min: ${appliedFilters.minPriceCents}` });
-    if (typeof appliedFilters.maxPriceCents === "number") chips.push({ key: "maxPriceCents", label: `max: ${appliedFilters.maxPriceCents}` });
+    if (typeof appliedFilters.minPricePence === "number") chips.push({ key: "minPricePence", label: `min: £${(appliedFilters.minPricePence/100).toFixed(2)}` });
+    if (typeof appliedFilters.maxPricePence === "number") chips.push({ key: "maxPricePence", label: `max: £${(appliedFilters.maxPricePence/100).toFixed(2)}` });
     if (appliedFilters.createdAtFrom) chips.push({ key: "createdAtFrom", label: `created ≥ ${appliedFilters.createdAtFrom}` });
     if (appliedFilters.createdAtTo) chips.push({ key: "createdAtTo", label: `created ≤ ${appliedFilters.createdAtTo}` });
     if (appliedFilters.updatedAtFrom) chips.push({ key: "updatedAtFrom", label: `updated ≥ ${appliedFilters.updatedAtFrom}` });
@@ -627,8 +629,8 @@ export default function ProductsPage() {
     const defaults: ProductFilters = {
       ...appliedFilters,
       q: key === "q" ? "" : appliedFilters.q,
-      minPriceCents: key === "minPriceCents" ? "" : appliedFilters.minPriceCents,
-      maxPriceCents: key === "maxPriceCents" ? "" : appliedFilters.maxPriceCents,
+      minPricePence: key === "minPricePence" ? "" : appliedFilters.minPricePence,
+      maxPricePence: key === "maxPricePence" ? "" : appliedFilters.maxPricePence,
       createdAtFrom: key === "createdAtFrom" ? null : appliedFilters.createdAtFrom,
       createdAtTo: key === "createdAtTo" ? null : appliedFilters.createdAtTo,
       updatedAtFrom: key === "updatedAtFrom" ? null : appliedFilters.updatedAtFrom,
@@ -642,7 +644,7 @@ export default function ProductsPage() {
       {/* Header Banner */}
       <div className="flex justify-between items-start w-full">
         <Group justify="space-between" align="start" className="w-full">
-          <Stack gap="1"> 
+          <Stack gap="1">
             <Title order={3}>All Products</Title>
             <Text size="sm" c="dimmed">
               {rangeText}
@@ -685,7 +687,7 @@ export default function ProductsPage() {
             </Button>
 
             <Button
-              onClick={() => navigate(`/${tenantSlug}/products/new`)} 
+              onClick={() => navigate(`/${tenantSlug}/products/new`)}
               disabled={!canWriteProducts}
             >
               New product
@@ -719,14 +721,14 @@ export default function ProductsPage() {
 
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
               <NumberInput
-                label="Min price (cents)"
+                label="Min price (pence)"
                 placeholder="e.g. 5000"
-                value={values.minPriceCents}
+                value={values.minPricePence}
                 min={0}
                 onChange={(v) =>
                   setValues((prev) => ({
                     ...prev,
-                    minPriceCents:
+                    minPricePence:
                       typeof v === "number" ? v : v === "" ? "" : Number(v),
                   }))
                 }
@@ -735,14 +737,14 @@ export default function ProductsPage() {
 
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
               <NumberInput
-                label="Max price (cents)"
+                label="Max price (pence)"
                 placeholder="e.g. 20000"
-                value={values.maxPriceCents}
+                value={values.maxPricePence}
                 min={0}
                 onChange={(v) =>
                   setValues((prev) => ({
                     ...prev,
-                    maxPriceCents:
+                    maxPricePence:
                       typeof v === "number" ? v : v === "" ? "" : Number(v),
                   }))
                 }
@@ -967,7 +969,7 @@ export default function ProductsPage() {
                         {chip.label}
                       </Badge>
                     ))}
-                
+
                     <Button
                       variant="subtle"
                       size="xs"
@@ -978,7 +980,7 @@ export default function ProductsPage() {
                     </Button>
                   </Group>
                 )}
-                
+
                 {!isLoadingProductsList && (productsListRecords?.length ?? 0) === 0 ? (
                   <div className="py-16 text-center" role="region" aria-live="polite" aria-atomic="true">
                     <Title order={4} mb="xs">No products match your filters</Title>
@@ -993,11 +995,11 @@ export default function ProductsPage() {
                     </Group>
                   </div>
                 ) : (
-                  <Table 
+                  <Table
                     id={TABLE_ID}
-                    striped 
-                    withTableBorder 
-                    withColumnBorders 
+                    striped
+                    withTableBorder
+                    withColumnBorders
                     stickyHeader
                     aria-describedby={RANGE_ID}
                   >
@@ -1024,19 +1026,19 @@ export default function ProductsPage() {
 
                         <Table.Th scope="col">SKU</Table.Th>
 
-                        <Table.Th scope="col" aria-sort={colAriaSort("productPriceCents")}>
+                        <Table.Th scope="col" aria-sort={colAriaSort("productPricePence")}>
                           <Group gap={4} wrap="nowrap">
-                            <span>Price (cents)</span>
+                            <span>Price</span>
                             <Tooltip label="Sort by price" withArrow>
                               <ActionIcon
                                 variant="subtle"
                                 size="sm"
-                                onClick={() => applySort("productPriceCents")}
-                                aria-label={sortButtonLabel("price", "productPriceCents")}
+                                onClick={() => applySort("productPricePence")}
+                                aria-label={sortButtonLabel("price", "productPricePence")}
                                 aria-controls={TABLE_ID}
                               >
                                 <SortIcon
-                                  active={sortBy === "productPriceCents"}
+                                  active={sortBy === "productPricePence"}
                                   dir={sortDir}
                                 />
                               </ActionIcon>
@@ -1099,7 +1101,7 @@ export default function ProductsPage() {
                         <Table.Tr key={p.id}>
                           <Table.Td>{p.productName}</Table.Td>
                           <Table.Td>{p.productSku}</Table.Td>
-                          <Table.Td>{p.productPriceCents}</Table.Td>
+                          <Table.Td>{formatPenceAsGBP(p.productPricePence)}</Table.Td>
                           <Table.Td>
                             <Text size="sm">
                               {new Date(p.createdAt).toLocaleString()}

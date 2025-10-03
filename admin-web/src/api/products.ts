@@ -33,13 +33,13 @@ export async function listProductsApiRequest(params?: {
   limit?: number;
   cursorId?: string;
   q?: string;                       // search by name or SKU
-  minPriceCents?: number;
-  maxPriceCents?: number;
+  minPricePence?: number;
+  maxPricePence?: number;
   createdAtFrom?: string;           // YYYY-MM-DD
   createdAtTo?: string;             // YYYY-MM-DD
   updatedAtFrom?: string;           // YYYY-MM-DD
   updatedAtTo?: string;             // YYYY-MM-DD
-  sortBy?: "createdAt" | "updatedAt" | "productName" | "productPriceCents";
+  sortBy?: "createdAt" | "updatedAt" | "productName" | "productPricePence";
   sortDir?: "asc" | "desc";
   includeTotal?: boolean;
 }) {
@@ -47,8 +47,8 @@ export async function listProductsApiRequest(params?: {
   if (params?.limit !== undefined) search.set("limit", String(params.limit));
   if (params?.cursorId !== undefined) search.set("cursorId", String(params.cursorId));
   if (params?.q) search.set("q", params.q);
-  if (params?.minPriceCents !== undefined) search.set("minPriceCents", String(params.minPriceCents));
-  if (params?.maxPriceCents !== undefined) search.set("maxPriceCents", String(params.maxPriceCents));
+  if (params?.minPricePence !== undefined) search.set("minPricePence", String(params.minPricePence));
+  if (params?.maxPricePence !== undefined) search.set("maxPricePence", String(params.maxPricePence));
   if (params?.createdAtFrom) search.set("createdAtFrom", params.createdAtFrom);
   if (params?.createdAtTo) search.set("createdAtTo", params.createdAtTo);
   if (params?.updatedAtFrom) search.set("updatedAtFrom", params.updatedAtFrom);
@@ -71,7 +71,7 @@ export async function createProductApiRequest(
     body: JSON.stringify({
       productName: params.productName,
       productSku: params.productSku,
-      productPriceCents: params.productPriceCents,
+      productPricePence: params.productPricePence,
     }),
     headers: params.idempotencyKeyOptional
       ? { "Idempotency-Key": params.idempotencyKeyOptional }
@@ -92,8 +92,8 @@ export async function updateProductApiRequest(
         ...(params.productName !== undefined && {
           productName: params.productName,
         }),
-        ...(params.productPriceCents !== undefined && {
-          productPriceCents: params.productPriceCents,
+        ...(params.productPricePence !== undefined && {
+          productPricePence: params.productPricePence,
         }),
         currentEntityVersion: params.currentEntityVersion,
       }),
