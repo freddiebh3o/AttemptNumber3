@@ -24,9 +24,6 @@ export const ProductOverviewTab: React.FC<Props> = ({
   onChangeSku,
   onChangePrice,
 }) => {
-  // Convert pence → pounds for display
-  const pricePounds = price === "" ? "" : price / 100;
-
   return (
     <Stack gap="md">
       <TextInput
