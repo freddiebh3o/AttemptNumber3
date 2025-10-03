@@ -3,7 +3,7 @@ import { prismaClientInstance } from '../db/prismaClient.js';
 import { Errors } from '../utils/httpErrors.js';
 import type { Prisma } from '@prisma/client';
 
-type SortField = 'createdAt' | 'updatedAt' | 'productName' | 'productPriceCents';
+type SortField = 'createdAt' | 'updatedAt' | 'productName' | 'productPricePence';
 type SortDir = 'asc' | 'desc';
 
 type ListProductsArgs = {
@@ -12,8 +12,8 @@ type ListProductsArgs = {
   cursorIdOptional?: string;
   // filters
   qOptional?: string;
-  minPriceCentsOptional?: number;
-  maxPriceCentsOptional?: number;
+  minPricePenceOptional?: number;
+  maxPricePenceOptional?: number;
   createdAtFromOptional?: string; // YYYY-MM-DD
   createdAtToOptional?: string;   // YYYY-MM-DD
   updatedAtFromOptional?: string; // YYYY-MM-DD
@@ -40,7 +40,7 @@ export async function getProductForCurrentTenantService(params: {
       id: true,
       productName: true,
       productSku: true,
-      productPriceCents: true,
+      productPricePence: true,
       entityVersion: true,
       updatedAt: true,
       createdAt: true,
@@ -59,8 +59,8 @@ export async function listProductsForCurrentTenantService(args: ListProductsArgs
     limitOptional,
     cursorIdOptional,
     qOptional,
-    minPriceCentsOptional,
-    maxPriceCentsOptional,
+    minPricePenceOptional,
+    maxPricePenceOptional,
     createdAtFromOptional,
     createdAtToOptional,
     updatedAtFromOptional,
@@ -79,13 +79,13 @@ export async function listProductsForCurrentTenantService(args: ListProductsArgs
 
   // --- WHERE construction ---
 
-  // Price range
+  // Price range (in pence)
   const priceFilter: Prisma.ProductWhereInput =
-    minPriceCentsOptional !== undefined || maxPriceCentsOptional !== undefined
+    minPricePenceOptional !== undefined || maxPricePenceOptional !== undefined
       ? {
-          productPriceCents: {
-            ...(minPriceCentsOptional !== undefined ? { gte: minPriceCentsOptional } : {}),
-            ...(maxPriceCentsOptional !== undefined ? { lte: maxPriceCentsOptional } : {}),
+          productPricePence: {
+            ...(minPricePenceOptional !== undefined ? { gte: minPricePenceOptional } : {}),
+            ...(maxPricePenceOptional !== undefined ? { lte: maxPricePenceOptional } : {}),
           },
         }
       : {};
@@ -153,7 +153,7 @@ export async function listProductsForCurrentTenantService(args: ListProductsArgs
       tenantId: true,
       productName: true,
       productSku: true,
-      productPriceCents: true,
+      productPricePence: true,
       entityVersion: true,
       updatedAt: true,
       createdAt: true,
@@ -190,8 +190,8 @@ export async function listProductsForCurrentTenantService(args: ListProductsArgs
       sort: { field: sortBy, direction: sortDir },
       filters: {
         ...(qOptional ? { q: qOptional } : {}),
-        ...(minPriceCentsOptional !== undefined ? { minPriceCents: minPriceCentsOptional } : {}),
-        ...(maxPriceCentsOptional !== undefined ? { maxPriceCents: maxPriceCentsOptional } : {}),
+        ...(minPricePenceOptional !== undefined ? { minPricePence: minPricePenceOptional } : {}),
+        ...(maxPricePenceOptional !== undefined ? { maxPricePence: maxPricePenceOptional } : {}),
         ...(createdAtFromOptional ? { createdAtFrom: createdAtFromOptional } : {}),
         ...(createdAtToOptional ? { createdAtTo: createdAtToOptional } : {}),
         ...(updatedAtFromOptional ? { updatedAtFrom: updatedAtFromOptional } : {}),
@@ -205,13 +205,13 @@ export async function createProductForCurrentTenantService(params: {
   currentTenantId: string;
   productNameInputValue: string;
   productSkuInputValue: string;
-  productPriceCentsInputValue: number;
+  productPricePenceInputValue: number;
 }) {
   const {
     currentTenantId,
     productNameInputValue,
     productSkuInputValue,
-    productPriceCentsInputValue,
+    productPricePenceInputValue,
   } = params;
   try {
     const created = await prismaClientInstance.product.create({
@@ -219,13 +219,13 @@ export async function createProductForCurrentTenantService(params: {
         tenantId: currentTenantId,
         productName: productNameInputValue,
         productSku: productSkuInputValue,
-        productPriceCents: productPriceCentsInputValue,
+        productPricePence: productPricePenceInputValue,
       },
       select: {
         id: true,
         productName: true,
         productSku: true,
-        productPriceCents: true,
+        productPricePence: true,
         entityVersion: true,
         updatedAt: true,
         createdAt: true,
@@ -248,14 +248,14 @@ export async function updateProductForCurrentTenantService(params: {
   currentTenantId: string;
   productIdPathParam: string;
   productNameInputValue?: string;
-  productPriceCentsInputValue?: number;
+  productPricePenceInputValue?: number;
   currentEntityVersionInputValue: number;
 }) {
   const {
     currentTenantId,
     productIdPathParam,
     productNameInputValue,
-    productPriceCentsInputValue,
+    productPricePenceInputValue,
     currentEntityVersionInputValue,
   } = params;
 
@@ -267,7 +267,7 @@ export async function updateProductForCurrentTenantService(params: {
     },
     data: {
       ...(productNameInputValue !== undefined ? { productName: productNameInputValue } : {}),
-      ...(productPriceCentsInputValue !== undefined ? { productPriceCents: productPriceCentsInputValue } : {}),
+      ...(productPricePenceInputValue !== undefined ? { productPricePence: productPricePenceInputValue } : {}),
       entityVersion: { increment: 1 },
     },
   });
@@ -282,7 +282,7 @@ export async function updateProductForCurrentTenantService(params: {
       id: true,
       productName: true,
       productSku: true,
-      productPriceCents: true,
+      productPricePence: true,
       entityVersion: true,
       updatedAt: true,
       createdAt: true,

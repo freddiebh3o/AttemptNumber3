@@ -27,7 +27,8 @@ const receiveBodySchema = z.object({
   branchId: z.string().min(1),
   productId: z.string().min(1),
   qty: z.coerce.number().int().positive(),
-  unitCostCents: z.coerce.number().int().min(0).nullable().optional(),
+  // Unit cost in **pence**
+  unitCostPence: z.coerce.number().int().min(0).nullable().optional(),
   sourceRef: z.string().max(200).nullable().optional(),
   reason: z.string().max(500).nullable().optional(),
   occurredAt: isoDate,
@@ -37,8 +38,18 @@ const adjustBodySchema = z.object({
   branchId: z.string().min(1),
   productId: z.string().min(1),
   qtyDelta: z.coerce.number().int().refine((v) => v !== 0, 'qtyDelta must be non-zero'),
+  // Unit cost in **pence** (required when increasing)
+  unitCostPence: z.coerce.number().int().min(0).optional(),
   reason: z.string().max(500).nullable().optional(),
   occurredAt: isoDate,
+}).superRefine((val, ctx) => {
+  if (val.qtyDelta > 0 && typeof val.unitCostPence !== 'number') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'unitCostPence is required when increasing stock (qtyDelta > 0)',
+      path: ['unitCostPence'],
+    });
+  }
 });
 
 const consumeBodySchema = z.object({
@@ -85,7 +96,7 @@ stockRouter.post(
         branchId,
         productId,
         qty,
-        unitCostCents,
+        unitCostPence,
         sourceRef,
         reason,
         occurredAt,
@@ -97,7 +108,7 @@ stockRouter.post(
           branchId,
           productId,
           qty,
-          ...(unitCostCents !== undefined ? { unitCostCents } : {}),
+          ...(unitCostPence !== undefined ? { unitCostPence } : {}),
           ...(sourceRef !== undefined ? { sourceRef } : {}),
           ...(reason !== undefined ? { reason } : {}),
           ...(occurredAt !== undefined ? { occurredAt } : {}),
@@ -121,7 +132,7 @@ stockRouter.post(
   async (req, res, next) => {
     try {
       assertAuthed(req);
-      const { branchId, productId, qtyDelta, reason, occurredAt } =
+      const { branchId, productId, qtyDelta, reason, occurredAt, unitCostPence } =
         req.validatedBody as z.infer<typeof adjustBodySchema>;
 
       const out = await adjustStock(
@@ -130,6 +141,7 @@ stockRouter.post(
           branchId,
           productId,
           qtyDelta,
+          ...(typeof unitCostPence === 'number' ? { unitCostPence } : {}),
           ...(reason !== undefined ? { reason } : {}),
           ...(occurredAt !== undefined ? { occurredAt } : {}),
         }

@@ -2,7 +2,6 @@
 import { Router } from "express";
 import { z } from "zod";
 import { createStandardSuccessResponse } from "../utils/standardResponse.js";
-// import { Errors } from '../utils/httpErrors.js'  // ← unused; remove
 import {
   validateRequestBodyWithZod,
   validateRequestParamsWithZod,
@@ -32,22 +31,29 @@ const listQuerySchema = z.object({
   cursorId: z.string().min(1).optional(),
   // filters
   q: z.string().min(1).optional(),
-  minPriceCents: z.coerce.number().int().min(0).optional(),
-  maxPriceCents: z.coerce.number().int().min(0).optional(),
-  createdAtFrom: z.string().regex(dateRegex, 'Use YYYY-MM-DD').optional(),
-  createdAtTo: z.string().regex(dateRegex, 'Use YYYY-MM-DD').optional(),
-  updatedAtFrom: z.string().regex(dateRegex, 'Use YYYY-MM-DD').optional(), // NEW
-  updatedAtTo: z.string().regex(dateRegex, 'Use YYYY-MM-DD').optional(),   // NEW
+  minPricePence: z.coerce.number().int().min(0).optional(),
+  maxPricePence: z.coerce.number().int().min(0).optional(),
+  createdAtFrom: z.string().regex(dateRegex, "Use YYYY-MM-DD").optional(),
+  createdAtTo: z.string().regex(dateRegex, "Use YYYY-MM-DD").optional(),
+  updatedAtFrom: z.string().regex(dateRegex, "Use YYYY-MM-DD").optional(),
+  updatedAtTo: z.string().regex(dateRegex, "Use YYYY-MM-DD").optional(),
   // sort
-  sortBy: z.enum(["createdAt", "updatedAt", "productName", "productPriceCents"]).optional(),
+  sortBy: z
+    .enum(["createdAt", "updatedAt", "productName", "productPricePence"])
+    .optional(),
   sortDir: z.enum(["asc", "desc"]).optional(),
   includeTotal: z.coerce.boolean().optional(),
 });
 
 const createBodySchema = z.object({
   productName: z.string().min(1).max(200),
-  productSku: z.string().regex(productSkuRegex, 'SKU must be A-Z, 0-9, or hyphen (3-40 chars)'),
-  productPriceCents: z.coerce.number().int().min(0),
+  productSku: z
+    .string()
+    .regex(
+      productSkuRegex,
+      "SKU must be A-Z, 0-9, or hyphen (3-40 chars)"
+    ),
+  productPricePence: z.coerce.number().int().min(0),
 });
 
 const updateParamsSchema = z.object({
@@ -56,7 +62,7 @@ const updateParamsSchema = z.object({
 
 const updateBodySchema = z.object({
   productName: z.string().min(1).max(200).optional(),
-  productPriceCents: z.coerce.number().int().min(0).max(1_000_000).optional(),
+  productPricePence: z.coerce.number().int().min(0).max(1_000_000).optional(),
   currentEntityVersion: z.coerce.number().int().min(1),
 });
 
@@ -101,8 +107,8 @@ productRouter.get(
         limit,
         cursorId,
         q,
-        minPriceCents,
-        maxPriceCents,
+        minPricePence,
+        maxPricePence,
         createdAtFrom,
         createdAtTo,
         updatedAtFrom,
@@ -118,12 +124,24 @@ productRouter.get(
         ...(cursorId !== undefined && { cursorIdOptional: cursorId }),
 
         ...(q !== undefined && { qOptional: q }),
-        ...(minPriceCents !== undefined && { minPriceCentsOptional: minPriceCents }),
-        ...(maxPriceCents !== undefined && { maxPriceCentsOptional: maxPriceCents }),
-        ...(createdAtFrom !== undefined && { createdAtFromOptional: createdAtFrom }),
-        ...(createdAtTo !== undefined && { createdAtToOptional: createdAtTo }),
-        ...(updatedAtFrom !== undefined && { updatedAtFromOptional: updatedAtFrom }), // NEW
-        ...(updatedAtTo !== undefined && { updatedAtToOptional: updatedAtTo }),       // NEW
+        ...(minPricePence !== undefined && {
+          minPricePenceOptional: minPricePence,
+        }),
+        ...(maxPricePence !== undefined && {
+          maxPricePenceOptional: maxPricePence,
+        }),
+        ...(createdAtFrom !== undefined && {
+          createdAtFromOptional: createdAtFrom,
+        }),
+        ...(createdAtTo !== undefined && {
+          createdAtToOptional: createdAtTo,
+        }),
+        ...(updatedAtFrom !== undefined && {
+          updatedAtFromOptional: updatedAtFrom,
+        }),
+        ...(updatedAtTo !== undefined && {
+          updatedAtToOptional: updatedAtTo,
+        }),
 
         ...(sortBy !== undefined && { sortByOptional: sortBy }),
         ...(sortDir !== undefined && { sortDirOptional: sortDir }),
@@ -148,13 +166,14 @@ productRouter.post(
     try {
       assertAuthed(request);
       const currentTenantId: string = request.currentTenantId;
-      const { productName, productSku, productPriceCents } = request.validatedBody as z.infer<typeof createBodySchema>;
+      const { productName, productSku, productPricePence } =
+        request.validatedBody as z.infer<typeof createBodySchema>;
 
       const createdProduct = await createProductForCurrentTenantService({
         currentTenantId,
         productNameInputValue: productName,
         productSkuInputValue: productSku,
-        productPriceCentsInputValue: productPriceCents,
+        productPricePenceInputValue: productPricePence,
       });
       return response
         .status(201)
@@ -180,7 +199,11 @@ productRouter.put(
       const { productId } = request.validatedParams as z.infer<
         typeof updateParamsSchema
       >;
-      const { productName, productPriceCents, currentEntityVersion } = request.validatedBody as z.infer<typeof updateBodySchema>;
+      const {
+        productName,
+        productPricePence,
+        currentEntityVersion,
+      } = request.validatedBody as z.infer<typeof updateBodySchema>;
 
       const updatedProduct = await updateProductForCurrentTenantService({
         currentTenantId,
@@ -188,8 +211,8 @@ productRouter.put(
         ...(productName !== undefined && {
           productNameInputValue: productName,
         }),
-        ...(productPriceCents !== undefined && {
-          productPriceCentsInputValue: productPriceCents,
+        ...(productPricePence !== undefined && {
+          productPricePenceInputValue: productPricePence,
         }),
         currentEntityVersionInputValue: currentEntityVersion,
       });

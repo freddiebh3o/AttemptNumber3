@@ -8,7 +8,6 @@ generator client {
   provider = "prisma-client-js"
 }
 
-
 model Permission {
   id          String            @id @default(cuid())
   /// machine key like "products:read"
@@ -140,7 +139,7 @@ model ProductStock {
   branch     Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
   product    Product @relation(fields: [productId], references: [id], onDelete: Restrict)
 
-  qtyOnHand   Int    @default(0) // sum of lot qtyRemaining
+  qtyOnHand    Int   @default(0) // sum of lot qtyRemaining
   qtyAllocated Int   @default(0) // reserved for orders (future)
 
   createdAt   DateTime @default(now())
@@ -162,10 +161,11 @@ model StockLot {
   branch     Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
   product    Product @relation(fields: [productId], references: [id], onDelete: Restrict)
 
-  qtyReceived  Int
-  qtyRemaining Int
+  qtyReceived   Int
+  qtyRemaining  Int
 
-  unitCostCents Int?        // optional now; useful later for valuation
+  /// Unit cost stored in **pence** (GBP minor units)
+  unitCostPence Int?
   sourceRef     String?     // PO/transfer ref (future)
   receivedAt    DateTime @default(now())
 
@@ -247,17 +247,18 @@ model Product {
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  productName       String
-  productSku        String
-  productPriceCents Int
+  productName        String
+  productSku         String
+  /// Product price stored in **pence** (GBP minor units)
+  productPricePence  Int
 
   entityVersion Int @default(1)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  stocks ProductStock[]
-  stockLots StockLot[]
+  stocks      ProductStock[]
+  stockLots   StockLot[]
   stockLedgers StockLedger[]
 
   @@unique([tenantId, productSku])

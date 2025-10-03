@@ -17,7 +17,6 @@ type SeededUsers = {
   mixed:  SeededUser;
 };
 
-
 async function upsertManyProductsForTenant(opts: {
   tenantId: string;
   tenantPrefix: 'ACME' | 'GLOBEX';
@@ -35,11 +34,12 @@ async function upsertManyProductsForTenant(opts: {
         const n = startIndex + offset + i;
         const productSku = `${tenantPrefix}-SKU-${pad3(n)}`;
         const productName = `${tenantPrefix} Product ${n}`;
-        const productPriceCents = 199 + ((n * 137) % 97501);
+        // Store price in **pence**
+        const productPricePence = 199 + ((n * 137) % 97501);
         return prisma.product.upsert({
           where: { tenantId_productSku: { tenantId, productSku } },
-          update: { productName, productPriceCents },
-          create: { tenantId, productName, productSku, productPriceCents },
+          update: { productName, productPricePence },
+          create: { tenantId, productName, productSku, productPricePence },
           select: { id: true },
         });
       })
@@ -74,7 +74,7 @@ async function upsertMembershipWithRole(userId: string, tenantId: string, roleId
 }
 
 async function seedTenantsAndRBAC() {
-  // ⭐ NEW: ensure the global permission catalogue includes all current keys
+  // Ensure the global permission catalogue includes all current keys
   await ensurePermissionCatalog(prisma);
 
   const acme = await prisma.tenant.upsert({
@@ -95,27 +95,27 @@ async function seedTenantsAndRBAC() {
 }
 
 async function seedProducts(acmeId: string, globexId: string) {
-  // Hand-authored examples
+  // Hand-authored examples (prices in **pence**)
   await prisma.product.upsert({
     where: { tenantId_productSku: { tenantId: acmeId, productSku: 'ACME-SKU-001' } },
-    update: { productName: 'Acme Anvil', productPriceCents: 1999 },
-    create: { tenantId: acmeId, productName: 'Acme Anvil', productSku: 'ACME-SKU-001', productPriceCents: 1999 },
+    update: { productName: 'Acme Anvil', productPricePence: 1999 },
+    create: { tenantId: acmeId, productName: 'Acme Anvil', productSku: 'ACME-SKU-001', productPricePence: 1999 },
   });
   await prisma.product.upsert({
     where: { tenantId_productSku: { tenantId: acmeId, productSku: 'ACME-SKU-002' } },
-    update: { productName: 'Acme Rocket Skates', productPriceCents: 4999 },
-    create: { tenantId: acmeId, productName: 'Acme Rocket Skates', productSku: 'ACME-SKU-002', productPriceCents: 4999 },
+    update: { productName: 'Acme Rocket Skates', productPricePence: 4999 },
+    create: { tenantId: acmeId, productName: 'Acme Rocket Skates', productSku: 'ACME-SKU-002', productPricePence: 4999 },
   });
 
   await prisma.product.upsert({
     where: { tenantId_productSku: { tenantId: globexId, productSku: 'GLOBEX-SKU-001' } },
-    update: { productName: 'Globex Heat Lamp', productPriceCents: 2999 },
-    create: { tenantId: globexId, productName: 'Globex Heat Lamp', productSku: 'GLOBEX-SKU-001', productPriceCents: 2999 },
+    update: { productName: 'Globex Heat Lamp', productPricePence: 2999 },
+    create: { tenantId: globexId, productName: 'Globex Heat Lamp', productSku: 'GLOBEX-SKU-001', productPricePence: 2999 },
   });
   await prisma.product.upsert({
     where: { tenantId_productSku: { tenantId: globexId, productSku: 'GLOBEX-SKU-002' } },
-    update: { productName: 'Globex Shrink Ray', productPriceCents: 9999 },
-    create: { tenantId: globexId, productName: 'Globex Shrink Ray', productSku: 'GLOBEX-SKU-002', productPriceCents: 9999 },
+    update: { productName: 'Globex Shrink Ray', productPricePence: 9999 },
+    create: { tenantId: globexId, productName: 'Globex Shrink Ray', productSku: 'GLOBEX-SKU-002', productPricePence: 9999 },
   });
 
   // Bulk for pagination testing
@@ -217,8 +217,6 @@ async function main() {
   await seedProducts(acmeId, globexId);
 
   // Users + memberships (includes an OWNER → has roles:manage)
-  await seedTestUsers(acmeId, globexId);
-
   const users = await seedTestUsers(acmeId, globexId);
 
   // Pick specific branches (helpers to throw if not found)
@@ -227,9 +225,7 @@ async function main() {
     if (!b) throw new Error(`Branch not found: ${slug}`);
     return b;
   };
-  
-  // after you create users (uOwner, uAdmin, uEditor, uViewer, uMixed) in seedTestUsers():
-  // Example (put at the end of seedTestUsers):
+
   const acmeHQ        = mustFind(acmeBranches, 'acme-hq');
   const acmeWarehouse = mustFind(acmeBranches, 'acme-warehouse');
   const acmeRetail1   = mustFind(acmeBranches, 'acme-retail-1');

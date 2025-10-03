@@ -68,14 +68,15 @@ export async function receiveStock(
     branchId: string;
     productId: string;
     qty: number; // > 0
-    unitCostCents?: number | null | undefined;
+    /** Unit cost in **pence** (GBP minor units) */
+    unitCostPence?: number | null | undefined;
     sourceRef?: string | null | undefined;
     reason?: string | null | undefined;
     occurredAt?: string | undefined; // ISO
   }
 ) {
   const { currentTenantId, currentUserId } = ids;
-  const { branchId, productId, qty, unitCostCents, sourceRef, reason, occurredAt } = input;
+  const { branchId, productId, qty, unitCostPence, sourceRef, reason, occurredAt } = input;
 
   if (qty <= 0) throw Errors.validation('qty must be > 0');
 
@@ -92,7 +93,7 @@ export async function receiveStock(
         productId,
         qtyReceived: qty,
         qtyRemaining: qty,
-        unitCostCents: unitCostCents ?? null,
+        unitCostPence: unitCostPence ?? null,
         sourceRef: sourceRef ?? null,
         receivedAt: toDateMaybe(occurredAt),
       },
@@ -217,11 +218,12 @@ export async function adjustStock(
     qtyDelta: number;
     reason?: string | null | undefined;
     occurredAt?: string | undefined;
-    unitCostCents?: number | null | undefined;
+    /** Unit cost in **pence** when increasing stock */
+    unitCostPence?: number | null | undefined;
   }
 ) {
   const { currentTenantId, currentUserId } = ids;
-  const { branchId, productId, qtyDelta, reason, occurredAt, unitCostCents } = input;
+  const { branchId, productId, qtyDelta, reason, occurredAt, unitCostPence } = input;
 
   if (qtyDelta === 0) throw Errors.validation('qtyDelta must be non-zero');
 
@@ -239,13 +241,13 @@ export async function adjustStock(
           productId,
           qtyReceived: qtyDelta,
           qtyRemaining: qtyDelta,
-          unitCostCents: unitCostCents!,
+          unitCostPence: unitCostPence!,
           sourceRef: null,
           receivedAt: toDateMaybe(occurredAt),
         },
         select: { id: true, qtyReceived: true, qtyRemaining: true, receivedAt: true },
       });
-      
+
       const ledger = await tx.stockLedger.create({
         data: {
           tenantId: currentTenantId,
@@ -355,7 +357,7 @@ export async function getStockLevelsForProductService(params: {
         id: true,
         qtyReceived: true,
         qtyRemaining: true,
-        unitCostCents: true,
+        unitCostPence: true,
         sourceRef: true,
         receivedAt: true,
         createdAt: true,
@@ -546,7 +548,7 @@ export async function getStockLevelsBulkService(params: {
             id: true,
             qtyReceived: true,
             qtyRemaining: true,
-            unitCostCents: true,
+            unitCostPence: true,
             sourceRef: true,
             receivedAt: true,
             createdAt: true,

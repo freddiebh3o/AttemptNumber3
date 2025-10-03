@@ -7,7 +7,7 @@ export const ZodProductRecord = z
     tenantId: z.string(),
     productName: z.string(),
     productSku: z.string(),
-    productPriceCents: z.number().int(),
+    productPricePence: z.number().int(),
     entityVersion: z.number().int(),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
@@ -18,7 +18,7 @@ export const ZodCreateProductRequestBody = z
   .object({
     productName: z.string().min(1).max(200),
     productSku: z.string().min(1).max(100),
-    productPriceCents: z.number().int().min(0),
+    productPricePence: z.number().int().min(0),
   })
   .openapi('CreateProductRequestBody');
 
@@ -31,7 +31,7 @@ export const ZodUpdateProductParams = z
 export const ZodUpdateProductRequestBody = z
   .object({
     productName: z.string().min(1).max(200).optional(),
-    productPriceCents: z.number().int().min(0).optional(),
+    productPricePence: z.number().int().min(0).optional(),
     currentEntityVersion: z.number().int().min(1),
   })
   .openapi('UpdateProductRequestBody');
@@ -42,15 +42,15 @@ export const ZodListProductsQuery = z
     cursorId: z.string().optional(),
     // filters
     q: z.string().optional(),
-    minPriceCents: z.number().int().min(0).optional(),
-    maxPriceCents: z.number().int().min(0).optional(),
+    minPricePence: z.number().int().min(0).optional(),
+    maxPricePence: z.number().int().min(0).optional(),
     createdAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     createdAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     updatedAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     updatedAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     // sort
     sortBy: z
-      .enum(['createdAt', 'updatedAt', 'productName', 'productPriceCents'])
+      .enum(['createdAt', 'updatedAt', 'productName', 'productPricePence'])
       .optional(),
     sortDir: z.enum(['asc', 'desc']).optional(),
     includeTotal: z.boolean().optional(),
@@ -72,14 +72,14 @@ export const ZodProductsListResponseData = z
           'createdAt',
           'updatedAt',
           'productName',
-          'productPriceCents',
+          'productPricePence',
         ]),
         direction: z.enum(['asc', 'desc']),
       }),
       filters: z.object({
         q: z.string().optional(),
-        minPriceCents: z.number().int().min(0).optional(),
-        maxPriceCents: z.number().int().min(0).optional(),
+        minPricePence: z.number().int().min(0).optional(),
+        maxPricePence: z.number().int().min(0).optional(),
         createdAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
         createdAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
         updatedAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),

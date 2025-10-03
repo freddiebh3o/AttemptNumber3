@@ -27,7 +27,8 @@ export const ZodStockLotRecord = z.object({
   productId: z.string(),
   qtyReceived: z.number().int(),
   qtyRemaining: z.number().int(),
-  unitCostCents: z.number().int().nullable().optional(),
+  // Unit cost stored in **pence**
+  unitCostPence: z.number().int().nullable().optional(),
   sourceRef: z.string().nullable().optional(),
   receivedAt: ZodISODate,
   createdAt: ZodISODate,
@@ -62,7 +63,8 @@ export const ZodReceiveStockRequestBody = z.object({
   branchId: z.string().min(1),
   productId: z.string().min(1),
   qty: z.number().int().positive(),
-  unitCostCents: z.number().int().min(0).nullable().optional(),
+  // Unit cost in **pence**
+  unitCostPence: z.number().int().min(0).nullable().optional(),
   sourceRef: z.string().max(200).nullable().optional(),
   reason: z.string().max(500).nullable().optional(),
   occurredAt: z.string().datetime().optional(),
@@ -72,15 +74,16 @@ export const ZodAdjustStockRequestBody = z.object({
   branchId: z.string().min(1),
   productId: z.string().min(1),
   qtyDelta: z.number().int().refine(v => v !== 0, 'qtyDelta must be non-zero'),
-  unitCostCents: z.number().int().min(0).optional(),
+  // Unit cost in **pence** (required when qtyDelta > 0)
+  unitCostPence: z.number().int().min(0).optional(),
   reason: z.string().max(500).nullable().optional(),
   occurredAt: z.string().datetime().optional(),
 }).superRefine((val, ctx) => {
-  if (val.qtyDelta > 0 && typeof val.unitCostCents !== 'number') {
+  if (val.qtyDelta > 0 && typeof val.unitCostPence !== 'number') {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: 'unitCostCents is required when increasing stock (qtyDelta > 0)',
-      path: ['unitCostCents'],
+      message: 'unitCostPence is required when increasing stock (qtyDelta > 0)',
+      path: ['unitCostPence'],
     });
   }
 });
