@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Alert, Badge, Button, Group, Loader, Select, Stack, Table, Text, Title } from "@mantine/core";
+import { useEffect, useState } from "react";
+import { Alert, Badge, Button, Group, Loader, Stack, Table, Text, Title } from "@mantine/core";
 import { listBranchesApiRequest } from "../../api/branches";
 import { getStockLevelsApiRequest } from "../../api/stock";
 import { handlePageError } from "../../utils/pageError";
