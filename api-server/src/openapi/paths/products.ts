@@ -13,6 +13,26 @@ import { ZodIdempotencyHeaders } from '../schemas/common.js';
 import { z } from 'zod';
 
 export function registerProductPaths(registry: OpenAPIRegistry) {
+  // GET /api/products/{productId}
+  registry.registerPath({
+    tags: ['Products'],
+    method: 'get',
+    path: '/api/products/{productId}',
+    security: [{ cookieAuth: [] }],
+    request: { params: z.object({ productId: z.string().min(1) }) },
+    responses: {
+      200: {
+        description: 'Product',
+        content: { 'application/json': { schema: successEnvelope(z.object({ product: ZodProductRecord })) } },
+      },
+      401: RESPONSES[401],
+      403: RESPONSES[403],
+      404: RESPONSES[404],
+      429: RESPONSES[429],
+      500: RESPONSES[500],
+    },
+  });
+
   // GET /api/products
   registry.registerPath({
     tags: ['Products'],

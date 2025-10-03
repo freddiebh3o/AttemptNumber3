@@ -28,6 +28,31 @@ function addDays(date: Date, days: number) {
   return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 }
 
+export async function getProductForCurrentTenantService(params: {
+  currentTenantId: string;
+  productIdPathParam: string;
+}) {
+  const { currentTenantId, productIdPathParam } = params;
+
+  const product = await prismaClientInstance.product.findFirst({
+    where: { id: productIdPathParam, tenantId: currentTenantId },
+    select: {
+      id: true,
+      productName: true,
+      productSku: true,
+      productPriceCents: true,
+      entityVersion: true,
+      updatedAt: true,
+      createdAt: true,
+    },
+  });
+
+  if (!product) {
+    throw Errors.notFound('Product not found.');
+  }
+  return product;
+}
+
 export async function listProductsForCurrentTenantService(args: ListProductsArgs) {
   const {
     currentTenantId,

@@ -15,6 +15,7 @@ import {
   createProductForCurrentTenantService,
   updateProductForCurrentTenantService,
   deleteProductForCurrentTenantService,
+  getProductForCurrentTenantService,
 } from "../services/productService.js";
 import { assertAuthed } from '../types/assertions.js'
 import { requirePermission } from '../middleware/permissionMiddleware.js';
@@ -58,6 +59,34 @@ const updateBodySchema = z.object({
   productPriceCents: z.coerce.number().int().min(0).max(1_000_000).optional(),
   currentEntityVersion: z.coerce.number().int().min(1),
 });
+
+const getParamsSchema = z.object({ productId: z.string().min(1) });
+
+// GET /api/products/:productId
+productRouter.get(
+  "/:productId",
+  requireAuthenticatedUserMiddleware,
+  requirePermission('products:read'),
+  validateRequestParamsWithZod(getParamsSchema),
+  async (request, response, next) => {
+    try {
+      assertAuthed(request);
+      const currentTenantId: string = request.currentTenantId;
+      const { productId } = request.validatedParams as z.infer<typeof getParamsSchema>;
+
+      const product = await getProductForCurrentTenantService({
+        currentTenantId,
+        productIdPathParam: productId,
+      });
+
+      return response
+        .status(200)
+        .json(createStandardSuccessResponse({ product }));
+    } catch (error) {
+      return next(error);
+    }
+  }
+);
 
 // GET /api/products
 productRouter.get(
