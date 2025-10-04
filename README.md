@@ -475,6 +475,8 @@ If you need initial data in the new environment:
   * Down the line, we will want a frontend feature, for example, on products, that allows you to see exactly who changed the product and when. This will apply to everything that you can change in the project, not just products. 
   * This will be viewable by everyone so doesnt require any permissions to view other than being logged in.
 
+* Look into theme update. Seems to be producing more logs than anticipated.
+
 
 * Stock transfer between different branches/locations
   * Effectively an 'order' between two branches 

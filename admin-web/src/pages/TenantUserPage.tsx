@@ -87,7 +87,12 @@ export default function TenantUserPage() {
     (async () => {
       try {
         setLoadingBranches(true);
-        const res = await listBranchesApiRequest({ limit: 100, includeTotal: false, sortBy: "branchName", sortDir: "asc" });
+        const res = await listBranchesApiRequest({
+          limit: 100,
+          includeTotal: false,
+          sortBy: "branchName",
+          sortDir: "asc",
+        });
         if (!cancelled && res.success) setBranches(res.data.items ?? []);
       } catch (e) {
         handlePageError(e, { title: "Failed to load branches" });
@@ -109,12 +114,11 @@ export default function TenantUserPage() {
         setLoadingUser(true);
         const res = await getTenantUserApiRequest({ userId });
         if (!cancelled && res.success) {
-          const u = res.data.user;
+          const u = res.data.user as TenantUserRecord; // server now returns { data: { user } }
           setInitial(u);
           setEmail(u.userEmailAddress ?? "");
           setRoleId(u.role?.id ?? null);
-          // ⬇️ expects server now returns `user.branches: BranchSummary[]`
-          const existingBranchIds = (u as any).branches?.map((b: any) => b.id) ?? []; // remove `as any` after types regen
+          const existingBranchIds = (u as any).branches?.map((b: any) => b.id) ?? [];
           setBranchIds(existingBranchIds);
         }
       } catch (e) {
@@ -169,16 +173,15 @@ export default function TenantUserPage() {
 
     setSaving(true);
     try {
-      const idk =
-        (crypto as any)?.randomUUID?.() ?? Math.random().toString(36).slice(2);
+      const idk = (crypto as any)?.randomUUID?.() ?? Math.random().toString(36).slice(2);
 
       if (!isEdit) {
+        // Create
         const body: CreateBody = {
           email: email.trim(),
           password,
-          roleId,
-          // ⬇️ requires OpenAPI update; keep until types regenerated
-          branchIds, // as any okay until regen
+          roleId, // roleId is non-null here (validated above)
+          branchIds, // optional per OpenAPI
         } as any;
 
         const res = await createTenantUserApiRequest({
@@ -190,21 +193,22 @@ export default function TenantUserPage() {
           navigate(`/${tenantSlug}/users`);
         }
       } else {
+        // Update (send only changed fields)
         if (!userId) return;
 
         const initialBranchIds: string[] =
           ((initial as any)?.branches?.map((b: any) => b.id) as string[]) ?? [];
 
-        const body: UpdateBody = {
+        const updateBody: UpdateBody = {
           ...(initial?.userEmailAddress !== email.trim() && { email: email.trim() }),
-          ...(password ? { password } : null),
-          ...(initial?.role?.id !== roleId && { roleId }),
-          ...(!setsEqual(initialBranchIds, branchIds) && { branchIds }), // ⬅️ send only if changed
+          ...(password ? { password } : {}),
+          ...(initial?.role?.id !== roleId && roleId ? { roleId } : {}),
+          ...(!setsEqual(initialBranchIds, branchIds) && { branchIds }),
         } as any;
 
         const res = await updateTenantUserApiRequest({
           userId,
-          ...body,
+          ...updateBody,
           idempotencyKeyOptional: idk,
         });
         if (res.success) {
@@ -278,7 +282,9 @@ export default function TenantUserPage() {
               nothingFoundMessage="No branches"
               placeholder="Select branches…"
               rightSectionWidth={90}
-              rightSection={branchIds.length ? <Badge variant="light">{branchIds.length} selected</Badge> : null}
+              rightSection={
+                branchIds.length ? <Badge variant="light">{branchIds.length} selected</Badge> : null
+              }
             />
           </Stack>
         )}

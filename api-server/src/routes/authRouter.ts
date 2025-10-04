@@ -18,6 +18,9 @@ import {
 import { requireAuthenticatedUserMiddleware } from '../middleware/sessionMiddleware.js';
 import { assertAuthed } from '../types/assertions.js';
 import { prismaClientInstance } from '../db/prismaClient.js';
+import { writeAuditEvent } from '../services/auditLoggerService.js';
+import { AuditAction, AuditEntityType } from '@prisma/client';
+import { getAuditContext } from '../utils/auditContext.js';
 
 export const authRouter = Router();
 
@@ -51,6 +54,27 @@ authRouter.post(
 
       setSignedSessionCookie(response, sessionTokenValue);
 
+      // ⭐ AUDIT: LOGIN (user)
+      try {
+        const ctx = getAuditContext(request);
+        // For sign-in, we *know* the tenant from verified
+        await writeAuditEvent(prismaClientInstance, {
+          tenantId: verified.matchedTenantId,
+          actorUserId: verified.matchedUserId,
+          entityType: AuditEntityType.USER,
+          entityId: verified.matchedUserId,
+          action: AuditAction.LOGIN,
+          entityName: email, // convenient display
+          before: null,
+          after: { id: verified.matchedUserId, userEmailAddress: email, currentTenantId: verified.matchedTenantId },
+          correlationId: ctx.correlationId,
+          ip: ctx.ip,
+          userAgent: ctx.userAgent ?? null,
+        });
+      } catch {
+        // swallow audit errors
+      }
+
       return response.status(200).json(createStandardSuccessResponse({ isSignedIn: true }));
     } catch (error) {
       return next(error);
@@ -58,8 +82,32 @@ authRouter.post(
   }
 );
 
-authRouter.post('/sign-out', (_request, response) => {
+authRouter.post('/sign-out', async (request, response) => {
+  // Try decode to attach useful context to the audit row
+  const decoded = verifySignedSessionToken(request.cookies?.['mt_session'] ?? '');
   clearSessionCookie(response);
+
+  if (decoded) {
+    try {
+      const ctx = getAuditContext(request);
+      await writeAuditEvent(prismaClientInstance, {
+        tenantId: decoded.currentTenantId,
+        actorUserId: decoded.currentUserId,
+        entityType: AuditEntityType.USER,
+        entityId: decoded.currentUserId,
+        action: AuditAction.LOGOUT,
+        entityName: null,
+        before: { currentTenantId: decoded.currentTenantId },
+        after: null,
+        correlationId: ctx.correlationId,
+        ip: ctx.ip,
+        userAgent: ctx.userAgent ?? null,
+      });
+    } catch {
+      // swallow audit errors
+    }
+  }
+
   return response.status(200).json(createStandardSuccessResponse({ isSignedIn: false }));
 });
 
@@ -151,7 +199,7 @@ authRouter.get('/me', requireAuthenticatedUserMiddleware, async (request, respon
       .json(
         createStandardSuccessResponse({
           user,                 // { id, userEmailAddress }
-          tenantMemberships,    // [{ tenantSlug, role: { id, name, description?, isSystem, permissions[] ... } | null }]
+          tenantMemberships,    // [{ tenantSlug, role: {...} } | null]
           currentTenant,        // { tenantId, tenantSlug, role }
           permissionsCurrentTenant,
           branchMembershipsCurrentTenant,
@@ -177,7 +225,7 @@ authRouter.post(
       const decoded = verifySignedSessionToken(request.cookies?.['mt_session'] ?? '');
       if (!decoded) return next(Errors.authRequired());
 
-      const tenant = await prismaClientInstance.tenant.findUnique({ where: { tenantSlug }, select: { id: true } });
+      const tenant = await prismaClientInstance.tenant.findUnique({ where: { tenantSlug }, select: { id: true, tenantSlug: true } });
       if (!tenant) return next(Errors.notFound('Tenant not found.'));
 
       const member = await prismaClientInstance.userTenantMembership.findUnique({
@@ -186,12 +234,32 @@ authRouter.post(
       });
       if (!member) return next(Errors.permissionDenied());
 
+      const oldTenantId = decoded.currentTenantId;
       const sessionTokenValue = createSignedSessionToken({
         currentUserId: decoded.currentUserId,
         currentTenantId: tenant.id,
         issuedAtUnixSeconds: Math.floor(Date.now() / 1000),
       });
       setSignedSessionCookie(response, sessionTokenValue);
+
+      try {
+        const ctx = getAuditContext(request);
+        await writeAuditEvent(prismaClientInstance, {
+          tenantId: tenant.id,
+          actorUserId: decoded.currentUserId,
+          entityType: AuditEntityType.USER,
+          entityId: decoded.currentUserId,
+          action: AuditAction.UPDATE,
+          entityName: null,
+          before: { currentTenantId: oldTenantId },
+          after: { currentTenantId: tenant.id },
+          correlationId: ctx.correlationId,
+          ip: ctx.ip,
+          userAgent: ctx.userAgent ?? null,
+        });
+      } catch {
+        // swallow audit errors
+      }
 
       return response.status(200).json(createStandardSuccessResponse({ hasSwitchedTenant: true }));
     } catch (error) {

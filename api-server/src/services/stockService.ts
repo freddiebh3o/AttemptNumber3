@@ -1,11 +1,19 @@
 // api-server/src/services/stockService.ts
-import { Prisma, StockMovementKind } from '@prisma/client';
+import { Prisma, StockMovementKind, AuditAction, AuditEntityType } from '@prisma/client';
 import { prismaClientInstance } from '../db/prismaClient.js';
 import { Errors } from '../utils/httpErrors.js';
+import { writeAuditEvent } from './auditLoggerService.js';
 
 type Ids = {
   currentTenantId: string;
   currentUserId: string;
+};
+
+type AuditCtx = {
+  actorUserId?: string | null | undefined;
+  correlationId?: string | null | undefined;
+  ip?: string | null | undefined;
+  userAgent?: string | null | undefined;
 };
 
 async function assertBranchAccess({
@@ -61,6 +69,15 @@ function toDateMaybe(s?: string) {
   return s ? new Date(s) : new Date();
 }
 
+function auditCtxOrNull(ctx?: AuditCtx) {
+  return {
+    actorUserId: ctx?.actorUserId ?? null,
+    correlationId: ctx?.correlationId ?? null,
+    ip: ctx?.ip ?? null,
+    userAgent: ctx?.userAgent ?? null,
+  };
+}
+
 /** Receive: creates a new lot (+qty), ledger (+), increments aggregate */
 export async function receiveStock(
   ids: Ids,
@@ -73,10 +90,11 @@ export async function receiveStock(
     sourceRef?: string | null | undefined;
     reason?: string | null | undefined;
     occurredAt?: string | undefined; // ISO
+    auditContextOptional?: AuditCtx;
   }
 ) {
   const { currentTenantId, currentUserId } = ids;
-  const { branchId, productId, qty, unitCostPence, sourceRef, reason, occurredAt } = input;
+  const { branchId, productId, qty, unitCostPence, sourceRef, reason, occurredAt, auditContextOptional } = input;
 
   if (qty <= 0) throw Errors.validation('qty must be > 0');
 
@@ -84,7 +102,8 @@ export async function receiveStock(
   await ensureProductBelongsToTenant(currentTenantId, productId);
 
   const result = await prismaClientInstance.$transaction(async (tx) => {
-    await ensureProductStockRow(tx, { tenantId: currentTenantId, branchId, productId });
+    // Ensure aggregate row exists and capture "before"
+    const aggBefore = await ensureProductStockRow(tx, { tenantId: currentTenantId, branchId, productId });
 
     const lot = await tx.stockLot.create({
       data: {
@@ -96,6 +115,10 @@ export async function receiveStock(
         unitCostPence: unitCostPence ?? null,
         sourceRef: sourceRef ?? null,
         receivedAt: toDateMaybe(occurredAt),
+      },
+      select: {
+        id: true, tenantId: true, branchId: true, productId: true,
+        qtyReceived: true, qtyRemaining: true, unitCostPence: true, sourceRef: true, receivedAt: true, createdAt: true, updatedAt: true,
       },
     });
 
@@ -111,6 +134,10 @@ export async function receiveStock(
         actorUserId: currentUserId,
         occurredAt: toDateMaybe(occurredAt),
       },
+      select: {
+        id: true, tenantId: true, branchId: true, productId: true, lotId: true, kind: true, qtyDelta: true,
+        reason: true, actorUserId: true, occurredAt: true, createdAt: true,
+      },
     });
 
     const productStock = await tx.productStock.update({
@@ -118,7 +145,60 @@ export async function receiveStock(
         tenantId_branchId_productId: { tenantId: currentTenantId, branchId, productId },
       },
       data: { qtyOnHand: { increment: qty } },
+      select: { tenantId: true, branchId: true, productId: true, qtyOnHand: true, qtyAllocated: true, id: true },
     });
+
+    // AUDIT (best-effort; don’t break the transaction if audit fails)
+    try {
+      const meta = auditCtxOrNull(auditContextOptional);
+
+      // 1) STOCK_LEDGER (domain action)
+      await writeAuditEvent(tx, {
+        tenantId: currentTenantId,
+        actorUserId: meta.actorUserId ?? currentUserId,
+        entityType: AuditEntityType.STOCK_LEDGER,
+        entityId: ledger.id,
+        action: AuditAction.STOCK_RECEIVE,
+        entityName: null,
+        before: null,
+        after: ledger,
+        correlationId: meta.correlationId,
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      });
+
+      // 2) STOCK_LOT (CRUD create)
+      await writeAuditEvent(tx, {
+        tenantId: currentTenantId,
+        actorUserId: meta.actorUserId ?? currentUserId,
+        entityType: AuditEntityType.STOCK_LOT,
+        entityId: lot.id,
+        action: AuditAction.CREATE,
+        entityName: null,
+        before: null,
+        after: lot,
+        correlationId: meta.correlationId,
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      });
+
+      // 3) PRODUCT_STOCK (aggregate update)
+      await writeAuditEvent(tx, {
+        tenantId: currentTenantId,
+        actorUserId: meta.actorUserId ?? currentUserId,
+        entityType: AuditEntityType.PRODUCT_STOCK,
+        entityId: `${currentTenantId}:${branchId}:${productId}`,
+        action: AuditAction.UPDATE,
+        entityName: null,
+        before: { branchId, productId, qtyOnHand: aggBefore.qtyOnHand, qtyAllocated: aggBefore.qtyAllocated },
+        after: { branchId, productId, qtyOnHand: productStock.qtyOnHand, qtyAllocated: productStock.qtyAllocated },
+        correlationId: meta.correlationId,
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      });
+    } catch {
+      // swallow audit errors
+    }
 
     return { lot, ledger, productStock };
   }, { isolationLevel: 'Serializable' });
@@ -138,6 +218,7 @@ async function fifoDecrementLots(
     kind,
     reason,
     occurredAt,
+    auditContextOptional,
   }: {
     tenantId: string;
     branchId: string;
@@ -147,12 +228,13 @@ async function fifoDecrementLots(
     kind: StockMovementKind; // CONSUMPTION or ADJUSTMENT
     reason?: string | null | undefined;
     occurredAt?: string | undefined;
+    auditContextOptional?: AuditCtx;
   }
 ) {
   // Ensure aggregate exists
   const ps = await tx.productStock.findUnique({
     where: { tenantId_branchId_productId: { tenantId, branchId, productId } },
-    select: { qtyOnHand: true },
+    select: { id: true, qtyOnHand: true, qtyAllocated: true },
   });
   const qtyOnHand = ps?.qtyOnHand ?? 0;
   if (qty > qtyOnHand) {
@@ -162,6 +244,7 @@ async function fifoDecrementLots(
   const lots = await tx.stockLot.findMany({
     where: { tenantId, branchId, productId, qtyRemaining: { gt: 0 } },
     orderBy: [{ receivedAt: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
+    select: { id: true, qtyRemaining: true },
   });
 
   let remaining = qty;
@@ -189,8 +272,31 @@ async function fifoDecrementLots(
         actorUserId: userId,
         occurredAt: toDateMaybe(occurredAt),
       },
-      select: { id: true },
+      select: {
+        id: true, tenantId: true, branchId: true, productId: true, lotId: true, kind: true, qtyDelta: true,
+        reason: true, actorUserId: true, occurredAt: true, createdAt: true,
+      },
     });
+
+    // AUDIT: per-lot ledger entry (domain)
+    try {
+      const meta = auditCtxOrNull(auditContextOptional);
+      await writeAuditEvent(tx, {
+        tenantId,
+        actorUserId: meta.actorUserId ?? userId,
+        entityType: AuditEntityType.STOCK_LEDGER,
+        entityId: ledger.id,
+        action: kind === StockMovementKind.CONSUMPTION ? AuditAction.STOCK_CONSUME : AuditAction.STOCK_ADJUST,
+        entityName: null,
+        before: null,
+        after: ledger,
+        correlationId: meta.correlationId,
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      });
+    } catch {
+      // swallow audit errors
+    }
 
     affected.push({ lotId: lot.id, take, ledgerId: ledger.id });
     remaining -= take;
@@ -201,10 +307,32 @@ async function fifoDecrementLots(
     throw Errors.conflict('Insufficient stock during FIFO processing');
   }
 
+  const aggBefore = { qtyOnHand, qtyAllocated: ps?.qtyAllocated ?? 0 };
   const productStock = await tx.productStock.update({
     where: { tenantId_branchId_productId: { tenantId, branchId, productId } },
     data: { qtyOnHand: { decrement: qty } },
+    select: { qtyOnHand: true, qtyAllocated: true },
   });
+
+  // AUDIT: aggregate update
+  try {
+    const meta = auditCtxOrNull(auditContextOptional);
+    await writeAuditEvent(tx, {
+      tenantId,
+      actorUserId: meta.actorUserId ?? userId,
+      entityType: AuditEntityType.PRODUCT_STOCK,
+      entityId: `${tenantId}:${branchId}:${productId}`,
+      action: AuditAction.UPDATE,
+      entityName: null,
+      before: { branchId, productId, qtyOnHand: aggBefore.qtyOnHand, qtyAllocated: aggBefore.qtyAllocated },
+      after: { branchId, productId, qtyOnHand: productStock.qtyOnHand, qtyAllocated: productStock.qtyAllocated },
+      correlationId: meta.correlationId,
+      ip: meta.ip,
+      userAgent: meta.userAgent,
+    });
+  } catch {
+    // swallow audit errors
+  }
 
   return { affected, productStock };
 }
@@ -220,10 +348,11 @@ export async function adjustStock(
     occurredAt?: string | undefined;
     /** Unit cost in **pence** when increasing stock */
     unitCostPence?: number | null | undefined;
+    auditContextOptional?: AuditCtx;
   }
 ) {
   const { currentTenantId, currentUserId } = ids;
-  const { branchId, productId, qtyDelta, reason, occurredAt, unitCostPence } = input;
+  const { branchId, productId, qtyDelta, reason, occurredAt, unitCostPence, auditContextOptional } = input;
 
   if (qtyDelta === 0) throw Errors.validation('qtyDelta must be non-zero');
 
@@ -234,6 +363,12 @@ export async function adjustStock(
     await ensureProductStockRow(tx, { tenantId: currentTenantId, branchId, productId });
 
     if (qtyDelta > 0) {
+      // Adjust-up: create lot + ledger (ADJUSTMENT) + increment aggregate
+      const aggBefore = await tx.productStock.findUnique({
+        where: { tenantId_branchId_productId: { tenantId: currentTenantId, branchId, productId } },
+        select: { qtyOnHand: true, qtyAllocated: true },
+      });
+
       const lot = await tx.stockLot.create({
         data: {
           tenantId: currentTenantId,
@@ -245,7 +380,7 @@ export async function adjustStock(
           sourceRef: null,
           receivedAt: toDateMaybe(occurredAt),
         },
-        select: { id: true, qtyReceived: true, qtyRemaining: true, receivedAt: true },
+        select: { id: true, tenantId: true, branchId: true, productId: true, qtyReceived: true, qtyRemaining: true, unitCostPence: true, receivedAt: true, createdAt: true, updatedAt: true },
       });
 
       const ledger = await tx.stockLedger.create({
@@ -254,25 +389,73 @@ export async function adjustStock(
           branchId,
           productId,
           lotId: lot.id,
-          kind: StockMovementKind.ADJUSTMENT, // stays ADJUSTMENT
+          kind: StockMovementKind.ADJUSTMENT,
           qtyDelta: qtyDelta,
           reason: reason ?? 'adjust-up',
           actorUserId: currentUserId,
           occurredAt: toDateMaybe(occurredAt),
         },
-        select: { id: true },
+        select: { id: true, tenantId: true, branchId: true, productId: true, lotId: true, kind: true, qtyDelta: true, reason: true, actorUserId: true, occurredAt: true, createdAt: true },
       });
 
       const productStock = await tx.productStock.update({
         where: { tenantId_branchId_productId: { tenantId: currentTenantId, branchId, productId } },
         data: { qtyOnHand: { increment: qtyDelta } },
+        select: { qtyOnHand: true, qtyAllocated: true },
       });
+
+      // AUDIT
+      try {
+        const meta = auditCtxOrNull(auditContextOptional);
+
+        await writeAuditEvent(tx, {
+          tenantId: currentTenantId,
+          actorUserId: meta.actorUserId ?? currentUserId,
+          entityType: AuditEntityType.STOCK_LEDGER,
+          entityId: ledger.id,
+          action: AuditAction.STOCK_ADJUST,
+          entityName: null,
+          before: null,
+          after: ledger,
+          correlationId: meta.correlationId,
+          ip: meta.ip,
+          userAgent: meta.userAgent,
+        });
+
+        await writeAuditEvent(tx, {
+          tenantId: currentTenantId,
+          actorUserId: meta.actorUserId ?? currentUserId,
+          entityType: AuditEntityType.STOCK_LOT,
+          entityId: lot.id,
+          action: AuditAction.CREATE,
+          entityName: null,
+          before: null,
+          after: lot,
+          correlationId: meta.correlationId,
+          ip: meta.ip,
+          userAgent: meta.userAgent,
+        });
+
+        await writeAuditEvent(tx, {
+          tenantId: currentTenantId,
+          actorUserId: meta.actorUserId ?? currentUserId,
+          entityType: AuditEntityType.PRODUCT_STOCK,
+          entityId: `${currentTenantId}:${branchId}:${productId}`,
+          action: AuditAction.UPDATE,
+          entityName: null,
+          before: { branchId, productId, qtyOnHand: aggBefore?.qtyOnHand ?? 0, qtyAllocated: aggBefore?.qtyAllocated ?? 0 },
+          after: { branchId, productId, qtyOnHand: productStock.qtyOnHand, qtyAllocated: productStock.qtyAllocated },
+          correlationId: meta.correlationId,
+          ip: meta.ip,
+          userAgent: meta.userAgent,
+        });
+      } catch {}
 
       return { lot, ledgerId: ledger.id, productStock };
     }
 
-    // qtyDelta < 0 → FIFO consumption
-    const { affected, productStock } = await fifoDecrementLots(tx, {
+    // qtyDelta < 0 → FIFO consumption with ADJUSTMENT kind
+    const out = await fifoDecrementLots(tx, {
       tenantId: currentTenantId,
       branchId,
       productId,
@@ -281,9 +464,10 @@ export async function adjustStock(
       kind: StockMovementKind.ADJUSTMENT,
       reason: reason ?? 'adjust-down',
       occurredAt,
+      ...(auditContextOptional ? { auditContextOptional } : {}),
     });
 
-    return { affected, productStock };
+    return out;
   }, { isolationLevel: 'Serializable' });
 
   return result;
@@ -298,10 +482,11 @@ export async function consumeStock(
     qty: number;
     reason?: string | null | undefined;
     occurredAt?: string | undefined;
+    auditContextOptional?: AuditCtx;
   }
 ) {
   const { currentTenantId, currentUserId } = ids;
-  const { branchId, productId, qty, reason, occurredAt } = input;
+  const { branchId, productId, qty, reason, occurredAt, auditContextOptional } = input;
   if (qty <= 0) throw Errors.validation('qty must be > 0');
 
   await assertBranchAccess({ currentTenantId, currentUserId, branchId, requireMembership: true });
@@ -319,6 +504,7 @@ export async function consumeStock(
       kind: StockMovementKind.CONSUMPTION,
       reason: reason ?? null,
       occurredAt,
+      ...(auditContextOptional ? { auditContextOptional } : {}),
     });
 
     return out;
@@ -564,7 +750,6 @@ export async function getStockLevelsBulkService(params: {
           productStock ?? {
             qtyOnHand: 0,
             qtyAllocated: 0,
-            // (id/createdAt/updatedAt omitted on purpose for bulk snapshot)
           },
         lots,
       };

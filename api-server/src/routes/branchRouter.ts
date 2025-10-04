@@ -17,6 +17,7 @@ import {
   updateBranchForCurrentTenantService,
   deactivateBranchForCurrentTenantService,
 } from '../services/branchService.js';
+import { getAuditContext } from '../utils/auditContext.js';
 
 export const branchRouter = Router();
 
@@ -49,7 +50,6 @@ const updateBodySchema = z.object({
 });
 
 // GET /api/branches
-// (If you prefer to restrict, swap to requirePermission('tenant:manage'))
 branchRouter.get(
   '/',
   requireAuthenticatedUserMiddleware,
@@ -85,12 +85,19 @@ branchRouter.post(
   async (req, res, next) => {
     try {
       assertAuthed(req);
+      const ctx = getAuditContext(req);
       const body = req.validatedBody as z.infer<typeof createBodySchema>;
       const created = await createBranchForCurrentTenantService({
         currentTenantId: req.currentTenantId,
         branchSlugInputValue: body.branchSlug,
         branchNameInputValue: body.branchName,
         isActiveInputValue: body.isActive,
+        auditContextOptional: {
+          actorUserId: ctx.actorUserId ?? null,
+          correlationId: ctx.correlationId ?? null,
+          ip: ctx.ip ?? null,
+          userAgent: ctx.userAgent ?? null,
+        },
       });
       return res.status(201).json(createStandardSuccessResponse({ branch: created }));
     } catch (err) {
@@ -110,6 +117,7 @@ branchRouter.put(
   async (req, res, next) => {
     try {
       assertAuthed(req);
+      const ctx = getAuditContext(req);
       const { branchId } = req.validatedParams as z.infer<typeof updateParamsSchema>;
       const body = req.validatedBody as z.infer<typeof updateBodySchema>;
       const updated = await updateBranchForCurrentTenantService({
@@ -118,6 +126,7 @@ branchRouter.put(
         ...(body.branchSlug !== undefined && { branchSlugInputValueOptional: body.branchSlug }),
         ...(body.branchName !== undefined && { branchNameInputValueOptional: body.branchName }),
         ...(body.isActive !== undefined && { isActiveInputValueOptional: body.isActive }),
+        auditContextOptional: ctx,
       });
       return res.status(200).json(createStandardSuccessResponse({ branch: updated }));
     } catch (err) {
@@ -135,10 +144,12 @@ branchRouter.delete(
   async (req, res, next) => {
     try {
       assertAuthed(req);
+      const ctx = getAuditContext(req);
       const { branchId } = req.validatedParams as z.infer<typeof updateParamsSchema>;
       const out = await deactivateBranchForCurrentTenantService({
         currentTenantId: req.currentTenantId,
         branchIdPathParam: branchId,
+        auditContextOptional: ctx,
       });
       return res.status(200).json(createStandardSuccessResponse(out));
     } catch (err) {

@@ -3,8 +3,18 @@ import type { Prisma } from '@prisma/client';
 import { prismaClientInstance } from '../db/prismaClient.js';
 import { Errors } from '../utils/httpErrors.js';
 
+import { writeAuditEvent } from './auditLoggerService.js';
+import { AuditAction, AuditEntityType } from '@prisma/client';
+
 type SortField = 'branchName' | 'createdAt' | 'updatedAt' | 'isActive';
 type SortDir = 'asc' | 'desc';
+
+type AuditCtx = {
+  actorUserId?: string | null;
+  correlationId?: string | null;
+  ip?: string | null;
+  userAgent?: string | null;
+};
 
 export async function listBranchesForCurrentTenantService(params: {
   currentTenantId: string;
@@ -100,33 +110,55 @@ export async function createBranchForCurrentTenantService(params: {
   branchSlugInputValue: string;
   branchNameInputValue: string;
   isActiveInputValue?: boolean | undefined;
+  auditContextOptional?: AuditCtx;
 }) {
   const {
     currentTenantId,
     branchSlugInputValue,
     branchNameInputValue,
     isActiveInputValue,
+    auditContextOptional,
   } = params;
 
   try {
-    const created = await prismaClientInstance.branch.create({
-      data: {
+    const result = await prismaClientInstance.$transaction(async (tx) => {
+      const created = await tx.branch.create({
+        data: {
+          tenantId: currentTenantId,
+          branchSlug: branchSlugInputValue,
+          branchName: branchNameInputValue,
+          isActive: isActiveInputValue ?? true,
+        },
+        select: {
+          id: true,
+          tenantId: true,
+          branchSlug: true,
+          branchName: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      // AUDIT: CREATE
+      await writeAuditEvent(tx, {
         tenantId: currentTenantId,
-        branchSlug: branchSlugInputValue,
-        branchName: branchNameInputValue,
-        isActive: isActiveInputValue ?? true,
-      },
-      select: {
-        id: true,
-        tenantId: true,
-        branchSlug: true,
-        branchName: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+        actorUserId: auditContextOptional?.actorUserId ?? null,
+        entityType: AuditEntityType.BRANCH,
+        entityId: created.id,
+        action: AuditAction.CREATE,
+        entityName: created.branchName,
+        before: null,
+        after: created,
+        correlationId: auditContextOptional?.correlationId ?? null,
+        ip: auditContextOptional?.ip ?? null,                      
+        userAgent: auditContextOptional?.userAgent ?? null,        
+      });
+
+      return created;
     });
-    return created;
+
+    return result;
   } catch (error: any) {
     // Unique (tenantId, branchSlug)
     if (error?.code === 'P2002') {
@@ -142,6 +174,7 @@ export async function updateBranchForCurrentTenantService(params: {
   branchSlugInputValueOptional?: string;
   branchNameInputValueOptional?: string;
   isActiveInputValueOptional?: boolean;
+  auditContextOptional?: AuditCtx;
 }) {
   const {
     currentTenantId,
@@ -149,35 +182,69 @@ export async function updateBranchForCurrentTenantService(params: {
     branchSlugInputValueOptional,
     branchNameInputValueOptional,
     isActiveInputValueOptional,
+    auditContextOptional,
   } = params;
 
   try {
-    const updated = await prismaClientInstance.branch.update({
-      where: { id: branchIdPathParam },
-      data: {
-        // guard tenant as well
-        tenant: { connect: { id: currentTenantId } },
-        ...(branchSlugInputValueOptional !== undefined && { branchSlug: branchSlugInputValueOptional }),
-        ...(branchNameInputValueOptional !== undefined && { branchName: branchNameInputValueOptional }),
-        ...(isActiveInputValueOptional !== undefined && { isActive: isActiveInputValueOptional }),
-      },
-      select: {
-        id: true,
-        tenantId: true,
-        branchSlug: true,
-        branchName: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+    const result = await prismaClientInstance.$transaction(async (tx) => {
+      // load "before"
+      const before = await tx.branch.findFirst({
+        where: { id: branchIdPathParam, tenantId: currentTenantId },
+        select: {
+          id: true,
+          tenantId: true,
+          branchSlug: true,
+          branchName: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+      if (!before) throw Errors.notFound('Branch not found.');
+
+      const updated = await tx.branch.update({
+        where: { id: branchIdPathParam },
+        data: {
+          // guard tenant as well
+          tenant: { connect: { id: currentTenantId } },
+          ...(branchSlugInputValueOptional !== undefined && { branchSlug: branchSlugInputValueOptional }),
+          ...(branchNameInputValueOptional !== undefined && { branchName: branchNameInputValueOptional }),
+          ...(isActiveInputValueOptional !== undefined && { isActive: isActiveInputValueOptional }),
+        },
+        select: {
+          id: true,
+          tenantId: true,
+          branchSlug: true,
+          branchName: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      if (updated.tenantId !== currentTenantId) {
+        throw Errors.permissionDenied();
+      }
+
+      // AUDIT: UPDATE
+      await writeAuditEvent(tx, {
+        tenantId: currentTenantId,
+        actorUserId: auditContextOptional?.actorUserId ?? null,
+        entityType: AuditEntityType.BRANCH,
+        entityId: updated.id,
+        action: AuditAction.UPDATE,
+        entityName: updated.branchName,
+        before,
+        after: updated,
+        correlationId: auditContextOptional?.correlationId ?? null,
+        ip: auditContextOptional?.ip ?? null,                      
+        userAgent: auditContextOptional?.userAgent ?? null,        
+      });
+
+      return updated;
     });
 
-    if (updated.tenantId !== currentTenantId) {
-      // If someone tries to update a branch from another tenant via ID
-      throw Errors.permissionDenied();
-    }
-
-    return updated;
+    return result;
   } catch (error: any) {
     if (error?.code === 'P2025') {
       throw Errors.notFound('Branch not found.');
@@ -193,23 +260,60 @@ export async function updateBranchForCurrentTenantService(params: {
 export async function deactivateBranchForCurrentTenantService(params: {
   currentTenantId: string;
   branchIdPathParam: string;
+  auditContextOptional?: AuditCtx;
 }) {
-  const { currentTenantId, branchIdPathParam } = params;
+  const { currentTenantId, branchIdPathParam, auditContextOptional } = params;
 
-  const res = await prismaClientInstance.branch.updateMany({
-    where: { id: branchIdPathParam, tenantId: currentTenantId, isActive: true },
-    data: { isActive: false },
-  });
-
-  if (res.count === 0) {
-    // Either not found, or already inactive
-    // Check existence to return the right error
-    const exists = await prismaClientInstance.branch.findFirst({
+  return await prismaClientInstance.$transaction(async (tx) => {
+    // load "before"
+    const before = await tx.branch.findFirst({
       where: { id: branchIdPathParam, tenantId: currentTenantId },
-      select: { id: true },
+      select: {
+        id: true,
+        tenantId: true,
+        branchSlug: true,
+        branchName: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
-    if (!exists) throw Errors.notFound('Branch not found.');
-  }
+    if (!before) throw Errors.notFound('Branch not found.');
 
-  return { hasDeactivatedBranch: true };
+    // only deactivate if active
+    if (!before.isActive) {
+      // already inactive — keep behavior same as before
+      return { hasDeactivatedBranch: true };
+    }
+
+    const res = await tx.branch.updateMany({
+      where: { id: branchIdPathParam, tenantId: currentTenantId, isActive: true },
+      data: { isActive: false },
+    });
+
+    if (res.count === 0) {
+      // Either not found, or already inactive (we just checked)
+      throw Errors.notFound('Branch not found.');
+    }
+
+    // load "after"
+    const after = { ...before, isActive: false };
+
+    // AUDIT: DELETE (soft)
+    await writeAuditEvent(tx, {
+      tenantId: currentTenantId,
+      actorUserId: auditContextOptional?.actorUserId ?? null,
+      entityType: AuditEntityType.BRANCH,
+      entityId: before.id,
+      action: AuditAction.DELETE, // soft delete represented as DELETE
+      entityName: before.branchName,
+      before,
+      after,
+      correlationId: auditContextOptional?.correlationId ?? null,
+      ip: auditContextOptional?.ip ?? null,                      
+      userAgent: auditContextOptional?.userAgent ?? null,        
+    });
+
+    return { hasDeactivatedBranch: true };
+  });
 }

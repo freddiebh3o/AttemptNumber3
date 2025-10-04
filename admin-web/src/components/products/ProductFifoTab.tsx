@@ -1,5 +1,4 @@
 // admin-web/src/components/products/ProductFifoTab.tsx
-// admin-web/src/components/products/ProductFifoTab.tsx
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -23,7 +22,7 @@ import {
   CloseButton,
   rem,
   Badge as MantineBadge,
-  MultiSelect, // <- consolidate MultiSelect import here
+  MultiSelect,
 } from "@mantine/core";
 import { DatePickerInput } from "@mantine/dates";
 import {
@@ -53,7 +52,7 @@ import {
 import { handlePageError } from "../../utils/pageError";
 import { FilterBar } from "../common/FilterBar";
 import { useAuthStore } from "../../stores/auth";
-import { formatPenceAsGBP } from "../../utils/money"; // <- use new helper to format values
+import { formatPenceAsGBP } from "../../utils/money";
 
 type Branch = { id: string; branchName: string };
 
@@ -63,7 +62,7 @@ type Levels = {
     id: string;
     qtyReceived: number;
     qtyRemaining: number;
-    unitCostCents?: number | null;
+    unitCostPence?: number | null;   // <-- pence
     sourceRef?: string | null;
     receivedAt: string;
   }>;
@@ -94,7 +93,7 @@ type LedgerFilters = {
   minQty: number | "";
   maxQty: number | "";
   occurredFrom: string | null; // YYYY-MM-DD
-  occurredTo: string | null; // YYYY-MM-DD
+  occurredTo: string | null;   // YYYY-MM-DD
 };
 
 const FILTER_PANEL_ID = "ledger-filter-panel";
@@ -165,7 +164,7 @@ export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts })
   const [stockModalOpen, setStockModalOpen] = useState(false);
   const [stockMode, setStockMode] = useState<"increase" | "decrease">("increase");
   const [stockQty, setStockQty] = useState<number | "">("");
-  const [stockCostCents, setStockCostCents] = useState<number | "">("");
+  const [stockCostPence, setStockCostPence] = useState<number | "">(""); // <-- pence
   const [stockReason, setStockReason] = useState<string>("");
   const [submittingStock, setSubmittingStock] = useState(false);
 
@@ -434,10 +433,10 @@ export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts })
     sortDirOverride?: SortDir;
 
     // date overrides
-    occurredFromOverride?: string | undefined | null; // pass null to clear, undefined to "use state"
-    occurredToOverride?: string | undefined | null; // pass null to clear, undefined to "use state"
+    occurredFromOverride?: string | undefined | null;
+    occurredToOverride?: string | undefined | null;
 
-    // server filter overrides (pass null to clear, undefined to "use state")
+    // server filter overrides
     kindsOverride?: LedgerRow["kind"][] | null;
     minQtyOverride?: number | null;
     maxQtyOverride?: number | null;
@@ -687,14 +686,14 @@ export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts })
   );
 
   // Adjust helpers
-  async function doAdjust(delta: number, reason?: string, unitCostCents?: number) {
+  async function doAdjust(delta: number, reason?: string, unitCostPence?: number) {
     if (!productId || !branchId || delta === 0) return;
     const key = (crypto as any)?.randomUUID?.() ?? String(Date.now());
     const res = await adjustStockApiRequest({
       branchId,
       productId,
       qtyDelta: delta,
-      ...(typeof unitCostCents === "number" ? { unitCostCents } : {}),
+      ...(typeof unitCostPence === "number" ? { unitCostPence } : {}), // <-- pence
       ...(reason?.trim ? { reason: reason.trim() } : {}),
       idempotencyKeyOptional: key,
     });
@@ -823,6 +822,7 @@ export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts })
                   <Table.Th>Received at</Table.Th>
                 </Table.Tr>
               </Table.Thead>
+
               <Table.Tbody>
                 {levels.lots.map((lot) => (
                   <Table.Tr key={lot.id}>
@@ -832,8 +832,8 @@ export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts })
                     <Table.Td>{lot.qtyReceived}</Table.Td>
                     <Table.Td>{lot.qtyRemaining}</Table.Td>
                     <Table.Td>
-                      {typeof lot.unitCostCents === "number"
-                        ? formatPenceAsGBP(lot.unitCostCents)
+                      {typeof lot.unitCostPence === "number"
+                        ? formatPenceAsGBP(lot.unitCostPence)
                         : "—"}
                     </Table.Td>
                     <Table.Td>{lot.sourceRef ?? "—"}</Table.Td>
@@ -1080,7 +1080,7 @@ export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts })
                       <Table.Th>Lot</Table.Th>
                       <Table.Th>Reason</Table.Th>
                     </Table.Tr>
-                  </Table.Thead>P{}
+                  </Table.Thead>
 
                   <Table.Tbody>
                     {displayedRows.map((row) => (
@@ -1137,7 +1137,7 @@ export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts })
           if (!submittingStock) {
             setStockModalOpen(false);
             setStockQty("");
-            setStockCostCents("");
+            setStockCostPence("");
             setStockReason("");
             setStockMode("increase");
           }
@@ -1168,13 +1168,13 @@ export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts })
 
           {stockMode === "increase" && (
             <NumberInput
-              label="Unit cost (pence)" // <- label matches UI convention; API field remains unitCostCents
+              label="Unit cost (pence)" // API field is unitCostPence
               placeholder="e.g. 1299"
               min={0}
               required
-              value={stockCostCents}
+              value={stockCostPence}
               onChange={(v) =>
-                setStockCostCents(
+                setStockCostPence(
                   typeof v === "number" ? v : v === "" ? "" : Number(v)
                 )
               }
@@ -1214,7 +1214,7 @@ export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts })
                 setSubmittingStock(true);
                 try {
                   if (stockMode === "increase") {
-                    const cost = typeof stockCostCents === "number" ? stockCostCents : -1;
+                    const cost = typeof stockCostPence === "number" ? stockCostPence : -1;
                     if (cost < 0) {
                       notifications.show({ color: "red", message: "Unit cost (pence) is required." });
                       setSubmittingStock(false);
@@ -1226,7 +1226,7 @@ export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts })
                   }
                   setStockModalOpen(false);
                   setStockQty("");
-                  setStockCostCents("");
+                  setStockCostPence("");
                   setStockReason("");
                   setStockMode("increase");
                 } catch (e) {

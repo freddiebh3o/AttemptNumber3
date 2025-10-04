@@ -17,6 +17,7 @@ import {
   deleteTenantRoleService,
 } from '../services/roleService.js';
 import { assertAuthed, assertHasBody, assertHasParams, assertHasQuery } from '../types/assertions.js';
+import { getAuditContext } from '../utils/auditContext.js';
 
 export const roleRouter = Router();
 
@@ -34,7 +35,7 @@ roleRouter.get(
   '/permissions',
   requireAuthenticatedUserMiddleware,
   requirePermission('roles:manage'),
-  async (req, res, next) => {
+  async (_req, res, next) => {
     try {
       const permissions = await listPermissionsService();
       return res.status(200).json(createStandardSuccessResponse({ permissions }));
@@ -44,9 +45,6 @@ roleRouter.get(
   }
 );
 
-const boolFromString = z.union([z.literal("true"), z.literal("false")]).transform(v => v === "true");
-
-// GET /api/roles
 const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional(),
   cursorId: z.string().min(1).optional(),
@@ -60,8 +58,8 @@ const listQuerySchema = z.object({
   sortBy: z.enum(['name', 'createdAt', 'updatedAt', 'isSystem']).optional(),
   sortDir: z.enum(['asc', 'desc']).optional(),
   includeTotal: z.coerce.boolean().optional(),
-  permissionKeys: csvToArray.optional(),              // e.g. "products:read,uploads:write"
-  permMatch: z.enum(['any', 'all']).optional(),       // defaults to 'any' if omitted
+  permissionKeys: csvToArray.optional(),
+  permMatch: z.enum(['any', 'all']).optional(),
 });
 
 roleRouter.get(
@@ -121,6 +119,7 @@ roleRouter.post(
         name: req.validatedBody.name,
         description: req.validatedBody.description ?? null,
         permissionKeys: req.validatedBody.permissionKeys,
+        auditContextOptional: getAuditContext(req),
       });
 
       return res.status(201).json(createStandardSuccessResponse({ role }));
@@ -156,6 +155,7 @@ roleRouter.put(
         ...(req.validatedBody.name !== undefined && { nameOptional: req.validatedBody.name }),
         ...(req.validatedBody.description !== undefined && { descriptionOptional: req.validatedBody.description }),
         ...(req.validatedBody.permissionKeys !== undefined && { permissionKeysOptional: req.validatedBody.permissionKeys }),
+        auditContextOptional: getAuditContext(req),
       });
 
       return res.status(200).json(createStandardSuccessResponse({ role }));
@@ -179,6 +179,7 @@ roleRouter.delete(
       const result = await deleteTenantRoleService({
         currentTenantId: req.currentTenantId,
         roleId: req.validatedParams.roleId,
+        auditContextOptional: getAuditContext(req),
       });
 
       return res.status(200).json(createStandardSuccessResponse(result));

@@ -9,27 +9,27 @@ generator client {
 }
 
 model Permission {
-  id          String            @id @default(cuid())
+  id          String @id @default(cuid())
   /// machine key like "products:read"
-  key         String            @unique
+  key         String @unique
   description String
 
-  roles       RolePermission[]
+  roles RolePermission[]
 
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Role {
-  id          String               @id @default(cuid())
+  id String @id @default(cuid())
 
   /// null = global template role (optional); non-null = tenant-scoped role
-  tenantId    String?
-  tenant      Tenant?              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  name        String               // e.g. "OWNER", "Catalog Editor"
+  name        String // e.g. "OWNER", "Catalog Editor"
   description String?
-  isSystem    Boolean              @default(false) // seed defaults can mark true
+  isSystem    Boolean @default(false) // seed defaults can mark true
 
   // permissions
   permissions RolePermission[]
@@ -37,10 +37,10 @@ model Role {
   // reverse relation to memberships
   memberships UserTenantMembership[]
 
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@unique([tenantId, name])       // one role name per tenant
+  @@unique([tenantId, name]) // one role name per tenant
   @@index([tenantId])
 }
 
@@ -49,8 +49,8 @@ model RolePermission {
   roleId       String
   permissionId String
 
-  role         Role        @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  permission   Permission  @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
   @@id([roleId, permissionId])
   @@index([permissionId])
@@ -66,84 +66,87 @@ model Tenant {
   products    Product[]
   branding    TenantBranding?        @relation("TenantToBranding")
 
-  roles       Role[]
+  roles Role[]
 
-  branches Branch[]
+  branches              Branch[]
   userBranchMemberships UserBranchMembership[]
-  productStocks ProductStock[]
-  stockLots StockLot[]
-  stockLedgers StockLedger[]
+  productStocks         ProductStock[]
+  stockLots             StockLot[]
+  stockLedgers          StockLedger[]
+
+  // Back-relation for AuditEvent. One tenant -> many audit events.
+  auditEvents AuditEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 enum StockMovementKind {
-  RECEIPT       // +qty into a new (or existing) lot
-  ADJUSTMENT    // +/- qty (e.g., audit correction)
-  CONSUMPTION   // -qty to fulfill/consume (e.g., order)
-  REVERSAL      // reverse a prior ledger movement
+  RECEIPT // +qty into a new (or existing) lot
+  ADJUSTMENT // +/- qty (e.g., audit correction)
+  CONSUMPTION // -qty to fulfill/consume (e.g., order)
+  REVERSAL // reverse a prior ledger movement
 }
 
 model Branch {
-  id         String  @id @default(cuid())
-  tenantId   String
-  tenant     Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   branchSlug String
   branchName String
   isActive   Boolean @default(true)
 
   // Relations
-  memberships  UserBranchMembership[]
+  memberships   UserBranchMembership[]
   productStocks ProductStock[]
   stockLots     StockLot[]
   stockLedgers  StockLedger[]
 
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@unique([tenantId, branchSlug])      // unique slug per tenant
+  @@unique([tenantId, branchSlug]) // unique slug per tenant
   @@index([tenantId])
   @@index([tenantId, branchName])
 }
 
 model UserBranchMembership {
-  id       String @id @default(cuid())
+  id String @id @default(cuid())
 
   userId   String
   tenantId String
   branchId String
 
-  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tenant   Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  branch   Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([userId, branchId])  // one membership per user/branch
+  @@unique([userId, branchId]) // one membership per user/branch
   @@index([tenantId])
   @@index([userId])
   @@index([branchId])
 }
 
 model ProductStock {
-  id         String @id @default(cuid())
+  id String @id @default(cuid())
 
-  tenantId   String
-  branchId   String
-  productId  String
+  tenantId  String
+  branchId  String
+  productId String
 
-  tenant     Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  branch     Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  product    Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch  Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
 
-  qtyOnHand    Int   @default(0) // sum of lot qtyRemaining
-  qtyAllocated Int   @default(0) // reserved for orders (future)
+  qtyOnHand    Int @default(0) // sum of lot qtyRemaining
+  qtyAllocated Int @default(0) // reserved for orders (future)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([tenantId, branchId, productId])
   @@index([branchId])
@@ -151,51 +154,51 @@ model ProductStock {
 }
 
 model StockLot {
-  id         String @id @default(cuid())
+  id String @id @default(cuid())
 
-  tenantId   String
-  branchId   String
-  productId  String
+  tenantId  String
+  branchId  String
+  productId String
 
-  tenant     Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  branch     Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  product    Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch  Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
 
-  qtyReceived   Int
-  qtyRemaining  Int
+  qtyReceived  Int
+  qtyRemaining Int
 
   /// Unit cost stored in **pence** (GBP minor units)
   unitCostPence Int?
-  sourceRef     String?     // PO/transfer ref (future)
+  sourceRef     String? // PO/transfer ref (future)
   receivedAt    DateTime @default(now())
 
-  ledgerEntries  StockLedger[]
+  ledgerEntries StockLedger[]
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([tenantId, branchId, productId, receivedAt]) // FIFO scan
   @@index([branchId, productId])
 }
 
 model StockLedger {
-  id         String @id @default(cuid())
+  id String @id @default(cuid())
 
-  tenantId   String
-  branchId   String
-  productId  String
-  lotId      String?
+  tenantId  String
+  branchId  String
+  productId String
+  lotId     String?
 
-  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  branch     Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  product    Product   @relation(fields: [productId], references: [id], onDelete: Restrict)
-  lot        StockLot? @relation(fields: [lotId], references: [id], onDelete: SetNull)
+  tenant  Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch  Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  product Product   @relation(fields: [productId], references: [id], onDelete: Restrict)
+  lot     StockLot? @relation(fields: [lotId], references: [id], onDelete: SetNull)
 
-  kind       StockMovementKind
-  qtyDelta   Int                  // + for RECEIPT/adjust-up; - for CONSUMPTION/adjust-down
-  reason     String?              // free text
+  kind        StockMovementKind
+  qtyDelta    Int // + for RECEIPT/adjust-up; - for CONSUMPTION/adjust-down
+  reason      String? // free text
   actorUserId String?
-  actorUser  User?     @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  actorUser   User?             @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
 
   occurredAt DateTime @default(now())
   createdAt  DateTime @default(now())
@@ -218,21 +221,24 @@ model User {
   branchMemberships UserBranchMembership[]
   stockLedgerEvents StockLedger[]
 
+  // Back-relation for AuditEvent where this user is the actor.
+  auditEvents AuditEvent[]
+
   @@index([createdAt])
   @@index([updatedAt])
 }
 
 /// Join table: which user belongs to which tenant, with role
 model UserTenantMembership {
-  id       String   @id @default(cuid())
+  id       String @id @default(cuid())
   userId   String
   tenantId String
 
   // NEW: future source of truth
-  roleId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  role      Role     @relation(fields: [roleId], references: [id])
+  roleId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -247,18 +253,18 @@ model Product {
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  productName        String
-  productSku         String
+  productName       String
+  productSku        String
   /// Product price stored in **pence** (GBP minor units)
-  productPricePence  Int
+  productPricePence Int
 
   entityVersion Int @default(1)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  stocks      ProductStock[]
-  stockLots   StockLot[]
+  stocks       ProductStock[]
+  stockLots    StockLot[]
   stockLedgers StockLedger[]
 
   @@unique([tenantId, productSku])
@@ -297,4 +303,102 @@ model TenantBranding {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model ApiRequestLog {
+  id String @id @default(cuid())
+
+  // Who
+  tenantId String?
+  userId   String?
+
+  // Request
+  method    String
+  path      String
+  routeKey  String? // e.g. "GET /api/products/:productId"
+  query     String?
+  ip        String?
+  userAgent String?
+
+  // Response
+  statusCode    Int
+  durationMs    Int
+  errorCode     String?
+  correlationId String?
+
+  // Bodies (truncated/masked by middleware)
+  reqBody String?
+  resBody String?
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([userId, createdAt])
+  @@index([routeKey, createdAt])
+  @@index([statusCode, createdAt])
+  @@index([correlationId])
+}
+
+// --- Enums ---
+enum AuditEntityType {
+  PRODUCT
+  BRANCH
+  STOCK_LOT
+  STOCK_LEDGER
+  PRODUCT_STOCK
+  USER
+  ROLE
+  TENANT
+  TENANT_BRANDING 
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  STOCK_RECEIVE
+  STOCK_ADJUST
+  STOCK_CONSUME
+  ROLE_ASSIGN
+  ROLE_REVOKE
+  LOGIN
+  LOGOUT
+  THEME_UPDATE 
+  THEME_LOGO_UPDATE 
+}
+
+// --- Append-only audit log ---
+model AuditEvent {
+  id String @id @default(cuid())
+
+  // Multi-tenant + actor
+  tenantId    String
+  tenant      Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actorUserId String?
+  actorUser   User?   @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  // What changed
+  entityType AuditEntityType
+  entityId   String
+  action     AuditAction
+
+  // Optional display name (denormalized for faster lists)
+  entityName String? // e.g. productName, branchName at time of event
+
+  // State snapshots (whitelisted JSON shapes)
+  beforeJson Json?
+  afterJson  Json?
+  diffJson   Json? // compact patch-style diff
+
+  // Request context
+  correlationId String?
+  ip            String?
+  userAgent     String?
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, entityType, entityId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([action, createdAt])
+  @@index([correlationId])
 }

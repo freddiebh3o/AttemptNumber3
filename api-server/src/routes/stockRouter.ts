@@ -18,6 +18,7 @@ import {
   listStockLedgerService,
   getStockLevelsBulkService,
 } from '../services/stockService.js';
+import { getAuditContext } from '../utils/auditContext.js';
 
 export const stockRouter = Router();
 
@@ -112,6 +113,7 @@ stockRouter.post(
           ...(sourceRef !== undefined ? { sourceRef } : {}),
           ...(reason !== undefined ? { reason } : {}),
           ...(occurredAt !== undefined ? { occurredAt } : {}),
+          auditContextOptional: getAuditContext(req),
         }
       );
 
@@ -144,6 +146,7 @@ stockRouter.post(
           ...(typeof unitCostPence === 'number' ? { unitCostPence } : {}),
           ...(reason !== undefined ? { reason } : {}),
           ...(occurredAt !== undefined ? { occurredAt } : {}),
+          auditContextOptional: getAuditContext(req),
         }
       );
 
@@ -175,6 +178,7 @@ stockRouter.post(
           qty,
           ...(reason !== undefined ? { reason } : {}),
           ...(occurredAt !== undefined ? { occurredAt } : {}),
+          auditContextOptional: getAuditContext(req),
         }
       );
 

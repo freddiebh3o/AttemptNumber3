@@ -1,7 +1,8 @@
-// api-server/src/services/productService.ts
 import { prismaClientInstance } from '../db/prismaClient.js';
 import { Errors } from '../utils/httpErrors.js';
 import type { Prisma } from '@prisma/client';
+import { writeAuditEvent } from './auditLoggerService.js';
+import { AuditAction, AuditEntityType } from '@prisma/client';
 
 type SortField = 'createdAt' | 'updatedAt' | 'productName' | 'productPricePence';
 type SortDir = 'asc' | 'desc';
@@ -22,6 +23,14 @@ type ListProductsArgs = {
   sortByOptional?: SortField;
   sortDirOptional?: SortDir;
   includeTotalOptional?: boolean;
+};
+
+// Same lightweight audit context type we used for branches
+type AuditCtx = {
+  actorUserId?: string | null | undefined;
+  correlationId?: string | null | undefined;
+  ip?: string | null | undefined;
+  userAgent?: string | null | undefined;
 };
 
 function addDays(date: Date, days: number) {
@@ -78,8 +87,6 @@ export async function listProductsForCurrentTenantService(args: ListProductsArgs
   const sortDir: SortDir = sortDirOptional ?? 'desc';
 
   // --- WHERE construction ---
-
-  // Price range (in pence)
   const priceFilter: Prisma.ProductWhereInput =
     minPricePenceOptional !== undefined || maxPricePenceOptional !== undefined
       ? {
@@ -90,7 +97,6 @@ export async function listProductsForCurrentTenantService(args: ListProductsArgs
         }
       : {};
 
-  // CreatedAt (inclusive dates)
   const createdAt: Prisma.DateTimeFilter = {};
   if (createdAtFromOptional) {
     const d = new Date(createdAtFromOptional);
@@ -103,7 +109,6 @@ export async function listProductsForCurrentTenantService(args: ListProductsArgs
   const createdAtFilter: Prisma.ProductWhereInput =
     createdAt.gte || createdAt.lt ? { createdAt } : {};
 
-  // UpdatedAt (inclusive dates)
   const updatedAt: Prisma.DateTimeFilter = {};
   if (updatedAtFromOptional) {
     const d = new Date(updatedAtFromOptional);
@@ -116,7 +121,6 @@ export async function listProductsForCurrentTenantService(args: ListProductsArgs
   const updatedAtFilter: Prisma.ProductWhereInput =
     updatedAt.gte || updatedAt.lt ? { updatedAt } : {};
 
-  // Text search (name or SKU)
   const searchFilter: Prisma.ProductWhereInput =
     qOptional && qOptional.trim()
       ? {
@@ -135,13 +139,11 @@ export async function listProductsForCurrentTenantService(args: ListProductsArgs
     ...searchFilter,
   };
 
-  // --- ORDER BY with deterministic tie-breaker ---
   const orderBy: Prisma.ProductOrderByWithRelationInput[] = [
     { [sortBy]: sortDir } as Prisma.ProductOrderByWithRelationInput,
     { id: sortDir },
   ];
 
-  // --- Cursor pagination with look-ahead ---
   const take = limit + 1;
 
   const findArgs: Prisma.ProductFindManyArgs = {
@@ -162,17 +164,15 @@ export async function listProductsForCurrentTenantService(args: ListProductsArgs
 
   if (cursorIdOptional) {
     findArgs.cursor = { id: cursorIdOptional };
-    findArgs.skip = 1; // exclude the cursor row itself
+    findArgs.skip = 1;
   }
 
   const rows = await prismaClientInstance.product.findMany(findArgs);
 
-  // Look-ahead: if we got > limit, there is a next page
   const hasNextPage = rows.length > limit;
   const items = hasNextPage ? rows.slice(0, limit) : rows;
   const nextCursor = hasNextPage ? items[items.length - 1]?.id ?? null : null;
 
-  // Optional total
   let totalCount: number | undefined;
   if (includeTotalOptional) {
     totalCount = await prismaClientInstance.product.count({ where });
@@ -206,23 +206,89 @@ export async function createProductForCurrentTenantService(params: {
   productNameInputValue: string;
   productSkuInputValue: string;
   productPricePenceInputValue: number;
+  auditContextOptional?: AuditCtx;
 }) {
   const {
     currentTenantId,
     productNameInputValue,
     productSkuInputValue,
     productPricePenceInputValue,
+    auditContextOptional,
   } = params;
+
   try {
-    const created = await prismaClientInstance.product.create({
-      data: {
+    const created = await prismaClientInstance.$transaction(async (tx) => {
+      const product = await tx.product.create({
+        data: {
+          tenantId: currentTenantId,
+          productName: productNameInputValue,
+          productSku: productSkuInputValue,
+          productPricePence: productPricePenceInputValue,
+        },
+        select: {
+          id: true,
+          tenantId: true,
+          productName: true,
+          productSku: true,
+          productPricePence: true,
+          entityVersion: true,
+          updatedAt: true,
+          createdAt: true,
+        },
+      });
+
+      // AUDIT: CREATE
+      await writeAuditEvent(tx, {
         tenantId: currentTenantId,
-        productName: productNameInputValue,
-        productSku: productSkuInputValue,
-        productPricePence: productPricePenceInputValue,
-      },
+        actorUserId: auditContextOptional?.actorUserId ?? null,
+        entityType: AuditEntityType.PRODUCT,
+        entityId: product.id,
+        action: AuditAction.CREATE,
+        entityName: product.productName,
+        before: null,
+        after: product,
+        correlationId: auditContextOptional?.correlationId ?? null,
+        ip: auditContextOptional?.ip ?? null,
+        userAgent: auditContextOptional?.userAgent ?? null,
+      });
+
+      return product;
+    });
+
+    return created;
+  } catch (error: any) {
+    if (error?.code === 'P2002') {
+      throw Errors.conflict('A product with this SKU already exists for this tenant.');
+    }
+    throw error;
+  }
+}
+
+/** Optimistic concurrency with audit */
+export async function updateProductForCurrentTenantService(params: {
+  currentTenantId: string;
+  productIdPathParam: string;
+  productNameInputValue?: string;
+  productPricePenceInputValue?: number;
+  currentEntityVersionInputValue: number;
+  auditContextOptional?: AuditCtx;
+}) {
+  const {
+    currentTenantId,
+    productIdPathParam,
+    productNameInputValue,
+    productPricePenceInputValue,
+    currentEntityVersionInputValue,
+    auditContextOptional,
+  } = params;
+
+  return await prismaClientInstance.$transaction(async (tx) => {
+    // Snapshot "before"
+    const before = await tx.product.findFirst({
+      where: { id: productIdPathParam, tenantId: currentTenantId },
       select: {
         id: true,
+        tenantId: true,
         productName: true,
         productSku: true,
         productPricePence: true,
@@ -231,75 +297,105 @@ export async function createProductForCurrentTenantService(params: {
         createdAt: true,
       },
     });
-    return created;
-  } catch (error: any) {
-    // Unique SKU per tenant
-    if (error?.code === 'P2002') {
-      throw Errors.conflict('A product with this SKU already exists for this tenant.');
+    if (!before) throw Errors.notFound('Product not found.');
+
+    const updateResult = await tx.product.updateMany({
+      where: {
+        id: productIdPathParam,
+        tenantId: currentTenantId,
+        entityVersion: currentEntityVersionInputValue,
+      },
+      data: {
+        ...(productNameInputValue !== undefined ? { productName: productNameInputValue } : {}),
+        ...(productPricePenceInputValue !== undefined
+          ? { productPricePence: productPricePenceInputValue }
+          : {}),
+        entityVersion: { increment: 1 },
+      },
+    });
+
+    if (updateResult.count === 0) {
+      throw Errors.conflict('The product was modified by someone else. Please reload and try again.');
     }
-    throw error;
-  }
-}
 
-/**
- * Optimistic concurrency
- */
-export async function updateProductForCurrentTenantService(params: {
-  currentTenantId: string;
-  productIdPathParam: string;
-  productNameInputValue?: string;
-  productPricePenceInputValue?: number;
-  currentEntityVersionInputValue: number;
-}) {
-  const {
-    currentTenantId,
-    productIdPathParam,
-    productNameInputValue,
-    productPricePenceInputValue,
-    currentEntityVersionInputValue,
-  } = params;
+    const after = await tx.product.findFirst({
+      where: { id: productIdPathParam, tenantId: currentTenantId },
+      select: {
+        id: true,
+        tenantId: true,
+        productName: true,
+        productSku: true,
+        productPricePence: true,
+        entityVersion: true,
+        updatedAt: true,
+        createdAt: true,
+      },
+    });
+    if (!after) throw Errors.notFound('Product not found.');
 
-  const updateResult = await prismaClientInstance.product.updateMany({
-    where: {
-      id: productIdPathParam,
+    // AUDIT: UPDATE
+    await writeAuditEvent(tx, {
       tenantId: currentTenantId,
-      entityVersion: currentEntityVersionInputValue,
-    },
-    data: {
-      ...(productNameInputValue !== undefined ? { productName: productNameInputValue } : {}),
-      ...(productPricePenceInputValue !== undefined ? { productPricePence: productPricePenceInputValue } : {}),
-      entityVersion: { increment: 1 },
-    },
-  });
+      actorUserId: auditContextOptional?.actorUserId ?? null,
+      entityType: AuditEntityType.PRODUCT,
+      entityId: after.id,
+      action: AuditAction.UPDATE,
+      entityName: after.productName,
+      before,
+      after,
+      correlationId: auditContextOptional?.correlationId ?? null,
+      ip: auditContextOptional?.ip ?? null,
+      userAgent: auditContextOptional?.userAgent ?? null,
+    });
 
-  if (updateResult.count === 0) {
-    throw Errors.conflict('The product was modified by someone else. Please reload and try again.');
-  }
-
-  const updated = await prismaClientInstance.product.findFirst({
-    where: { id: productIdPathParam, tenantId: currentTenantId },
-    select: {
-      id: true,
-      productName: true,
-      productSku: true,
-      productPricePence: true,
-      entityVersion: true,
-      updatedAt: true,
-      createdAt: true,
-    },
+    return after;
   });
-  if (!updated) throw Errors.notFound('Product not found.');
-  return updated;
 }
 
 export async function deleteProductForCurrentTenantService(params: {
   currentTenantId: string;
   productIdPathParam: string;
+  auditContextOptional?: AuditCtx;
 }) {
-  const { currentTenantId, productIdPathParam } = params;
-  const deleteResult = await prismaClientInstance.product.deleteMany({
-    where: { id: productIdPathParam, tenantId: currentTenantId },
+  const { currentTenantId, productIdPathParam, auditContextOptional } = params;
+
+  return await prismaClientInstance.$transaction(async (tx) => {
+    // Snapshot "before"
+    const before = await tx.product.findFirst({
+      where: { id: productIdPathParam, tenantId: currentTenantId },
+      select: {
+        id: true,
+        tenantId: true,
+        productName: true,
+        productSku: true,
+        productPricePence: true,
+        entityVersion: true,
+        updatedAt: true,
+        createdAt: true,
+      },
+    });
+    if (!before) throw Errors.notFound('Product not found.');
+
+    const res = await tx.product.deleteMany({
+      where: { id: productIdPathParam, tenantId: currentTenantId },
+    });
+    if (res.count === 0) throw Errors.notFound('Product not found.');
+
+    // AUDIT: DELETE
+    await writeAuditEvent(tx, {
+      tenantId: currentTenantId,
+      actorUserId: auditContextOptional?.actorUserId ?? null,
+      entityType: AuditEntityType.PRODUCT,
+      entityId: before.id,
+      action: AuditAction.DELETE,
+      entityName: before.productName,
+      before,
+      after: null,
+      correlationId: auditContextOptional?.correlationId ?? null,
+      ip: auditContextOptional?.ip ?? null,
+      userAgent: auditContextOptional?.userAgent ?? null,
+    });
+
+    return { hasDeletedProduct: true };
   });
-  if (deleteResult.count === 0) throw Errors.notFound('Product not found.');
-  return { hasDeletedProduct: true };
 }

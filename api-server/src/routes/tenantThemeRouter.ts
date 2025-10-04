@@ -10,11 +10,11 @@ import {
   ensureTenantIdForSlugAndSession,
   getTenantThemeService,
   upsertTenantThemeService,
+  upsertTenantLogoOnlyService,
 } from '../services/tenantThemeService.js';
 import multer from 'multer';
 import { uploadImageToStorageService } from '../services/uploadService.js';
 import { Errors } from '../utils/httpErrors.js';
-import { prismaClientInstance } from '../db/prismaClient.js';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -72,6 +72,15 @@ const putBodySchema = z.object({
 
 export const tenantThemeRouter = Router();
 
+function buildAuditCtx(req: any) {
+  return {
+    actorUserId: req.currentUserId ?? null,
+    correlationId: (req.headers['x-correlation-id'] as string | undefined) ?? null,
+    ip: (req.ip ?? null) as string | null,
+    userAgent: (req.headers['user-agent'] as string | undefined) ?? null,
+  };
+}
+
 /** POST /api/tenants/:tenantSlug/logo  (admin+) */
 tenantThemeRouter.post(
   '/:tenantSlug/logo',
@@ -88,29 +97,30 @@ tenantThemeRouter.post(
       const file = req.file;
       if (!file) return next(Errors.validation('Missing file (field: "file")'));
 
+      // Optional: basic mime/type check
+      const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
+      if (!allowed.includes(file.mimetype)) {
+        return next(Errors.validation('Unsupported file type', `Allowed types: ${allowed.join(', ')}`));
+      }
+
       const out = await uploadImageToStorageService({
         tenantId,
         kind: 'logo',
         bytes: file.buffer,
         contentType: file.mimetype,
         originalName: file.originalname,
-        upsert: true, // allow replacing the logo path with new file name each time; still unique filename
+        upsert: true,
       });
 
-      const updated = await prismaClientInstance.tenantBranding.upsert({
-        where: { tenantId },
-        create: { tenantId, logoUrl: out.url, overridesJson: {}, presetKey: null },
-        update: { logoUrl: out.url },
-        select: { logoUrl: true, updatedAt: true, createdAt: true, overridesJson: true, presetKey: true },
+      const payload = await upsertTenantLogoOnlyService({
+        tenantId,
+        logoUrl: out.url,
+        auditContextOptional: buildAuditCtx(req),
       });
 
       return res.json(
         createStandardSuccessResponse({
-          presetKey: updated.presetKey ?? null,
-          overrides: (updated.overridesJson as unknown) ?? {},
-          logoUrl: updated.logoUrl ?? null,
-          updatedAt: updated.updatedAt,
-          createdAt: updated.createdAt,
+          ...payload,
           upload: out,
         })
       );
@@ -149,7 +159,13 @@ tenantThemeRouter.put(
       const { tenantSlug } = req.validatedParams as z.infer<typeof paramsSchema>;
       const { presetKey, overrides, logoUrl } = req.validatedBody as z.infer<typeof putBodySchema>;
       const tenantId = await ensureTenantIdForSlugAndSession(tenantSlug, req.currentTenantId);
-      const payload = await upsertTenantThemeService({ tenantId, presetKey, overrides, logoUrl });
+      const payload = await upsertTenantThemeService({
+        tenantId,
+        presetKey,
+        overrides,
+        logoUrl,
+        auditContextOptional: buildAuditCtx(req),
+      });
       return res.json(createStandardSuccessResponse(payload));
     } catch (err) {
       return next(err);

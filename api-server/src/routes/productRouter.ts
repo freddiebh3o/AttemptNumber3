@@ -16,13 +16,13 @@ import {
   deleteProductForCurrentTenantService,
   getProductForCurrentTenantService,
 } from "../services/productService.js";
-import { assertAuthed } from '../types/assertions.js'
-import { requirePermission } from '../middleware/permissionMiddleware.js';
+import { assertAuthed } from "../types/assertions.js";
+import { requirePermission } from "../middleware/permissionMiddleware.js";
+import { getAuditContext } from "../utils/auditContext.js";
 
 export const productRouter = Router();
 
 const productSkuRegex = /^[A-Z0-9-]{3,40}$/;
-
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
 // Schemas
@@ -38,21 +38,14 @@ const listQuerySchema = z.object({
   updatedAtFrom: z.string().regex(dateRegex, "Use YYYY-MM-DD").optional(),
   updatedAtTo: z.string().regex(dateRegex, "Use YYYY-MM-DD").optional(),
   // sort
-  sortBy: z
-    .enum(["createdAt", "updatedAt", "productName", "productPricePence"])
-    .optional(),
+  sortBy: z.enum(["createdAt", "updatedAt", "productName", "productPricePence"]).optional(),
   sortDir: z.enum(["asc", "desc"]).optional(),
   includeTotal: z.coerce.boolean().optional(),
 });
 
 const createBodySchema = z.object({
   productName: z.string().min(1).max(200),
-  productSku: z
-    .string()
-    .regex(
-      productSkuRegex,
-      "SKU must be A-Z, 0-9, or hyphen (3-40 chars)"
-    ),
+  productSku: z.string().regex(productSkuRegex, "SKU must be A-Z, 0-9, or hyphen (3-40 chars)"),
   productPricePence: z.coerce.number().int().min(0),
 });
 
@@ -72,7 +65,7 @@ const getParamsSchema = z.object({ productId: z.string().min(1) });
 productRouter.get(
   "/:productId",
   requireAuthenticatedUserMiddleware,
-  requirePermission('products:read'),
+  requirePermission("products:read"),
   validateRequestParamsWithZod(getParamsSchema),
   async (request, response, next) => {
     try {
@@ -85,9 +78,7 @@ productRouter.get(
         productIdPathParam: productId,
       });
 
-      return response
-        .status(200)
-        .json(createStandardSuccessResponse({ product }));
+      return response.status(200).json(createStandardSuccessResponse({ product }));
     } catch (error) {
       return next(error);
     }
@@ -98,7 +89,7 @@ productRouter.get(
 productRouter.get(
   "/",
   requireAuthenticatedUserMiddleware,
-  requirePermission('products:read'),
+  requirePermission("products:read"),
   validateRequestQueryWithZod(listQuerySchema),
   async (request, response, next) => {
     try {
@@ -124,24 +115,12 @@ productRouter.get(
         ...(cursorId !== undefined && { cursorIdOptional: cursorId }),
 
         ...(q !== undefined && { qOptional: q }),
-        ...(minPricePence !== undefined && {
-          minPricePenceOptional: minPricePence,
-        }),
-        ...(maxPricePence !== undefined && {
-          maxPricePenceOptional: maxPricePence,
-        }),
-        ...(createdAtFrom !== undefined && {
-          createdAtFromOptional: createdAtFrom,
-        }),
-        ...(createdAtTo !== undefined && {
-          createdAtToOptional: createdAtTo,
-        }),
-        ...(updatedAtFrom !== undefined && {
-          updatedAtFromOptional: updatedAtFrom,
-        }),
-        ...(updatedAtTo !== undefined && {
-          updatedAtToOptional: updatedAtTo,
-        }),
+        ...(minPricePence !== undefined && { minPricePenceOptional: minPricePence }),
+        ...(maxPricePence !== undefined && { maxPricePenceOptional: maxPricePence }),
+        ...(createdAtFrom !== undefined && { createdAtFromOptional: createdAtFrom }),
+        ...(createdAtTo !== undefined && { createdAtToOptional: createdAtTo }),
+        ...(updatedAtFrom !== undefined && { updatedAtFromOptional: updatedAtFrom }),
+        ...(updatedAtTo !== undefined && { updatedAtToOptional: updatedAtTo }),
 
         ...(sortBy !== undefined && { sortByOptional: sortBy }),
         ...(sortDir !== undefined && { sortDirOptional: sortDir }),
@@ -159,8 +138,8 @@ productRouter.get(
 productRouter.post(
   "/",
   requireAuthenticatedUserMiddleware,
-  requirePermission('products:write'),
-  idempotencyMiddleware(60), // 60-minute TTL for idempotency
+  requirePermission("products:write"),
+  idempotencyMiddleware(60),
   validateRequestBodyWithZod(createBodySchema),
   async (request, response, next) => {
     try {
@@ -174,10 +153,9 @@ productRouter.post(
         productNameInputValue: productName,
         productSkuInputValue: productSku,
         productPricePenceInputValue: productPricePence,
+        auditContextOptional: getAuditContext(request),
       });
-      return response
-        .status(201)
-        .json(createStandardSuccessResponse({ product: createdProduct }));
+      return response.status(201).json(createStandardSuccessResponse({ product: createdProduct }));
     } catch (error) {
       return next(error);
     }
@@ -188,7 +166,7 @@ productRouter.post(
 productRouter.put(
   "/:productId",
   requireAuthenticatedUserMiddleware,
-  requirePermission('products:write'),
+  requirePermission("products:write"),
   idempotencyMiddleware(60),
   validateRequestParamsWithZod(updateParamsSchema),
   validateRequestBodyWithZod(updateBodySchema),
@@ -196,30 +174,20 @@ productRouter.put(
     try {
       assertAuthed(request);
       const currentTenantId: string = request.currentTenantId;
-      const { productId } = request.validatedParams as z.infer<
-        typeof updateParamsSchema
-      >;
-      const {
-        productName,
-        productPricePence,
-        currentEntityVersion,
-      } = request.validatedBody as z.infer<typeof updateBodySchema>;
+      const { productId } = request.validatedParams as z.infer<typeof updateParamsSchema>;
+      const { productName, productPricePence, currentEntityVersion } =
+        request.validatedBody as z.infer<typeof updateBodySchema>;
 
       const updatedProduct = await updateProductForCurrentTenantService({
         currentTenantId,
         productIdPathParam: productId,
-        ...(productName !== undefined && {
-          productNameInputValue: productName,
-        }),
-        ...(productPricePence !== undefined && {
-          productPricePenceInputValue: productPricePence,
-        }),
+        ...(productName !== undefined && { productNameInputValue: productName }),
+        ...(productPricePence !== undefined && { productPricePenceInputValue: productPricePence }),
         currentEntityVersionInputValue: currentEntityVersion,
+        auditContextOptional: getAuditContext(request),
       });
 
-      return response
-        .status(200)
-        .json(createStandardSuccessResponse({ product: updatedProduct }));
+      return response.status(200).json(createStandardSuccessResponse({ product: updatedProduct }));
     } catch (error) {
       return next(error);
     }
@@ -230,18 +198,18 @@ productRouter.put(
 productRouter.delete(
   "/:productId",
   requireAuthenticatedUserMiddleware,
-  requirePermission('products:write'),
+  requirePermission("products:write"),
   validateRequestParamsWithZod(updateParamsSchema),
   async (request, response, next) => {
     try {
       assertAuthed(request);
       const currentTenantId: string = request.currentTenantId;
-      const { productId } = request.validatedParams as z.infer<
-        typeof updateParamsSchema
-      >;
+      const { productId } = request.validatedParams as z.infer<typeof updateParamsSchema>;
+
       const result = await deleteProductForCurrentTenantService({
         currentTenantId,
         productIdPathParam: productId,
+        auditContextOptional: getAuditContext(request),
       });
       return response.status(200).json(createStandardSuccessResponse(result));
     } catch (error) {

@@ -13,6 +13,7 @@ import { apiRouter } from "./routes/index.js";
 import { httpLoggingMiddleware } from "./middleware/httpLoggingMiddleware.js";
 import { buildOpenApiDocument } from "./openapi/index.js";
 import { createFixedWindowRateLimiterMiddleware } from "./middleware/rateLimiterMiddleware.js";
+import { requestLoggingMiddleware } from "./middleware/requestLoggingMiddleware.js";
 
 export function createConfiguredExpressApplicationInstance() {
   const app = express();
@@ -46,6 +47,7 @@ export function createConfiguredExpressApplicationInstance() {
   app.use(cookieParser());
   app.use(express.json({ limit: "64kb" }));
   app.use(express.urlencoded({ extended: false }));
+
   app.use(requestIdMiddleware);
   app.use((req, res, next) => {
     const id = req.correlationId ?? null;
@@ -55,8 +57,12 @@ export function createConfiguredExpressApplicationInstance() {
     }
     next();
   });
-  app.use(httpLoggingMiddleware);
+
   app.use(sessionMiddleware);
+
+  app.use(httpLoggingMiddleware);
+
+  app.use(requestLoggingMiddleware());  
 
   // --- Public docs (no rate limiting) ---
   app.get("/openapi.json", (_req, res) => res.json(openApiDocument));
