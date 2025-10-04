@@ -1,3 +1,4 @@
+// admin-web/src/api/stock.ts
 import { httpRequestJson } from "./http";
 import type { paths } from "../types/openapi";
 

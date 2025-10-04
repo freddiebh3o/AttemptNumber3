@@ -1,4 +1,5 @@
 /* admin-web/src/main.tsx */
+/* admin-web/src/main.tsx */
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { MantineProvider, localStorageColorSchemeManager, } from '@mantine/core'
@@ -20,6 +21,7 @@ import RolesPage from './pages/RolesPage'
 import BranchesPage from './pages/BranchesPage'
 import TenantUserPage from './pages/TenantUserPage'
 import ProductPage from './pages/ProductPage'
+import AuditLogPage from './pages/AuditLogPage' // ⬅️ NEW
 
 const router = createBrowserRouter([
   {
@@ -62,6 +64,18 @@ const router = createBrowserRouter([
             ),
             errorElement: <RouteErrorBoundary />,
           },
+
+          // ⬇️ NEW: Tenant-level Audit Log (admins)
+          {
+            path: 'audit',
+            element: (
+              <RequirePermission perm="users:manage">
+                <AuditLogPage />
+              </RequirePermission>
+            ),
+            errorElement: <RouteErrorBoundary />
+          },
+
           { 
             path: 'users', 
             element: (

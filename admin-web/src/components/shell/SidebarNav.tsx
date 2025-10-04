@@ -16,7 +16,7 @@ export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) 
   const active = (to: string) => pathname === to;
 
   const userEmail = useAuthStore((s) => s.currentUserEmail);
-  const { hasPerm } = usePermissions();                // <-- use hook (subscribes to perms)
+  const { hasPerm } = usePermissions(); // uses current perms
 
   return (
     <Stack p="sm" gap="xs" style={{ height: "100%" }}>
@@ -67,6 +67,17 @@ export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) 
             component={Link}
             to={`${base}/branches`}
             active={active(`${base}/branches`)}
+            onClick={onNavigate}
+          />
+        )}
+
+        {/* --- NEW: Audit log (admins) --- */}
+        {hasPerm("users:manage") && (
+          <NavLink
+            label="Audit log"
+            component={Link}
+            to={`${base}/audit`}
+            active={active(`${base}/audit`)}
             onClick={onNavigate}
           />
         )}

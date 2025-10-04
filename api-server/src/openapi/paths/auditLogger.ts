@@ -10,7 +10,7 @@ import {
   ZodListAuditEventsQuery,
 } from '../schemas/auditLogger.js';
 
-export function registerAuditPaths(registry: OpenAPIRegistry) {
+export function registerAuditLoggerPaths(registry: OpenAPIRegistry) {
   // GET /api/audit/events  (tenant-scoped list, supports includeTotal)
   registry.registerPath({
     tags: ['Audit'],

@@ -1,5 +1,4 @@
 // admin-web/src/pages/ProductsPage.tsx
-// admin-web/src/pages/ProductsPage.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams, useLocation, useNavigationType } from "react-router-dom";
 import {

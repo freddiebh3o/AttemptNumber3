@@ -12,6 +12,7 @@ import { registerUploadPaths } from './paths/uploads.js';
 import { registerRolePaths } from './paths/roles.js';
 import { registerBranchPaths } from './paths/branches.js';
 import { registerStockPaths } from './paths/stock.js';
+import { registerAuditLoggerPaths } from './paths/auditLogger.js';
 
 export function buildOpenApiDocument() {
   // Register all feature paths
@@ -24,6 +25,7 @@ export function buildOpenApiDocument() {
   registerRolePaths(registry);
   registerBranchPaths(registry);
   registerStockPaths(registry);
+  registerAuditLoggerPaths(registry);
 
   const generator = new OpenApiGeneratorV3(registry.definitions);
 
@@ -51,6 +53,7 @@ export function buildOpenApiDocument() {
       { name: 'Uploads' },
       { name: 'Branches' },
       { name: 'Stock' },
+      { name: 'Audit' },
     ],
   });
 }
