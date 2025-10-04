@@ -468,15 +468,18 @@ If you need initial data in the new environment:
 
 ## Future fetures
 ### Features to complete by Monday
-* Admin logs
-  * Track each user actions so we can understand who changed what and when
-  * Have a page in system/API-logs that shows all actions by everyone 
-  * This page should also show any errors that have occured.
-  * Down the line, we will want a frontend feature, for example, on products, that allows you to see exactly who changed the product and when. This will apply to everything that you can change in the project, not just products. 
-  * This will be viewable by everyone so doesnt require any permissions to view other than being logged in.
+* Admin logs - frontend
+  * Tenant level audit log page
+    * Table view + Timeline view
+  * Add activity log tab for all entity scopes
 
 * Look into theme update. Seems to be producing more logs than anticipated.
 
+* Find a way to simulate what happens when a session expires 
+  * Current suspicion is that you are not automatically logged out 
+  * Instead, any request you make just fails with the notification 'Please sign in to continue'
+  * Instead of this, any request that is made that requires the user to be logged in and they arent logged in, should be redirected to the login page automatically 
+  * Whenever a user is logged out and redirected to the login page, it should show a clear reason on the login page as to why they were logged out
 
 * Stock transfer between different branches/locations
   * Effectively an 'order' between two branches 
@@ -488,13 +491,6 @@ If you need initial data in the new environment:
     * Complete -> The item/items have been received
 
 * Remake the Readme with latest feature updates
-
-* Find a way to simulate what happens when a session expires 
-  * Current suspicion is that you are not automatically logged out 
-  * Instead, any request you make just fails with the notification 'Please sign in to continue'
-  * Instead of this, any request that is made that requires the user to be logged in and they arent logged in, should be redirected to the login page automatically 
-  * Whenever a user is logged out and redirected to the login page, it should show a clear reason on the login page as to why they were logged out
-
 
 ### The rest
 * Feature flag to determine what type of stock management you want to use? 
