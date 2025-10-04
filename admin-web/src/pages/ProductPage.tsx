@@ -1,7 +1,8 @@
 // admin-web/src/pages/ProductPage.tsx
+// admin-web/src/pages/ProductPage.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Badge, Button, Group, Loader, Stack, Tabs, Text, Title, Alert } from "@mantine/core";
+import { Badge, Button, Group, Loader, Stack, Tabs, Text, Title, Alert, Paper } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { useAuthStore } from "../stores/auth";
 import { handlePageError } from "../utils/pageError";
@@ -58,6 +59,7 @@ export default function ProductPage() {
 
   const [loadingProduct, setLoadingProduct] = useState(isEdit);
   const [saving, setSaving] = useState(false);
+  const [notFound, setNotFound] = useState(false);
 
   // Load product on edit
   useEffect(() => {
@@ -65,6 +67,7 @@ export default function ProductPage() {
     let cancelled = false;
     (async () => {
       try {
+        setNotFound(false);
         setLoadingProduct(true);
         const res = await getProductApiRequest({ productId });
         if (!cancelled && res.success) {
@@ -74,8 +77,13 @@ export default function ProductPage() {
           setPrice(p.productPricePence);
           setEntityVersion(p.entityVersion);
         }
-      } catch (e) {
-        handlePageError(e, { title: "Failed to load product" });
+      } catch (e: any) {
+        // Gracefully show a not found view for 404s
+        if (!cancelled && (e?.httpStatusCode === 404 || e?.status === 404)) {
+          setNotFound(true);
+        } else {
+          handlePageError(e, { title: "Failed to load product" });
+        }
       } finally {
         if (!cancelled) setLoadingProduct(false);
       }
@@ -140,6 +148,40 @@ export default function ProductPage() {
   }
 
   const busy = saving || loadingProduct;
+
+  // --- Product not found view (edit mode only) ---
+  if (isEdit && notFound) {
+    return (
+      <Stack gap="lg">
+        <Group justify="space-between" align="start">
+          <Title order={2}>Edit product</Title>
+          <Group>
+            <Button variant="default" onClick={() => navigate(-1)}>
+              Back
+            </Button>
+          </Group>
+        </Group>
+
+        <Paper withBorder radius="md" p="md" className="bg-white">
+          <Title order={4} mb="xs">
+            Product not found
+          </Title>
+          <Text c="dimmed" mb="md">
+            We couldn’t find a product with ID <code>{productId}</code>. It may have been
+            deleted or you don’t have access.
+          </Text>
+          <Group>
+            <Button variant="light" onClick={() => navigate(`/${tenantSlug}/products`)}>
+              Go to products
+            </Button>
+            <Button onClick={() => navigate(`/${tenantSlug}/products/new`)}>
+              Create a new product
+            </Button>
+          </Group>
+        </Paper>
+      </Stack>
+    );
+  }
 
   return (
     <Stack gap="lg">

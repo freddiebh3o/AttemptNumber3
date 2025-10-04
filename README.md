@@ -469,9 +469,12 @@ If you need initial data in the new environment:
 ## Future fetures
 ### Features to complete by Monday
 * Admin logs - frontend
-  * Tenant level audit log page
-    * Table view + Timeline view
   * Add activity log tab for all entity scopes
+    * Products - DONE
+    * Users
+    * Roles 
+    * Branches
+  * AUDIT EVENTS -> STOCK CHANGES SHOULD LINK TO THE PRODUCT WHOSE STOCK IS BEING CHANGED
 
 * Look into theme update. Seems to be producing more logs than anticipated.
 
