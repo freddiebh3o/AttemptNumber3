@@ -8,6 +8,8 @@ import {
   ZodProductRecord,
   ZodUpdateProductParams,
   ZodUpdateProductRequestBody,
+  ZodProductActivityQuery,
+  ZodProductActivityResponseData,
 } from '../schemas/products.js';
 import { ZodIdempotencyHeaders } from '../schemas/common.js';
 import { z } from 'zod';
@@ -116,6 +118,32 @@ export function registerProductPaths(registry: OpenAPIRegistry) {
         content: { 'application/json': { schema: successEnvelope(
           z.object({ hasDeletedProduct: z.boolean() })
         ) } },
+      },
+      401: RESPONSES[401],
+      403: RESPONSES[403],
+      404: RESPONSES[404],
+      429: RESPONSES[429],
+      500: RESPONSES[500],
+    },
+  });
+
+  registry.registerPath({
+    tags: ['Products'],
+    method: 'get',
+    path: '/api/products/{productId}/activity',
+    security: [{ cookieAuth: [] }],
+    request: {
+      params: z.object({ productId: z.string().min(1) }),
+      query: ZodProductActivityQuery,
+    },
+    responses: {
+      200: {
+        description: 'Product activity (audit + stock ledger) with filters',
+        content: {
+          'application/json': {
+            schema: successEnvelope(ZodProductActivityResponseData),
+          },
+        },
       },
       401: RESPONSES[401],
       403: RESPONSES[403],

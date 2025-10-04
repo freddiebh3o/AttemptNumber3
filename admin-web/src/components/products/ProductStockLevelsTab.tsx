@@ -1,6 +1,6 @@
 // admin-web/src/components/products/ProductStockLevelsTab.tsx
 import { useEffect, useState } from "react";
-import { Alert, Badge, Button, Group, Loader, Paper, Stack, Table, Text, Title } from "@mantine/core";
+import { Alert, Badge, Button, Group, Loader, Stack, Table, Text, Title } from "@mantine/core";
 import { getStockLevelsBulkApiRequest } from "../../api/stock";
 import { handlePageError } from "../../utils/pageError";
 
@@ -62,30 +62,28 @@ export const ProductStockLevelsTab: React.FC<Props> = ({ productId }) => {
           No branches found for this tenant.
         </Alert>
       ) : (
-        <Paper withBorder radius="md" p="md">
-          <Table striped withTableBorder withColumnBorders stickyHeader>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Branch</Table.Th>
-                <Table.Th>On hand</Table.Th>
-                <Table.Th>Allocated</Table.Th>
-                <Table.Th>Open lots</Table.Th>
+        <Table striped withTableBorder withColumnBorders stickyHeader>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Branch</Table.Th>
+              <Table.Th>On hand</Table.Th>
+              <Table.Th>Allocated</Table.Th>
+              <Table.Th>Open lots</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {items.map((row) => (
+              <Table.Tr key={row.branchId}>
+                <Table.Td>{row.branchName}</Table.Td>
+                <Table.Td>{row.productStock.qtyOnHand}</Table.Td>
+                <Table.Td>{row.productStock.qtyAllocated}</Table.Td>
+                <Table.Td>
+                  <Badge>{row.lots.length}</Badge>
+                </Table.Td>
               </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {items.map((row) => (
-                <Table.Tr key={row.branchId}>
-                  <Table.Td>{row.branchName}</Table.Td>
-                  <Table.Td>{row.productStock.qtyOnHand}</Table.Td>
-                  <Table.Td>{row.productStock.qtyAllocated}</Table.Td>
-                  <Table.Td>
-                    <Badge>{row.lots.length}</Badge>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        </Paper>
+            ))}
+          </Table.Tbody>
+        </Table>
       )}
     </Stack>
   );

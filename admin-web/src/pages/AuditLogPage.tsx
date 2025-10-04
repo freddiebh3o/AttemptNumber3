@@ -1,7 +1,6 @@
 // admin-web/src/pages/AuditLogPage.tsx
 import { useEffect, useMemo, useState } from "react";
 import {
-  useNavigate,
   useParams,
   useSearchParams,
   useLocation,

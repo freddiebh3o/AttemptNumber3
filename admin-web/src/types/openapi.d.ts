@@ -726,6 +726,107 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/products/{productId}/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    cursor?: string;
+                    occurredFrom?: string;
+                    occurredTo?: string;
+                    type?: components["schemas"]["ProductActivityType"];
+                    /** @description CSV of user IDs to filter by */
+                    actorIds?: string;
+                    includeFacets?: boolean;
+                    includeTotal?: boolean;
+                };
+                header?: never;
+                path: {
+                    productId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Product activity (audit + stock ledger) with filters */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: components["schemas"]["ProductActivityResponseData"];
+                            error: unknown;
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        "X-RateLimit-Limit": string;
+                        "X-RateLimit-Remaining": string;
+                        "X-RateLimit-Reset": string;
+                        "Retry-After": string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Internal Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tenant-users": {
         parameters: {
             query?: never;
@@ -3436,6 +3537,71 @@ export interface components {
             productPricePence?: number;
             currentEntityVersion: number;
         };
+        ProductActivityActor: {
+            userId: string;
+            display: string;
+        } | null;
+        ProductActivityItemAudit: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "audit";
+            id: string;
+            /** Format: date-time */
+            when: string;
+            action: string;
+            message: string;
+            messageParts?: {
+                [key: string]: unknown;
+            };
+            actor?: components["schemas"]["ProductActivityActor"];
+            correlationId?: string | null;
+            entityName?: string | null;
+        };
+        ProductActivityItemLedger: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "ledger";
+            id: string;
+            /** Format: date-time */
+            when: string;
+            /** @enum {string} */
+            entryKind: "RECEIPT" | "ADJUSTMENT" | "CONSUMPTION" | "REVERSAL";
+            qtyDelta: number;
+            branchId?: string | null;
+            branchName?: string | null;
+            reason?: string | null;
+            lotId?: string | null;
+            message: string;
+            messageParts?: {
+                [key: string]: unknown;
+            };
+            actor?: components["schemas"]["ProductActivityActor"];
+            correlationId?: string | null;
+        };
+        ProductActivityItem: components["schemas"]["ProductActivityItemAudit"] | components["schemas"]["ProductActivityItemLedger"];
+        PageInfo: {
+            hasNextPage: boolean;
+            nextCursor: string | null;
+            totalCount?: number;
+        };
+        PageInfoWithTotal: components["schemas"]["PageInfo"] & Record<string, never>;
+        ActorRef: {
+            userId: string;
+            display: string;
+        };
+        ProductActivityResponseData: {
+            items: components["schemas"]["ProductActivityItem"][];
+            pageInfo: components["schemas"]["PageInfoWithTotal"];
+            facets?: {
+                actors: components["schemas"]["ActorRef"][];
+            };
+        };
+        /** @enum {string} */
+        ProductActivityType: "all" | "audit" | "ledger";
         RoleSummary: {
             id: string;
             name: string;
@@ -3791,10 +3957,6 @@ export interface components {
         StockLevelsResponseData: {
             productStock: components["schemas"]["ProductStockLevelsSnapshot"];
             lots: components["schemas"]["StockLotRecord"][];
-        };
-        PageInfo: {
-            hasNextPage: boolean;
-            nextCursor: string | null;
         };
         StockLedgerListResponseData: {
             items: components["schemas"]["StockLedgerRecord"][];

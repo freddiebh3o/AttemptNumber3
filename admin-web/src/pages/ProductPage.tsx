@@ -1,7 +1,7 @@
 // admin-web/src/pages/ProductPage.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Badge, Button, Group, Loader, Paper, Stack, Tabs, Text, Title, Alert } from "@mantine/core";
+import { Badge, Button, Group, Loader, Stack, Tabs, Text, Title, Alert } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { useAuthStore } from "../stores/auth";
 import { handlePageError } from "../utils/pageError";
@@ -14,8 +14,9 @@ import {
 import { ProductOverviewTab } from "../components/products/ProductOverviewTab";
 import { ProductStockLevelsTab } from "../components/products/ProductStockLevelsTab";
 import { ProductFifoTab } from "../components/products/ProductFifoTab";
+import { ProductActivityTab } from "../components/products/ProductActivityTab";
 
-type TabKey = "overview" | "levels" | "fifo";
+type TabKey = "overview" | "levels" | "fifo" | "activity";
 
 export default function ProductPage() {
   const { tenantSlug, productId } = useParams<{ tenantSlug: string; productId?: string }>();
@@ -155,80 +156,85 @@ export default function ProductPage() {
         </Group>
       </Group>
 
-      <Paper withBorder radius="md" p="md" className="bg-white">
-        {busy && isEdit ? (
-          <Group gap="sm">
-            <Loader size="sm" />
-            <Text>Loading…</Text>
-          </Group>
-        ) : (
-          <>
-            {/* FIFO welcome banner when redirected after creation */}
-            {showFifoWelcome && (
-              <Alert
-                color="blue"
-                title="Set initial FIFO stock?"
-                withCloseButton
-                onClose={() => {
-                  const next = new URLSearchParams(searchParams);
-                  next.delete("welcome");
-                  setSearchParams(next, { replace: true });
-                }}
-                mb="md"
-              >
-                You’ve just created this product. If you already have units on hand,
-                use the <b>Adjust stock</b> button in this tab to record your opening balance.
-              </Alert>
+      {busy && isEdit ? (
+        <Group gap="sm">
+          <Loader size="sm" />
+          <Text>Loading…</Text>
+        </Group>
+      ) : (
+        <>
+          {/* FIFO welcome banner when redirected after creation */}
+          {showFifoWelcome && (
+            <Alert
+              color="blue"
+              title="Set initial FIFO stock?"
+              withCloseButton
+              onClose={() => {
+                const next = new URLSearchParams(searchParams);
+                next.delete("welcome");
+                setSearchParams(next, { replace: true });
+              }}
+              mb="md"
+            >
+              You’ve just created this product. If you already have units on hand,
+              use the <b>Adjust stock</b> button in this tab to record your opening balance.
+            </Alert>
+          )}
+
+          <Tabs
+            value={activeTab}
+            onChange={(v) => {
+              const next = (v as TabKey) ?? "overview";
+              setActiveTab(next);
+              setTabInUrl(next);
+            }}
+            keepMounted={false}
+          >
+            <Tabs.List>
+              <Tabs.Tab value="overview">Overview</Tabs.Tab>
+              {isEdit && <Tabs.Tab value="levels">Stock levels</Tabs.Tab>}
+              {isEdit && <Tabs.Tab value="fifo">FIFO</Tabs.Tab>}
+              {isEdit && <Tabs.Tab value="activity">Activity</Tabs.Tab>}
+            </Tabs.List>
+
+            <Tabs.Panel value="overview" pt="md">
+              <ProductOverviewTab
+                isEdit={isEdit}
+                name={name}
+                sku={sku}
+                price={price}
+                entityVersion={entityVersion}
+                onChangeName={setName}
+                onChangeSku={setSku}
+                onChangePrice={setPrice}
+              />
+              {isEdit && entityVersion != null && (
+                <Text size="sm" c="dimmed" mt="sm">
+                  Current version: <Badge>{entityVersion}</Badge>
+                </Text>
+              )}
+            </Tabs.Panel>
+
+            {isEdit && productId && (
+              <Tabs.Panel value="levels" pt="md">
+                <ProductStockLevelsTab productId={productId} />
+              </Tabs.Panel>
             )}
 
-            <Tabs
-              value={activeTab}
-              onChange={(v) => {
-                const next = (v as TabKey) ?? "overview";
-                setActiveTab(next);
-                setTabInUrl(next);
-              }}
-              keepMounted={false}
-            >
-              <Tabs.List>
-                <Tabs.Tab value="overview">Overview</Tabs.Tab>
-                {isEdit && <Tabs.Tab value="levels">Stock levels</Tabs.Tab>}
-                {isEdit && <Tabs.Tab value="fifo">FIFO</Tabs.Tab>}
-              </Tabs.List>
-
-              <Tabs.Panel value="overview" pt="md">
-                <ProductOverviewTab
-                  isEdit={isEdit}
-                  name={name}
-                  sku={sku}
-                  price={price}
-                  entityVersion={entityVersion}
-                  onChangeName={setName}
-                  onChangeSku={setSku}
-                  onChangePrice={setPrice}
-                />
-                {isEdit && entityVersion != null && (
-                  <Text size="sm" c="dimmed" mt="sm">
-                    Current version: <Badge>{entityVersion}</Badge>
-                  </Text>
-                )}
+            {isEdit && productId && (
+              <Tabs.Panel value="fifo" pt="md">
+                <ProductFifoTab productId={productId} canWriteProducts={canWriteProducts} />
               </Tabs.Panel>
+            )}
 
-              {isEdit && productId && (
-                <Tabs.Panel value="levels" pt="md">
-                  <ProductStockLevelsTab productId={productId} />
-                </Tabs.Panel>
-              )}
-
-              {isEdit && productId && (
-                <Tabs.Panel value="fifo" pt="md">
-                  <ProductFifoTab productId={productId} canWriteProducts={canWriteProducts} />
-                </Tabs.Panel>
-              )}
-            </Tabs>
-          </>
-        )}
-      </Paper>
+            {isEdit && productId && (
+              <Tabs.Panel value="activity" pt="md">
+                <ProductActivityTab productId={productId} />
+              </Tabs.Panel>
+            )}
+          </Tabs>
+        </>
+      )}
     </Stack>
   );
 }

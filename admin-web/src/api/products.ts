@@ -25,6 +25,9 @@ type ListProducts200Response =
 type DeleteProduct200Response =
   paths["/api/products/{productId}"]["delete"]["responses"]["200"]["content"]["application/json"];
 
+type GetProductActivity200Response =
+  paths["/api/products/{productId}/activity"]["get"]["responses"]["200"]["content"]["application/json"];
+
 export async function getProductApiRequest(params: { productId: string }) {
   return httpRequestJson<GetProduct200Response>(`/api/products/${params.productId}`);
 }
@@ -116,5 +119,32 @@ export async function deleteProductApiRequest(params: {
         ? { "Idempotency-Key": params.idempotencyKeyOptional }
         : undefined,
     }
+  );
+}
+
+export async function getProductActivityApiRequest(params: {
+  productId: string;
+  limit?: number;
+  cursor?: string;
+  occurredFrom?: string; // ISO (datetime) or YYYY-MM-DDT00:00:00Z
+  occurredTo?: string;   // ISO
+  type?: "all" | "audit" | "ledger";
+  actorIds?: string[];   // user IDs
+  includeFacets?: boolean;
+  includeTotal?: boolean;
+}) {
+  const search = new URLSearchParams();
+  if (params.limit !== undefined) search.set("limit", String(params.limit));
+  if (params.cursor) search.set("cursor", params.cursor);
+  if (params.occurredFrom) search.set("occurredFrom", params.occurredFrom);
+  if (params.occurredTo) search.set("occurredTo", params.occurredTo);
+  if (params.type) search.set("type", params.type);
+  if (params.actorIds && params.actorIds.length) search.set("actorIds", params.actorIds.join(","));
+  if (params.includeFacets) search.set("includeFacets", "1");
+  if (params.includeTotal) search.set("includeTotal", "1");
+  
+  const qs = search.toString();
+  return httpRequestJson<GetProductActivity200Response>(
+    `/api/products/${params.productId}/activity${qs ? `?${qs}` : ""}`
   );
 }

@@ -1,3 +1,4 @@
+// api-server/src/services/productService.ts
 import { prismaClientInstance } from '../db/prismaClient.js';
 import { Errors } from '../utils/httpErrors.js';
 import type { Prisma } from '@prisma/client';

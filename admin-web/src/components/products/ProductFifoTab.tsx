@@ -1,4 +1,5 @@
 // admin-web/src/components/products/ProductFifoTab.tsx
+// admin-web/src/components/products/ProductFifoTab.tsx
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -123,6 +124,21 @@ function toIsoStartOfDayUTC(d: string) {
 function toIsoEndOfDayUTC(d: string) {
   return new Date(`${d}T23:59:59.999Z`).toISOString();
 }
+
+// ✅ Keys this component controls in the URL (so we only touch these)
+const OWN_KEYS = [
+  "branchId",
+  "limit",
+  "sortBy",
+  "sortDir",
+  "occurredFrom",
+  "occurredTo",
+  "kinds",
+  "minQty",
+  "maxQty",
+  "cursorId",
+  "page",
+] as const;
 
 export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts }) => {
   // URL sync
@@ -351,7 +367,7 @@ export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.key, navigationType]);
 
-  // Write URL from state
+  // ✅ Write URL from state — merges with existing params and only updates OWN_KEYS
   function setUrlFromState(overrides?: {
     cursorId?: string | null;
     page?: number;
@@ -365,28 +381,32 @@ export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts })
     maxQty?: number | "" | null | undefined;
     branchId?: string | null | undefined;
   }) {
-    const params = new URLSearchParams();
+    const sp = new URLSearchParams(searchParams);
+
+    // Remove only our keys first so we can rewrite them cleanly
+    for (const k of OWN_KEYS) sp.delete(k);
 
     const put = (k: string, v: unknown) => {
       if (v === undefined || v === null || v === "") return;
-      params.set(k, String(v));
+      sp.set(k, String(v));
     };
 
     put("branchId", overrides?.branchId ?? branchId);
     put("limit", overrides?.limit ?? limit);
     put("sortBy", overrides?.sortBy ?? sortBy);
     put("sortDir", overrides?.sortDir ?? sortDir);
+
     put(
       "occurredFrom",
       overrides?.occurredFrom === undefined
         ? appliedFilters.occurredFrom
-        : overrides?.occurredFrom
+        : overrides.occurredFrom
     );
     put(
       "occurredTo",
       overrides?.occurredTo === undefined
         ? appliedFilters.occurredTo
-        : overrides?.occurredTo
+        : overrides.occurredTo
     );
 
     const kindsCsv =
@@ -415,13 +435,13 @@ export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts })
     const cursor =
       overrides?.cursorId === undefined
         ? cursorStack[pageIndex] ?? null
-        : overrides?.cursorId;
-    if (cursor) params.set("cursorId", cursor);
+        : overrides.cursorId;
+    if (cursor) sp.set("cursorId", cursor);
 
     const pageToWrite = overrides?.page ?? pageIndex + 1;
     put("page", pageToWrite);
 
-    setSearchParams(params, { replace: false });
+    setSearchParams(sp, { replace: false });
   }
 
   // Fetch one page (rows are always replaced)
@@ -875,7 +895,7 @@ export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts })
         >
           {({ values, setValues }) => (
             <Grid gutter="md">
-              <Grid.Col span={{ base: 12, md: 5 }}>
+              <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
                 <MultiSelect
                   label="Kind"
                   placeholder="Select kind(s)"
@@ -894,7 +914,7 @@ export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts })
                 />
               </Grid.Col>
 
-              <Grid.Col span={{ base: 12, sm: 6, md: 2 }}>
+              <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
                 <NumberInput
                   label="Min qty"
                   placeholder="e.g. -10"
@@ -908,7 +928,7 @@ export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts })
                 />
               </Grid.Col>
 
-              <Grid.Col span={{ base: 12, sm: 6, md: 2 }}>
+              <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
                 <NumberInput
                   label="Max qty"
                   placeholder="e.g. 10"
@@ -922,7 +942,7 @@ export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts })
                 />
               </Grid.Col>
 
-              <Grid.Col span={{ base: 12, sm: 6, md: 1.5 }}>
+              <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
                 <DatePickerInput
                   label="Date from"
                   placeholder="YYYY-MM-DD"
@@ -934,12 +954,12 @@ export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts })
                 />
               </Grid.Col>
 
-              <Grid.Col span={{ base: 12, sm: 6, md: 1.5 }}>
+              <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
                 <DatePickerInput
                   label="Date to"
                   placeholder="YYYY-MM-DD"
                   value={values.occurredTo}
-                  onChange={(v) => setValues((prev) => ({ ...prev, occurredTo: v }))}
+                  onChange={(v) => setValues((prev) => ({ ...prev, occurredTo: v }))} 
                   valueFormat="YYYY-MM-DD"
                   popoverProps={{ withinPortal: true }}
                   clearable

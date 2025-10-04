@@ -1,4 +1,4 @@
-// admin-web/src/components/FilterBar.tsx
+// admin-web/src/components/common/FilterBar.tsx
 import { useEffect, useState } from "react";
 import { Collapse, Paper, Group, Button } from "@mantine/core";
 

@@ -163,6 +163,7 @@ export const ZodStockLedgerListQuery = z.object({
 export const ZodPageInfo = z.object({
   hasNextPage: z.boolean(),
   nextCursor: z.string().nullable(),
+  totalCount: z.number().int().min(0).optional(),
 }).openapi('PageInfo');
 
 // Response
