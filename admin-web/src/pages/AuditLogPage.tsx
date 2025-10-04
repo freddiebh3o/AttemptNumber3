@@ -125,7 +125,6 @@ export default function AuditLogPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigationType = useNavigationType();
   const location = useLocation();
-  const navigate = useNavigate();
 
   // Data
   const [rows, setRows] = useState<AuditEvent[] | null>(null);
