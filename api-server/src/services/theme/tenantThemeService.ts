@@ -1,7 +1,8 @@
+// api-server/src/services/theme/tenantThemeService.ts
 import { Prisma, AuditAction, AuditEntityType } from '@prisma/client';
-import { prismaClientInstance } from '../db/prismaClient.js';
-import { Errors } from '../utils/httpErrors.js';
-import { writeAuditEvent } from './auditLoggerService.js';
+import { prismaClientInstance } from '../../db/prismaClient.js';
+import { Errors } from '../../utils/httpErrors.js';
+import { writeAuditEvent } from '../auditLoggerService.js';
 
 export type TenantThemePayload = {
   presetKey: string | null;

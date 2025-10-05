@@ -11,10 +11,13 @@ import {
   getTenantThemeService,
   upsertTenantThemeService,
   upsertTenantLogoOnlyService,
-} from '../services/tenantThemeService.js';
+} from '../services/theme/tenantThemeService.js';
 import multer from 'multer';
 import { uploadImageToStorageService } from '../services/uploadService.js';
 import { Errors } from '../utils/httpErrors.js';
+import { validateRequestQueryWithZod } from '../middleware/zodValidation.js';
+import { getTenantThemeActivityForCurrentTenantService } from '../services/theme/tenantThemeActivityService.js';
+import { getAuditContext } from '../utils/auditContext.js';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -68,18 +71,19 @@ const putBodySchema = z.object({
   logoUrl: z.string().url().max(2048).nullable().optional(),
 }).strict();
 
+const activityQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  cursor: z.string().optional(),
+  occurredFrom: z.string().datetime().optional(),
+  occurredTo: z.string().datetime().optional(),
+  actorIds: z.string().min(1).optional(), // CSV of user IDs
+  includeFacets: z.coerce.boolean().optional(),
+  includeTotal: z.coerce.boolean().optional(),
+});
+
 // --- Router ---
 
 export const tenantThemeRouter = Router();
-
-function buildAuditCtx(req: any) {
-  return {
-    actorUserId: req.currentUserId ?? null,
-    correlationId: (req.headers['x-correlation-id'] as string | undefined) ?? null,
-    ip: (req.ip ?? null) as string | null,
-    userAgent: (req.headers['user-agent'] as string | undefined) ?? null,
-  };
-}
 
 /** POST /api/tenants/:tenantSlug/logo  (admin+) */
 tenantThemeRouter.post(
@@ -115,7 +119,7 @@ tenantThemeRouter.post(
       const payload = await upsertTenantLogoOnlyService({
         tenantId,
         logoUrl: out.url,
-        auditContextOptional: buildAuditCtx(req),
+        auditContextOptional: getAuditContext(req),
       });
 
       return res.json(
@@ -130,6 +134,7 @@ tenantThemeRouter.post(
   }
 );
 
+/** GET /api/tenants/:tenantSlug/theme */
 tenantThemeRouter.get(
   '/:tenantSlug/theme',
   requireAuthenticatedUserMiddleware,
@@ -147,6 +152,7 @@ tenantThemeRouter.get(
   }
 );
 
+/** PUT /api/tenants/:tenantSlug/theme */
 tenantThemeRouter.put(
   '/:tenantSlug/theme',
   idempotencyMiddleware(60),
@@ -164,9 +170,45 @@ tenantThemeRouter.put(
         presetKey,
         overrides,
         logoUrl,
-        auditContextOptional: buildAuditCtx(req),
+        auditContextOptional: getAuditContext(req),
       });
       return res.json(createStandardSuccessResponse(payload));
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
+/** GET /api/tenants/:tenantSlug/theme/activity */
+tenantThemeRouter.get(
+  '/:tenantSlug/theme/activity',
+  requireAuthenticatedUserMiddleware,
+  requirePermission('theme:manage'),
+  validateRequestParamsWithZod(paramsSchema),
+  validateRequestQueryWithZod(activityQuerySchema),
+  async (req, res, next) => {
+    try {
+      const { tenantSlug } = req.validatedParams as z.infer<typeof paramsSchema>;
+      const {
+        limit, cursor, occurredFrom, occurredTo, actorIds, includeFacets, includeTotal,
+      } = req.validatedQuery as z.infer<typeof activityQuerySchema>;
+
+      const tenantId = await ensureTenantIdForSlugAndSession(tenantSlug, req.currentTenantId);
+
+      const data = await getTenantThemeActivityForCurrentTenantService({
+        currentTenantId: tenantId,
+        ...(limit !== undefined ? { limitOptional: limit } : {}),
+        ...(cursor !== undefined ? { cursorOptional: cursor } : {}),
+        ...(occurredFrom !== undefined ? { occurredFromOptional: occurredFrom } : {}),
+        ...(occurredTo !== undefined ? { occurredToOptional: occurredTo } : {}),
+        ...(actorIds
+          ? { actorIdsOptional: actorIds.split(',').map(s => s.trim()).filter(Boolean) }
+          : {}),
+        ...(includeFacets !== undefined ? { includeFacetsOptional: includeFacets } : {}),
+        ...(includeTotal !== undefined ? { includeTotalOptional: includeTotal } : {}),
+      });
+
+      return res.json(createStandardSuccessResponse(data));
     } catch (err) {
       return next(err);
     }

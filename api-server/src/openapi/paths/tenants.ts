@@ -5,6 +5,8 @@ import {
   ZodTenantSlugParam,
   ZodTenantThemeResponseData,
   ZodTenantThemePutBody,
+  ZodTenantThemeActivityQuery,
+  ZodTenantThemeActivityResponseData,
 } from '../schemas/tenants.js';
 import { ZodTenantLogoUploadBody, ZodUploadInfo } from '../components/uploads.js';
 
@@ -72,6 +74,33 @@ export function registerTenantPaths(registry: OpenAPIRegistry) {
         },
       },
       400: RESPONSES[400],
+      401: RESPONSES[401],
+      403: RESPONSES[403],
+      404: RESPONSES[404],
+      429: RESPONSES[429],
+      500: RESPONSES[500],
+    },
+  });
+
+  // GET /api/tenants/{tenantSlug}/theme/activity
+  registry.registerPath({
+    tags: ['Tenants'],
+    method: 'get',
+    path: '/api/tenants/{tenantSlug}/theme/activity',
+    security: [{ cookieAuth: [] }],
+    request: {
+      params: ZodTenantSlugParam,
+      query: ZodTenantThemeActivityQuery,
+    },
+    responses: {
+      200: {
+        description: 'Tenant theme activity (audit) with filters',
+        content: {
+          'application/json': {
+            schema: successEnvelope(ZodTenantThemeActivityResponseData),
+          },
+        },
+      },
       401: RESPONSES[401],
       403: RESPONSES[403],
       404: RESPONSES[404],
