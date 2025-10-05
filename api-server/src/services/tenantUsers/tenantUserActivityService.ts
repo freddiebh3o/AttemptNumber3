@@ -50,6 +50,137 @@ function decodeCursor(cursor?: string | null) {
   return { createdAtISO: cursor.slice(0, idx), id: cursor.slice(idx + 1) };
 }
 
+type FieldDiff = { before: any; after: any };
+
+function coerceVal(v: any) {
+  if (v == null) return v;
+  if (typeof v === 'object' && 'toNumber' in v && typeof (v as any).toNumber === 'function') {
+    try { return (v as any).toNumber(); } catch { /* noop */ }
+  }
+  if (typeof v === 'object') return JSON.parse(JSON.stringify(v));
+  return v;
+}
+
+function normalizeSnapshotDiff(before: unknown, after: unknown): Record<string, FieldDiff> {
+  const out: Record<string, FieldDiff> = {};
+  if (!before && !after) return out;
+  const b = (before ?? {}) as Record<string, any>;
+  const a = (after ?? {}) as Record<string, any>;
+  const keys = new Set([...Object.keys(b), ...Object.keys(a)]);
+  for (const k of keys) {
+    const vb = b[k];
+    const va = a[k];
+    if (JSON.stringify(vb) !== JSON.stringify(va)) {
+      out[k] = { before: coerceVal(vb), after: coerceVal(va) };
+    }
+  }
+  return out;
+}
+
+// Map multiple possible field names to a single alias
+function pickFirst<T extends string>(
+  diffs: Record<string, FieldDiff>,
+  keys: readonly T[],
+): { alias: T; diff: FieldDiff } | null {
+  for (const k of keys) {
+    if (Object.prototype.hasOwnProperty.call(diffs, k)) {
+      return { alias: k, diff: diffs[k]! }
+    }
+  }
+  return null;
+}
+
+function arrayDiff(before: any, after: any) {
+  const b = Array.isArray(before) ? before : [];
+  const a = Array.isArray(after) ? after : [];
+  const bSet = new Set(b);
+  const aSet = new Set(a);
+  const added = a.filter((x: any) => !bSet.has(x));
+  const removed = b.filter((x: any) => !aSet.has(x));
+  return { added, removed };
+}
+
+const IGNORE_KEYS = new Set([
+  'updatedAt','updated_at',
+  'entityVersion','version',
+  'lastLoginAt','last_login_at',
+]);
+
+// Build messageParts for a user audit row (don’t include PII for password)
+function buildUserMessageParts(beforeJson: unknown, afterJson: unknown) {
+  const diffs = normalizeSnapshotDiff(beforeJson, afterJson);
+
+  // strip ignorable
+  for (const k of Object.keys(diffs)) {
+    if (IGNORE_KEYS.has(k)) delete diffs[k];
+  }
+
+  const parts: Record<string, unknown> = {};
+
+  // Email
+  const emailPick = pickFirst(diffs, ['userEmailAddress','email','user_email']);
+  if (emailPick) parts.email = { before: emailPick.diff.before, after: emailPick.diff.after };
+
+  // Password (various field shapes)
+  const passwordChanged =
+    'password' in diffs ||
+    'passwordHash' in diffs ||
+    'password_hash' in diffs ||
+    'pwHash' in diffs ||
+    'passwordUpdated' in diffs;
+  if (passwordChanged) parts.password = { changed: true };
+
+  // Role
+  const rolePick = pickFirst(diffs, ['role','userRole','tenantRole','authRole']);
+  if (rolePick) parts.role = { before: rolePick.diff.before, after: rolePick.diff.after };
+
+  // Branch memberships (array of ids)
+  const branchesPick =
+    pickFirst(diffs, ['branchIds','branches','assignedBranchIds','memberBranchIds']) ||
+    null;
+  if (branchesPick) {
+    const { added, removed } = arrayDiff(branchesPick.diff.before, branchesPick.diff.after);
+    parts.branches = { added, removed };
+  }
+
+  // If nothing recognized, expose a count so UI can still say “N field(s) changed)”
+  const remainingKeys = Object.keys(diffs).filter(k =>
+    !['userEmailAddress','email','user_email','password','passwordHash','password_hash','pwHash','passwordUpdated',
+      'role','userRole','tenantRole','authRole',
+      'branchIds','branches','assignedBranchIds','memberBranchIds',
+    ].includes(k)
+  );
+  if (remainingKeys.length > 0) parts.changedKeys = remainingKeys.length;
+
+  return parts;
+}
+
+function summarizeUserChange(action: string, parts?: Record<string, any>) {
+  // Don’t include the user’s email again (we’re already on their page).
+  if (action !== 'UPDATE' || !parts) {
+    // reasonable defaults for non-UPDATE actions
+    if (action === 'CREATE') return 'User created';
+    if (action === 'DELETE') return 'User deleted';
+    if (action === 'ROLE_ASSIGN') return 'Role assigned';
+    if (action === 'ROLE_REVOKE') return 'Role revoked';
+    return action.replaceAll('_',' ').toLowerCase();
+  }
+
+  const changes: string[] = [];
+  if (parts.email) changes.push('email');
+  if (parts.password?.changed) changes.push('password');
+  if (parts.role) changes.push('role');
+  if (parts.branches && (parts.branches.added?.length || parts.branches.removed?.length)) {
+    const a = parts.branches.added?.length ?? 0;
+    const r = parts.branches.removed?.length ?? 0;
+    if (a || r) changes.push(`branches (${a} added, ${r} removed)`);
+  }
+  if (!changes.length && typeof parts.changedKeys === 'number') {
+    return `Updated user · ${parts.changedKeys} field(s) changed`;
+  }
+  return `Updated user · ${changes.join(', ')}`;
+}
+
 function makeHumanMessage(action: string, entityName: string | null, before: unknown, after: unknown) {
   // Keep it simple & generic (you can expand with action-specific messages later)
   const base = entityName ?? 'User';
@@ -184,12 +315,9 @@ export async function listTenantUserActivityForUserService(params: {
 
   const items: ViewItemAudit[] = pageRows.map((r) => {
     const when = r.createdAt.toISOString();
-    const message = makeHumanMessage(
-      r.action,
-      r.entityName ?? null,
-      r.beforeJson as any,
-      r.afterJson as any
-    );
+  
+    const parts = buildUserMessageParts(r.beforeJson as any, r.afterJson as any);
+    const message = summarizeUserChange(r.action as string, parts);
   
     const actor = r.actorUserId
       ? { userId: r.actorUserId, display: actorsMap[r.actorUserId] ?? r.actorUserId }
@@ -199,8 +327,9 @@ export async function listTenantUserActivityForUserService(params: {
       kind: 'audit',
       id: r.id,
       when,
-      action: r.action,
+      action: r.action as string, // enum → string
       message,
+      ...(Object.keys(parts).length ? { messageParts: parts as Record<string, unknown> } : {}), // ✅ omit if empty
       actor,
       correlationId: r.correlationId ?? null,
     };

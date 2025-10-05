@@ -1,4 +1,5 @@
 // admin-web/src/components/tenantUsers/TenantUserActivityTab.tsx
+// admin-web/src/components/tenantUsers/TenantUserActivityTab.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Anchor,
@@ -75,7 +76,7 @@ export function TenantUserActivityTab({ userId }: { userId: string }) {
   const [rows, setRows] = useState<ActivityItem[] | null>(null);
   const [errorForBoundary, setErrorForBoundary] = useState<
     (Error & { httpStatusCode?: number; correlationId?: string }) | null
-    >(null);
+  >(null);
 
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<Filters>(emptyFilters);
@@ -531,6 +532,7 @@ export function TenantUserActivityTab({ userId }: { userId: string }) {
 
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
+  // ---- Timeline view -------------------------------------------------------
   if (mode === "timeline") {
     return (
       <>
@@ -543,6 +545,15 @@ export function TenantUserActivityTab({ userId }: { userId: string }) {
               const whenDate = new Date(it.when);
               const whenAbs = whenDate.toLocaleString();
               const whenRel = dayjs(whenDate).fromNow();
+              const mp = (it.messageParts ?? undefined) as any | undefined;
+
+              const hasAnyDetail =
+                !!mp?.email ||
+                !!mp?.password?.changed ||
+                !!mp?.role ||
+                (mp?.branches && ((mp.branches.added?.length ?? 0) || (mp.branches.removed?.length ?? 0))) ||
+                !!mp?.changedKeys;
+
               return (
                 <Timeline.Item
                   key={`${it.kind}:${it.id}`}
@@ -568,7 +579,46 @@ export function TenantUserActivityTab({ userId }: { userId: string }) {
                       </Tooltip>
                     </Group>
                   }
-                />
+                >
+                  {hasAnyDetail && (
+                    <Stack gap={4} mt={6}>
+                      {mp?.email && (
+                        <Text size="xs" c="dimmed">
+                          Email: <code>{mp.email.before ?? "—"}</code> → <code>{mp.email.after ?? "—"}</code>
+                        </Text>
+                      )}
+                      {mp?.password?.changed && (
+                        <Text size="xs" c="dimmed">Password changed</Text>
+                      )}
+                      {mp?.role && (
+                        <Text size="xs" c="dimmed">
+                          Role: <code>{String(mp.role.before ?? "—")}</code> → <code>{String(mp.role.after ?? "—")}</code>
+                        </Text>
+                      )}
+                      {mp?.branches && ((mp.branches.added?.length ?? 0) || (mp.branches.removed?.length ?? 0)) ? (
+                        <>
+                          {Array.isArray(mp.branches.added) && mp.branches.added.length > 0 && (
+                            <Text size="xs" c="dimmed">
+                              Branches added: <code>{mp.branches.added.join(", ")}</code>
+                            </Text>
+                          )}
+                          {Array.isArray(mp.branches.removed) && mp.branches.removed.length > 0 && (
+                            <Text size="xs" c="dimmed">
+                              Branches removed: <code>{mp.branches.removed.join(", ")}</code>
+                            </Text>
+                          )}
+                        </>
+                      ) : null}
+                      {!mp?.email &&
+                        !mp?.password?.changed &&
+                        !mp?.role &&
+                        !(mp?.branches && ((mp.branches.added?.length ?? 0) || (mp.branches.removed?.length ?? 0))) &&
+                        typeof mp?.changedKeys === "number" && (
+                          <Text size="xs" c="dimmed">{mp.changedKeys} field(s) changed</Text>
+                      )}
+                    </Stack>
+                  )}
+                </Timeline.Item>
               );
             })}
           </Timeline>
@@ -578,7 +628,7 @@ export function TenantUserActivityTab({ userId }: { userId: string }) {
     );
   }
 
-  // Table
+  // ---- Table view ----------------------------------------------------------
   return (
     <>
       {header}
@@ -653,6 +703,8 @@ export function TenantUserActivityTab({ userId }: { userId: string }) {
                 const whenDate = new Date(it.when);
                 const whenAbs = whenDate.toLocaleString();
                 const whenRel = dayjs(whenDate).fromNow();
+                const mp = (it.messageParts ?? undefined) as any | undefined;
+
                 return (
                   <Table.Tr key={`${it.kind}:${it.id}`}>
                     <Table.Td>
@@ -665,6 +717,46 @@ export function TenantUserActivityTab({ userId }: { userId: string }) {
                     </Table.Td>
                     <Table.Td>
                       <Text size="sm">{it.message}</Text>
+
+                      {mp && (
+                        <Stack gap={4} mt={6}>
+                          {mp.email && (
+                            <Text size="xs" c="dimmed">
+                              Email: <code>{mp.email.before ?? "—"}</code> → <code>{mp.email.after ?? "—"}</code>
+                            </Text>
+                          )}
+                          {mp?.password?.changed && (
+                            <Text size="xs" c="dimmed">Password changed</Text>
+                          )}
+                          {mp.role && (
+                            <Text size="xs" c="dimmed">
+                              Role: <code>{String(mp.role.before ?? "—")}</code> → <code>{String(mp.role.after ?? "—")}</code>
+                            </Text>
+                          )}
+                          {mp.branches && ((mp.branches.added?.length ?? 0) || (mp.branches.removed?.length ?? 0)) ? (
+                            <>
+                              {Array.isArray(mp.branches.added) && mp.branches.added.length > 0 && (
+                                <Text size="xs" c="dimmed">
+                                  Branches added: <code>{mp.branches.added.join(", ")}</code>
+                                </Text>
+                              )}
+                              {Array.isArray(mp.branches.removed) && mp.branches.removed.length > 0 && (
+                                <Text size="xs" c="dimmed">
+                                  Branches removed: <code>{mp.branches.removed.join(", ")}</code>
+                                </Text>
+                              )}
+                            </>
+                          ) : null}
+
+                          {!mp.email &&
+                            !mp?.password?.changed &&
+                            !mp.role &&
+                            !(mp.branches && ((mp.branches.added?.length ?? 0) || (mp.branches.removed?.length ?? 0))) &&
+                            typeof mp?.changedKeys === "number" && (
+                              <Text size="xs" c="dimmed">{mp.changedKeys} field(s) changed</Text>
+                          )}
+                        </Stack>
+                      )}
                     </Table.Td>
                     <Table.Td>
                       {it.actor ? (
