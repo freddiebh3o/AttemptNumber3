@@ -1,5 +1,4 @@
 // admin-web/src/pages/ProductPage.tsx
-// admin-web/src/pages/ProductPage.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Badge, Button, Group, Loader, Stack, Tabs, Text, Title, Alert, Paper } from "@mantine/core";
@@ -41,16 +40,16 @@ export default function ProductPage() {
   }, [activeTab, searchParams]);
 
   function setTabInUrl(tab: TabKey, opts?: { welcome?: boolean }) {
-    const next = new URLSearchParams(searchParams);
+    const next = new URLSearchParams();
+  
     next.set("tab", tab);
+  
     if (opts?.welcome && tab === "fifo") {
       next.set("welcome", "fifo");
-    } else {
-      next.delete("welcome");
     }
+  
     setSearchParams(next, { replace: false });
   }
-
   // Product form state
   const [name, setName] = useState("");
   const [sku, setSku] = useState("");

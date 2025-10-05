@@ -43,6 +43,7 @@ import { listAuditEventsApiRequest } from "../api/auditLogger";
 import { handlePageError } from "../utils/pageError";
 import { FilterBar } from "../components/common/FilterBar";
 import { notifications } from "@mantine/notifications";
+import { buildCommonDatePresets } from "../utils/datePresets";
 
 type AuditEvent =
   NonNullable<
@@ -639,7 +640,7 @@ export default function AuditLogPage() {
         onClear={clearAllFiltersAndFetch}
       >
         {({ values, setValues }) => (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <Select
               label="Entity type"
               placeholder="Select entity type"
@@ -689,12 +690,7 @@ export default function AuditLogPage() {
               onChange={(v) => setValues((prev) => ({ ...prev, occurredFrom: v }))}
               valueFormat="YYYY-MM-DD"
               popoverProps={{ withinPortal: true }}
-              presets={[
-                { value: dayjs().format("YYYY-MM-DD"), label: "Today" },
-                { value: dayjs().subtract(1, "day").format("YYYY-MM-DD"), label: "Yesterday" },
-                { value: dayjs().subtract(7, "day").format("YYYY-MM-DD"), label: "Last 7 days" },
-                { value: dayjs().subtract(30, "day").format("YYYY-MM-DD"), label: "Last 30 days" },
-              ]}
+              presets={buildCommonDatePresets()}
               clearable
             />
             <DatePickerInput
@@ -704,10 +700,7 @@ export default function AuditLogPage() {
               onChange={(v) => setValues((prev) => ({ ...prev, occurredTo: v }))}
               valueFormat="YYYY-MM-DD"
               popoverProps={{ withinPortal: true }}
-              presets={[
-                { value: dayjs().format("YYYY-MM-DD"), label: "Today" },
-                { value: dayjs().subtract(1, "day").format("YYYY-MM-DD"), label: "Yesterday" },
-              ]}
+              presets={buildCommonDatePresets()}
               clearable
             />
           </div>

@@ -43,6 +43,7 @@ import {
 import { handlePageError } from "../utils/pageError";
 import { useAuthStore } from "../stores/auth";
 import dayjs from "dayjs";
+import { buildCommonDatePresets } from "../utils/datePresets";
 import { FilterBar } from "../components/common/FilterBar";
 import { useNavigate } from "react-router-dom";
 import { formatPenceAsGBP } from "../utils/money";  
@@ -760,35 +761,7 @@ export default function ProductsPage() {
                 }
                 valueFormat="YYYY-MM-DD"
                 popoverProps={{ withinPortal: true }}
-                presets={[
-                  {
-                    value: dayjs().subtract(1, "day").format("YYYY-MM-DD"),
-                    label: "Yesterday",
-                  },
-                  { value: dayjs().format("YYYY-MM-DD"), label: "Today" },
-                  {
-                    value: dayjs().add(1, "day").format("YYYY-MM-DD"),
-                    label: "Tomorrow",
-                  },
-                  {
-                    value: dayjs().add(1, "month").format("YYYY-MM-DD"),
-                    label: "Next month",
-                  },
-                  {
-                    value: dayjs().add(1, "year").format("YYYY-MM-DD"),
-                    label: "Next year",
-                  },
-                  {
-                    value: dayjs()
-                      .subtract(1, "month")
-                      .format("YYYY-MM-DD"),
-                    label: "Last month",
-                  },
-                  {
-                    value: dayjs().subtract(1, "year").format("YYYY-MM-DD"),
-                    label: "Last year",
-                  },
-                ]}
+                presets={buildCommonDatePresets()}
                 clearable
               />
             </Grid.Col>
@@ -803,35 +776,7 @@ export default function ProductsPage() {
                 }
                 valueFormat="YYYY-MM-DD"
                 popoverProps={{ withinPortal: true }}
-                presets={[
-                  {
-                    value: dayjs().subtract(1, "day").format("YYYY-MM-DD"),
-                    label: "Yesterday",
-                  },
-                  { value: dayjs().format("YYYY-MM-DD"), label: "Today" },
-                  {
-                    value: dayjs().add(1, "day").format("YYYY-MM-DD"),
-                    label: "Tomorrow",
-                  },
-                  {
-                    value: dayjs().add(1, "month").format("YYYY-MM-DD"),
-                    label: "Next month",
-                  },
-                  {
-                    value: dayjs().add(1, "year").format("YYYY-MM-DD"),
-                    label: "Next year",
-                  },
-                  {
-                    value: dayjs()
-                      .subtract(1, "month")
-                      .format("YYYY-MM-DD"),
-                    label: "Last month",
-                  },
-                  {
-                    value: dayjs().subtract(1, "year").format("YYYY-MM-DD"),
-                    label: "Last year",
-                  },
-                ]}
+                presets={buildCommonDatePresets()}
                 clearable
               />
             </Grid.Col>
@@ -846,27 +791,7 @@ export default function ProductsPage() {
                 }
                 valueFormat="YYYY-MM-DD"
                 popoverProps={{ withinPortal: true }}
-                presets={[
-                  {
-                    value: dayjs().subtract(1, "day").format("YYYY-MM-DD"),
-                    label: "Yesterday",
-                  },
-                  { value: dayjs().format("YYYY-MM-DD"), label: "Today" },
-                  {
-                    value: dayjs().add(1, "day").format("YYYY-MM-DD"),
-                    label: "Tomorrow",
-                  },
-                  {
-                    value: dayjs()
-                      .subtract(1, "month")
-                      .format("YYYY-MM-DD"),
-                    label: "Last month",
-                  },
-                  {
-                    value: dayjs().subtract(1, "year").format("YYYY-MM-DD"),
-                    label: "Last year",
-                  },
-                ]}
+                presets={buildCommonDatePresets()}
                 clearable
               />
             </Grid.Col>
@@ -881,25 +806,7 @@ export default function ProductsPage() {
                 }
                 valueFormat="YYYY-MM-DD"
                 popoverProps={{ withinPortal: true }}
-                presets={[
-                  {
-                    value: dayjs().subtract(1, "day").format("YYYY-MM-DD"),
-                    label: "Yesterday",
-                  },
-                  { value: dayjs().format("YYYY-MM-DD"), label: "Today" },
-                  {
-                    value: dayjs().add(1, "day").format("YYYY-MM-DD"),
-                    label: "Tomorrow",
-                  },
-                  {
-                    value: dayjs().add(1, "month").format("YYYY-MM-DD"),
-                    label: "Next month",
-                  },
-                  {
-                    value: dayjs().add(1, "year").format("YYYY-MM-DD"),
-                    label: "Next year",
-                  },
-                ]}
+                presets={buildCommonDatePresets()}
                 clearable
               />
             </Grid.Col>

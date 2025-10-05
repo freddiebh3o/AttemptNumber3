@@ -7,6 +7,8 @@ import {
   ZodTenantUsersListResponseData,
   ZodUpdateTenantUserBody,
   ZodTenantUserRecord,
+  ZodTenantUserActivityResponseData,
+  ZodListTenantUserActivityQuery,
 } from '../schemas/tenantUsers.js';
 import { z } from 'zod';
 
@@ -33,7 +35,6 @@ export function registerTenantUsersPaths(registry: OpenAPIRegistry) {
     },
   });
 
-  // ⬇️ NEW: get by id
   registry.registerPath({
     tags: ['TenantUsers'],
     method: 'get',
@@ -110,6 +111,30 @@ export function registerTenantUsersPaths(registry: OpenAPIRegistry) {
       },
       401: RESPONSES[401],
       403: { description: 'Forbidden', content: { 'application/json': { schema: errorEnvelope } } },
+      404: RESPONSES[404],
+      429: RESPONSES[429],
+      500: RESPONSES[500],
+    },
+  });
+
+  registry.registerPath({
+    tags: ['TenantUsers'],
+    method: 'get',
+    path: '/api/tenant-users/{userId}/activity',
+    security: [{ cookieAuth: [] }],
+    request: {
+      params: z.object({ userId: z.string() }),
+      query: ZodListTenantUserActivityQuery,
+    },
+    responses: {
+      200: {
+        description: 'Tenant user activity (audit events)',
+        content: {
+          'application/json': { schema: successEnvelope(ZodTenantUserActivityResponseData) },
+        },
+      },
+      401: RESPONSES[401],
+      403: RESPONSES[403],
       404: RESPONSES[404],
       429: RESPONSES[429],
       500: RESPONSES[500],

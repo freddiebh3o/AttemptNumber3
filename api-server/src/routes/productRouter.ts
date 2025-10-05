@@ -15,11 +15,11 @@ import {
   updateProductForCurrentTenantService,
   deleteProductForCurrentTenantService,
   getProductForCurrentTenantService,
-} from "../services/productService.js";
+} from "../services/products/productService.js";
 import { assertAuthed } from "../types/assertions.js";
 import { requirePermission } from "../middleware/permissionMiddleware.js";
 import { getAuditContext } from "../utils/auditContext.js";
-import { getProductActivityForCurrentTenantService } from "../services/productActivityService.js";
+import { getProductActivityForCurrentTenantService } from "../services/products/productActivityService.js";
 
 export const productRouter = Router();
 

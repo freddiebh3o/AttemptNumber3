@@ -50,6 +50,7 @@ import {
 import { FilterBar } from "../components/common/FilterBar";
 import type { components } from "../types/openapi";
 import { useNavigate } from "react-router-dom";
+import { buildCommonDatePresets } from "../utils/datePresets";
 
 type SortField = "createdAt" | "updatedAt" | "userEmailAddress" | "role";
 type SortDir = "asc" | "desc";
@@ -716,6 +717,7 @@ export default function TenantUsersPage() {
                 }
                 valueFormat="YYYY-MM-DD"
                 popoverProps={{ withinPortal: true }}
+                presets={buildCommonDatePresets()}
                 clearable
               />
             </Grid.Col>
@@ -730,6 +732,7 @@ export default function TenantUsersPage() {
                 }
                 valueFormat="YYYY-MM-DD"
                 popoverProps={{ withinPortal: true }}
+                presets={buildCommonDatePresets()}
                 clearable
               />
             </Grid.Col>
@@ -744,6 +747,7 @@ export default function TenantUsersPage() {
                 }
                 valueFormat="YYYY-MM-DD"
                 popoverProps={{ withinPortal: true }}
+                presets={buildCommonDatePresets()}
                 clearable
               />
             </Grid.Col>
@@ -758,6 +762,7 @@ export default function TenantUsersPage() {
                 }
                 valueFormat="YYYY-MM-DD"
                 popoverProps={{ withinPortal: true }}
+                presets={buildCommonDatePresets()}
                 clearable
               />
             </Grid.Col>

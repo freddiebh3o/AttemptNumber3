@@ -1,8 +1,8 @@
 // api-server/src/services/productService.ts
-import { prismaClientInstance } from '../db/prismaClient.js';
-import { Errors } from '../utils/httpErrors.js';
+import { prismaClientInstance } from '../../db/prismaClient.js';
+import { Errors } from '../../utils/httpErrors.js';
 import type { Prisma } from '@prisma/client';
-import { writeAuditEvent } from './auditLoggerService.js';
+import { writeAuditEvent } from '../auditLoggerService.js';
 import { AuditAction, AuditEntityType } from '@prisma/client';
 
 type SortField = 'createdAt' | 'updatedAt' | 'productName' | 'productPricePence';

@@ -17,7 +17,8 @@ import {
   createOrAttachUserToTenantService,
   updateTenantUserService,
   removeUserFromTenantService,
-} from '../services/tenantUserService.js';
+} from '../services/tenantUsers/tenantUserService.js';
+import { listTenantUserActivityForUserService } from '../services/tenantUsers/tenantUserActivityService.js';
 
 // Minimal helper to pass audit context into services
 function getAuditContext(req: any) {
@@ -61,6 +62,16 @@ const updateBody = z.object({
   password: z.string().min(8).max(200).optional(),
   roleId: z.string().min(1).optional(),
   branchIds: z.array(z.string().min(1)).optional(),
+});
+
+const activityQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  cursor: z.string().min(1).optional(),
+  actorIds: z.string().transform(s => s.split(',').map(x => x.trim()).filter(Boolean)).optional(),
+  occurredFrom: z.string().optional(), // accept ISO or YYYY-MM-DD
+  occurredTo: z.string().optional(),
+  includeFacets: z.coerce.boolean().optional(),
+  includeTotal: z.coerce.boolean().optional(),
 });
 
 // ---- Routes ----
@@ -204,3 +215,36 @@ tenantUserRouter.delete(
     }
   }
 );
+
+// GET /api/tenant-users/:userId/activity
+tenantUserRouter.get(
+  '/:userId/activity',
+  requireAuthenticatedUserMiddleware,
+  requirePermission('users:manage'),
+  validateRequestParamsWithZod(userIdParams),
+  validateRequestQueryWithZod(activityQuerySchema),
+  async (req, res, next) => {
+    try {
+      assertAuthed(req);
+      const { userId } = req.validatedParams as z.infer<typeof userIdParams>;
+      const q = req.validatedQuery as z.infer<typeof activityQuerySchema>;
+
+      const out = await listTenantUserActivityForUserService({
+        currentTenantId: req.currentTenantId,
+        targetUserId: userId,
+        ...(q.limit !== undefined && { limitOptional: q.limit }),
+        ...(q.cursor !== undefined && { cursorOptional: q.cursor }),
+        ...(q.actorIds !== undefined && { actorIdsOptional: q.actorIds }),
+        ...(q.occurredFrom !== undefined && { occurredFromOptional: q.occurredFrom }),
+        ...(q.occurredTo !== undefined && { occurredToOptional: q.occurredTo }),
+        ...(q.includeFacets !== undefined && { includeFacetsOptional: q.includeFacets }),
+        ...(q.includeTotal !== undefined && { includeTotalOptional: q.includeTotal }),
+      });
+
+      return res.status(200).json(createStandardSuccessResponse(out));
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+

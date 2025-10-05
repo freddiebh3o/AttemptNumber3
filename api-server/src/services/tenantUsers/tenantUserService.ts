@@ -1,10 +1,10 @@
 // api-server/src/services/tenantUserService.ts
 import { Prisma, AuditAction, AuditEntityType } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import { Errors } from '../utils/httpErrors.js';
-import { prismaClientInstance } from '../db/prismaClient.js';
+import { Errors } from '../../utils/httpErrors.js';
+import { prismaClientInstance } from '../../db/prismaClient.js';
 import type { Prisma as PrismaNS } from '@prisma/client';
-import { writeAuditEvent } from './auditLoggerService.js';
+import { writeAuditEvent } from '../auditLoggerService.js';
 
 function addDays(date: Date, days: number) {
   return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);

@@ -1277,6 +1277,105 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tenant-users/{userId}/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    cursor?: string;
+                    actorIds?: string;
+                    occurredFrom?: string;
+                    occurredTo?: string;
+                    includeFacets?: boolean;
+                    includeTotal?: boolean;
+                };
+                header?: never;
+                path: {
+                    userId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Tenant user activity (audit events) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: components["schemas"]["TenantUserActivityResponseData"];
+                            error: unknown;
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        "X-RateLimit-Limit": string;
+                        "X-RateLimit-Remaining": string;
+                        "X-RateLimit-Reset": string;
+                        "Retry-After": string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Internal Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tenants/{tenantSlug}/theme": {
         parameters: {
             query?: never;
@@ -3674,6 +3773,45 @@ export interface components {
             password?: string;
             roleId?: string;
             branchIds?: string[];
+        };
+        TenantUserActivityItem: {
+            /** @enum {string} */
+            kind: "audit";
+            id: string;
+            /** Format: date-time */
+            when: string;
+            action: string;
+            message: string;
+            messageParts?: {
+                [key: string]: unknown;
+            } | null;
+            actor?: {
+                userId: string;
+                display: string;
+            } | null;
+            correlationId?: string | null;
+        };
+        TenantUserActivityResponseData: {
+            items: components["schemas"]["TenantUserActivityItem"][];
+            pageInfo: {
+                hasNextPage: boolean;
+                nextCursor?: string | null;
+                totalCount?: number;
+            };
+            facets?: {
+                actors: {
+                    userId: string;
+                    display: string;
+                }[];
+            };
+            applied: {
+                limit: number;
+                filters: {
+                    actorIds?: string[];
+                    occurredFrom?: string;
+                    occurredTo?: string;
+                };
+            };
         };
         /** @enum {string|null} */
         PresetKey: "classicBlue" | "rubyDark" | "emeraldLight" | "oceanLight" | "violetLight" | "grapeDark" | "tealDark" | "cyanLight" | "orangeLight" | "limeLight" | "pinkDark" | "yellowLight" | null;

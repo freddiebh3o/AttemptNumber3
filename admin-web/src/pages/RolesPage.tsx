@@ -54,6 +54,7 @@ import {
 import type { components } from "../types/openapi";
 import { FilterBar } from "../components/common/FilterBar";
 import RoleUpsertModal from "../components/roles/RoleUpsertModal";
+import { buildCommonDatePresets } from "../utils/datePresets";
 
 type RoleRecord = components["schemas"]["RoleRecord"];
 type SortField = "name" | "createdAt" | "updatedAt" | "isSystem";
@@ -880,6 +881,7 @@ export default function RolesPage() {
                 onChange={(v) => setValues({ ...values, createdAtFrom: v })}
                 valueFormat="YYYY-MM-DD"
                 popoverProps={{ withinPortal: true }}
+                presets={buildCommonDatePresets()}
                 clearable
               />
             </Grid.Col>
@@ -892,6 +894,7 @@ export default function RolesPage() {
                 onChange={(v) => setValues({ ...values, createdAtTo: v })}
                 valueFormat="YYYY-MM-DD"
                 popoverProps={{ withinPortal: true }}
+                presets={buildCommonDatePresets()}
                 clearable
               />
             </Grid.Col>
@@ -904,6 +907,7 @@ export default function RolesPage() {
                 onChange={(v) => setValues({ ...values, updatedAtFrom: v })}
                 valueFormat="YYYY-MM-DD"
                 popoverProps={{ withinPortal: true }}
+                presets={buildCommonDatePresets()}
                 clearable
               />
             </Grid.Col>
@@ -916,6 +920,7 @@ export default function RolesPage() {
                 onChange={(v) => setValues({ ...values, updatedAtTo: v })}
                 valueFormat="YYYY-MM-DD"
                 popoverProps={{ withinPortal: true }}
+                presets={buildCommonDatePresets()}
                 clearable
               />
             </Grid.Col>

@@ -1,105 +1,69 @@
-// admin-web/src/components/products/ProductActivityTab.tsx
+// admin-web/src/components/tenantUsers/TenantUserActivityTab.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Anchor,
   Badge,
   Button,
+  CloseButton,
   Group,
   Loader,
+  MultiSelect,
+  NumberInput,
   Paper,
   SegmentedControl,
+  Space,
+  Stack,
   Table,
   Text,
   Title,
   Tooltip,
   Timeline,
-  Select,
-  MultiSelect,
-  Space,
-  Stack,
-  NumberInput,
   rem,
-  CloseButton,
-  Anchor 
 } from "@mantine/core";
 import { DatePickerInput } from "@mantine/dates";
 import {
-  IconRefresh,
-  IconFilter,
   IconChevronDown,
   IconChevronUp,
-  IconPlayerTrackPrev,
+  IconFilter,
   IconPlayerTrackNext,
+  IconPlayerTrackPrev,
+  IconRefresh,
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { handlePageError } from "../../utils/pageError";
-import { getProductActivityApiRequest } from "../../api/products";
 import { FilterBar } from "../common/FilterBar";
-import { useLocation, useNavigationType, useSearchParams, Link, useParams } from "react-router-dom";
+import { handlePageError } from "../../utils/pageError";
+import { getTenantUserActivityApiRequest } from "../../api/tenantUsers";
+import { Link, useLocation, useNavigationType, useParams, useSearchParams } from "react-router-dom";
 import { buildCommonDatePresets } from "../../utils/datePresets";
 
 dayjs.extend(relativeTime);
 
 type ViewMode = "table" | "timeline";
 
-type UnifiedActivityItem =
-  | {
-      kind: "audit";
-      id: string;
-      when: string;
-      action: string;
-      message: string;
-      messageParts?: Record<string, unknown>;
-      actor?: { userId: string; display: string } | null;
-      correlationId?: string | null;
-      entityName?: string | null;
-    }
-  | {
-      kind: "ledger";
-      id: string;
-      when: string;
-      entryKind: "RECEIPT" | "ADJUSTMENT" | "CONSUMPTION" | "REVERSAL";
-      qtyDelta: number;
-      branchId?: string | null;
-      branchName?: string | null;
-      reason?: string | null;
-      lotId?: string | null;
-      message: string;
-      messageParts?: Record<string, unknown>;
-      actor?: { userId: string; display: string } | null;
-      correlationId?: string | null;
-    };
+type ActivityItem = {
+  kind: "audit";
+  id: string;
+  when: string;
+  action: string;                 // e.g., ROLE_ASSIGN
+  message: string;                // human readable
+  messageParts?: Record<string, unknown> | null;
+  actor?: { userId: string; display: string } | null;
+  correlationId?: string | null;
+};
 
 type Filters = {
-  type: "all" | "audit" | "ledger";
-  actorIds: string[];          // user IDs
+  actorIds: string[];
   occurredFrom: string | null; // YYYY-MM-DD
   occurredTo: string | null;   // YYYY-MM-DD
 };
 
-const emptyFilters: Filters = {
-  type: "all",
-  actorIds: [],
-  occurredFrom: null,
-  occurredTo: null,
-};
+const emptyFilters: Filters = { actorIds: [], occurredFrom: null, occurredTo: null };
 
-const LOCALSTORAGE_LIMIT_KEY = "product-activity:perPage";
+const LOCALSTORAGE_LIMIT_KEY = "tenant-user-activity:perPage";
+const OWN_KEYS = ["mode", "limit", "page", "cursor", "actorIds", "occurredFrom", "occurredTo", "filtersOpen"] as const;
 
-// Keys this component controls in the query string
-const OWN_KEYS = [
-  "mode",
-  "limit",
-  "page",
-  "cursor",
-  "type",
-  "actorIds",
-  "occurredFrom",
-  "occurredTo",
-  "filtersOpen",
-] as const;
-
-export function ProductActivityTab({ productId }: { productId: string }) {
+export function TenantUserActivityTab({ userId }: { userId: string }) {
   const { tenantSlug } = useParams<{ tenantSlug: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
@@ -108,61 +72,46 @@ export function ProductActivityTab({ productId }: { productId: string }) {
   const [mode, setMode] = useState<ViewMode>("table");
   const [isLoading, setIsLoading] = useState(false);
   const [isPaginating, setIsPaginating] = useState(false);
-  const [rows, setRows] = useState<UnifiedActivityItem[] | null>(null);
+  const [rows, setRows] = useState<ActivityItem[] | null>(null);
   const [errorForBoundary, setErrorForBoundary] = useState<
     (Error & { httpStatusCode?: number; correlationId?: string }) | null
-  >(null);
+    >(null);
 
-  // Collapsible filters
   const [showFilters, setShowFilters] = useState(false);
-
-  // Applied filters + facet options
   const [filters, setFilters] = useState<Filters>(emptyFilters);
   const [actorOptions, setActorOptions] = useState<{ value: string; label: string }[]>([]);
 
-  // Simple per-product facet cache to avoid flicker on paging
   const facetCache = useRef<Map<string, { actors: { value: string; label: string }[] }>>(new Map());
 
-  // Cursor pagination
   const [limit, setLimit] = useState<number>(() => {
     const fromLS = Number(localStorage.getItem(LOCALSTORAGE_LIMIT_KEY) || "");
     return Number.isFinite(fromLS) && fromLS > 0 ? Math.max(1, Math.min(100, fromLS)) : 20;
   });
-  const [pageIndex, setPageIndex] = useState(0); // 0-based
-  const [cursorStack, setCursorStack] = useState<(string | null)[]>([null]); // first page = null
+  const [pageIndex, setPageIndex] = useState(0);
+  const [cursorStack, setCursorStack] = useState<(string | null)[]>([null]);
   const [hasNextPage, setHasNextPage] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
-
-  // Totals
   const [totalCount, setTotalCount] = useState<number | null>(null);
 
-  // Range text (+ approx indicator if unknown)
   const shownCount = rows?.length ?? 0;
   const rangeStart = shownCount ? pageIndex * limit + 1 : 0;
   const rangeEnd = shownCount ? rangeStart + shownCount - 1 : 0;
   const approx = totalCount == null ? "≈ " : "";
   const totalPages = totalCount != null ? Math.max(1, Math.ceil(totalCount / limit)) : null;
-  const rangeText =
-    shownCount === 0
-      ? "No results"
-      : `${approx}Showing ${rangeStart}–${rangeEnd}${totalCount != null ? ` of ${totalCount}` : ""}`;
+  const rangeText = shownCount === 0 ? "No results" : `${approx}Showing ${rangeStart}–${rangeEnd}${totalCount != null ? ` of ${totalCount}` : ""}`;
 
-  // ---- URL helpers ---------------------------------------------------------
+  // URL sync
   function writeUrlState(overrides?: {
-    page?: number; // 1-based
+    page?: number;
     cursor?: string | null;
     limit?: number;
     mode?: ViewMode;
     filtersOpen?: boolean;
-    type?: Filters["type"];
     actorIds?: string[];
     occurredFrom?: string | null;
     occurredTo?: string | null;
   }) {
-    // ✅ Merge with existing params so we don't blow away ?tab=activity (or others)
     const sp = new URLSearchParams(searchParams);
-
-    // First, remove our own keys so we can cleanly rewrite them
     for (const k of OWN_KEYS) sp.delete(k);
 
     const put = (k: string, v: unknown) => {
@@ -182,7 +131,6 @@ export function ProductActivityTab({ productId }: { productId: string }) {
         : cursorStack[pageIndex] ?? null;
     if (cursor) put("cursor", cursor);
 
-    const fType = overrides?.type ?? filters.type;
     const fActorIds = overrides?.actorIds ?? filters.actorIds;
     const fFrom =
       overrides && Object.prototype.hasOwnProperty.call(overrides, "occurredFrom")
@@ -193,7 +141,6 @@ export function ProductActivityTab({ productId }: { productId: string }) {
         ? overrides.occurredTo
         : filters.occurredTo;
 
-    put("type", fType);
     if (fActorIds?.length) put("actorIds", fActorIds.join(","));
     put("occurredFrom", fFrom ?? "");
     put("occurredTo", fTo ?? "");
@@ -206,15 +153,13 @@ export function ProductActivityTab({ productId }: { productId: string }) {
     const qpMode = (searchParams.get("mode") as ViewMode) || "table";
 
     const qpLimit = Number(searchParams.get("limit") ?? "");
-    const effectiveLimit =
-      Number.isFinite(qpLimit) && qpLimit > 0 ? Math.max(1, Math.min(100, qpLimit)) : limit;
+    const effectiveLimit = Number.isFinite(qpLimit) && qpLimit > 0 ? Math.max(1, Math.min(100, qpLimit)) : limit;
 
     const qpPage = Number(searchParams.get("page") ?? "1");
     const initialPageIndex = Number.isFinite(qpPage) && qpPage > 0 ? qpPage - 1 : 0;
 
     const qpCursor = searchParams.get("cursor");
 
-    const qpType = (searchParams.get("type") as Filters["type"]) || "all";
     const qpActorIds = (searchParams.get("actorIds") || "")
       .split(",")
       .map((s) => s.trim())
@@ -230,24 +175,20 @@ export function ProductActivityTab({ productId }: { productId: string }) {
     setShowFilters(qpFiltersOpen);
 
     setFilters({
-      type: qpType,
       actorIds: qpActorIds,
       occurredFrom: qpFrom || null,
       occurredTo: qpTo || null,
     });
 
-    // initial read for per-page preference
     localStorage.setItem(LOCALSTORAGE_LIMIT_KEY, String(effectiveLimit));
-
     return { cursor: qpCursor ?? null, includeTotal: true };
   }
 
-  // ---- Data fetching -------------------------------------------------------
   async function fetchPage(opts?: {
     cursor?: string | null;
     keepFacets?: boolean;
     limitOverride?: number;
-    includeTotal?: boolean; // ask server to compute total
+    includeTotal?: boolean;
   }) {
     const fetchingJustPagination = opts?.keepFacets === true && !opts?.includeTotal;
     !fetchingJustPagination && setIsLoading(true);
@@ -255,31 +196,23 @@ export function ProductActivityTab({ productId }: { productId: string }) {
 
     try {
       const effectiveLimit = opts?.limitOverride ?? limit;
+      const cursorSpread = typeof opts?.cursor === "string" ? { cursor: opts.cursor } : {};
 
-      // Only include cursor when it’s a string (omit for first page)
-      const cursorSpread =
-        typeof opts?.cursor === "string" ? { cursor: opts.cursor } : {};
-
-      const res = await getProductActivityApiRequest({
-        productId,
+      const res = await getTenantUserActivityApiRequest({
+        userId,
         limit: effectiveLimit,
         ...cursorSpread,
-        type: filters.type,
         ...(filters.actorIds.length ? { actorIds: filters.actorIds } : {}),
-        ...(filters.occurredFrom
-          ? { occurredFrom: dayjs(filters.occurredFrom).toISOString() }
-          : {}),
-        ...(filters.occurredTo
-          ? { occurredTo: dayjs(filters.occurredTo).toISOString() }
-          : {}),
-        includeFacets: !opts?.keepFacets, // hydrate facets for first page / explicit refresh
-        includeTotal: opts?.includeTotal === true, // totals on first / explicit refresh / filter change / per-page change
+        ...(filters.occurredFrom ? { occurredFrom: dayjs(filters.occurredFrom).toISOString() } : {}),
+        ...(filters.occurredTo ? { occurredTo: dayjs(filters.occurredTo).toISOString() } : {}),
+        includeFacets: !opts?.keepFacets,
+        includeTotal: opts?.includeTotal === true,
       });
 
       if (!res.success) throw new Error("Failed to load activity");
       const data = res.data;
 
-      const items = (data.items ?? []) as UnifiedActivityItem[];
+      const items = (data.items ?? []) as ActivityItem[];
       setRows(items);
 
       const serverHasNext = Boolean(data.pageInfo?.hasNextPage);
@@ -288,23 +221,20 @@ export function ProductActivityTab({ productId }: { productId: string }) {
       setHasNextPage(serverHasNext && !!serverNextCursor);
       setNextCursor(serverHasNext && serverNextCursor ? serverNextCursor : null);
 
-      // Totals
       if (typeof data.pageInfo?.totalCount === "number") {
         setTotalCount(data.pageInfo.totalCount);
       } else if (opts?.includeTotal) {
         setTotalCount(null);
       }
 
-      // Facets (cache by productId)
       if (!opts?.keepFacets) {
         const fromServer = (data as any).facets?.actors as Array<{ userId: string; display: string }> | undefined;
         if (fromServer) {
           const mapped = fromServer.map((a) => ({ value: a.userId, label: a.display }));
-          facetCache.current.set(productId, { actors: mapped });
+          facetCache.current.set(userId, { actors: mapped });
           setActorOptions(mapped);
         } else {
-          // use cache if present
-          const cached = facetCache.current.get(productId)?.actors;
+          const cached = facetCache.current.get(userId)?.actors;
           if (cached) setActorOptions(cached);
         }
       }
@@ -315,11 +245,7 @@ export function ProductActivityTab({ productId }: { productId: string }) {
     }
   }
 
-  // Reset pagination & fetch page 1 (usually after filters or per-page change)
-  function resetToFirstPageAndFetch(opts?: {
-    keepFacets?: boolean;
-    limitOverride?: number;
-  }) {
+  function resetToFirstPageAndFetch(opts?: { keepFacets?: boolean; limitOverride?: number }) {
     setCursorStack([null]);
     setPageIndex(0);
 
@@ -327,7 +253,6 @@ export function ProductActivityTab({ productId }: { productId: string }) {
       page: 1,
       cursor: null,
       limit: opts?.limitOverride ?? limit,
-      type: filters.type,
       actorIds: filters.actorIds,
       occurredFrom: filters.occurredFrom,
       occurredTo: filters.occurredTo,
@@ -343,7 +268,7 @@ export function ProductActivityTab({ productId }: { productId: string }) {
     });
   }
 
-  // Initial load / when product changes
+  // initial + user change
   useEffect(() => {
     setRows(null);
     setErrorForBoundary(null);
@@ -355,28 +280,26 @@ export function ProductActivityTab({ productId }: { productId: string }) {
 
     const { cursor, includeTotal } = parseUrlOnMount();
 
-    // hydrate facets if cached
-    const cached = facetCache.current.get(productId)?.actors;
+    const cached = facetCache.current.get(userId)?.actors;
     if (cached) setActorOptions(cached);
 
     void fetchPage({ cursor, includeTotal });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productId]);
+  }, [userId]);
 
-  // Handle browser back/forward
+  // back/forward
   useEffect(() => {
     if (navType !== "POP") return;
     const sp = new URLSearchParams(location.search);
+
     const qpMode = (sp.get("mode") as ViewMode) || "table";
     const qpLimit = Number(sp.get("limit") ?? "");
-    const effectiveLimit =
-      Number.isFinite(qpLimit) && qpLimit > 0 ? Math.max(1, Math.min(100, qpLimit)) : limit;
+    const effectiveLimit = Number.isFinite(qpLimit) && qpLimit > 0 ? Math.max(1, Math.min(100, qpLimit)) : limit;
 
     const qpPage = Number(sp.get("page") ?? "1");
     const newIndex = Number.isFinite(qpPage) && qpPage > 0 ? qpPage - 1 : 0;
 
     const qpCursor = sp.get("cursor");
-    const qpType = (sp.get("type") as Filters["type"]) || "all";
     const qpActorIds = (sp.get("actorIds") || "")
       .split(",")
       .map((s) => s.trim())
@@ -387,44 +310,31 @@ export function ProductActivityTab({ productId }: { productId: string }) {
 
     setMode(qpMode);
     setLimit(effectiveLimit);
-    setFilters({
-      type: qpType,
-      actorIds: qpActorIds,
-      occurredFrom: qpFrom || null,
-      occurredTo: qpTo || null,
-    });
-
+    setFilters({ actorIds: qpActorIds, occurredFrom: qpFrom || null, occurredTo: qpTo || null });
     setCursorStack([qpCursor ?? null]);
     setPageIndex(newIndex);
     setShowFilters(qpFiltersOpen);
 
-    void fetchPage({
-      cursor: qpCursor ?? null,
-      keepFacets: true,
-      includeTotal: true,
-    });
-  }, [location.key, navType]); // eslint-disable-line react-hooks/exhaustive-deps
+    void fetchPage({ cursor: qpCursor ?? null, keepFacets: true, includeTotal: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.key, navType]);
 
-  // Re-fetch whenever *applied* filters change → go back to page 1 (and update URL)
+  // refetch on applied filters change
   useEffect(() => {
-    if (rows === null) return; // wait for initial load
-
+    if (rows === null) return;
     writeUrlState({
       page: 1,
       cursor: null,
-      type: filters.type,
       actorIds: filters.actorIds,
       occurredFrom: filters.occurredFrom,
       occurredTo: filters.occurredTo,
     });
-
     resetToFirstPageAndFetch({ keepFacets: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.type, JSON.stringify(filters.actorIds), filters.occurredFrom, filters.occurredTo]);
+  }, [JSON.stringify(filters.actorIds), filters.occurredFrom, filters.occurredTo]);
 
   if (errorForBoundary) throw errorForBoundary;
 
-  // Paging actions + URL sync
   async function goNext() {
     if (!hasNextPage || !nextCursor) return;
     const newIndex = pageIndex + 1;
@@ -443,27 +353,22 @@ export function ProductActivityTab({ productId }: { productId: string }) {
     await fetchPage({ cursor: prevCursor, keepFacets: true });
   }
 
-  // Active filter chips (quick clear)
   const activeFilterChips = useMemo(() => {
-    const chips: { key: keyof Filters | "actorIds" | "type"; label: string }[] = [];
-    if (filters.type !== "all") chips.push({ key: "type", label: `type: ${filters.type}` });
-    if (filters.actorIds.length)
-      chips.push({ key: "actorIds", label: `actors: ${filters.actorIds.length}` });
+    const chips: { key: keyof Filters | "actorIds"; label: string }[] = [];
+    if (filters.actorIds.length) chips.push({ key: "actorIds", label: `actors: ${filters.actorIds.length}` });
     if (filters.occurredFrom) chips.push({ key: "occurredFrom", label: `from: ${filters.occurredFrom}` });
     if (filters.occurredTo) chips.push({ key: "occurredTo", label: `to: ${filters.occurredTo}` });
     return chips;
   }, [filters]);
 
-  function clearOneChip(key: keyof Filters | "actorIds" | "type") {
+  function clearOneChip(key: keyof Filters | "actorIds") {
     const next: Filters = {
       ...filters,
-      type: key === "type" ? "all" : filters.type,
       actorIds: key === "actorIds" ? [] : filters.actorIds,
       occurredFrom: key === "occurredFrom" ? null : filters.occurredFrom,
       occurredTo: key === "occurredTo" ? null : filters.occurredTo,
     };
     setFilters(next);
-    // URL + fetch handled by effect
   }
 
   const header = (
@@ -471,7 +376,7 @@ export function ProductActivityTab({ productId }: { productId: string }) {
       <Stack gap="1">
         <Title order={4}>Activity</Title>
         <Text size="sm" c="dimmed" aria-live="polite" aria-atomic="true">
-          {rangeText} · Product changes + stock movements
+          {rangeText} · User changes (account, role, branches)
         </Text>
       </Stack>
 
@@ -499,17 +404,14 @@ export function ProductActivityTab({ productId }: { productId: string }) {
           }}
           rightSection={showFilters ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />}
           aria-expanded={showFilters}
-          aria-controls="product-activity-filters"
+          aria-controls="tenant-user-activity-filters"
         >
           Filters
         </Button>
         <Button
           leftSection={<IconRefresh size={16} />}
           variant="light"
-          onClick={() => {
-            // explicit refresh = refresh facets + totals
-            resetToFirstPageAndFetch({ keepFacets: false });
-          }}
+          onClick={() => resetToFirstPageAndFetch({ keepFacets: false })}
           title="Refresh (also refreshes facets & totals)"
         >
           Refresh
@@ -518,40 +420,18 @@ export function ProductActivityTab({ productId }: { productId: string }) {
     </Group>
   );
 
-  // Collapsible FilterBar (draft -> apply -> updates `filters`)
   const filterPanel = (
     <>
       <FilterBar<Filters>
         open={showFilters}
-        panelId="product-activity-filters"
+        panelId="tenant-user-activity-filters"
         initialValues={filters}
         emptyValues={emptyFilters}
-        onApply={(vals) => {
-          setFilters(vals);
-        }}
-        onClear={() => {
-          setFilters(emptyFilters);
-        }}
+        onApply={(vals) => setFilters(vals)}
+        onClear={() => setFilters(emptyFilters)}
       >
         {({ values, setValues }) => (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Select
-              label="Type"
-              placeholder="All"
-              value={values.type}
-              onChange={(v) =>
-                setValues((prev) => ({
-                  ...prev,
-                  type: (v as Filters["type"]) ?? "all",
-                }))
-              }
-              data={[
-                { value: "all", label: "All" },
-                { value: "audit", label: "Product changes" },
-                { value: "ledger", label: "Stock movements" },
-              ]}
-            />
-
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <MultiSelect
               label="Actor"
               placeholder="All actors"
@@ -561,49 +441,33 @@ export function ProductActivityTab({ productId }: { productId: string }) {
               searchable
               clearable
             />
-
             <DatePickerInput
               label="Occurred from"
               placeholder="Start date"
               value={values.occurredFrom ? new Date(values.occurredFrom) : null}
-              onChange={(d) =>
-                setValues((prev) => ({
-                  ...prev,
-                  occurredFrom: d ? dayjs(d).format("YYYY-MM-DD") : null,
-                }))
-              }
+              onChange={(d) => setValues((prev) => ({ ...prev, occurredFrom: d ? dayjs(d).format("YYYY-MM-DD") : null }))}
               popoverProps={{ withinPortal: true }}
               presets={buildCommonDatePresets()}
               valueFormat="YYYY-MM-DD"
               clearable
             />
-
             <DatePickerInput
               label="Occurred to"
               placeholder="End date"
               value={values.occurredTo ? new Date(values.occurredTo) : null}
-              onChange={(d) =>
-                setValues((prev) => ({
-                  ...prev,
-                  occurredTo: d ? dayjs(d).format("YYYY-MM-DD") : null,
-                }))
-              }
+              onChange={(d) => setValues((prev) => ({ ...prev, occurredTo: d ? dayjs(d).format("YYYY-MM-DD") : null }))}
+              valueFormat="YYYY-MM-DD"  
               popoverProps={{ withinPortal: true }}
               presets={buildCommonDatePresets()}
-              valueFormat="YYYY-MM-DD"
               clearable
             />
           </div>
         )}
       </FilterBar>
-
-      
-
       <Space h="md" />
     </>
   );
 
-  // Pagination controls (shared for table & timeline)
   const paginationBar = (
     <Group justify="space-between" mt="md">
       <Text size="sm" c="dimmed" aria-live="polite" aria-atomic="true">
@@ -611,36 +475,18 @@ export function ProductActivityTab({ productId }: { productId: string }) {
         {totalPages != null ? ` · Page ${pageIndex + 1} of ${totalPages}` : ` · Page ${pageIndex + 1}`}
       </Text>
       <Group gap="xs">
-        <Button
-          variant="light"
-          leftSection={<IconPlayerTrackPrev size={16} />}
-          onClick={goPrev}
-          disabled={
-            isPaginating ||
-            pageIndex === 0 ||
-            (pageIndex > 0 && cursorStack[pageIndex - 1] === undefined)
-          }
-        >
+        <Button variant="light" leftSection={<IconPlayerTrackPrev size={16} />} onClick={goPrev} disabled={isPaginating || pageIndex === 0 || (pageIndex > 0 && cursorStack[pageIndex - 1] === undefined)}>
           Prev
         </Button>
-        <Text size="sm" c="dimmed">
-          Page {pageIndex + 1}
-        </Text>
-        <Button
-          variant="light"
-          rightSection={<IconPlayerTrackNext size={16} />}
-          onClick={goNext}
-          disabled={!hasNextPage || isPaginating}
-        >
+        <Text size="sm" c="dimmed">Page {pageIndex + 1}</Text>
+        <Button variant="light" rightSection={<IconPlayerTrackNext size={16} />} onClick={goNext} disabled={!hasNextPage || isPaginating}>
           Next
         </Button>
       </Group>
     </Group>
   );
 
-  // Loading skeletons
   const isInitialLoading = rows === null || isLoading;
-
   if (isInitialLoading) {
     return (
       <Paper withBorder p="md" radius="md" className="bg-white">
@@ -660,12 +506,10 @@ export function ProductActivityTab({ productId }: { productId: string }) {
         {header}
         {filterPanel}
         <div className="py-16 text-center">
-          <Title order={5} mb="xs">
-            No activity matches your filters
-          </Title>
+          <Title order={5} mb="xs">No activity matches your filters</Title>
           <Text c="dimmed" mb="md">Try adjusting your filters.</Text>
           <Group justify="center">
-            <Button variant="light" onClick={() => setShowFilters(true)} aria-controls="product-activity-filters" aria-expanded={showFilters}>
+            <Button variant="light" onClick={() => setShowFilters(true)} aria-controls="tenant-user-activity-filters" aria-expanded={showFilters}>
               Show filters
             </Button>
             <Button onClick={() => resetToFirstPageAndFetch({ keepFacets: false })}>
@@ -678,7 +522,6 @@ export function ProductActivityTab({ productId }: { productId: string }) {
     );
   }
 
-  // A tiny loading overlay during pagination
   const Overlay = () =>
     isPaginating ? (
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-white/60 rounded-md">
@@ -688,38 +531,26 @@ export function ProductActivityTab({ productId }: { productId: string }) {
 
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-  // Timeline view
   if (mode === "timeline") {
     return (
       <>
         {header}
         {filterPanel}
-        <Paper withBorder p="md" radius="md" className="bg-white relative" >
+        <Paper withBorder p="md" radius="md" className="bg-white relative">
           <Overlay />
           <Timeline active={-1} bulletSize={12} lineWidth={2}>
             {rows.map((it) => {
               const whenDate = new Date(it.when);
               const whenAbs = whenDate.toLocaleString();
               const whenRel = dayjs(whenDate).fromNow();
-              const color = it.kind === "audit" ? "blue" : "grape";
-              const pill =
-                it.kind === "audit" ? (
-                  <Badge size="xs" variant="light">
-                    {(it as Extract<UnifiedActivityItem, { kind: "audit" }>).action}
-                  </Badge>
-                ) : (
-                  <Badge size="xs" variant="light" color="grape">
-                    {(it as Extract<UnifiedActivityItem, { kind: "ledger" }>).entryKind}
-                  </Badge>
-                );
               return (
                 <Timeline.Item
                   key={`${it.kind}:${it.id}`}
-                  color={color}
+                  color="blue"
                   title={
                     <Group gap="xs" wrap="wrap">
                       <Text fw={600}>{it.message}</Text>
-                      {pill}
+                      <Badge size="xs" variant="light">{it.action}</Badge>
                       {it.actor ? (
                         <Anchor
                           component={Link}
@@ -733,9 +564,7 @@ export function ProductActivityTab({ productId }: { productId: string }) {
                         <Text size="sm" c="dimmed">—</Text>
                       )}
                       <Tooltip label={`${whenAbs} (${timeZone})`} withArrow>
-                        <Text size="sm" c="dimmed">
-                          {whenAbs} · {whenRel}
-                        </Text>
+                        <Text size="sm" c="dimmed">{whenAbs} · {whenRel}</Text>
                       </Tooltip>
                     </Group>
                   }
@@ -749,23 +578,15 @@ export function ProductActivityTab({ productId }: { productId: string }) {
     );
   }
 
-  // Table view
+  // Table
   return (
     <>
       {header}
       {filterPanel}
 
-      {/* Per-page control (table top-right) */}
       <Paper withBorder p="md" radius="md" className="bg-white max-h-[70vh] overflow-y-auto">
         <Group justify="space-between" align="center" gap="xs" wrap="wrap">
-          {/* Left area always exists and takes horizontal space */}
-          <Group
-            gap="xs"
-            mt={activeFilterChips.length > 0 ? "xs" : 0}
-            wrap="wrap"
-            // make this container occupy available space even if empty
-            style={{ flex: 1 }}
-          >
+          <Group gap="xs" mt={activeFilterChips.length > 0 ? "xs" : 0} wrap="wrap" style={{ flex: 1 }}>
             {activeFilterChips.length > 0 && (
               <>
                 {activeFilterChips.map((chip) => (
@@ -785,23 +606,15 @@ export function ProductActivityTab({ productId }: { productId: string }) {
                     {chip.label}
                   </Badge>
                 ))}
-                <Button
-                  variant="subtle"
-                  size="xs"
-                  onClick={() => setFilters(emptyFilters)}
-                  aria-label="Clear all filters"
-                >
+                <Button variant="subtle" size="xs" onClick={() => setFilters(emptyFilters)} aria-label="Clear all filters">
                   Clear all
                 </Button>
               </>
             )}
           </Group>
 
-          {/* Right area: per-page control */}
           <Group align="center" gap="xs">
-            <Text size="sm" c="dimmed">
-              Per page
-            </Text>
+            <Text size="sm" c="dimmed">Per page</Text>
             <NumberInput
               value={limit}
               onChange={(v) => {
@@ -817,21 +630,20 @@ export function ProductActivityTab({ productId }: { productId: string }) {
               clampBehavior="strict"
               w={rem(90)}
               aria-label="Results per page"
-              aria-controls="product-activity-table"
+              aria-controls="tenant-user-activity-table"
             />
           </Group>
         </Group>
-
 
         <Space h="md" />
 
         <div className="relative">
           <Overlay />
-          <Table id="product-activity-table" striped withTableBorder withColumnBorders stickyHeader>
+          <Table id="tenant-user-activity-table" striped withTableBorder withColumnBorders stickyHeader>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>When</Table.Th>
-                <Table.Th>Type</Table.Th>
+                <Table.Th>Action</Table.Th>
                 <Table.Th>Summary</Table.Th>
                 <Table.Th>Actor</Table.Th>
               </Table.Tr>
@@ -845,21 +657,11 @@ export function ProductActivityTab({ productId }: { productId: string }) {
                   <Table.Tr key={`${it.kind}:${it.id}`}>
                     <Table.Td>
                       <Tooltip label={`${whenAbs} (${timeZone})`} withArrow>
-                        <Text size="sm">
-                          {whenAbs} · {whenRel}
-                        </Text>
+                        <Text size="sm">{whenAbs} · {whenRel}</Text>
                       </Tooltip>
                     </Table.Td>
                     <Table.Td>
-                      {it.kind === "audit" ? (
-                        <Badge variant="light">
-                          {(it as Extract<UnifiedActivityItem, { kind: "audit" }>).action}
-                        </Badge>
-                      ) : (
-                        <Badge variant="light" color="grape">
-                          {(it as Extract<UnifiedActivityItem, { kind: "ledger" }>).entryKind}
-                        </Badge>
-                      )}
+                      <Badge variant="light">{it.action}</Badge>
                     </Table.Td>
                     <Table.Td>
                       <Text size="sm">{it.message}</Text>

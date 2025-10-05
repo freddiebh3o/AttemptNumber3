@@ -1,6 +1,6 @@
 // api-server/src/openapi/schemas/tenantUsers.ts
-import { z } from 'zod';
-import { ZodPermissionKey } from '../components/rbac.js';
+import { z } from "zod";
+import { ZodPermissionKey } from "../components/rbac.js";
 
 export const ZodBranchSummary = z
   .object({
@@ -10,9 +10,9 @@ export const ZodBranchSummary = z
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
   })
-  .openapi('BranchSummary');
+  .openapi("BranchSummary");
 
-  export const ZodRoleSummary = z
+export const ZodRoleSummary = z
   .object({
     id: z.string(),
     name: z.string(),
@@ -23,7 +23,7 @@ export const ZodBranchSummary = z
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
   })
-  .openapi('RoleSummary');
+  .openapi("RoleSummary");
 
 export const ZodTenantUserRecord = z
   .object({
@@ -34,7 +34,7 @@ export const ZodTenantUserRecord = z
     createdAt: z.string().datetime().optional(),
     updatedAt: z.string().datetime().optional(),
   })
-  .openapi('TenantUserRecord');
+  .openapi("TenantUserRecord");
 
 export const ZodListTenantUsersQuery = z
   .object({
@@ -43,15 +43,29 @@ export const ZodListTenantUsersQuery = z
     q: z.string().optional(),
     roleId: z.string().optional(),
     roleName: z.string().optional(),
-    createdAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-    createdAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-    updatedAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-    updatedAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-    sortBy: z.enum(['createdAt', 'updatedAt', 'userEmailAddress', 'role']).optional(),
-    sortDir: z.enum(['asc', 'desc']).optional(),
+    createdAtFrom: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    createdAtTo: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    updatedAtFrom: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    updatedAtTo: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    sortBy: z
+      .enum(["createdAt", "updatedAt", "userEmailAddress", "role"])
+      .optional(),
+    sortDir: z.enum(["asc", "desc"]).optional(),
     includeTotal: z.boolean().optional(),
   })
-  .openapi('ListTenantUsersQuery');
+  .openapi("ListTenantUsersQuery");
 
 export const ZodTenantUsersListResponseData = z
   .object({
@@ -64,21 +78,33 @@ export const ZodTenantUsersListResponseData = z
     applied: z.object({
       limit: z.number().int().min(1).max(100),
       sort: z.object({
-        field: z.enum(['createdAt', 'updatedAt', 'userEmailAddress', 'role']),
-        direction: z.enum(['asc', 'desc']),
+        field: z.enum(["createdAt", "updatedAt", "userEmailAddress", "role"]),
+        direction: z.enum(["asc", "desc"]),
       }),
       filters: z.object({
         q: z.string().optional(),
         roleId: z.string().optional(),
         roleName: z.string().optional(),
-        createdAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-        createdAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-        updatedAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-        updatedAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        createdAtFrom: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
+        createdAtTo: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
+        updatedAtFrom: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
+        updatedAtTo: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
       }),
     }),
   })
-  .openapi('TenantUsersListResponseData');
+  .openapi("TenantUsersListResponseData");
 
 export const ZodCreateTenantUserBody = z
   .object({
@@ -87,7 +113,7 @@ export const ZodCreateTenantUserBody = z
     roleId: z.string(),
     branchIds: z.array(z.string()).optional(),
   })
-  .openapi('CreateTenantUserBody');
+  .openapi("CreateTenantUserBody");
 
 export const ZodUpdateTenantUserBody = z
   .object({
@@ -96,4 +122,59 @@ export const ZodUpdateTenantUserBody = z
     roleId: z.string().optional(),
     branchIds: z.array(z.string()).optional(),
   })
-  .openapi('UpdateTenantUserBody');
+  .openapi("UpdateTenantUserBody");
+
+export const ZodTenantUserActivityItem = z
+  .object({
+    kind: z.literal("audit"),
+    id: z.string(),
+    when: z.string().datetime(),
+    action: z.string(),
+    message: z.string(),
+    messageParts: z.object({}).catchall(z.any()).nullable().optional(),
+    actor: z
+      .object({
+        userId: z.string(),
+        display: z.string(),
+      })
+      .nullable()
+      .optional(),
+    correlationId: z.string().nullable().optional(),
+  })
+  .openapi("TenantUserActivityItem");
+
+export const ZodListTenantUserActivityQuery = z
+  .object({
+    limit: z.number().int().min(1).max(100).optional(),
+    cursor: z.string().optional(),
+    actorIds: z.string().optional(), // CSV
+    occurredFrom: z.string().optional(), // ISO or YYYY-MM-DD
+    occurredTo: z.string().optional(),
+    includeFacets: z.boolean().optional(),
+    includeTotal: z.boolean().optional(),
+  })
+  .openapi("ListTenantUserActivityQuery");
+
+export const ZodTenantUserActivityResponseData = z
+  .object({
+    items: z.array(ZodTenantUserActivityItem),
+    pageInfo: z.object({
+      hasNextPage: z.boolean(),
+      nextCursor: z.string().nullable().optional(),
+      totalCount: z.number().int().min(0).optional(),
+    }),
+    facets: z
+      .object({
+        actors: z.array(z.object({ userId: z.string(), display: z.string() })),
+      })
+      .optional(),
+    applied: z.object({
+      limit: z.number().int().min(1).max(100),
+      filters: z.object({
+        actorIds: z.array(z.string()).optional(),
+        occurredFrom: z.string().optional(),
+        occurredTo: z.string().optional(),
+      }),
+    }),
+  })
+  .openapi("TenantUserActivityResponseData");

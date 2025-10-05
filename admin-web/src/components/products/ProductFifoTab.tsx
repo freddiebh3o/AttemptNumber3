@@ -1,5 +1,4 @@
 // admin-web/src/components/products/ProductFifoTab.tsx
-// admin-web/src/components/products/ProductFifoTab.tsx
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -54,6 +53,7 @@ import { handlePageError } from "../../utils/pageError";
 import { FilterBar } from "../common/FilterBar";
 import { useAuthStore } from "../../stores/auth";
 import { formatPenceAsGBP } from "../../utils/money";
+import { buildCommonDatePresets } from "../../utils/datePresets";
 
 type Branch = { id: string; branchName: string };
 
@@ -950,6 +950,7 @@ export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts })
                   onChange={(v) => setValues((prev) => ({ ...prev, occurredFrom: v }))}
                   valueFormat="YYYY-MM-DD"
                   popoverProps={{ withinPortal: true }}
+                  presets={buildCommonDatePresets()} 
                   clearable
                 />
               </Grid.Col>
@@ -962,6 +963,7 @@ export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts })
                   onChange={(v) => setValues((prev) => ({ ...prev, occurredTo: v }))} 
                   valueFormat="YYYY-MM-DD"
                   popoverProps={{ withinPortal: true }}
+                  presets={buildCommonDatePresets()} 
                   clearable
                 />
               </Grid.Col>

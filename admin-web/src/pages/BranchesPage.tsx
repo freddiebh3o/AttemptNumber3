@@ -51,6 +51,7 @@ import { handlePageError } from "../utils/pageError";
 import { useAuthStore } from "../stores/auth";
 import { FilterBar } from "../components/common/FilterBar";
 import type { components } from "../types/openapi";
+import { buildCommonDatePresets } from "../utils/datePresets";
 
 type BranchRow = components["schemas"]["BranchRecord"];
 
@@ -726,6 +727,7 @@ export default function BranchesPage() {
                 }
                 valueFormat="YYYY-MM-DD"
                 popoverProps={{ withinPortal: true }}
+                presets={buildCommonDatePresets()}
                 clearable
               />
             </Grid.Col>
@@ -739,6 +741,7 @@ export default function BranchesPage() {
                   setValues((prev) => ({ ...prev, createdAtTo: v }))
                 }
                 valueFormat="YYYY-MM-DD"
+                presets={buildCommonDatePresets()}
                 popoverProps={{ withinPortal: true }}
                 clearable
               />
@@ -754,6 +757,7 @@ export default function BranchesPage() {
                 }
                 valueFormat="YYYY-MM-DD"
                 popoverProps={{ withinPortal: true }}
+                presets={buildCommonDatePresets()}
                 clearable
               />
             </Grid.Col>
@@ -768,6 +772,7 @@ export default function BranchesPage() {
                 }
                 valueFormat="YYYY-MM-DD"
                 popoverProps={{ withinPortal: true }}
+                presets={buildCommonDatePresets()}
                 clearable
               />
             </Grid.Col>

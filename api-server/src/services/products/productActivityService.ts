@@ -1,5 +1,5 @@
 // api-server/src/services/ProductActivityService.ts
-import { prismaClientInstance as prisma } from '../db/prismaClient.js';
+import { prismaClientInstance as prisma } from '../../db/prismaClient.js';
 import type { Prisma } from '@prisma/client';
 
 type GetActivityParams = {
