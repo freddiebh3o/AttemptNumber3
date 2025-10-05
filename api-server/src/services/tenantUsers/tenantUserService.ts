@@ -1,4 +1,4 @@
-// api-server/src/services/tenantUserService.ts
+// api-server/src/services/tenantUsers/tenantUserService.ts
 import { Prisma, AuditAction, AuditEntityType } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { Errors } from '../../utils/httpErrors.js';

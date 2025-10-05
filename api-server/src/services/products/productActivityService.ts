@@ -1,4 +1,4 @@
-// api-server/src/services/ProductActivityService.ts
+// api-server/src/services/products/productActivityService.ts
 import { prismaClientInstance as prisma } from '../../db/prismaClient.js';
 import type { Prisma } from '@prisma/client';
 
