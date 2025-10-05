@@ -468,6 +468,8 @@ If you need initial data in the new environment:
 
 ## Future fetures
 ### Features to complete by Monday
+* When creating/editing something and saving, keep them on the thing they are editting/creating instead of returning them to the index page
+* Fix UI of some of the tables. Pagination should be locked to the bottom of the section and only the itself should scroll
 
 * Find a way to simulate what happens when a session expires 
   * Current suspicion is that you are not automatically logged out 
