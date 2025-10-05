@@ -20,7 +20,8 @@ import RolesPage from './pages/RolesPage'
 import BranchesPage from './pages/BranchesPage'
 import TenantUserPage from './pages/TenantUserPage'
 import ProductPage from './pages/ProductPage'
-import AuditLogPage from './pages/AuditLogPage' // ⬅️ NEW
+import AuditLogPage from './pages/AuditLogPage'
+import RolePage from './pages/RolePage'
 
 const router = createBrowserRouter([
   {
@@ -63,8 +64,6 @@ const router = createBrowserRouter([
             ),
             errorElement: <RouteErrorBoundary />,
           },
-
-          // ⬇️ NEW: Tenant-level Audit Log (admins)
           {
             path: 'audit',
             element: (
@@ -74,7 +73,6 @@ const router = createBrowserRouter([
             ),
             errorElement: <RouteErrorBoundary />
           },
-
           { 
             path: 'users', 
             element: (
@@ -116,6 +114,15 @@ const router = createBrowserRouter([
             element: (
               <RequirePermission perm="roles:manage">
                 <RolesPage />
+              </RequirePermission>
+            ),
+            errorElement: <RouteErrorBoundary />
+          },
+          {
+            path: 'roles/:roleId',
+            element: (
+              <RequirePermission perm="roles:manage">
+                <RolePage />
               </RequirePermission>
             ),
             errorElement: <RouteErrorBoundary />

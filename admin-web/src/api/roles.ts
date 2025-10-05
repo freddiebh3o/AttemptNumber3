@@ -8,6 +8,7 @@ type ListRoles200 =
 type CreateRoleBody = NonNullable<
   paths["/api/roles"]["post"]["requestBody"]
 >["content"]["application/json"];
+
 type CreateRole201 =
   paths["/api/roles"]["post"]["responses"]["201"]["content"]["application/json"];
 
@@ -23,9 +24,18 @@ type DeleteRole200 =
 type ListPermissions200 =
   paths["/api/permissions"]["get"]["responses"]["200"]["content"]["application/json"];
 
+type GetRole200 =
+  paths["/api/roles/{roleId}"]["get"]["responses"]["200"]["content"]["application/json"];
+
+type GetRoleActivity200 =
+  paths["/api/roles/{roleId}/activity"]["get"]["responses"]["200"]["content"]["application/json"];
+
 export type RoleRecord = components["schemas"]["RoleRecord"];
 export type PermissionRecord = components["schemas"]["PermissionRecord"];
 export type PermissionKey = components["schemas"]["PermissionKey"];
+
+// Optional: schema types for activity (handy if you want to export them)
+export type RoleActivityItem = components["schemas"]["RoleActivityItem"];
 
 export async function listRolesApiRequest(params?: {
   limit?: number;
@@ -78,6 +88,12 @@ export async function listPermissionsApiRequest() {
   });
 }
 
+export async function getRoleApiRequest(roleId: string) {
+  return httpRequestJson<GetRole200>(`/api/roles/${roleId}`, {
+    method: "GET",
+  });
+}
+
 export async function createRoleApiRequest(
   body: CreateRoleBody,
   idempotencyKey?: string
@@ -109,4 +125,29 @@ export async function deleteRoleApiRequest(
     method: "DELETE",
     headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
   });
+}
+
+export async function getRoleActivityApiRequest(params: {
+  roleId: string;
+  limit?: number;
+  cursor?: string;
+  occurredFrom?: string; // ISO
+  occurredTo?: string;   // ISO
+  actorIds?: string[];   // CSV of user IDs
+  includeFacets?: boolean;
+  includeTotal?: boolean;
+}) {
+  const search = new URLSearchParams();
+  if (params.limit !== undefined) search.set("limit", String(params.limit));
+  if (params.cursor) search.set("cursor", params.cursor);
+  if (params.occurredFrom) search.set("occurredFrom", params.occurredFrom);
+  if (params.occurredTo) search.set("occurredTo", params.occurredTo);
+  if (params.actorIds?.length) search.set("actorIds", params.actorIds.join(","));
+  if (params.includeFacets) search.set("includeFacets", "1");
+  if (params.includeTotal) search.set("includeTotal", "1");
+
+  const qs = search.toString();
+  return httpRequestJson<GetRoleActivity200>(
+    `/api/roles/${params.roleId}/activity${qs ? `?${qs}` : ""}`
+  );
 }

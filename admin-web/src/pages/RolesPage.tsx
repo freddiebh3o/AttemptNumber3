@@ -5,6 +5,8 @@ import {
   useParams,
   useLocation,
   useNavigationType,
+  Link,
+  useNavigate,
 } from "react-router-dom";
 import {
   ActionIcon,
@@ -26,6 +28,7 @@ import {
   Select,
   MultiSelect,
   SegmentedControl,
+  Anchor,
 } from "@mantine/core";
 import { DatePickerInput } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
@@ -53,7 +56,6 @@ import {
 } from "../api/roles";
 import type { components } from "../types/openapi";
 import { FilterBar } from "../components/common/FilterBar";
-import RoleUpsertModal from "../components/roles/RoleUpsertModal";
 import { buildCommonDatePresets } from "../utils/datePresets";
 
 type RoleRecord = components["schemas"]["RoleRecord"];
@@ -68,7 +70,6 @@ type RoleFilters = {
   createdAtTo: string | null;
   updatedAtFrom: string | null;
   updatedAtTo: string | null;
-  // NEW: permissions filter
   permissionKeys: PermissionKey[];
   permMatch: "any" | "all";
 };
@@ -94,6 +95,7 @@ export default function RolesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const navigationType = useNavigationType();
+  const navigate = useNavigate();
 
   // data
   const [rows, setRows] = useState<RoleRecord[] | null>(null);
@@ -125,10 +127,6 @@ export default function RolesPage() {
   // filters
   const [appliedFilters, setAppliedFilters] =
     useState<RoleFilters>(emptyFilters);
-
-  // modal (create/edit)
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<RoleRecord | null>(null);
 
   if (errorForBoundary) throw errorForBoundary;
 
@@ -331,7 +329,6 @@ export default function RolesPage() {
         sortBy: opts?.sortByOverride ?? sortBy,
         sortDir: opts?.sortDirOverride ?? sortDir,
         includeTotal: opts?.includeTotal === true,
-        // NEW:
         permissionKeys:
           Array.isArray(permKeysParam) && permKeysParam.length > 0
             ? permKeysParam
@@ -438,7 +435,7 @@ export default function RolesPage() {
     applyAndFetch(emptyFilters);
   }
 
-  // Load permission catalogue for the multiselect (once when page opens)
+  // Load permission catalogue for multiselect
   useEffect(() => {
     let cancelled = false;
     setPermLoading(true);
@@ -483,7 +480,6 @@ export default function RolesPage() {
     const qpUpdatedTo = searchParams.get("updatedAtTo");
     const qpCursor = searchParams.get("cursorId");
 
-    // NEW: permission filters from URL (CSV)
     const qpPermKeysCSV = searchParams.get("permissionKeys") || "";
     const qpPermKeys = qpPermKeysCSV
       .split(",")
@@ -553,7 +549,6 @@ export default function RolesPage() {
     const qpPage = Number(sp.get("page") ?? "1");
     const newPageIndex = Number.isFinite(qpPage) && qpPage > 0 ? qpPage - 1 : 0;
 
-    // NEW: permission filters from URL (CSV)
     const qpPermKeysCSV = sp.get("permissionKeys") || "";
     const qpPermKeys = qpPermKeysCSV
       .split(",")
@@ -620,32 +615,23 @@ export default function RolesPage() {
     setIsPaginating(true);
     try {
       const newIndex = pageIndex + 1;
-  
-      // Push the cursor for the *next* page now
       setCursorStack((prev) => [...prev.slice(0, pageIndex + 1), nextCursor]);
       setPageIndex(newIndex);
-  
-      // Reflect it in the URL immediately
       setUrlFromState({ cursorId: nextCursor, page: newIndex + 1 });
-  
-      // IMPORTANT: fetch using the explicit cursor we just got from the server
       await fetchPageWith({ cursorId: nextCursor });
     } finally {
       setIsPaginating(false);
     }
   }
-  
+
   async function goPrevPage() {
     if (pageIndex === 0) return;
     setIsPaginating(true);
     try {
       const prevCursor = cursorStack[pageIndex - 1] ?? null;
       const newIndex = pageIndex - 1;
-  
       setPageIndex(newIndex);
       setUrlFromState({ cursorId: prevCursor, page: newIndex + 1 });
-  
-      // IMPORTANT: fetch using the explicit previous cursor
       await fetchPageWith({ cursorId: prevCursor });
     } finally {
       setIsPaginating(false);
@@ -806,12 +792,10 @@ export default function RolesPage() {
               Refresh
             </Button>
 
+            {/* NEW: navigate to role creation page */}
             <Button
               leftSection={<IconPlus size={16} />}
-              onClick={() => {
-                setEditing(null);
-                setModalOpen(true);
-              }}
+              onClick={() => navigate(`/${tenantSlug}/roles/new`)}
             >
               New role
             </Button>
@@ -865,7 +849,7 @@ export default function RolesPage() {
                 onChange={(v) =>
                   setValues({
                     ...values,
-                    isSystem: (v ?? "") as RoleFilters["isSystem"], // Select can return null when cleared
+                    isSystem: (v ?? "") as RoleFilters["isSystem"],
                   })
                 }
                 clearable
@@ -925,11 +909,9 @@ export default function RolesPage() {
               />
             </Grid.Col>
 
-            <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+            <Grid.Col span={{ base: 12, sm: 6, md: 3 }} />
 
-            </Grid.Col>
-
-            {/* NEW: permission multiselect + match mode */}
+            {/* Permission filters */}
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
               <SegmentedControl
                 w={150}
@@ -979,7 +961,6 @@ export default function RolesPage() {
           <Group justify="space-between" mb="md">
             <Title order={4}>All Roles</Title>
 
-            {/* Per page */}
             <Group align="center" gap="xs">
               <Text size="sm" c="dimmed">
                 Per page
@@ -1013,7 +994,6 @@ export default function RolesPage() {
             </div>
           ) : (
             <>
-              {/* Active filter chips */}
               {activeFilterChips.length > 0 && (
                 <Group
                   gap="xs"
@@ -1052,7 +1032,6 @@ export default function RolesPage() {
                 </Group>
               )}
 
-              {/* Empty state */}
               {!isLoading && (rows?.length ?? 0) === 0 ? (
                 <div
                   className="py-16 text-center"
@@ -1119,10 +1098,7 @@ export default function RolesPage() {
 
                       <Table.Th scope="col" className="min-w-[150px]">Permissions</Table.Th>
 
-                      <Table.Th
-                        scope="col"
-                        aria-sort={colAriaSort("createdAt")}
-                      >
+                      <Table.Th scope="col" aria-sort={colAriaSort("createdAt")}>
                         <Group gap={4} wrap="nowrap">
                           <span>Created</span>
                           <Tooltip label="Sort by created date" withArrow>
@@ -1130,10 +1106,7 @@ export default function RolesPage() {
                               variant="subtle"
                               size="sm"
                               onClick={() => applySort("createdAt")}
-                              aria-label={sortButtonLabel(
-                                "created",
-                                "createdAt"
-                              )}
+                              aria-label={sortButtonLabel("created", "createdAt")}
                             >
                               {sortBy === "createdAt" ? (
                                 sortDir === "asc" ? (
@@ -1149,10 +1122,7 @@ export default function RolesPage() {
                         </Group>
                       </Table.Th>
 
-                      <Table.Th
-                        scope="col"
-                        aria-sort={colAriaSort("updatedAt")}
-                      >
+                      <Table.Th scope="col" aria-sort={colAriaSort("updatedAt")}>
                         <Group gap={4} wrap="nowrap">
                           <span>Updated</span>
                           <Tooltip label="Sort by updated date" withArrow>
@@ -1160,10 +1130,7 @@ export default function RolesPage() {
                               variant="subtle"
                               size="sm"
                               onClick={() => applySort("updatedAt")}
-                              aria-label={sortButtonLabel(
-                                "updated",
-                                "updatedAt"
-                              )}
+                              aria-label={sortButtonLabel("updated", "updatedAt")}
                             >
                               {sortBy === "updatedAt" ? (
                                 sortDir === "asc" ? (
@@ -1187,7 +1154,13 @@ export default function RolesPage() {
                     {rows!.map((r) => (
                       <Table.Tr key={r.id}>
                         <Table.Td>
-                          <Text fw={600}>{r.name}</Text>
+                          <Anchor
+                            component={Link}
+                            to={`/${tenantSlug}/roles/${r.id}`}
+                            title="Open role"
+                          >
+                            <Text fw={600}>{r.name}</Text>
+                          </Anchor>
                         </Table.Td>
                         <Table.Td>
                           {r.isSystem ? (
@@ -1205,22 +1178,14 @@ export default function RolesPage() {
                             ))}
                           </Group>
                         </Table.Td>
-                        <Table.Td>
-                          {new Date(r.createdAt).toLocaleString()}
-                        </Table.Td>
-                        <Table.Td>
-                          {new Date(r.updatedAt).toLocaleString()}
-                        </Table.Td>
+                        <Table.Td>{new Date(r.createdAt).toLocaleString()}</Table.Td>
+                        <Table.Td>{new Date(r.updatedAt).toLocaleString()}</Table.Td>
                         <Table.Td className="text-right">
                           <Group gap="xs" justify="flex-end">
+                            {/* Edit now navigates to role page (disabled for system roles if you want to keep that constraint) */}
                             <ActionIcon
                               variant="light"
-                              onClick={() => {
-                                if (!r.isSystem) {
-                                  setEditing(r);
-                                  setModalOpen(true);
-                                }
-                              }}
+                              onClick={() => navigate(`/${tenantSlug}/roles/${r.id}`)}
                               disabled={r.isSystem}
                               title={
                                 r.isSystem
@@ -1294,19 +1259,6 @@ export default function RolesPage() {
           )}
         </Paper>
       </div>
-
-      {/* Create/Edit modal */}
-      <RoleUpsertModal
-        opened={modalOpen}
-        onClose={() => setModalOpen(false)}
-        initialRole={editing ?? undefined}
-        onSaved={() => {
-          // on create/edit, reload first page to reflect changes
-          setModalOpen(false);
-          setEditing(null);
-          resetToFirstPageAndFetch();
-        }}
-      />
     </div>
   );
 }

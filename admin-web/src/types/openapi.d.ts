@@ -2021,7 +2021,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/roles": {
+    "/api/roles/{roleId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2030,31 +2030,16 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: {
-                    limit?: number;
-                    cursorId?: string;
-                    q?: string;
-                    name?: string;
-                    isSystem?: boolean | null;
-                    createdAtFrom?: string;
-                    createdAtTo?: string;
-                    updatedAtFrom?: string;
-                    updatedAtTo?: string;
-                    /** @description CSV of permission keys, e.g. "products:read,uploads:write" */
-                    permissionKeys?: string;
-                    /** @description How to match permissionKeys: 'any' (default) or 'all' */
-                    permMatch?: "any" | "all";
-                    sortBy?: "name" | "createdAt" | "updatedAt" | "isSystem";
-                    sortDir?: "asc" | "desc";
-                    includeTotal?: boolean;
-                };
+                query?: never;
                 header?: never;
-                path?: never;
+                path: {
+                    roleId: string;
+                };
                 cookie?: never;
             };
             requestBody?: never;
             responses: {
-                /** @description List tenant roles */
+                /** @description Get a single role by id */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -2063,7 +2048,7 @@ export interface paths {
                         "application/json": {
                             /** @enum {boolean} */
                             success: true;
-                            data: components["schemas"]["RolesListResponseData"];
+                            data: components["schemas"]["GetRoleResponseData"];
                             error: unknown;
                         };
                     };
@@ -2086,78 +2071,8 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorEnvelope"];
                     };
                 };
-                /** @description Internal Error */
-                500: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorEnvelope"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: {
-                    "Idempotency-Key"?: string;
-                };
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json": components["schemas"]["CreateRoleBody"];
-                };
-            };
-            responses: {
-                /** @description Created role */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: true;
-                            data: {
-                                role: components["schemas"]["RoleRecord"];
-                            };
-                            error: unknown;
-                        };
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorEnvelope"];
-                    };
-                };
-                /** @description Unauthorized */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorEnvelope"];
-                    };
-                };
-                /** @description Forbidden */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorEnvelope"];
-                    };
-                };
-                /** @description Conflict */
-                409: {
+                /** @description Not Found */
+                404: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -2189,20 +2104,6 @@ export interface paths {
                 };
             };
         };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/roles/{roleId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
         put: {
             parameters: {
                 query?: never;
@@ -2395,6 +2296,180 @@ export interface paths {
                 };
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    cursorId?: string;
+                    q?: string;
+                    name?: string;
+                    isSystem?: boolean | null;
+                    createdAtFrom?: string;
+                    createdAtTo?: string;
+                    updatedAtFrom?: string;
+                    updatedAtTo?: string;
+                    /** @description CSV of permission keys, e.g. "products:read,uploads:write" */
+                    permissionKeys?: string;
+                    /** @description How to match permissionKeys: 'any' (default) or 'all' */
+                    permMatch?: "any" | "all";
+                    sortBy?: "name" | "createdAt" | "updatedAt" | "isSystem";
+                    sortDir?: "asc" | "desc";
+                    includeTotal?: boolean;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description List tenant roles */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: components["schemas"]["RolesListResponseData"];
+                            error: unknown;
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Internal Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: {
+                    "Idempotency-Key"?: string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["CreateRoleBody"];
+                };
+            };
+            responses: {
+                /** @description Created role */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                role: components["schemas"]["RoleRecord"];
+                            };
+                            error: unknown;
+                        };
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        "X-RateLimit-Limit": string;
+                        "X-RateLimit-Remaining": string;
+                        "X-RateLimit-Reset": string;
+                        "Retry-After": string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Internal Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -4133,6 +4208,9 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        GetRoleResponseData: {
+            role: components["schemas"]["RoleRecord"];
         };
         /** @enum {string} */
         PermMatch: "any" | "all";

@@ -470,11 +470,12 @@ If you need initial data in the new environment:
 ### Features to complete by Monday
 * Admin logs - frontend
   * Add activity log tab for all entity scopes
-    * Products - DONE
-    * Users
-    * Roles 
     * Branches
   * AUDIT EVENTS -> STOCK CHANGES SHOULD LINK TO THE PRODUCT WHOSE STOCK IS BEING CHANGED
+  * Make event descriptions better for:
+    * Product updates 
+    * User updates -> No need for the email address in the summary as its given since you are on the user page. Needs better desciption for updates 
+    * 
 
 * Look into theme update. Seems to be producing more logs than anticipated.
 

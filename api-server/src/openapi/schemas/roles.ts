@@ -137,3 +137,7 @@ export const ZodRoleActivityResponseData = z.object({
     actors: z.array(z.object({ userId: z.string(), display: z.string() })),
   }).optional(),
 }).openapi('RoleActivityResponseData');
+
+export const ZodGetRoleResponseData = z
+  .object({ role: ZodRoleRecord })
+  .openapi('GetRoleResponseData');

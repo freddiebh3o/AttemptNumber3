@@ -47,7 +47,7 @@ function whitelistSnapshot(entityType: AuditEntityType, input: Jsonish) {
     case 'USER':
       return pick(['id','userEmailAddress','createdAt','currentTenantId']);
     case 'ROLE':
-      return pick(['id','name','description','tenantId']);
+      return pick(['id', 'name', 'description', 'tenantId', 'isSystem', 'permissions']);
     case 'TENANT':
       return pick(['id','tenantSlug','tenantName']);
     default:

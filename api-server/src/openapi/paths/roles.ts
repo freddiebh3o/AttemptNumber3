@@ -13,6 +13,7 @@ import {
   ZodRoleIdParam,
   ZodRoleActivityQuery,
   ZodRoleActivityResponseData,
+  ZodGetRoleResponseData,
 } from '../schemas/roles.js';
 
 export function registerRolePaths(registry: OpenAPIRegistry) {
@@ -35,6 +36,30 @@ export function registerRolePaths(registry: OpenAPIRegistry) {
       },
       401: RESPONSES[401],
       403: RESPONSES[403],
+      500: RESPONSES[500],
+    },
+  });
+
+  // GET /api/roles/{roleId}
+  registry.registerPath({
+    tags: ['Roles'],
+    method: 'get',
+    path: '/api/roles/{roleId}',
+    security: [{ cookieAuth: [] }],
+    request: { params: ZodRoleIdParam },
+    responses: {
+      200: {
+        description: 'Get a single role by id',
+        content: {
+          'application/json': {
+            schema: successEnvelope(ZodGetRoleResponseData),
+          },
+        },
+      },
+      401: RESPONSES[401],
+      403: RESPONSES[403],
+      404: RESPONSES[404],
+      429: RESPONSES[429],
       500: RESPONSES[500],
     },
   });

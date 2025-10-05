@@ -1,3 +1,4 @@
+// api-server/src/services/role/roleActivityService.ts
 import { prismaClientInstance as prisma } from '../../db/prismaClient.js';
 import type { Prisma, AuditEntityType } from '@prisma/client';
 
@@ -49,9 +50,10 @@ type RoleSnap = {
   permissions?: string[]; // permission keys
 };
 
-function jsonEqual(a: unknown, b: unknown) {
-  return JSON.stringify(a) === JSON.stringify(b);
-}
+const jsonEqual = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+const truncate = (s: string | null | undefined, n = 120) =>
+  s == null ? (s ?? null) : s.length > n ? `${s.slice(0, n)}…` : s;
+const quote = (s: string | null | undefined) => (s == null || s === '' ? '—' : `“${s}”`);
 
 function safeBefore(a: any): RoleSnap | undefined {
   // tolerate different columns: beforeJson/before
@@ -70,35 +72,51 @@ function humanizeRoleChange(before?: RoleSnap, after?: RoleSnap) {
 
   // name
   if (b.name !== a.name) {
-    const from = b.name ?? '—';
-    const to = a.name ?? '—';
-    parts.push(`renamed "${from}" → "${to}"`);
+    parts.push(`renamed ${quote(b.name)} → ${quote(a.name)}`);
     details.name = { before: b.name ?? null, after: a.name ?? null };
     changed.name = true;
   }
 
-  // description
-  if ((b.description ?? null) !== (a.description ?? null)) {
-    const beforeDesc = b.description ?? null;
-    const afterDesc = a.description ?? null;
-    if (!beforeDesc && afterDesc) parts.push('description set');
-    else if (beforeDesc && !afterDesc) parts.push('description cleared');
-    else parts.push('description updated');
-    details.description = { before: beforeDesc, after: afterDesc };
+  // description (with preview)
+  const bDesc = b.description ?? null;
+  const aDesc = a.description ?? null;
+  if (bDesc !== aDesc) {
+    const pretty =
+      !bDesc && aDesc
+        ? `description set to ${quote(truncate(aDesc))}`
+        : bDesc && !aDesc
+        ? 'description cleared'
+        : `description updated to ${quote(truncate(aDesc))}`;
+    parts.push(pretty);
+    details.description = { before: truncate(bDesc), after: truncate(aDesc) };
     changed.description = true;
   }
 
-  // permissions
+  // permissions (with counts + preview)
   const bp = new Set((b.permissions ?? []).slice().sort());
   const ap = new Set((a.permissions ?? []).slice().sort());
 
   if (!jsonEqual([...bp], [...ap])) {
-    const added = [...ap].filter(k => !bp.has(k)).sort();
-    const removed = [...bp].filter(k => !ap.has(k)).sort();
-    const kept = [...ap].filter(k => bp.has(k)).sort();
-    if (added.length) parts.push(`+${added.length} permission(s)`);
-    if (removed.length) parts.push(`-${removed.length} permission(s)`);
-    details.permissions = { added, removed, kept };
+    const added = [...ap].filter((k) => !bp.has(k)).sort();
+    const removed = [...bp].filter((k) => !ap.has(k)).sort();
+    const kept = [...ap].filter((k) => bp.has(k)).sort();
+
+    const addPart = added.length ? `+${added.length}` : '';
+    const remPart = removed.length ? `-${removed.length}` : '';
+    const permPart = [addPart, remPart].filter(Boolean).join(' / ');
+    if (permPart) parts.push(`permissions ${permPart}`);
+
+    details.permissions = {
+      added,
+      removed,
+      kept,
+      preview: {
+        added: added.slice(0, 5),
+        removed: removed.slice(0, 5),
+        truncatedAdded: Math.max(0, added.length - 5),
+        truncatedRemoved: Math.max(0, removed.length - 5),
+      },
+    };
     changed.permissions = true;
   }
 
@@ -109,20 +127,20 @@ function humanizeRoleChange(before?: RoleSnap, after?: RoleSnap) {
     changed.isSystem = true;
   }
 
-  const summary =
-    parts.length
-      ? parts.join(', ')
-      : 'Role updated';
-
+  const summary = parts.length ? parts.join(', ') : 'Role updated';
   return { summary, details: { changed, ...details } };
 }
 
 function titleFromAction(action: string) {
   switch (action) {
-    case 'CREATE': return 'Role created';
-    case 'UPDATE': return 'Role updated';
-    case 'DELETE': return 'Role deleted';
-    default: return action.replaceAll('_', ' ').toLowerCase();
+    case 'CREATE':
+      return 'Role created';
+    case 'UPDATE':
+      return 'Role updated';
+    case 'DELETE':
+      return 'Role deleted';
+    default:
+      return action.replaceAll('_', ' ').toLowerCase();
   }
 }
 
@@ -166,26 +184,38 @@ export async function getRoleActivityForCurrentTenantService(params: GetActivity
   });
 
   // hydrate actors
-  const actorIds = Array.from(new Set(audits.map(a => a.actorUserId).filter((v): v is string => !!v)));
+  const actorIds = Array.from(
+    new Set(audits.map((a) => a.actorUserId).filter((v): v is string => !!v))
+  );
   const actors = actorIds.length
-    ? await prisma.user.findMany({ where: { id: { in: actorIds } }, select: { id: true, userEmailAddress: true } })
+    ? await prisma.user.findMany({
+        where: { id: { in: actorIds } },
+        select: { id: true, userEmailAddress: true },
+      })
     : [];
-  const actorMap = new Map(actors.map(u => [u.id, u.userEmailAddress ?? u.id]));
-  const toActor = (userId?: string | null) => (userId ? { userId, display: actorMap.get(userId) ?? userId } : null);
+  const actorMap = new Map(actors.map((u) => [u.id, u.userEmailAddress ?? u.id]));
+  const toActor = (userId?: string | null) =>
+    userId ? { userId, display: actorMap.get(userId) ?? userId } : null;
 
-  const items: RoleActivityItem[] = audits.map(a => {
+  const items: RoleActivityItem[] = audits.map((a) => {
     const action = String(a.action);
     const before = safeBefore(a);
-    const after  = safeAfter(a);
+    const after = safeAfter(a);
 
     let message = titleFromAction(action);
     let messageParts: Record<string, unknown> | undefined;
 
     if ((action === 'UPDATE' || action === 'CREATE' || action === 'DELETE') && (before || after)) {
       const h = humanizeRoleChange(before, after);
-      // Prefer humanized summary for UPDATE; for CREATE/DELETE keep explicit titles if change set is empty
-      message = action === 'UPDATE' ? h.summary : titleFromAction(action);
-      messageParts = { entityName: a.entityName ?? undefined, ...h.details };
+      // Prefer humanized summary for UPDATE.
+      // For CREATE/DELETE, keep explicit title if no interesting change was detected,
+      // otherwise use the humanized summary (creates can include "description set", "+N permissions", etc.)
+      if (action === 'UPDATE') {
+        message = h.summary;
+      } else {
+        message = h.summary === 'Role updated' ? titleFromAction(action) : h.summary;
+      }
+      messageParts = { entityName: (a as any).entityName ?? undefined, ...h.details };
     }
 
     return {
@@ -197,7 +227,7 @@ export async function getRoleActivityForCurrentTenantService(params: GetActivity
       ...(messageParts ? { messageParts } : {}),
       actor: toActor(a.actorUserId),
       correlationId: a.correlationId ?? null,
-      entityName: a.entityName ?? null,
+      entityName: (a as any).entityName ?? null,
     };
   });
 
@@ -208,7 +238,9 @@ export async function getRoleActivityForCurrentTenantService(params: GetActivity
 
   // cursor clamp
   const final = cursor
-    ? items.filter(it => it.when < cursor.iso || (it.when === cursor.iso && it.id < cursor.id))
+    ? items.filter(
+        (it) => it.when < cursor.iso || (it.when === cursor.iso && it.id < cursor.id)
+      )
     : items;
 
   const pageItems = final.slice(0, limit);
@@ -235,7 +267,7 @@ export async function getRoleActivityForCurrentTenantService(params: GetActivity
       select: { actorUserId: true },
     });
 
-    const ids = distinct.map(x => x.actorUserId).filter((v): v is string => !!v);
+    const ids = distinct.map((x) => x.actorUserId).filter((v): v is string => !!v);
     const actorsFull = ids.length
       ? await prisma.user.findMany({
           where: { id: { in: ids } },
@@ -244,7 +276,10 @@ export async function getRoleActivityForCurrentTenantService(params: GetActivity
       : [];
 
     facets = {
-      actors: actorsFull.map(u => ({ userId: u.id, display: u.userEmailAddress ?? u.id })),
+      actors: actorsFull.map((u) => ({
+        userId: u.id,
+        display: u.userEmailAddress ?? u.id,
+      })),
     };
   }
 

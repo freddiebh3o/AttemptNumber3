@@ -459,3 +459,39 @@ export async function deleteTenantRoleService(params: {
     return { hasDeletedRole: true };
   });
 }
+
+export async function getTenantRoleService(params: {
+  currentTenantId: string;
+  roleId: string;
+}) {
+  const { currentTenantId, roleId } = params;
+
+  const r = await prisma.role.findUnique({
+    where: { id: roleId },
+    select: {
+      id: true,
+      tenantId: true,
+      name: true,
+      description: true,
+      isSystem: true,
+      createdAt: true,
+      updatedAt: true,
+      permissions: { select: { permission: { select: { key: true } } } },
+    },
+  });
+
+  if (!r || r.tenantId !== currentTenantId) {
+    throw Errors.notFound("Role not found for this tenant.");
+  }
+
+  return {
+    id: r.id,
+    tenantId: r.tenantId ?? "",
+    name: r.name,
+    description: r.description ?? null,
+    isSystem: r.isSystem,
+    permissions: r.permissions.map((p) => p.permission.key).sort(),
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
+  };
+}
