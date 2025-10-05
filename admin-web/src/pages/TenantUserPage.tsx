@@ -2,7 +2,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
-  Alert,
   Badge,
   Button,
   Group,
@@ -56,7 +55,7 @@ export default function TenantUserPage() {
     setActiveTab(qpTab);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [qpTab]);
-  
+
   function setTabInUrl(tab: TabKey) {
     // Reset everything except the selected tab
     const next = new URLSearchParams();
