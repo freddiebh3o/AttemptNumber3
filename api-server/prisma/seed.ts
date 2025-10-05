@@ -2,7 +2,7 @@
 /// <reference types="node" />
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import { provisionTenantRBAC, ensurePermissionCatalog } from '../src/services/roleProvisioningService.js';
+import { provisionTenantRBAC, ensurePermissionCatalog } from '../src/services/role/roleProvisioningService.js';
 
 const prisma = new PrismaClient();
 const PASSWORD = 'Password123!';
