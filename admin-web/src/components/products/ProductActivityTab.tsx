@@ -99,6 +99,69 @@ const OWN_KEYS = [
   "filtersOpen",
 ] as const;
 
+function AuditDiffLines({ parts }: { parts: Record<string, any> }) {
+  if (!parts) return null;
+
+  const hasKnown =
+    parts.name || parts.slug || parts.sku || parts.barcode ||
+    parts.isActive !== undefined || parts.salePrice !== undefined ||
+    parts.costPrice !== undefined || parts.taxRate !== undefined || parts.unit;
+
+  return (
+    <Stack gap={4} mt={6}>
+      {parts.name && (
+        <Text size="xs" c="dimmed">
+          Name: <code>{parts.name.before ?? "—"}</code> → <code>{parts.name.after ?? "—"}</code>
+        </Text>
+      )}
+      {parts.slug && (
+        <Text size="xs" c="dimmed">
+          Slug: <code>{parts.slug.before ?? "—"}</code> → <code>{parts.slug.after ?? "—"}</code>
+        </Text>
+      )}
+      {parts.sku && (
+        <Text size="xs" c="dimmed">
+          SKU: <code>{parts.sku.before ?? "—"}</code> → <code>{parts.sku.after ?? "—"}</code>
+        </Text>
+      )}
+      {parts.barcode && (
+        <Text size="xs" c="dimmed">
+          Barcode: <code>{parts.barcode.before ?? "—"}</code> → <code>{parts.barcode.after ?? "—"}</code>
+        </Text>
+      )}
+      {parts.isActive !== undefined && parts.isActive && (
+        <Text size="xs" c="dimmed">
+          Active: <code>{String(parts.isActive.before)}</code> → <code>{String(parts.isActive.after)}</code>
+        </Text>
+      )}
+      {parts.salePrice && (
+        <Text size="xs" c="dimmed">
+          Sale price: <code>{parts.salePrice.before ?? "—"}</code> → <code>{parts.salePrice.after ?? "—"}</code>
+        </Text>
+      )}
+      {parts.costPrice && (
+        <Text size="xs" c="dimmed">
+          Cost price: <code>{parts.costPrice.before ?? "—"}</code> → <code>{parts.costPrice.after ?? "—"}</code>
+        </Text>
+      )}
+      {parts.taxRate && (
+        <Text size="xs" c="dimmed">
+          Tax rate: <code>{parts.taxRate.before ?? "—"}</code> → <code>{parts.taxRate.after ?? "—"}</code>
+        </Text>
+      )}
+      {parts.unit && (
+        <Text size="xs" c="dimmed">
+          Unit: <code>{parts.unit.before ?? "—"}</code> → <code>{parts.unit.after ?? "—"}</code>
+        </Text>
+      )}
+
+      {!hasKnown && parts.changedKeys && (
+        <Text size="xs" c="dimmed">{parts.changedKeys} field(s) changed</Text>
+      )}
+    </Stack>
+  );
+}
+
 export function ProductActivityTab({ productId }: { productId: string }) {
   const { tenantSlug } = useParams<{ tenantSlug: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -712,6 +775,7 @@ export function ProductActivityTab({ productId }: { productId: string }) {
                     {(it as Extract<UnifiedActivityItem, { kind: "ledger" }>).entryKind}
                   </Badge>
                 );
+
               return (
                 <Timeline.Item
                   key={`${it.kind}:${it.id}`}
@@ -739,7 +803,12 @@ export function ProductActivityTab({ productId }: { productId: string }) {
                       </Tooltip>
                     </Group>
                   }
-                />
+                >
+                  {/* 🔽 Diff lines for audit items */}
+                  {it.kind === "audit" && it.messageParts && (
+                    <AuditDiffLines parts={it.messageParts as Record<string, any>} />
+                  )}
+                </Timeline.Item>
               );
             })}
           </Timeline>
@@ -863,6 +932,82 @@ export function ProductActivityTab({ productId }: { productId: string }) {
                     </Table.Td>
                     <Table.Td>
                       <Text size="sm">{it.message}</Text>
+
+                      {it.kind === "audit" && it.messageParts && (
+                        <Stack gap={4} mt={6}>
+                          {"name" in it.messageParts && (it.messageParts as any).name && (
+                            <Text size="xs" c="dimmed">
+                              Name: <code>{(it.messageParts as any).name.before ?? "—"}</code> →{" "}
+                              <code>{(it.messageParts as any).name.after ?? "—"}</code>
+                            </Text>
+                          )}
+                          {"slug" in it.messageParts && (it.messageParts as any).slug && (
+                            <Text size="xs" c="dimmed">
+                              Slug: <code>{(it.messageParts as any).slug.before ?? "—"}</code> →{" "}
+                              <code>{(it.messageParts as any).slug.after ?? "—"}</code>
+                            </Text>
+                          )}
+                          {"sku" in it.messageParts && (it.messageParts as any).sku && (
+                            <Text size="xs" c="dimmed">
+                              SKU: <code>{(it.messageParts as any).sku.before ?? "—"}</code> →{" "}
+                              <code>{(it.messageParts as any).sku.after ?? "—"}</code>
+                            </Text>
+                          )}
+                          {"barcode" in it.messageParts && (it.messageParts as any).barcode && (
+                            <Text size="xs" c="dimmed">
+                              Barcode: <code>{(it.messageParts as any).barcode.before ?? "—"}</code> →{" "}
+                              <code>{(it.messageParts as any).barcode.after ?? "—"}</code>
+                            </Text>
+                          )}
+                          {"isActive" in it.messageParts && (it.messageParts as any).isActive && (
+                            <Text size="xs" c="dimmed">
+                              Active: <code>{String((it.messageParts as any).isActive.before)}</code> →{" "}
+                              <code>{String((it.messageParts as any).isActive.after)}</code>
+                            </Text>
+                          )}
+                          {"salePrice" in it.messageParts && (it.messageParts as any).salePrice && (
+                            <Text size="xs" c="dimmed">
+                              Sale price: <code>{(it.messageParts as any).salePrice.before ?? "—"}</code> →{" "}
+                              <code>{(it.messageParts as any).salePrice.after ?? "—"}</code>
+                            </Text>
+                          )}
+                          {"costPrice" in it.messageParts && (it.messageParts as any).costPrice && (
+                            <Text size="xs" c="dimmed">
+                              Cost price: <code>{(it.messageParts as any).costPrice.before ?? "—"}</code> →{" "}
+                              <code>{(it.messageParts as any).costPrice.after ?? "—"}</code>
+                            </Text>
+                          )}
+                          {"taxRate" in it.messageParts && (it.messageParts as any).taxRate && (
+                            <Text size="xs" c="dimmed">
+                              Tax rate: <code>{(it.messageParts as any).taxRate.before ?? "—"}</code> →{" "}
+                              <code>{(it.messageParts as any).taxRate.after ?? "—"}</code>
+                            </Text>
+                          )}
+                          {"unit" in it.messageParts && (it.messageParts as any).unit && (
+                            <Text size="xs" c="dimmed">
+                              Unit: <code>{(it.messageParts as any).unit.before ?? "—"}</code> →{" "}
+                              <code>{(it.messageParts as any).unit.after ?? "—"}</code>
+                            </Text>
+                          )}
+
+                          {/* Fallback: if none of the above keys were present, show changedKeys if provided */}
+                          {!(
+                            ("name" in it.messageParts) ||
+                            ("slug" in it.messageParts) ||
+                            ("sku" in it.messageParts) ||
+                            ("barcode" in it.messageParts) ||
+                            ("isActive" in it.messageParts) ||
+                            ("salePrice" in it.messageParts) ||
+                            ("costPrice" in it.messageParts) ||
+                            ("taxRate" in it.messageParts) ||
+                            ("unit" in it.messageParts)
+                          ) && (it.messageParts as any).changedKeys && (
+                            <Text size="xs" c="dimmed">
+                              {(it.messageParts as any).changedKeys} field(s) changed
+                            </Text>
+                          )}
+                        </Stack>
+                      )}
                     </Table.Td>
                     <Table.Td>
                       {it.actor ? (

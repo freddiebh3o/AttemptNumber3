@@ -60,10 +60,161 @@ function buildNextCursor(last?: UnifiedItem | null) {
   return `${last.when}|${last.id}`;
 }
 
-function diffSummary(diffJson: unknown): { changedKeys: number } | undefined {
-  if (!diffJson || typeof diffJson !== 'object') return;
-  const keys = Object.keys(diffJson as Record<string, unknown>);
-  return { changedKeys: keys.length };
+function readDiffJson(a: any): unknown {
+  // Try common field names
+  const raw = a?.diffJson ?? a?.diff ?? a?.changes ?? null;
+  if (!raw) return null;
+  if (typeof raw === 'string') {
+    try { return JSON.parse(raw); } catch { return null; }
+  }
+  return raw;
+}
+
+function coerceVal(v: any) {
+  // Keep primitives; stringify objects safely
+  if (v == null) return v;
+  if (typeof v === 'object' && 'toNumber' in v && typeof v.toNumber === 'function') {
+    // Prisma.Decimal
+    try { return (v as any).toNumber(); } catch { /*noop*/ }
+  }
+  if (typeof v === 'object') return JSON.parse(JSON.stringify(v));
+  return v;
+}
+
+type FieldDiff = { before: any; after: any };
+
+// Try to normalize a few common shapes into { field: {before, after} }
+function normalizeDiff(diffJson: unknown): Record<string, FieldDiff> {
+  const out: Record<string, FieldDiff> = {};
+  if (!diffJson) return out;
+
+  // 1) { field: { before/after | old/new | from/to }, ... }  OR  { field: [before, after] }
+  if (typeof diffJson === 'object' && diffJson !== null) {
+    const obj = diffJson as Record<string, any>;
+    let seenAny = false;
+
+    for (const [k, v] of Object.entries(obj)) {
+      if (!v || typeof v !== 'object') continue;
+
+      // a) before/after
+      if ('before' in v || 'after' in v) {
+        out[k] = { before: coerceVal(v.before), after: coerceVal(v.after) };
+        seenAny = true;
+        continue;
+      }
+
+      // b) old/new
+      if ('old' in v || 'new' in v) {
+        out[k] = { before: coerceVal(v.old), after: coerceVal(v.new) };
+        seenAny = true;
+        continue;
+      }
+
+      // c) from/to
+      if ('from' in v || 'to' in v) {
+        out[k] = { before: coerceVal(v.from), after: coerceVal(v.to) };
+        seenAny = true;
+        continue;
+      }
+
+      // d) [before, after]
+      if (Array.isArray(v) && v.length === 2) {
+        out[k] = { before: coerceVal(v[0]), after: coerceVal(v[1]) };
+        seenAny = true;
+        continue;
+      }
+    }
+
+    if (seenAny) return out;
+
+    // 1b) snapshot shape: { before: {...}, after: {...} }
+    if ('before' in obj && 'after' in obj && typeof obj.before === 'object' && typeof obj.after === 'object') {
+      const before = obj.before as Record<string, any>;
+      const after  = obj.after  as Record<string, any>;
+      const keys = new Set([...Object.keys(before ?? {}), ...Object.keys(after ?? {})]);
+      for (const k of keys) {
+        const b = before?.[k];
+        const a = after?.[k];
+        if (JSON.stringify(b) !== JSON.stringify(a)) {
+          out[k] = { before: coerceVal(b), after: coerceVal(a) };
+        }
+      }
+      return out;
+    }
+  }
+
+  // 2) JSON Patch-like: [{ path:'/name', op:'replace', from?/old?, value?/new? }]
+  if (Array.isArray(diffJson)) {
+    for (const op of diffJson) {
+      if (!op || typeof op !== 'object') continue;
+      const path = String(op.path ?? '').replace(/^\//, '');
+      if (!path) continue;
+
+      const before = 'from' in op ? op.from
+                   : 'old'  in op ? op.old
+                   : undefined;
+
+      const after  = 'value' in op ? op.value
+                   : 'new'   in op ? op.new
+                   : undefined;
+
+      if (before !== undefined || after !== undefined) {
+        out[path] = { before: coerceVal(before), after: coerceVal(after) };
+      }
+    }
+    return out;
+  }
+
+  return out;
+}
+
+function buildProductMessageParts(a: any) {
+  const parts: Record<string, unknown> = {};
+  if (a?.entityName) parts.entityName = a.entityName;
+
+  const raw = readDiffJson(a);
+  const diffs = normalizeDiff(raw);  
+
+  const IGNORE = new Set(['version', 'entityVersion', 'updatedAt', 'updated_at']);
+  for (const k of Object.keys(diffs)) {
+    if (IGNORE.has(k)) delete (diffs as any)[k];
+  }
+
+  // Pick known fields (support multiple possible keys)
+  const pick = (keys: string[], alias?: string) => {
+    for (const k of keys) {
+      if (k in diffs) {
+        parts[alias ?? k] = {
+          before: (diffs as any)[k].before,
+          after: (diffs as any)[k].after,
+        };
+        return;
+      }
+    }
+  };
+
+  pick(['name', 'productName'], 'name');
+  pick(['slug', 'productSlug'], 'slug');
+  pick(['sku'], 'sku');
+  pick(['barcode', 'ean', 'upc'], 'barcode');
+  pick(['isActive', 'active'], 'isActive');
+  pick(['salePrice', 'price', 'productPricePence', 'sale_price_pence'], 'salePrice');
+  pick(['costPrice', 'cost'], 'costPrice');
+  pick(['taxRate', 'taxPercent'], 'taxRate');
+  pick(['unit', 'uom'], 'unit');
+
+  // If we still want a quick count (fallback)
+  const changedKeys = Object.keys(diffs).length;
+  if (changedKeys > 0) parts.changedKeys = changedKeys;
+
+  if (raw && typeof raw === 'object') {
+    const rawKeys = Object.keys(raw as Record<string, unknown>).length;
+    const mappedKeys = Object.keys(diffs).length;
+    const changedKeys = Math.max(rawKeys, mappedKeys);
+    if (changedKeys > 0) parts.changedKeys = changedKeys;
+  }
+
+  return parts;
 }
 
 export async function getProductActivityForCurrentTenantService(params: GetActivityParams) {
@@ -195,10 +346,7 @@ export async function getProductActivityForCurrentTenantService(params: GetActiv
         : a.action === 'STOCK_CONSUME'
         ? 'Consumed stock'
         : a.action.replaceAll('_', ' ').toLowerCase(),
-    messageParts: {
-      entityName: a.entityName ?? undefined,
-      ...diffSummary(a.diffJson ?? undefined),
-    },
+    messageParts: buildProductMessageParts(a),
     actor: toActor(a.actorUserId),
     correlationId: a.correlationId ?? null,
     entityName: a.entityName ?? null,
