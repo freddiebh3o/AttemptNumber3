@@ -56,3 +56,48 @@ export const ZodBranchesListResponseData = z.object({
     }),
   }),
 }).openapi('BranchesListResponseData');
+
+// ----- NEW: single branch get -----
+export const ZodGetBranchResponseData = z
+  .object({ branch: ZodBranchRecord })
+  .openapi('GetBranchResponseData');
+
+// ----- NEW: Branch Activity -----
+export const ZodBranchActivityActor = z
+  .object({ userId: z.string(), display: z.string() })
+  .nullable()
+  .openapi('BranchActivityActor');
+
+export const ZodBranchActivityItem = z.object({
+  kind: z.literal('audit'),
+  id: z.string(),
+  when: z.string().datetime(),
+  action: z.string(),
+  message: z.string(),
+  messageParts: z.record(z.string(), z.unknown()).optional(),
+  actor: ZodBranchActivityActor.optional(),
+  correlationId: z.string().nullable().optional(),
+  entityName: z.string().nullable().optional(),
+}).openapi('BranchActivityItem');
+
+export const ZodBranchActivityQuery = z.object({
+  limit: z.number().int().min(1).max(100).optional(),
+  cursor: z.string().optional(),
+  occurredFrom: z.string().datetime().optional(),
+  occurredTo: z.string().datetime().optional(),
+  actorIds: z.string().optional().openapi({ description: 'CSV of user IDs to filter by' }),
+  includeFacets: z.boolean().optional(),
+  includeTotal: z.boolean().optional(),
+}).openapi('BranchActivityQuery');
+
+export const ZodBranchActivityResponseData = z.object({
+  items: z.array(ZodBranchActivityItem),
+  pageInfo: z.object({
+    hasNextPage: z.boolean(),
+    nextCursor: z.string().nullable().optional(),
+    totalCount: z.number().int().min(0).optional(),
+  }),
+  facets: z.object({
+    actors: z.array(z.object({ userId: z.string(), display: z.string() })),
+  }).optional(),
+}).openapi('BranchActivityResponseData');

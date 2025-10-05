@@ -8,6 +8,9 @@ import {
   ZodUpdateBranchRequestBody,
   ZodListBranchesQuery,
   ZodBranchesListResponseData,
+  ZodGetBranchResponseData,          // <-- NEW
+  ZodBranchActivityQuery,            // <-- NEW
+  ZodBranchActivityResponseData,     // <-- NEW
 } from '../schemas/branches.js';
 import { ZodIdempotencyHeaders } from '../schemas/common.js';
 import { z } from 'zod';
@@ -26,6 +29,26 @@ export function registerBranchPaths(registry: OpenAPIRegistry) {
         content: { 'application/json': { schema: successEnvelope(ZodBranchesListResponseData) } },
       },
       401: RESPONSES[401],
+      500: RESPONSES[500],
+    },
+  });
+
+  // ----- NEW: GET /api/branches/{branchId}
+  registry.registerPath({
+    tags: ['Branches'],
+    method: 'get',
+    path: '/api/branches/{branchId}',
+    security: [{ cookieAuth: [] }],
+    request: { params: ZodUpdateBranchParams },
+    responses: {
+      200: {
+        description: 'Get a single branch by id',
+        content: { 'application/json': { schema: successEnvelope(ZodGetBranchResponseData) } },
+      },
+      401: RESPONSES[401],
+      403: RESPONSES[403],
+      404: RESPONSES[404],
+      429: RESPONSES[429],
       500: RESPONSES[500],
     },
   });
@@ -91,6 +114,29 @@ export function registerBranchPaths(registry: OpenAPIRegistry) {
       200: {
         description: 'Deactivated branch',
         content: { 'application/json': { schema: successEnvelope(z.object({ hasDeactivatedBranch: z.boolean() })) } },
+      },
+      401: RESPONSES[401],
+      403: RESPONSES[403],
+      404: RESPONSES[404],
+      429: RESPONSES[429],
+      500: RESPONSES[500],
+    },
+  });
+
+  // ----- NEW: GET /api/branches/{branchId}/activity
+  registry.registerPath({
+    tags: ['Branches'],
+    method: 'get',
+    path: '/api/branches/{branchId}/activity',
+    security: [{ cookieAuth: [] }],
+    request: {
+      params: ZodUpdateBranchParams,
+      query: ZodBranchActivityQuery,
+    },
+    responses: {
+      200: {
+        description: 'Branch activity (audit) with filters',
+        content: { 'application/json': { schema: successEnvelope(ZodBranchActivityResponseData) } },
       },
       401: RESPONSES[401],
       403: RESPONSES[403],

@@ -1,9 +1,9 @@
-// api-server/src/services/branchService.ts
+// api-server/src/services/branches/branchService.ts
 import type { Prisma } from '@prisma/client';
-import { prismaClientInstance } from '../db/prismaClient.js';
-import { Errors } from '../utils/httpErrors.js';
+import { prismaClientInstance } from '../../db/prismaClient.js';
+import { Errors } from '../../utils/httpErrors.js';
 
-import { writeAuditEvent } from './auditLoggerService.js';
+import { writeAuditEvent } from '../auditLoggerService.js';
 import { AuditAction, AuditEntityType } from '@prisma/client';
 
 type SortField = 'branchName' | 'createdAt' | 'updatedAt' | 'isActive';
@@ -316,4 +316,38 @@ export async function deactivateBranchForCurrentTenantService(params: {
 
     return { hasDeactivatedBranch: true };
   });
+}
+
+export async function getBranchForCurrentTenantService(params: {
+  currentTenantId: string;
+  branchId: string;
+}) {
+  const { currentTenantId, branchId } = params;
+
+  const b = await prismaClientInstance.branch.findUnique({
+    where: { id: branchId },
+    select: {
+      id: true,
+      tenantId: true,
+      branchSlug: true,
+      branchName: true,
+      isActive: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  if (!b || b.tenantId !== currentTenantId) {
+    throw Errors.notFound('Branch not found for this tenant.');
+  }
+
+  return {
+    id: b.id,
+    tenantId: b.tenantId,
+    branchSlug: b.branchSlug,
+    branchName: b.branchName,
+    isActive: b.isActive,
+    createdAt: b.createdAt.toISOString(),
+    updatedAt: b.updatedAt.toISOString(),
+  };
 }

@@ -16,8 +16,10 @@ import {
   createBranchForCurrentTenantService,
   updateBranchForCurrentTenantService,
   deactivateBranchForCurrentTenantService,
-} from '../services/branchService.js';
+  getBranchForCurrentTenantService,          // <-- NEW
+} from '../services/branches/branchService.js';
 import { getAuditContext } from '../utils/auditContext.js';
+import { getBranchActivityForCurrentTenantService } from '../services/branches/branchActivityService.js'; // <-- NEW
 
 export const branchRouter = Router();
 
@@ -49,6 +51,16 @@ const updateBodySchema = z.object({
   isActive: z.coerce.boolean().optional(),
 });
 
+const activityQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  cursor: z.string().optional(),
+  occurredFrom: z.string().datetime().optional(),
+  occurredTo: z.string().datetime().optional(),
+  actorIds: z.string().min(1).optional(), // CSV
+  includeFacets: z.coerce.boolean().optional(),
+  includeTotal: z.coerce.boolean().optional(),
+});
+
 // GET /api/branches
 branchRouter.get(
   '/',
@@ -69,6 +81,26 @@ branchRouter.get(
         ...(q.includeTotal !== undefined && { includeTotalOptional: q.includeTotal }),
       });
       return res.status(200).json(createStandardSuccessResponse(out));
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
+// GET /api/branches/:branchId (single) -----
+branchRouter.get(
+  '/:branchId',
+  requireAuthenticatedUserMiddleware,
+  validateRequestParamsWithZod(updateParamsSchema),
+  async (req, res, next) => {
+    try {
+      assertAuthed(req);
+      const { branchId } = req.validatedParams as z.infer<typeof updateParamsSchema>;
+      const branch = await getBranchForCurrentTenantService({
+        currentTenantId: req.currentTenantId,
+        branchId,
+      });
+      return res.status(200).json(createStandardSuccessResponse({ branch }));
     } catch (err) {
       return next(err);
     }
@@ -152,6 +184,45 @@ branchRouter.delete(
         auditContextOptional: ctx,
       });
       return res.status(200).json(createStandardSuccessResponse(out));
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
+// GET /api/branches/:branchId/activity -----
+branchRouter.get(
+  '/:branchId/activity',
+  requireAuthenticatedUserMiddleware,
+  validateRequestParamsWithZod(updateParamsSchema),
+  validateRequestQueryWithZod(activityQuerySchema),
+  async (req, res, next) => {
+    try {
+      assertAuthed(req);
+      const { branchId } = req.validatedParams as z.infer<typeof updateParamsSchema>;
+      const { limit, cursor, occurredFrom, occurredTo, actorIds, includeFacets, includeTotal } =
+        req.validatedQuery as z.infer<typeof activityQuerySchema>;
+
+      const data = await getBranchActivityForCurrentTenantService({
+        currentTenantId: req.currentTenantId,
+        branchIdPathParam: branchId,
+        ...(limit !== undefined ? { limitOptional: limit } : {}),
+        ...(cursor !== undefined ? { cursorOptional: cursor } : {}),
+        ...(occurredFrom !== undefined ? { occurredFromOptional: occurredFrom } : {}),
+        ...(occurredTo !== undefined ? { occurredToOptional: occurredTo } : {}),
+        ...(actorIds
+          ? {
+              actorIdsOptional: actorIds
+                .split(',')
+                .map((s) => s.trim())
+                .filter(Boolean),
+            }
+          : {}),
+        ...(includeFacets !== undefined ? { includeFacetsOptional: includeFacets } : {}),
+        ...(includeTotal !== undefined ? { includeTotalOptional: includeTotal } : {}),
+      });
+
+      return res.status(200).json(createStandardSuccessResponse(data));
     } catch (err) {
       return next(err);
     }
