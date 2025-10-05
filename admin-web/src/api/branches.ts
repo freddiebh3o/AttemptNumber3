@@ -23,6 +23,12 @@ type ListBranches200Response =
 type DeleteBranch200Response =
   paths["/api/branches/{branchId}"]["delete"]["responses"]["200"]["content"]["application/json"];
 
+type GetBranch200Response =
+  paths["/api/branches/{branchId}"]["get"]["responses"]["200"]["content"]["application/json"];
+
+type GetBranchActivity200Response =
+  paths["/api/branches/{branchId}/activity"]["get"]["responses"]["200"]["content"]["application/json"];
+
 // List (GET /api/branches)
 export async function listBranchesApiRequest(params?: {
   limit?: number;
@@ -59,6 +65,11 @@ export async function listBranchesApiRequest(params?: {
   return httpRequestJson<ListBranches200Response>(
     `/api/branches${qs ? `?${qs}` : ""}`
   );
+}
+
+// Get (GET /api/branches/{branchId})
+export async function getBranchApiRequest(branchId: string) {
+  return httpRequestJson<GetBranch200Response>(`/api/branches/${branchId}`);
 }
 
 // Create (POST /api/branches)
@@ -108,5 +119,31 @@ export async function deleteBranchApiRequest(params: {
         ? { "Idempotency-Key": idempotencyKeyOptional }
         : undefined,
     }
+  );
+}
+
+export async function getBranchActivityApiRequest(params: {
+  branchId: string;
+  limit?: number;
+  cursor?: string | null;
+  occurredFrom?: string; // ISO
+  occurredTo?: string;   // ISO
+  actorIds?: string[];   // array -> CSV
+  includeFacets?: boolean;
+  includeTotal?: boolean;
+}) {
+  const { branchId, actorIds, cursor, ...rest } = params;
+  const sp = new URLSearchParams();
+  if (rest.limit != null) sp.set("limit", String(rest.limit));
+  if (cursor) sp.set("cursor", cursor);
+  if (rest.occurredFrom) sp.set("occurredFrom", rest.occurredFrom);
+  if (rest.occurredTo) sp.set("occurredTo", rest.occurredTo);
+  if (actorIds?.length) sp.set("actorIds", actorIds.join(","));
+  if (rest.includeFacets) sp.set("includeFacets", "1");
+  if (rest.includeTotal) sp.set("includeTotal", "1");
+
+  const qs = sp.toString();
+  return httpRequestJson<GetBranchActivity200Response>(
+    `/api/branches/${branchId}/activity${qs ? `?${qs}` : ""}`
   );
 }

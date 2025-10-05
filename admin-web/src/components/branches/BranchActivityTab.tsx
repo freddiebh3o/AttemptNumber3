@@ -1,47 +1,53 @@
-// admin-web/src/components/roles/RoleActivityTab.tsx
+// admin-web/src/components/branches/BranchActivityTab.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Anchor,
   Badge,
   Button,
+  CloseButton,
   Group,
   Loader,
+  MultiSelect,
+  NumberInput,
   Paper,
   SegmentedControl,
-  Table,
-  Text,
-  Title,
-  Tooltip,
-  Timeline,
-  MultiSelect,
   Space,
   Stack,
-  NumberInput,
+  Table,
+  Text,
+  Timeline,
+  Title,
+  Tooltip,
   rem,
-  CloseButton,
-  Anchor,
 } from "@mantine/core";
 import { DatePickerInput } from "@mantine/dates";
 import {
-  IconRefresh,
-  IconFilter,
   IconChevronDown,
   IconChevronUp,
-  IconPlayerTrackPrev,
+  IconFilter,
   IconPlayerTrackNext,
+  IconPlayerTrackPrev,
+  IconRefresh,
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { handlePageError } from "../../utils/pageError";
 import { FilterBar } from "../common/FilterBar";
-import { useLocation, useNavigationType, useSearchParams, Link, useParams } from "react-router-dom";
+import {
+  useLocation,
+  useNavigationType,
+  useParams,
+  useSearchParams,
+  Link,
+} from "react-router-dom";
 import { buildCommonDatePresets } from "../../utils/datePresets";
-import { getRoleActivityApiRequest } from "../../api/roles";
+import { handlePageError } from "../../utils/pageError";
+import { getBranchActivityApiRequest } from "../../api/branches";
 
 dayjs.extend(relativeTime);
 
 type ViewMode = "table" | "timeline";
 
-type RoleActivityItem = {
+type BranchActivityItem = {
   kind: "audit";
   id: string;
   when: string;
@@ -56,7 +62,7 @@ type RoleActivityItem = {
 type Filters = {
   actorIds: string[];
   occurredFrom: string | null; // YYYY-MM-DD
-  occurredTo: string | null;   // YYYY-MM-DD
+  occurredTo: string | null; // YYYY-MM-DD
 };
 
 const emptyFilters: Filters = {
@@ -65,8 +71,7 @@ const emptyFilters: Filters = {
   occurredTo: null,
 };
 
-const LOCALSTORAGE_LIMIT_KEY = "role-activity:perPage";
-
+const LOCALSTORAGE_LIMIT_KEY = "branch-activity:perPage";
 const OWN_KEYS = [
   "mode",
   "limit",
@@ -78,7 +83,7 @@ const OWN_KEYS = [
   "filtersOpen",
 ] as const;
 
-export function RoleActivityTab({ roleId }: { roleId: string }) {
+export function BranchActivityTab({ branchId }: { branchId: string }) {
   const { tenantSlug } = useParams<{ tenantSlug: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
@@ -87,20 +92,23 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
   const [mode, setMode] = useState<ViewMode>("table");
   const [isLoading, setIsLoading] = useState(false);
   const [isPaginating, setIsPaginating] = useState(false);
-  const [rows, setRows] = useState<RoleActivityItem[] | null>(null);
-  const [errorForBoundary, setErrorForBoundary] = useState<
-    (Error & { httpStatusCode?: number; correlationId?: string }) | null
-  >(null);
+  const [rows, setRows] = useState<BranchActivityItem[] | null>(null);
+  const [errorForBoundary, setErrorForBoundary] = useState<any>(null);
 
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<Filters>(emptyFilters);
-  const [actorOptions, setActorOptions] = useState<{ value: string; label: string }[]>([]);
-
-  const facetCache = useRef<Map<string, { actors: { value: string; label: string }[] }>>(new Map());
+  const [actorOptions, setActorOptions] = useState<
+    { value: string; label: string }[]
+  >([]);
+  const facetCache = useRef<
+    Map<string, { actors: { value: string; label: string }[] }>
+  >(new Map());
 
   const [limit, setLimit] = useState<number>(() => {
     const fromLS = Number(localStorage.getItem(LOCALSTORAGE_LIMIT_KEY) || "");
-    return Number.isFinite(fromLS) && fromLS > 0 ? Math.max(1, Math.min(100, fromLS)) : 20;
+    return Number.isFinite(fromLS) && fromLS > 0
+      ? Math.max(1, Math.min(100, fromLS))
+      : 20;
   });
   const [pageIndex, setPageIndex] = useState(0);
   const [cursorStack, setCursorStack] = useState<(string | null)[]>([null]);
@@ -112,11 +120,14 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
   const rangeStart = shownCount ? pageIndex * limit + 1 : 0;
   const rangeEnd = shownCount ? rangeStart + shownCount - 1 : 0;
   const approx = totalCount == null ? "≈ " : "";
-  const totalPages = totalCount != null ? Math.max(1, Math.ceil(totalCount / limit)) : null;
+  const totalPages =
+    totalCount != null ? Math.max(1, Math.ceil(totalCount / limit)) : null;
   const rangeText =
     shownCount === 0
       ? "No results"
-      : `${approx}Showing ${rangeStart}–${rangeEnd}${totalCount != null ? ` of ${totalCount}` : ""}`;
+      : `${approx}Showing ${rangeStart}–${rangeEnd}${
+          totalCount != null ? ` of ${totalCount}` : ""
+        }`;
 
   function writeUrlState(overrides?: {
     page?: number;
@@ -130,9 +141,8 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
   }) {
     const sp = new URLSearchParams(searchParams);
     for (const k of OWN_KEYS) sp.delete(k);
-
     const put = (k: string, v: unknown) => {
-      if (v === undefined || v === null || v === "") return;
+      if (v == null || v === ("" as any)) return;
       sp.set(k, String(v));
     };
 
@@ -149,7 +159,8 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
 
     const fActorIds = overrides?.actorIds ?? filters.actorIds;
     const fFrom =
-      overrides && Object.prototype.hasOwnProperty.call(overrides, "occurredFrom")
+      overrides &&
+      Object.prototype.hasOwnProperty.call(overrides, "occurredFrom")
         ? overrides.occurredFrom
         : filters.occurredFrom;
     const fTo =
@@ -169,11 +180,12 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
     const qpMode = (searchParams.get("mode") as ViewMode) || "table";
     const qpLimit = Number(searchParams.get("limit") ?? "");
     const effectiveLimit =
-      Number.isFinite(qpLimit) && qpLimit > 0 ? Math.max(1, Math.min(100, qpLimit)) : limit;
-
+      Number.isFinite(qpLimit) && qpLimit > 0
+        ? Math.max(1, Math.min(100, qpLimit))
+        : limit;
     const qpPage = Number(searchParams.get("page") ?? "1");
-    const initialPageIndex = Number.isFinite(qpPage) && qpPage > 0 ? qpPage - 1 : 0;
-
+    const initialPageIndex =
+      Number.isFinite(qpPage) && qpPage > 0 ? qpPage - 1 : 0;
     const qpCursor = searchParams.get("cursor");
     const qpActorIds = (searchParams.get("actorIds") || "")
       .split(",")
@@ -188,7 +200,6 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
     setPageIndex(initialPageIndex);
     setCursorStack([qpCursor ?? null]);
     setShowFilters(qpFiltersOpen);
-
     setFilters({
       actorIds: qpActorIds,
       occurredFrom: qpFrom || null,
@@ -205,18 +216,14 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
     limitOverride?: number;
     includeTotal?: boolean;
   }) {
-    const fetchingJustPagination = opts?.keepFacets === true && !opts?.includeTotal;
-    !fetchingJustPagination && setIsLoading(true);
-    fetchingJustPagination && setIsPaginating(true);
-
+    const onlyPaginating = opts?.keepFacets === true && !opts?.includeTotal;
+    !onlyPaginating ? setIsLoading(true) : setIsPaginating(true);
     try {
       const effectiveLimit = opts?.limitOverride ?? limit;
-      const cursorSpread = typeof opts?.cursor === "string" ? { cursor: opts.cursor } : {};
-
-      const res = await getRoleActivityApiRequest({
-        roleId,
+      const res = await getBranchActivityApiRequest({
+        branchId,
         limit: effectiveLimit,
-        ...cursorSpread,
+        ...(typeof opts?.cursor === "string" ? { cursor: opts.cursor } : {}),
         ...(filters.actorIds.length ? { actorIds: filters.actorIds } : {}),
         ...(filters.occurredFrom
           ? { occurredFrom: dayjs(filters.occurredFrom).toISOString() }
@@ -227,17 +234,18 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
         includeFacets: !opts?.keepFacets,
         includeTotal: opts?.includeTotal === true,
       });
-
       if (!res.success) throw new Error("Failed to load activity");
       const data = res.data;
 
-      const items = (data.items ?? []) as RoleActivityItem[];
+      const items = (data.items ?? []) as BranchActivityItem[];
       setRows(items);
 
       const serverHasNext = Boolean(data.pageInfo?.hasNextPage);
       const serverNextCursor = data.pageInfo?.nextCursor ?? null;
       setHasNextPage(serverHasNext && !!serverNextCursor);
-      setNextCursor(serverHasNext && serverNextCursor ? serverNextCursor : null);
+      setNextCursor(
+        serverHasNext && serverNextCursor ? serverNextCursor : null
+      );
 
       if (typeof data.pageInfo?.totalCount === "number") {
         setTotalCount(data.pageInfo.totalCount);
@@ -246,27 +254,36 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
       }
 
       if (!opts?.keepFacets) {
-        const fromServer = (data as any).facets?.actors as Array<{ userId: string; display: string }> | undefined;
+        const fromServer = (data as any).facets?.actors as
+          | Array<{ userId: string; display: string }>
+          | undefined;
         if (fromServer) {
-          const mapped = fromServer.map((a) => ({ value: a.userId, label: a.display }));
-          facetCache.current.set(roleId, { actors: mapped });
+          const mapped = fromServer.map((a) => ({
+            value: a.userId,
+            label: a.display,
+          }));
+          facetCache.current.set(branchId, { actors: mapped });
           setActorOptions(mapped);
         } else {
-          const cached = facetCache.current.get(roleId)?.actors;
+          const cached = facetCache.current.get(branchId)?.actors;
           if (cached) setActorOptions(cached);
         }
       }
     } catch (e) {
-      setErrorForBoundary(handlePageError(e, { title: "Failed to load activity" }));
+      setErrorForBoundary(
+        handlePageError(e, { title: "Failed to load activity" })
+      );
     } finally {
-      fetchingJustPagination ? setIsPaginating(false) : setIsLoading(false);
+      !onlyPaginating ? setIsLoading(false) : setIsPaginating(false);
     }
   }
 
-  function resetToFirstPageAndFetch(opts?: { keepFacets?: boolean; limitOverride?: number }) {
+  function resetToFirstPageAndFetch(opts?: {
+    keepFacets?: boolean;
+    limitOverride?: number;
+  }) {
     setCursorStack([null]);
     setPageIndex(0);
-
     writeUrlState({
       page: 1,
       cursor: null,
@@ -277,7 +294,6 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
       mode,
       filtersOpen: showFilters,
     });
-
     void fetchPage({
       cursor: null,
       keepFacets: opts?.keepFacets,
@@ -297,24 +313,24 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
     setTotalCount(null);
 
     const { cursor, includeTotal } = parseUrlOnMount();
-    const cached = facetCache.current.get(roleId)?.actors;
+    const cached = facetCache.current.get(branchId)?.actors;
     if (cached) setActorOptions(cached);
     void fetchPage({ cursor, includeTotal });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roleId]);
+  }, [branchId]);
 
-  // browser back/forward
+  // browser POP
   useEffect(() => {
     if (navType !== "POP") return;
     const sp = new URLSearchParams(location.search);
     const qpMode = (sp.get("mode") as ViewMode) || "table";
     const qpLimit = Number(sp.get("limit") ?? "");
     const effectiveLimit =
-      Number.isFinite(qpLimit) && qpLimit > 0 ? Math.max(1, Math.min(100, qpLimit)) : limit;
-
+      Number.isFinite(qpLimit) && qpLimit > 0
+        ? Math.max(1, Math.min(100, qpLimit))
+        : limit;
     const qpPage = Number(sp.get("page") ?? "1");
     const newIndex = Number.isFinite(qpPage) && qpPage > 0 ? qpPage - 1 : 0;
-
     const qpCursor = sp.get("cursor");
     const qpActorIds = (sp.get("actorIds") || "")
       .split(",")
@@ -331,7 +347,6 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
       occurredFrom: qpFrom || null,
       occurredTo: qpTo || null,
     });
-
     setCursorStack([qpCursor ?? null]);
     setPageIndex(newIndex);
     setShowFilters(qpFiltersOpen);
@@ -341,9 +356,10 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
       keepFacets: true,
       includeTotal: true,
     });
-  }, [location.key, navType]); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.key, navType]);
 
-  // re-fetch when applied filters change
+  // re-fetch when filters change
   useEffect(() => {
     if (rows === null) return;
     writeUrlState({
@@ -355,7 +371,11 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
     });
     resetToFirstPageAndFetch({ keepFacets: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(filters.actorIds), filters.occurredFrom, filters.occurredTo]);
+  }, [
+    JSON.stringify(filters.actorIds),
+    filters.occurredFrom,
+    filters.occurredTo,
+  ]);
 
   if (errorForBoundary) throw errorForBoundary;
 
@@ -367,7 +387,6 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
     writeUrlState({ cursor: nextCursor, page: newIndex + 1 });
     await fetchPage({ cursor: nextCursor, keepFacets: true });
   }
-
   async function goPrev() {
     if (pageIndex === 0) return;
     const prevCursor = cursorStack[pageIndex - 1] ?? null;
@@ -379,9 +398,18 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
 
   const activeFilterChips = useMemo(() => {
     const chips: { key: keyof Filters | "actorIds"; label: string }[] = [];
-    if (filters.actorIds.length) chips.push({ key: "actorIds", label: `actors: ${filters.actorIds.length}` });
-    if (filters.occurredFrom) chips.push({ key: "occurredFrom", label: `from: ${filters.occurredFrom}` });
-    if (filters.occurredTo) chips.push({ key: "occurredTo", label: `to: ${filters.occurredTo}` });
+    if (filters.actorIds.length)
+      chips.push({
+        key: "actorIds",
+        label: `actors: ${filters.actorIds.length}`,
+      });
+    if (filters.occurredFrom)
+      chips.push({
+        key: "occurredFrom",
+        label: `from: ${filters.occurredFrom}`,
+      });
+    if (filters.occurredTo)
+      chips.push({ key: "occurredTo", label: `to: ${filters.occurredTo}` });
     return chips;
   }, [filters]);
 
@@ -400,7 +428,7 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
       <Stack gap="1">
         <Title order={4}>Activity</Title>
         <Text size="sm" c="dimmed" aria-live="polite" aria-atomic="true">
-          {rangeText} · Role changes
+          {rangeText} · Branch changes
         </Text>
       </Stack>
 
@@ -426,9 +454,15 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
             setShowFilters(next);
             writeUrlState({ filtersOpen: next });
           }}
-          rightSection={showFilters ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />}
+          rightSection={
+            showFilters ? (
+              <IconChevronUp size={16} />
+            ) : (
+              <IconChevronDown size={16} />
+            )
+          }
           aria-expanded={showFilters}
-          aria-controls="role-activity-filters"
+          aria-controls="branch-activity-filters"
         >
           Filters
         </Button>
@@ -448,7 +482,7 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
     <>
       <FilterBar<Filters>
         open={showFilters}
-        panelId="role-activity-filters"
+        panelId="branch-activity-filters"
         initialValues={filters}
         emptyValues={emptyFilters}
         onApply={(vals) => setFilters(vals)}
@@ -461,7 +495,9 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
               placeholder="All actors"
               data={actorOptions}
               value={values.actorIds}
-              onChange={(arr) => setValues((prev) => ({ ...prev, actorIds: arr }))}
+              onChange={(arr) =>
+                setValues((prev) => ({ ...prev, actorIds: arr }))
+              }
               searchable
               clearable
             />
@@ -508,14 +544,20 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
     <Group justify="space-between" mt="md">
       <Text size="sm" c="dimmed" aria-live="polite" aria-atomic="true">
         {rangeText}
-        {totalPages != null ? ` · Page ${pageIndex + 1} of ${totalPages}` : ` · Page ${pageIndex + 1}`}
+        {totalPages != null
+          ? ` · Page ${pageIndex + 1} of ${totalPages}`
+          : ` · Page ${pageIndex + 1}`}
       </Text>
       <Group gap="xs">
         <Button
           variant="light"
           leftSection={<IconPlayerTrackPrev size={16} />}
           onClick={goPrev}
-          disabled={isPaginating || pageIndex === 0 || (pageIndex > 0 && cursorStack[pageIndex - 1] === undefined)}
+          disabled={
+            isPaginating ||
+            pageIndex === 0 ||
+            (pageIndex > 0 && cursorStack[pageIndex - 1] === undefined)
+          }
         >
           Prev
         </Button>
@@ -563,13 +605,24 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
         {header}
         {filterPanel}
         <div className="py-16 text-center">
-          <Title order={5} mb="xs">No activity matches your filters</Title>
-          <Text c="dimmed" mb="md">Try adjusting your filters.</Text>
+          <Title order={5} mb="xs">
+            No activity matches your filters
+          </Title>
+          <Text c="dimmed" mb="md">
+            Try adjusting your filters.
+          </Text>
           <Group justify="center">
-            <Button variant="light" onClick={() => setShowFilters(true)} aria-controls="role-activity-filters" aria-expanded={showFilters}>
+            <Button
+              variant="light"
+              onClick={() => setShowFilters(true)}
+              aria-controls="branch-activity-filters"
+              aria-expanded={showFilters}
+            >
               Show filters
             </Button>
-            <Button onClick={() => resetToFirstPageAndFetch({ keepFacets: false })}>
+            <Button
+              onClick={() => resetToFirstPageAndFetch({ keepFacets: false })}
+            >
               Refresh
             </Button>
           </Group>
@@ -598,7 +651,9 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
                   title={
                     <Group gap="xs" wrap="wrap">
                       <Text fw={600}>{it.message}</Text>
-                      <Badge size="xs" variant="light">{it.action}</Badge>
+                      <Badge size="xs" variant="light">
+                        {it.action}
+                      </Badge>
                       {it.actor ? (
                         <Anchor
                           component={Link}
@@ -609,7 +664,9 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
                           {it.actor.display}
                         </Anchor>
                       ) : (
-                        <Text size="sm" c="dimmed">—</Text>
+                        <Text size="sm" c="dimmed">
+                          —
+                        </Text>
                       )}
                       <Tooltip label={`${whenAbs} (${timeZone})`} withArrow>
                         <Text size="sm" c="dimmed">
@@ -628,48 +685,54 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
     );
   }
 
-  // table
+  // Table
   return (
     <>
       {header}
       {filterPanel}
 
-      <Paper withBorder p="md" radius="md" className="bg-white max-h-[70vh] overflow-y-auto">
+      <Paper
+        withBorder
+        p="md"
+        radius="md"
+        className="bg-white max-h-[70vh] overflow-y-auto"
+      >
         <Group justify="space-between" align="center" gap="xs" wrap="wrap">
-          <Group gap="xs" mt={activeFilterChips.length > 0 ? "xs" : 0} wrap="wrap" style={{ flex: 1 }}>
+          <Group gap="xs" mt={0} wrap="wrap" style={{ flex: 1 }}>
+            {activeFilterChips.map((chip) => (
+              <Badge
+                key={chip.key as string}
+                variant="light"
+                rightSection={
+                  <CloseButton
+                    aria-label={`Clear ${chip.label}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      clearOneChip(chip.key);
+                    }}
+                  />
+                }
+              >
+                {chip.label}
+              </Badge>
+            ))}
+
             {activeFilterChips.length > 0 && (
-              <>
-                {activeFilterChips.map((chip) => (
-                  <Badge
-                    key={chip.key as string}
-                    variant="light"
-                    rightSection={
-                      <CloseButton
-                        aria-label={`Clear ${chip.label}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          clearOneChip(chip.key);
-                        }}
-                      />
-                    }
-                  >
-                    {chip.label}
-                  </Badge>
-                ))}
-                <Button
-                  variant="subtle"
-                  size="xs"
-                  onClick={() => setFilters(emptyFilters)}
-                  aria-label="Clear all filters"
-                >
-                  Clear all
-                </Button>
-              </>
+              <Button
+                variant="subtle"
+                size="xs"
+                onClick={() => setFilters(emptyFilters)}
+                aria-label="Clear all filters"
+              >
+                Clear all
+              </Button>
             )}
           </Group>
 
           <Group align="center" gap="xs">
-            <Text size="sm" c="dimmed">Per page</Text>
+            <Text size="sm" c="dimmed">
+              Per page
+            </Text>
             <NumberInput
               value={limit}
               onChange={(v) => {
@@ -677,7 +740,10 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
                 const clamped = Math.max(1, Math.min(100, n));
                 setLimit(clamped);
                 localStorage.setItem(LOCALSTORAGE_LIMIT_KEY, String(clamped));
-                resetToFirstPageAndFetch({ limitOverride: clamped });
+                resetToFirstPageAndFetch({
+                  limitOverride: clamped,
+                  keepFacets: true,
+                });
               }}
               min={1}
               max={100}
@@ -685,7 +751,7 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
               clampBehavior="strict"
               w={rem(90)}
               aria-label="Results per page"
-              aria-controls="role-activity-table"
+              aria-controls="branch-activity-table"
             />
           </Group>
         </Group>
@@ -693,8 +759,18 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
         <Space h="md" />
 
         <div className="relative">
-          <Overlay />
-          <Table id="role-activity-table" striped withTableBorder withColumnBorders stickyHeader>
+          {isPaginating && (
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-white/60 rounded-md">
+              <Loader size="sm" />
+            </div>
+          )}
+          <Table
+            id="branch-activity-table"
+            striped
+            withTableBorder
+            withColumnBorders
+            stickyHeader
+          >
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>When</Table.Th>
@@ -724,49 +800,53 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
                       <Text size="sm">{it.message}</Text>
                       {it.messageParts && (
                         <Stack gap={4} mt={6}>
-                          {/* rename */}
-                          {"name" in it.messageParts && (it.messageParts as any).name && (
-                            <Text size="xs" c="dimmed">
-                              Name: <code>{(it.messageParts as any).name.before ?? "—"}</code> →{" "}
-                              <code>{(it.messageParts as any).name.after ?? "—"}</code>
-                            </Text>
-                          )}
-
-                          {/* description */}
-                          {"description" in it.messageParts && (it.messageParts as any).description && (
-                            <Text size="xs" c="dimmed">
-                              Description: <code>{(it.messageParts as any).description.before ?? "—"}</code> →{" "}
-                              <code>{(it.messageParts as any).description.after ?? "—"}</code>
-                            </Text>
-                          )}
-
-                          {/* permissions */}
-                          {"permissions" in it.messageParts && (it.messageParts as any).permissions && (
-                            <Group gap={6} align="center" wrap="wrap">
-                              {((it.messageParts as any).permissions.added as string[] | undefined)?.slice(0, 5).map((k) => (
-                                <Badge key={`add:${it.id}:${k}`} color="green" variant="light" title="Added">
-                                  + {k}
-                                </Badge>
-                              ))}
-                              {((it.messageParts as any).permissions.removed as string[] | undefined)?.slice(0, 5).map((k) => (
-                                <Badge key={`rem:${it.id}:${k}`} color="red" variant="light" title="Removed">
-                                  − {k}
-                                </Badge>
-                              ))}
-
-                              {/* indicate truncation if there were many */}
-                              {((it.messageParts as any).permissions.preview?.truncatedAdded ?? 0) > 0 && (
-                                <Badge variant="outline" title="More added permissions not shown">
-                                  +{(it.messageParts as any).permissions.preview.truncatedAdded} more
-                                </Badge>
-                              )}
-                              {((it.messageParts as any).permissions.preview?.truncatedRemoved ?? 0) > 0 && (
-                                <Badge variant="outline" title="More removed permissions not shown">
-                                  −{(it.messageParts as any).permissions.preview.truncatedRemoved} more
-                                </Badge>
-                              )}
-                            </Group>
-                          )}
+                          {"branchName" in it.messageParts &&
+                            (it.messageParts as any).branchName && (
+                              <Text size="xs" c="dimmed">
+                                Name:{" "}
+                                <code>
+                                  {(it.messageParts as any).branchName.before ??
+                                    "—"}
+                                </code>{" "}
+                                →{" "}
+                                <code>
+                                  {(it.messageParts as any).branchName.after ??
+                                    "—"}
+                                </code>
+                              </Text>
+                            )}
+                          {"branchSlug" in it.messageParts &&
+                            (it.messageParts as any).branchSlug && (
+                              <Text size="xs" c="dimmed">
+                                Slug:{" "}
+                                <code>
+                                  {(it.messageParts as any).branchSlug.before ??
+                                    "—"}
+                                </code>{" "}
+                                →{" "}
+                                <code>
+                                  {(it.messageParts as any).branchSlug.after ??
+                                    "—"}
+                                </code>
+                              </Text>
+                            )}
+                          {"isActive" in it.messageParts &&
+                            (it.messageParts as any).isActive && (
+                              <Text size="xs" c="dimmed">
+                                Active:{" "}
+                                <code>
+                                  {String(
+                                    (it.messageParts as any).isActive.before
+                                  )}
+                                </code>{" "}
+                                →{" "}
+                                <code>
+                                  {String(
+                                    (it.messageParts as any).isActive.after
+                                  )}
+                                </code>
+                              </Text>
+                            )}
                         </Stack>
                       )}
                     </Table.Td>
@@ -781,7 +861,9 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
                           {it.actor.display}
                         </Anchor>
                       ) : (
-                        <Text size="sm" c="dimmed">—</Text>
+                        <Text size="sm" c="dimmed">
+                          —
+                        </Text>
                       )}
                     </Table.Td>
                   </Table.Tr>

@@ -1185,7 +1185,8 @@ export default function RolesPage() {
                             {/* Edit now navigates to role page (disabled for system roles if you want to keep that constraint) */}
                             <ActionIcon
                               variant="light"
-                              onClick={() => navigate(`/${tenantSlug}/roles/${r.id}`)}
+                              component={Link}
+                              to={`/${tenantSlug}/roles/${r.id}`}
                               disabled={r.isSystem}
                               title={
                                 r.isSystem

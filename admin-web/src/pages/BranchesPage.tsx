@@ -6,6 +6,7 @@ import {
   useLocation,
   useNavigationType,
   useNavigate,
+  Link
 } from "react-router-dom";
 import {
   ActionIcon,
@@ -1044,6 +1045,8 @@ export default function BranchesPage() {
                         <Table.Td className="text-right">
                           <Group gap="xs" justify="flex-end">
                             <ActionIcon
+                              component={Link}
+                              to={`/${tenantSlug}/branches/${r.id}`}
                               variant="light"
                               onClick={() =>
                                 navigate(`/${tenantSlug}/branches/${r.id}`)

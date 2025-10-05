@@ -22,6 +22,7 @@ import TenantUserPage from './pages/TenantUserPage'
 import ProductPage from './pages/ProductPage'
 import AuditLogPage from './pages/AuditLogPage'
 import RolePage from './pages/RolePage'
+import BranchPage from './pages/BranchPage'
 
 const router = createBrowserRouter([
   {
@@ -135,6 +136,24 @@ const router = createBrowserRouter([
               </RequirePermission>
             ),
             errorElement: <RouteErrorBoundary />
+          },
+          {
+            path: 'branches/new',
+            element: (
+              <RequirePermission perm="branches:manage">
+                <BranchPage />
+              </RequirePermission>
+            ),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
+            path: 'branches/:branchId',
+            element: (
+              <RequirePermission perm="branches:manage">
+                <BranchPage />
+              </RequirePermission>
+            ),
+            errorElement: <RouteErrorBoundary />,
           },
         ],
       },
