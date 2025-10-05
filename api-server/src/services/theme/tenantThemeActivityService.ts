@@ -1,6 +1,6 @@
 // api-server/src/services/theme/tenantThemeActivityService.ts
 import { prismaClientInstance as prisma } from '../../db/prismaClient.js';
-import type { Prisma, AuditEntityType  } from '@prisma/client';
+import type { Prisma, AuditEntityType } from '@prisma/client';
 
 type GetActivityParams = {
   currentTenantId: string;
@@ -24,6 +24,8 @@ export type ThemeActivityItem = {
   correlationId?: string | null;
 };
 
+// ---------------- cursor helpers ----------------
+
 function parseCursor(cursor?: string | null) {
   if (!cursor) return null;
   const i = cursor.indexOf('|');
@@ -40,21 +42,134 @@ function buildNextCursor(last?: ThemeActivityItem | null) {
   return `${last.when}|${last.id}`;
 }
 
-function messageForAction(action: string) {
-  switch (action) {
-    case 'CREATE': return 'Theme created';
-    case 'UPDATE': return 'Theme updated';
-    case 'THEME_UPDATE': return 'Theme settings updated';
-    case 'THEME_LOGO_UPDATE': return 'Logo updated';
-    default: return action.replaceAll('_', ' ').toLowerCase();
-  }
+// ---------------- diff helpers ----------------
+
+function jsonEqual(a: unknown, b: unknown) {
+  return JSON.stringify(a) === JSON.stringify(b);
 }
 
-function diffSummary(diffJson: unknown): { changedKeys: number } | undefined {
-  if (!diffJson || typeof diffJson !== 'object') return;
-  const keys = Object.keys(diffJson as Record<string, unknown>);
-  return { changedKeys: keys.length };
+type BrandingSnap = {
+  presetKey?: string | null;
+  overrides?: {
+    colorScheme?: 'light' | 'dark';
+    primaryColor?: string;
+    primaryShade?: number | { light?: number; dark?: number };
+    colors?: Record<string, string[]>;
+    defaultRadius?: string;
+    fontFamily?: string;
+  } | null;
+  logoUrl?: string | null;
+};
+
+function safeBefore(a: any): BrandingSnap | undefined {
+  // Be tolerant to different column names (beforeJson/before)
+  return (a?.beforeJson as BrandingSnap | undefined)
+      ?? (a?.before as BrandingSnap | undefined);
 }
+
+function safeAfter(a: any): BrandingSnap | undefined {
+  return (a?.afterJson as BrandingSnap | undefined)
+      ?? (a?.after as BrandingSnap | undefined);
+}
+
+function humanizePrimaryShade(v: unknown) {
+  if (typeof v === 'number') return String(v);
+  if (v && typeof v === 'object') {
+    const o = v as any;
+    const l = o.light ?? '—';
+    const d = o.dark  ?? '—';
+    return `light ${l}, dark ${d}`;
+  }
+  return '—';
+}
+
+function humanizeThemeChange(before?: BrandingSnap, after?: BrandingSnap) {
+  const parts: string[] = [];
+  const details: Record<string, unknown> = {};
+  const changed: Record<string, boolean> = {};
+
+  const b = before ?? {};
+  const a = after ?? {};
+
+  // preset
+  if (b.presetKey !== a.presetKey) {
+    parts.push(`preset → ${a.presetKey ?? 'None'}`);
+    details.preset = { before: b.presetKey ?? null, after: a.presetKey ?? null };
+    changed.preset = true;
+  }
+
+  const bo = (b.overrides ?? {}) as NonNullable<BrandingSnap['overrides']>;
+  const ao = (a.overrides ?? {}) as NonNullable<BrandingSnap['overrides']>;
+
+  // primaryColor
+  if (bo.primaryColor !== ao.primaryColor) {
+    parts.push(`primaryColor ${bo.primaryColor ?? '—'} → ${ao.primaryColor ?? '—'}`);
+    details.primaryColor = { before: bo.primaryColor ?? null, after: ao.primaryColor ?? null };
+    changed.primaryColor = true;
+  }
+
+  // primaryShade
+  if (!jsonEqual(bo.primaryShade, ao.primaryShade)) {
+    parts.push(`shades ${humanizePrimaryShade(bo.primaryShade)} → ${humanizePrimaryShade(ao.primaryShade)}`);
+    details.primaryShade = { before: bo.primaryShade ?? null, after: ao.primaryShade ?? null };
+    changed.primaryShade = true;
+  }
+
+  // defaultRadius
+  if (bo.defaultRadius !== ao.defaultRadius) {
+    parts.push(`defaultRadius ${bo.defaultRadius ?? '—'} → ${ao.defaultRadius ?? '—'}`);
+    details.defaultRadius = { before: bo.defaultRadius ?? null, after: ao.defaultRadius ?? null };
+    changed.defaultRadius = true;
+  }
+
+  // fontFamily
+  if (bo.fontFamily !== ao.fontFamily) {
+    parts.push(`fontFamily ${bo.fontFamily ?? '—'} → ${ao.fontFamily ?? '—'}`);
+    details.fontFamily = { before: bo.fontFamily ?? null, after: ao.fontFamily ?? null };
+    changed.fontFamily = true;
+  }
+
+  // colors (palettes)
+  const bc = bo.colors ?? {};
+  const ac = ao.colors ?? {};
+  if (!jsonEqual(bc, ac)) {
+    const beforeKeys = Object.keys(bc);
+    const afterKeys  = Object.keys(ac);
+    const added   = afterKeys.filter(k => !beforeKeys.includes(k));
+    const removed = beforeKeys.filter(k => !afterKeys.includes(k));
+    const updated = afterKeys.filter(k => beforeKeys.includes(k) && !jsonEqual(bc[k], ac[k]));
+
+    const buckets: string[] = [];
+    if (added.length)   buckets.push(`+${added.length} palette(s): ${added.join(', ')}`);
+    if (removed.length) buckets.push(`-${removed.length} palette(s): ${removed.join(', ')}`);
+    if (updated.length) buckets.push(`updated ${updated.length} palette(s): ${updated.join(', ')}`);
+
+    if (buckets.length) parts.push(buckets.join('; '));
+    details.colors = { added, removed, updated };
+    changed.colors = true;
+  }
+
+  // logo
+  const logoChanged = (b.logoUrl ?? null) !== (a.logoUrl ?? null);
+  if (logoChanged) {
+    const summary =
+      !b.logoUrl && a.logoUrl ? 'logo added'
+      : b.logoUrl && !a.logoUrl ? 'logo removed'
+      : 'logo updated';
+    parts.push(summary);
+    details.logo = { before: b.logoUrl ?? null, after: a.logoUrl ?? null };
+    changed.logo = true;
+  }
+
+  const summary = parts.length ? parts.join(', ') : 'Theme settings updated';
+  return { summary, details: { changed, ...details } };
+}
+
+function titleCaseFromAction(action: string) {
+  return action.replaceAll('_', ' ').toLowerCase().replace(/^\w/, c => c.toUpperCase());
+}
+
+// ------------------------------------------------
 
 export async function getTenantThemeActivityForCurrentTenantService(params: GetActivityParams) {
   const tenantId = params.currentTenantId;
@@ -90,6 +205,8 @@ export async function getTenantThemeActivityForCurrentTenantService(params: GetA
     where,
     orderBy,
     take: TAKE,
+    // If you have explicit columns for before/after, you can select them to avoid loading huge rows.
+    // select: { id: true, action: true, createdAt: true, correlationId: true, actorUserId: true, beforeJson: true, afterJson: true }
   });
 
   // hydrate actors (emails)
@@ -108,17 +225,67 @@ export async function getTenantThemeActivityForCurrentTenantService(params: GetA
     userId ? { userId, display: actorMap.get(userId) ?? userId } : null;
 
   const items: ThemeActivityItem[] = audits.map((a) => {
-    const parts = diffSummary(a.diffJson ?? undefined);
-  
+    const action = String(a.action);
+    const before = safeBefore(a);
+    const after  = safeAfter(a);
+
+    let message = '';
+
+    // Prefer a humanized message whenever we have snapshots
+    if ((action === 'THEME_UPDATE' || action === 'UPDATE' || action === 'CREATE') && (before || after)) {
+      const h = humanizeThemeChange(before, after);
+      message = h.summary;
+
+      const parts: Record<string, unknown> = { ...h.details };
+      return {
+        kind: 'audit',
+        id: a.id,
+        when: a.createdAt.toISOString(),
+        action,
+        message,
+        actor: toActor(a.actorUserId),
+        correlationId: a.correlationId ?? null,
+        ...(Object.keys(parts).length ? { messageParts: parts } : {}),
+      };
+    }
+
+    // Fallbacks (including rare/legacy THEME_LOGO_UPDATE)
+    if (action === 'THEME_LOGO_UPDATE' && (before || after)) {
+      const bUrl = before?.logoUrl ?? null;
+      const aUrl = after?.logoUrl ?? null;
+      if (bUrl === aUrl) {
+        message = 'Logo unchanged';
+      } else if (!bUrl && aUrl) {
+        message = 'Logo added';
+      } else if (bUrl && !aUrl) {
+        message = 'Logo removed';
+      } else {
+        message = 'Logo updated';
+      }
+      const parts = { logo: { before: bUrl, after: aUrl }, changed: { logo: bUrl !== aUrl } };
+      return {
+        kind: 'audit',
+        id: a.id,
+        when: a.createdAt.toISOString(),
+        action,
+        message,
+        actor: toActor(a.actorUserId),
+        correlationId: a.correlationId ?? null,
+        messageParts: parts,
+      };
+    }
+
+    // Absolute fallback to something readable
+    message = titleCaseFromAction(action);
+
     return {
       kind: 'audit',
       id: a.id,
       when: a.createdAt.toISOString(),
-      action: a.action as string,
-      message: messageForAction(a.action as string),
+      action,
+      message,
       actor: toActor(a.actorUserId),
       correlationId: a.correlationId ?? null,
-      ...(parts ? { messageParts: parts } : {}),
     };
   });
 

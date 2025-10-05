@@ -27,7 +27,6 @@ import {
   ScrollArea,
 } from "@mantine/core";
 import { DatePickerInput } from "@mantine/dates";
-import dayjs from "dayjs";
 import {
   IconChevronDown,
   IconChevronUp,

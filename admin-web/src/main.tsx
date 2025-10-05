@@ -1,5 +1,4 @@
 /* admin-web/src/main.tsx */
-/* admin-web/src/main.tsx */
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { MantineProvider, localStorageColorSchemeManager, } from '@mantine/core'
@@ -15,7 +14,7 @@ import '@mantine/notifications/styles.css'
 import '@mantine/dates/styles.css'
 import './index.css'
 import { RouteErrorBoundary } from './components/feedback/ErrorBoundary'
-import ThemeSettingsPage from './pages/ThemeSettingsPage';
+import ThemePage from './pages/ThemePage';
 import RequirePermission from './components/rbac/RequirePermission'
 import RolesPage from './pages/RolesPage'
 import BranchesPage from './pages/BranchesPage'
@@ -107,7 +106,7 @@ const router = createBrowserRouter([
             path: 'settings/theme', 
             element: (
               <RequirePermission perm="theme:manage">
-                <ThemeSettingsPage />
+                <ThemePage />
               </RequirePermission>
             ), 
             errorElement: <RouteErrorBoundary /> 

@@ -20,18 +20,18 @@ import {
   Collapse,
 } from "@mantine/core";
 import type { MantineColorShade } from "@mantine/core";
-import { useThemeStore } from "../stores/theme";
-import { PRESET_META, THEME_PRESETS, type PresetKey } from "../theme/presets";
-import PaletteEditor from "../components/theme/PaletteEditor";
-import ShadeUsageGuide from "../components/theme/ShadeUsageGuide";
+import { useThemeStore } from "../../stores/theme";
+import { PRESET_META, THEME_PRESETS, type PresetKey } from "../../theme/presets";
+import PaletteEditor from "./PaletteEditor";
+import ShadeUsageGuide from "./ShadeUsageGuide";
 import { notifications } from "@mantine/notifications";
-import { putTenantThemeApiRequest } from "../api/tenantTheme";
-import { uploadTenantLogoApiRequest } from "../api/uploads";
-import type { ThemeOverrides } from "../stores/theme";
-import type { paths } from "../types/openapi";
-import { useDirtyStore } from "../stores/dirty";
-import ImageUploadCard from "../components/common/ImageUploadCard";
-import { useAuthStore } from "../stores/auth";
+import { putTenantThemeApiRequest } from "../../api/tenantTheme";
+import { uploadTenantLogoApiRequest } from "../../api/uploads";
+import type { ThemeOverrides } from "../../stores/theme";
+import type { paths } from "../../types/openapi";
+import { useDirtyStore } from "../../stores/dirty";
+import ImageUploadCard from "../common/ImageUploadCard";
+import { useAuthStore } from "../../stores/auth";
 
 const toShade = (v: unknown, fallback: MantineColorShade): MantineColorShade => {
   const n = typeof v === "number" ? v : Number(v);
@@ -167,11 +167,11 @@ export default function ThemeSettingsPage() {
       (crypto as any)?.randomUUID?.() ??
       Math.random().toString(36).slice(2);
 
-    const body: PutThemeBody = {
-      presetKey: rec.presetKey,
-      overrides: serializeOverridesForApi(rec.overrides),
-      logoUrl: rec.logoUrl ?? null,
-    };
+      const body: PutThemeBody = {
+        presetKey: rec.presetKey,
+        overrides: serializeOverridesForApi(rec.overrides),
+        // omit logoUrl on normal save; logo changes go via upload/remove routes
+      };
 
     await putTenantThemeApiRequest({
       tenantSlug,

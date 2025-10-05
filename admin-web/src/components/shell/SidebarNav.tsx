@@ -45,7 +45,7 @@ export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) 
           <NavLink
             label="Theme"
             component={Link}
-            to={`${base}/settings/theme`}
+            to={`${base}/settings/theme?tab=settings`}
             active={active(`${base}/settings/theme`)}
             onClick={onNavigate}
           />

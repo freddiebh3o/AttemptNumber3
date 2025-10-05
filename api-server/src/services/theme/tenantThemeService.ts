@@ -123,8 +123,17 @@ export async function upsertTenantThemeService(params: {
         userAgent: meta.userAgent,
       });
 
-      // Optional semantic audit actions
-      if (presetKey !== undefined || overrides !== undefined) {
+      const beforeOverrides = (before?.overridesJson ?? {}) as unknown;
+      const didThemeChange =
+        (presetKey !== undefined && (presetKey ?? null) !== (before?.presetKey ?? null)) ||
+        (overrides !== undefined &&
+          JSON.stringify(overrides ?? {}) !== JSON.stringify(beforeOverrides ?? {}));
+      
+      const didLogoChange =
+        logoUrl !== undefined && (logoUrl ?? null) !== (before?.logoUrl ?? null);
+      
+      // Semantic audit actions (only if changed)
+      if (didThemeChange) {
         await writeAuditEvent(tx, {
           tenantId,
           actorUserId: meta.actorUserId,
@@ -132,14 +141,20 @@ export async function upsertTenantThemeService(params: {
           entityId: tenantId,
           action: AuditAction.THEME_UPDATE, // custom enum value in your schema; reuse UPDATE if not available
           entityName: null,
-          before: null,
-          after: { presetKey: updated.presetKey ?? null, overrides: (updated.overridesJson as unknown) ?? {} },
+          before: {
+              presetKey: before?.presetKey ?? null,
+              overrides: (before?.overridesJson as unknown) ?? {},
+            },
+            after: {
+              presetKey: updated.presetKey ?? null,
+              overrides: (updated.overridesJson as unknown) ?? {},
+            },
           correlationId: meta.correlationId,
           ip: meta.ip,
           userAgent: meta.userAgent,
         });
       }
-      if (logoUrl !== undefined) {
+      if (didLogoChange) {
         await writeAuditEvent(tx, {
           tenantId,
           actorUserId: meta.actorUserId,
@@ -147,7 +162,7 @@ export async function upsertTenantThemeService(params: {
           entityId: tenantId,
           action: AuditAction.THEME_LOGO_UPDATE, // custom enum; reuse UPDATE if not available
           entityName: null,
-          before: null,
+          before: { logoUrl: before?.logoUrl ?? null },
           after: { logoUrl: updated.logoUrl ?? null },
           correlationId: meta.correlationId,
           ip: meta.ip,
