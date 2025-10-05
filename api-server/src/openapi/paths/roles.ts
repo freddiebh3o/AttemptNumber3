@@ -11,6 +11,8 @@ import {
   ZodCreateRoleBody,
   ZodUpdateRoleBody,
   ZodRoleIdParam,
+  ZodRoleActivityQuery,
+  ZodRoleActivityResponseData,
 } from '../schemas/roles.js';
 
 export function registerRolePaths(registry: OpenAPIRegistry) {
@@ -133,6 +135,33 @@ export function registerRolePaths(registry: OpenAPIRegistry) {
       403: RESPONSES[403],
       404: RESPONSES[404],
       409: RESPONSES[409],
+      429: RESPONSES[429],
+      500: RESPONSES[500],
+    },
+  });
+
+  // ---------- NEW: GET /api/roles/{roleId}/activity ----------
+  registry.registerPath({
+    tags: ['Roles'],
+    method: 'get',
+    path: '/api/roles/{roleId}/activity',
+    security: [{ cookieAuth: [] }],
+    request: {
+      params: ZodRoleIdParam,
+      query: ZodRoleActivityQuery,
+    },
+    responses: {
+      200: {
+        description: 'Role activity (audit) with filters',
+        content: {
+          'application/json': {
+            schema: successEnvelope(ZodRoleActivityResponseData),
+          },
+        },
+      },
+      401: RESPONSES[401],
+      403: RESPONSES[403],
+      404: RESPONSES[404],
       429: RESPONSES[429],
       500: RESPONSES[500],
     },

@@ -96,3 +96,44 @@ export const ZodUpdateRoleBody = z.object({
   description: z.string().max(500).nullable().optional(),
   permissionKeys: z.array(ZodPermissionKey).min(0).optional(),
 }).openapi('UpdateRoleBody');
+
+// ---------------- NEW: Role Activity ----------------
+
+export const ZodRoleActivityActor = z
+  .object({ userId: z.string(), display: z.string() })
+  .nullable()
+  .openapi('RoleActivityActor');
+
+export const ZodRoleActivityItem = z.object({
+  kind: z.literal('audit'),
+  id: z.string(),
+  when: z.string().datetime(),
+  action: z.string(),
+  message: z.string(),
+  messageParts: z.record(z.string(), z.unknown()).optional(),
+  actor: ZodRoleActivityActor.optional(),
+  correlationId: z.string().nullable().optional(),
+  entityName: z.string().nullable().optional(),
+}).openapi('RoleActivityItem');
+
+export const ZodRoleActivityQuery = z.object({
+  limit: z.number().int().min(1).max(100).optional(),
+  cursor: z.string().optional(),
+  occurredFrom: z.string().datetime().optional(),
+  occurredTo: z.string().datetime().optional(),
+  actorIds: z.string().optional().openapi({ description: 'CSV of user IDs to filter by' }),
+  includeFacets: z.boolean().optional(),
+  includeTotal: z.boolean().optional(),
+}).openapi('RoleActivityQuery');
+
+export const ZodRoleActivityResponseData = z.object({
+  items: z.array(ZodRoleActivityItem),
+  pageInfo: z.object({
+    hasNextPage: z.boolean(),
+    nextCursor: z.string().nullable().optional(),
+    totalCount: z.number().int().min(0).optional(),
+  }),
+  facets: z.object({
+    actors: z.array(z.object({ userId: z.string(), display: z.string() })),
+  }).optional(),
+}).openapi('RoleActivityResponseData');

@@ -1,8 +1,8 @@
 // api-server/src/services/roleService.ts
 import { Prisma } from "@prisma/client";
-import { prismaClientInstance as prisma } from "../db/prismaClient.js";
-import { Errors } from "../utils/httpErrors.js";
-import { writeAuditEvent } from "./auditLoggerService.js";
+import { prismaClientInstance as prisma } from "../../db/prismaClient.js";
+import { Errors } from "../../utils/httpErrors.js";
+import { writeAuditEvent } from "../auditLoggerService.js";
 import { AuditAction, AuditEntityType } from "@prisma/client";
 
 const dateAddDays = (d: Date, n: number) =>

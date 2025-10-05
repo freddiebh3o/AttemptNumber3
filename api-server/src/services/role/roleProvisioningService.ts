@@ -1,7 +1,7 @@
 /* api-server/src/services/roleProvisioningService.ts */
 import type { PrismaClient } from '@prisma/client';
-import { prismaClientInstance as prisma } from '../db/prismaClient.js';
-import { PERMISSIONS, ROLE_DEFS } from '../rbac/catalog.js';
+import { prismaClientInstance as prisma } from '../../db/prismaClient.js';
+import { PERMISSIONS, ROLE_DEFS } from '../../rbac/catalog.js';
 
 type Client = PrismaClient;
 

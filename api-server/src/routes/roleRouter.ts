@@ -15,9 +15,10 @@ import {
   createTenantRoleService,
   updateTenantRoleService,
   deleteTenantRoleService,
-} from '../services/roleService.js';
+} from '../services/role/roleService.js';
 import { assertAuthed, assertHasBody, assertHasParams, assertHasQuery } from '../types/assertions.js';
 import { getAuditContext } from '../utils/auditContext.js';
+import { getRoleActivityForCurrentTenantService } from '../services/role/roleActivityService.js';
 
 export const roleRouter = Router();
 
@@ -183,6 +184,54 @@ roleRouter.delete(
       });
 
       return res.status(200).json(createStandardSuccessResponse(result));
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
+// ---------------- NEW: GET /api/roles/:roleId/activity ----------------
+const activityParamsSchema = z.object({ roleId: z.string().min(1) });
+const activityQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  cursor: z.string().optional(),
+  occurredFrom: z.string().datetime().optional(),
+  occurredTo: z.string().datetime().optional(),
+  actorIds: z.string().min(1).optional(), // CSV
+  includeFacets: z.coerce.boolean().optional(),
+  includeTotal: z.coerce.boolean().optional(),
+});
+
+roleRouter.get(
+  '/roles/:roleId/activity',
+  requireAuthenticatedUserMiddleware,
+  requirePermission('roles:manage'),
+  validateRequestParamsWithZod(activityParamsSchema),
+  validateRequestQueryWithZod(activityQuerySchema),
+  async (req, res, next) => {
+    try {
+      assertAuthed(req);
+
+      const { roleId } = req.validatedParams as z.infer<typeof activityParamsSchema>;
+      const {
+        limit, cursor, occurredFrom, occurredTo, actorIds, includeFacets, includeTotal,
+      } = req.validatedQuery as z.infer<typeof activityQuerySchema>;
+
+      const data = await getRoleActivityForCurrentTenantService({
+        currentTenantId: req.currentTenantId!,
+        roleIdPathParam: roleId,
+        ...(limit !== undefined ? { limitOptional: limit } : {}),
+        ...(cursor !== undefined ? { cursorOptional: cursor } : {}),
+        ...(occurredFrom !== undefined ? { occurredFromOptional: occurredFrom } : {}),
+        ...(occurredTo !== undefined ? { occurredToOptional: occurredTo } : {}),
+        ...(actorIds
+          ? { actorIdsOptional: actorIds.split(',').map(s => s.trim()).filter(Boolean) }
+          : {}),
+        ...(includeFacets !== undefined ? { includeFacetsOptional: includeFacets } : {}),
+        ...(includeTotal !== undefined ? { includeTotalOptional: includeTotal } : {}),
+      });
+
+      return res.status(200).json(createStandardSuccessResponse(data));
     } catch (err) {
       return next(err);
     }
