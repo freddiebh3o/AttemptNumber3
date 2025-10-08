@@ -1,0 +1,51 @@
+name: BMAD
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test-api:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install API deps
+        run: |
+          cd api-server
+          npm ci
+          npm i -D jest ts-jest @types/jest supertest @types/supertest
+      - name: Run API acceptance tests
+        run: |
+          make bmad-test-api
+
+  test-web:
+    name: Web E2E Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install web dependencies
+        run: npm ci
+        working-directory: ./admin-web
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+        working-directory: ./admin-web
+
+      - name: Run web E2E tests
+        run: npm run test:accept
+        working-directory: ./admin-web

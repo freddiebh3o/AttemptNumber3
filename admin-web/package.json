@@ -9,6 +9,10 @@
     "preview": "vite preview --port 5174",
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
     "lint": "eslint .",
+    "test:accept": "playwright test",
+    "test:accept:ui": "playwright test --ui",
+    "test:accept:debug": "playwright test --debug",
+    "test:accept:report": "playwright show-report",
     "openapi:gen": "openapi-typescript http://localhost:4000/openapi.json -o src/types/openapi.d.ts"
   },
   "dependencies": {
@@ -26,6 +30,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
+    "@playwright/test": "^1.49.1",
     "@tailwindcss/vite": "^4.1.13",
     "@types/node": "^24.5.2",
     "@types/react": "^19.1.13",
