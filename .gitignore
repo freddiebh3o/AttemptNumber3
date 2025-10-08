@@ -6,6 +6,12 @@ dist/
 *.env
 *.env.local
 
+# Test artifacts
+coverage/
+playwright-report/
+test-results/
+.playwright/
+
 # Logs
 npm-debug.log*
 yarn-debug.log*
