@@ -1,9 +1,12 @@
 {
   "permissions": {
-    "allow": [],
-    "deny": [],
+    "allow": [
+      "workspace/**"
+    ],
     "ask": [
-      "workspace"
-    ]
+      "workspace",
+      "workspace/**"
+    ],
+    "deny": []
   }
 }

@@ -2,6 +2,22 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Docs
+
+We keep all important docs in .agent folder and keep updating them, structure like below
+
+.agent
+- /Tasks: PRD & implementation plan for each feature
+- /System: Document the current state of the system (project structure/architecture, tech stack, integration points, 
+  database schema, and core functionalities such as agent architecture, LLM layer, etc.)
+- /SOP: Best practices of execute certain tasks (e.g. how to add a schema migration, how to add a new 
+  page route, etc.)
+- README.md: an index of all the documentations we have so people know what & where to look for things
+
+We should always update .agent docs after we implement a certain feature, to make sure it fully reflects the up to date information
+
+Before you plan any implementation, always red the .agent/README first to get context
+
 ## Repository Structure
 
 Monorepo with two main workspaces:
@@ -38,6 +54,11 @@ npm run seed:test-users          # Seed test users
 
 # Type checking
 npm run typecheck
+
+# Testing
+npm run test:accept              # Run Jest acceptance tests
+npm run test:accept:watch        # Watch mode
+npm run test:accept:coverage     # With coverage report
 ```
 
 ### Admin Web (`admin-web/`)
@@ -60,9 +81,35 @@ npm run lint
 
 # Regenerate TypeScript types from OpenAPI spec
 npm run openapi:gen
+
+# Testing (Playwright E2E)
+npm run test:accept              # Run E2E tests (headless)
+npm run test:accept:ui           # Interactive UI mode
+npm run test:accept:debug        # Debug mode with breakpoints
+npm run test:accept:report       # View last HTML report
 ```
 
 **IMPORTANT:** After changing OpenAPI schemas in `api-server/src/openapi/`, restart the API server, then run `npm run openapi:gen` from `admin-web/` to update frontend types.
+
+### Makefile (Root Level)
+
+The repository includes a Makefile for common development tasks:
+
+```bash
+# CI/Testing
+make bmad-test-api       # Typecheck + build API server
+make bmad-test-web       # Typecheck + lint + build web
+make bmad-accept-api     # Run API acceptance tests (Jest)
+make bmad-accept-web     # Run web E2E tests (Playwright)
+make bmad-accept-all     # Run all acceptance tests
+
+# Development
+make install             # Install all workspace dependencies
+make dev-api             # Start API server in watch mode
+make dev-web             # Start Vite dev server
+make db-migrate          # Create Prisma migration
+make db-seed             # Seed database with test data
+```
 
 ## High-Level Architecture
 
@@ -283,17 +330,42 @@ type CreateBody = paths['/api/products']['post']['requestBody']['content']['appl
 
 ## Testing & Debugging
 
-**Local testing:**
-- Use Prisma Studio (`npm run db:studio`) to inspect/edit DB directly
-- Check logs for `correlationId` to trace specific requests
-- Swagger UI at `http://localhost:4000/docs` for API exploration
+### Running Tests
 
-**Common issues:**
+**API Server (Jest):**
+```bash
+cd api-server
+npm run test:accept              # Run all tests
+npm run test:accept:watch        # Watch mode for TDD
+npm run test:accept:coverage     # Generate coverage report
+```
+
+**Admin Web (Playwright E2E):**
+```bash
+cd admin-web
+npm run test:accept              # Headless mode
+npm run test:accept:ui           # Interactive UI mode (recommended for debugging)
+npm run test:accept:debug        # Debug with breakpoints
+npm run test:accept:report       # View HTML report of last run
+```
+
+### Local Debugging Tools
+
+- **Prisma Studio** (`npm run db:studio`) - Visual database browser for inspecting/editing data
+- **Swagger UI** (`http://localhost:4000/docs`) - Interactive API documentation and testing
+- **OpenAPI Spec** (`http://localhost:4000/openapi.json`) - Raw spec for import into Postman/Insomnia
+- **Correlation IDs** - Every request gets a UUIDv4 for tracing through logs and error responses
+
+### Common Issues
+
 - **Type drift:** Regenerate OpenAPI types (`npm run openapi:gen`)
-- **CORS errors:** Check `FRONTEND_ORIGIN` matches Vite port exactly
+- **CORS errors:** Check `FRONTEND_ORIGIN` matches Vite port exactly (no trailing slash)
 - **Cookie not sent:** Check `COOKIE_SAMESITE_MODE` and HTTPS requirements
 - **DB out of sync:** Run `npm run db:deploy` or create new migration
 - **Permission denied:** Check role has permission in RBAC catalog
+- **Trailing slashes:** `FRONTEND_ORIGIN` or `VITE_API_BASE_URL` with trailing slash causes CORS/cookie issues
+- **Wrong Supabase endpoint:** Render requires Session Pooler (IPv4) URL, not direct connection
+- **Migrations not applied:** Check logs for Prisma errors; ensure `prisma migrate deploy` runs on startup
 
 ## Key Files to Reference
 

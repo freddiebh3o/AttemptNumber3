@@ -1,245 +1,390 @@
-# Multi-Tenant Admin POC
+# Multi-Tenant Admin & Inventory Management System
 
-A proof-of-concept multi-tenant admin system built with:
+A production-ready multi-tenant admin platform with **role-based access control (RBAC)**, **branch-level inventory management**, **FIFO stock costing**, **comprehensive audit logging**, and **type-safe OpenAPI contract** generation.
 
-* **API server**: Node.js + Express + PostgreSQL (Prisma ORM)
-* **Auth**: Cookie-based sessions with role-based access control (RBAC)
-* **Frontend**: React + Mantine + TailwindCSS
-* **API Docs**: OpenAPI 3.0, served with Swagger UI
-* **Logging**: Pino with request/response correlation IDs
+## Table of Contents
+
+- [Overview](#overview)
+- [Features](#features)
+- [Architecture](#architecture)
+- [API Surface](#api-surface)
+- [RBAC Model](#rbac-model)
+- [Local Setup](#local-setup)
+- [Development Workflow](#development-workflow)
+- [Testing & QA](#testing--qa)
+- [CI/CD](#cicd)
+- [Deployment](#deployment)
+- [Roadmap](#roadmap)
+- [Glossary](#glossary)
+- [Appendix](#appendix)
+
+---
+
+## Overview
+
+### What It Does
+
+This system provides a complete **multi-tenant administration platform** for businesses managing inventory across multiple physical locations (branches). Key capabilities:
+
+- **Multi-tenant isolation** - Each tenant (company) has separate data, users, roles, and branding
+- **Branch-based inventory** - Track stock across warehouses, stores, or distribution centers
+- **FIFO stock costing** - Automatic first-in-first-out lot tracking with unit cost valuation
+- **Granular RBAC** - 12 permissions across 4 system roles (OWNER, ADMIN, EDITOR, VIEWER)
+- **Full audit trail** - Append-only event log for all entities and stock movements
+- **Type-safe API contract** - OpenAPI 3.0 spec auto-generated from Zod schemas
+
+### Tech Stack
+
+**Backend** (`api-server/`)
+- Node.js 20+ with Express
+- PostgreSQL (via Prisma ORM)
+- Cookie-based JWT sessions
+- OpenAPI 3.0 + Swagger UI
+- Pino structured logging
+
+**Frontend** (`admin-web/`)
+- React 19 + Vite
+- Mantine UI v8 + TailwindCSS
+- Zustand state management
+- React Router v7
+- TypeScript types auto-generated from OpenAPI
+
+**Infrastructure**
+- GitHub Actions (BMAD workflow)
+- Supabase (PostgreSQL)
+- Render (API hosting)
+- Vercel (frontend hosting)
+
+### High-Level Architecture
+
+```mermaid
+graph LR
+    U[User Browser] -->|HTTPS + Cookies| FE[Admin Web<br/>React + Vite]
+    FE -->|REST API<br/>JSON + JWT Cookie| API[API Server<br/>Express + Prisma]
+    API -->|SQL| DB[(PostgreSQL<br/>Supabase)]
+
+    API -->|Generate| OAS[OpenAPI Spec<br/>/openapi.json]
+    OAS -->|openapi-typescript| FE
+
+    API -->|Log Events| LOG[Pino Logger<br/>Correlation IDs]
+    API -->|Audit Trail| DB
+
+    style FE fill:#e3f2fd
+    style API fill:#fff3e0
+    style DB fill:#f3e5f5
+    style OAS fill:#e8f5e9
+```
+
+**Request Flow:**
+1. User authenticates → API sets signed JWT cookie
+2. Subsequent requests include cookie → middleware decodes `currentUserId` + `currentTenantId`
+3. RBAC middleware checks permissions via `Role` → `Permission` join
+4. Business logic executes (transactions for stock operations)
+5. Audit events logged to `AuditEvent` table
+6. Correlation ID tracks request across logs and error responses
 
 ---
 
 ## Features
 
-* Multi-tenant architecture with per-tenant RBAC
-* Authentication via signed session cookies
-* Product CRUD APIs with idempotency support
-* Auto-generated OpenAPI spec (`/openapi.json`) and Swagger UI docs (`/docs`)
-* Type-safe frontend API clients generated from OpenAPI
-* Hardened security middleware (Helmet, CORS, cookie flags)
-* Structured logging with correlation IDs
+### Authentication & Sessions
+- **Cookie-based JWT** with configurable `SameSite` mode (`lax` for local, `none` for prod)
+- Session contains `{ currentUserId, currentTenantId }`
+- Middleware: `sessionMiddleware` decodes cookie → sets `req.currentUserId` / `req.currentTenantId`
+- Auto-logout on invalid/expired tokens
+
+### Multi-Tenancy & RBAC
+- **Tenant** = top-level organization (company, client)
+- **User** can belong to multiple tenants via `UserTenantMembership`
+- **Roles** per tenant with many-to-many `Permission` mapping
+- **12 Permissions**: `products:{read,write}`, `users:manage`, `roles:manage`, `tenant:manage`, `theme:manage`, `uploads:write`, `branches:manage`, `stock:{read,write,allocate}`
+- **4 System Roles**: OWNER (all perms), ADMIN (no `roles:manage`/`tenant:manage`), EDITOR (read/write products+stock), VIEWER (read-only)
+- **Enforcement**:
+  - Backend: `requirePermission(key)` middleware in routes
+  - Frontend: `<RequirePermission perm="...">` wrapper + `useAuthStore().hasPerm(key)`
+
+### Branch Management
+- Physical locations within a tenant (warehouses, stores, etc.)
+- Unique `branchSlug` per tenant
+- User-branch assignments via `UserBranchMembership` (many-to-many)
+- Active/inactive status toggle
+- UI: Branch list/detail pages with permission guards
+
+### Products & Inventory
+- **Product** scoped to tenant with unique SKU
+- **Optimistic locking** via `entityVersion` field (prevents concurrent update conflicts)
+- Prices stored in **pence** (GBP minor units)
+- Full CRUD with idempotency support (`Idempotency-Key` header)
+
+### FIFO Stock Management
+
+**Data Model:**
+- **`ProductStock`** - Aggregated qty on hand per branch+product (denormalized for speed)
+- **`StockLot`** - Individual receipts with `unitCostPence`, `qtyReceived`, `qtyRemaining`, `receivedAt`
+- **`StockLedger`** - Append-only log of movements (`RECEIPT`, `ADJUSTMENT`, `CONSUMPTION`, `REVERSAL`)
+
+**Operations:**
+- **Receipt** (`POST /api/stock/receive`) - Creates new lot, increments `ProductStock.qtyOnHand`
+- **Adjustment** (`POST /api/stock/adjust`) - Positive/negative qty change with reason (audit trail)
+- **Consumption** (`POST /api/stock/consume`) - Drains oldest lots first (FIFO), logs ledger entries
+
+**Service Layer:**
+- `stockService.ts` handles FIFO logic, transactions, and ledger writes
+- All operations atomic (Prisma transactions)
+- Actor tracking: `actorUserId` captured in `StockLedger`
+
+### Audit Logging
+- **`AuditEvent`** model tracks all entity changes
+- Fields: `entityType`, `entityId`, `action`, `actorUserId`, `beforeJson`, `afterJson`, `diffJson`
+- Indexed by tenant, entity, actor, action, correlationId
+- UI: Audit log page (`/audit`) for admins
+
+### API Contract & Type Safety
+- **OpenAPI 3.0 spec** auto-generated from Zod schemas (`@asteasolutions/zod-to-openapi`)
+- Served at `GET /openapi.json` + Swagger UI at `/docs`
+- **Frontend type generation**: `npm run openapi:gen` → `admin-web/src/types/openapi.d.ts`
+- Zero manual DTO duplication, compile-time type safety
+
+### Error Handling & Observability
+- **Standard envelope**: All responses use `{ success, data, error }` structure
+- **Correlation IDs**: UUIDv4 per request, propagated through logs/errors
+- **Rate limiting**: Fixed-window limiter (120 req/min for auth, 600 req/min general)
+- **Request logging**: `ApiRequestLog` table captures method, path, status, duration, bodies (truncated)
+
+### Tenant Branding
+- **`TenantBranding`** model stores theme presets, color overrides, logo URL
+- Frontend applies theme via Mantine `MantineProvider`
+- Admin UI for theme customization (`/settings/theme`)
 
 ---
 
-## Quickstart (Dev)
+## Architecture
 
-### 1. API Server
+### Backend Structure
 
-```bash
-cd api-server
-cp .env.example .env # edit SERVER_PORT and FRONTEND_ORIGIN
-npm install
-npm run dev
+**Entry Point:** `api-server/src/server.ts` → `app.ts`
+
+**Middleware Stack** (in order):
+1. `requestIdMiddleware` - Assigns correlation ID
+2. `sessionMiddleware` - Decodes JWT cookie
+3. `httpLoggingMiddleware` - Pino HTTP logger
+4. `requestLoggingMiddleware` - Logs to `ApiRequestLog` table
+5. `rateLimiterMiddleware` - Fixed-window rate limiting
+6. Route handlers
+7. `standardErrorHandler` - Catches errors, returns envelope
+
+**Routes** (`api-server/src/routes/`):
+- `authRouter.ts` - Sign-in, sign-out, session management
+- `productRouter.ts` - Product CRUD
+- `branchRouter.ts` - Branch CRUD + user assignments
+- `stockRouter.ts` - Stock receive/adjust/consume
+- `tenantUserRouter.ts` - User-tenant membership CRUD
+- `roleRouter.ts` - Role CRUD (custom roles)
+- `tenantThemeRouter.ts` - Theme branding
+- `uploadRouter.ts` - File uploads (images)
+- `auditLoggerRouter.ts` - Audit event queries
+- `healthRouter.ts` - Health check (`/api/health`)
+
+**Services** (`api-server/src/services/`):
+- `authService.ts` - Session creation, validation
+- `products/productService.ts` + `productActivityService.ts`
+- `branches/branchService.ts` + `branchActivityService.ts`
+- `stockService.ts` - FIFO lot management
+- `tenantUsers/tenantUserService.ts` + `tenantUserActivityService.ts`
+- `role/roleService.ts` + `roleActivityService.ts` + `roleProvisioningService.ts`
+- `theme/tenantThemeService.ts` + `tenantThemeActivityService.ts`
+- `permissionService.ts` - RBAC checks
+- `auditLoggerService.ts` - Audit event writes
+- `uploadService.ts` - File upload handling
+
+**RBAC Catalog** (`api-server/src/rbac/catalog.ts`):
+- `PERMISSIONS` array (12 permissions)
+- `ROLE_DEFS` object (4 system roles with permission assignments)
+- Seeding script: `scripts/seedPermissionsAndRoles.ts`
+
+### Frontend Structure
+
+**Entry Point:** `admin-web/src/main.tsx` → Router setup
+
+**Routing** (React Router v7):
+- Public: `/`, `/sign-in`
+- Protected: `/:tenantSlug/*` (wrapped in `<AdminLayout>` shell)
+  - `/products`, `/products/:productId`, `/products/new`
+  - `/branches`, `/branches/:branchId`, `/branches/new`
+  - `/users`, `/users/:userId`, `/users/new`
+  - `/roles`, `/roles/:roleId`
+  - `/settings/theme`
+  - `/audit`
+
+**Pages** (`admin-web/src/pages/`):
+11 pages total - ProductsPage, ProductPage, BranchesPage, BranchPage, TenantUsersPage, TenantUserPage, RolesPage, RolePage, ThemePage, AuditLogPage, SignInPage
+
+**State Management** (Zustand stores):
+- `auth.ts` - Current user, tenant memberships, permissions, sign-in/out
+- `theme.ts` - Tenant branding, Mantine theme overrides
+- `dirty.ts` - Unsaved changes tracking (form dirty state)
+
+**API Clients** (`admin-web/src/api/`):
+- `http.ts` - Base fetch wrapper (handles cookies, errors, correlation IDs)
+- Feature modules: `auth.ts`, `products.ts`, `branches.ts`, `stock.ts`, `tenantUsers.ts`, `roles.ts`, `tenantTheme.ts`, `uploads.ts`, `auditLogger.ts`
+- All use generated OpenAPI types from `types/openapi.d.ts`
+
+**Permission Guards:**
+- Component: `<RequirePermission perm="...">` (hides children if no permission)
+- Hook: `usePermissions()` → `{ hasPerm, hasAnyPerm }`
+- Store method: `useAuthStore().hasPerm(key)`
+
+### Database Schema (Key Models)
+
+**ERD (Simplified):**
+
+```mermaid
+erDiagram
+    User ||--o{ UserTenantMembership : belongs
+    Tenant ||--o{ UserTenantMembership : has
+    Tenant ||--o{ Branch : owns
+    Tenant ||--o{ Product : owns
+    Tenant ||--o{ Role : defines
+    Role ||--o{ RolePermission : has
+    Permission ||--o{ RolePermission : granted
+    UserTenantMembership }o--|| Role : assigned
+
+    Branch ||--o{ ProductStock : aggregates
+    Branch ||--o{ StockLot : stores
+    Branch ||--o{ StockLedger : logs
+    Product ||--o{ ProductStock : tracked
+    Product ||--o{ StockLot : received
+    Product ||--o{ StockLedger : moved
+
+    User ||--o{ AuditEvent : performs
+    Tenant ||--o{ AuditEvent : scoped
+
+    Tenant ||--|| TenantBranding : customizes
 ```
 
-* Runs on [http://localhost:4000](http://localhost:4000)
-* OpenAPI JSON: [http://localhost:4000/openapi.json](http://localhost:4000/openapi.json)
-* Swagger UI: [http://localhost:4000/docs](http://localhost:4000/docs)
+**Core Models** (Prisma schema):
+- `User` - Global user (can belong to multiple tenants)
+- `Tenant` - Top-level org
+- `UserTenantMembership` - User ↔ Tenant with `roleId`
+- `Role` - Per-tenant role (or global template if `tenantId` null)
+- `Permission` - Global permission catalog
+- `RolePermission` - Many-to-many join
+- `Branch` - Physical location within tenant
+- `UserBranchMembership` - User ↔ Branch assignment
+- `Product` - Tenant-scoped with `entityVersion` for optimistic locking
+- `ProductStock` - Aggregated stock per branch+product
+- `StockLot` - FIFO lot with `unitCostPence`, `receivedAt`
+- `StockLedger` - Append-only movement log
+- `AuditEvent` - Audit trail
+- `ApiRequestLog` - HTTP request/response logging
+- `TenantBranding` - Theme presets + overrides
+- `IdempotencyRecord` - Idempotency key replay storage
 
-### 2. Admin Web UI
+### Request Lifecycle Example
 
+**User creates a product:**
+
+1. **Frontend** → `POST /api/products` with JSON body + cookie
+2. **requestIdMiddleware** → Assigns `correlationId` = UUID
+3. **sessionMiddleware** → Decodes cookie → sets `req.currentUserId`, `req.currentTenantId`
+4. **rateLimiterMiddleware** → Checks IP+session quota
+5. **Route handler** → `requirePermission('products:write')` middleware
+6. **permissionService** → Queries `Role` → `RolePermission` → `Permission` for current user+tenant
+7. **productService.create()** → Validates body, checks SKU uniqueness, creates `Product` record
+8. **productActivityService.logCreate()** → Writes `AuditEvent` with `beforeJson` (null), `afterJson` (new product)
+9. **Response** → `{ success: true, data: { product } }`
+10. **httpLoggingMiddleware** → Logs to Pino with `correlationId`
+11. **requestLoggingMiddleware** → Writes `ApiRequestLog` row
+
+If error occurs:
+- `standardErrorHandler` catches → returns `{ success: false, error: { errorCode, correlationId, ... } }`
+
+---
+
+## API Surface
+
+### Endpoint Table
+
+| Method | Path | Purpose | Permissions |
+|--------|------|---------|-------------|
+| **Auth** ||||
+| POST | `/api/auth/sign-in` | Create session | Public |
+| POST | `/api/auth/sign-out` | Destroy session | Authenticated |
+| GET | `/api/auth/me` | Get current user + memberships | Authenticated |
+| POST | `/api/auth/switch-tenant` | Change active tenant | Authenticated |
+| **Products** ||||
+| GET | `/api/products` | List products | `products:read` |
+| GET | `/api/products/:productId` | Get product detail | `products:read` |
+| POST | `/api/products` | Create product | `products:write` |
+| PUT | `/api/products/:productId` | Update product | `products:write` |
+| DELETE | `/api/products/:productId` | Delete product | `products:write` |
+| **Branches** ||||
+| GET | `/api/branches` | List branches | `branches:manage` |
+| GET | `/api/branches/:branchId` | Get branch detail | `branches:manage` |
+| POST | `/api/branches` | Create branch | `branches:manage` |
+| PUT | `/api/branches/:branchId` | Update branch | `branches:manage` |
+| DELETE | `/api/branches/:branchId` | Delete branch | `branches:manage` |
+| **Stock** ||||
+| POST | `/api/stock/receive` | Record stock receipt | `stock:write` |
+| POST | `/api/stock/adjust` | Adjust stock qty | `stock:write` |
+| POST | `/api/stock/consume` | Consume stock (FIFO) | `stock:allocate` |
+| **Users** ||||
+| GET | `/api/tenant-users` | List tenant users | `users:manage` |
+| POST | `/api/tenant-users` | Invite/create user | `users:manage` |
+| PUT | `/api/tenant-users/:userId` | Update user/role | `users:manage` |
+| DELETE | `/api/tenant-users/:userId` | Remove from tenant | `users:manage` |
+| **Roles** ||||
+| GET | `/api/roles` | List tenant roles | `roles:manage` |
+| POST | `/api/roles` | Create custom role | `roles:manage` |
+| PUT | `/api/roles/:roleId` | Update role permissions | `roles:manage` |
+| DELETE | `/api/roles/:roleId` | Delete role | `roles:manage` |
+| **Theme** ||||
+| GET | `/api/tenant/theme` | Get tenant branding | `theme:manage` |
+| PUT | `/api/tenant/theme` | Update theme | `theme:manage` |
+| POST | `/api/tenant/theme/logo` | Upload logo | `theme:manage` |
+| **Audit** ||||
+| GET | `/api/audit-events` | Query audit log | `users:manage` |
+| **System** ||||
+| GET | `/api/health` | Health check | Public |
+| GET | `/openapi.json` | OpenAPI spec | Public |
+| GET | `/docs` | Swagger UI | Public |
+
+### OpenAPI Spec
+
+**Location:** `GET /openapi.json` (auto-generated from Zod schemas)
+
+**Generation Flow:**
+1. Define Zod schemas in `api-server/src/openapi/paths/*.ts`
+2. Register in `openapi/index.ts` via `registry.registerPath()`
+3. Server builds spec on startup → `buildOpenApiDocument()`
+4. Served at `/openapi.json` + Swagger UI at `/docs`
+
+**Frontend Type Generation:**
 ```bash
 cd admin-web
-npm install
-npm run dev -- --port 5174
+npm run openapi:gen  # Fetches http://localhost:4000/openapi.json
+# Outputs to src/types/openapi.d.ts
 ```
 
-* Runs on [http://localhost:5174](http://localhost:5174)
+### Standard Envelope Examples
 
----
-
-## Environment Variables
-
-### API Server
-
-* `SERVER_PORT` — default `4000`
-* `FRONTEND_ORIGIN` — frontend origin for CORS (e.g. `http://localhost:5174`)
-* `LOG_LEVEL` — Pino log level (`info` by default)
-* `PRETTY_LOGS` — set to `false` in prod
-
-### Admin Web
-
-* `VITE_API_BASE_URL` — API base URL (defaults to `http://localhost:4000`)
-
----
-
-## Scripts
-
-### API Server
-
-* `npm run dev` — run with hot-reload via tsx
-* `npm run build` — compile TypeScript
-
-### Admin Web
-
-* `npm run dev` — start Vite dev server
-* `npm run build` — build static assets
-
----
-
-## API Documentation
-
-* OpenAPI JSON: `GET /openapi.json`
-* Swagger UI: `GET /docs`
-* Postman/Insomnia collections can be generated from the spec.
-
----
-
-## Logging
-
-* Structured logs via Pino
-* Includes correlation ID, user/tenant IDs, request/response summary
-* Example:
-
-```
-[2025-09-25 23:01:14.289 +0100] INFO: GET /api/products?limit=50 304
-    correlationId: "528a3e07-cab9-4ace-b2e6-8187b0c626e4"
-    currentUserId: "cmfzrh0ol0002u2u07k55ousu"
-    currentTenantId: "cmfzrgzlr0000u2u0k36bfal1"
-    responseTime: 863
-```
-
-
-## Database (Prisma + PostgreSQL)
-
-### Schema overview (high-level)
-
-* **Tenant**↔**User** via **UserTenantMembership** (with `roleName`: OWNER/ADMIN/EDITOR/VIEWER)
-* **Product** belongs to a **Tenant**; has `entityVersion` for optimistic concurrency
-* **IdempotencyRecord** stores responses for POST/PUT/DELETE replays
-
-### Required env vars
-
-Create `api-server/.env` with (example Supabase/Local):
-
-```dotenv
-DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DBNAME
-SERVER_PORT=4000
-FRONTEND_ORIGIN=http://localhost:5174
-SESSION_SECRET=dev-secret-change-me
-```
-
-### Common Prisma commands
-
-From `api-server/`:
-
-* **Generate client** (after schema change):
-
-  ```bash
-  npm run prisma:generate
-  ```
-* **Create & apply a migration in dev** (writes SQL under `prisma/migrations/` and updates DB):
-
-  ```bash
-  npm run db:migrate -- --name your_migration_name
-  ```
-* **Apply pending migrations in non-dev** (no prompts; good for CI/Prod):
-
-  ```bash
-  npm run db:deploy
-  ```
-* **Open Prisma Studio** (visual data browser):
-
-  ```bash
-  npm run db:studio
-  ```
-* **Seed demo data** (tenants, user, products):
-
-  ```bash
-  npm run db:seed
-  ```
-
-### Typical dev workflow
-
-1. Edit `prisma/schema.prisma`
-2. `npm run prisma:generate`
-3. `npm run db:migrate -- --name add_products_table`
-4. (optional) `npm run db:seed`
-5. Restart API if needed.
-
-> Resetting locally (⚠ destructive): drop the DB (via provider), re-create, then run `npm run db:deploy` and `npm run db:seed`.
-
----
-
-## API Documentation (OpenAPI)
-
-* View **Swagger UI** at **`http://localhost:4000/docs`**
-* Raw JSON spec at **`http://localhost:4000/openapi.json`** (importable to Postman/Insomnia)
-
-### Re-generate frontend types from the spec
-
-From `admin-web/` (uses your configured generator):
-
-```bash
-npm run openapi:gen
-```
-
-This updates `admin-web/src/types/openapi.d.ts` (or your configured output). Rebuild the app after generation.
-
-### How we keep spec in sync
-
-1. Define/adjust Zod schemas in `api-server/src/openapi/openapi.ts`
-2. Register/modify paths in `registerAllPathsInOpenApiRegistry()`
-3. Restart API → `/openapi.json` updates
-4. Run `npm run openapi:gen` in `admin-web/`
-
----
-
-## Using OpenAPI types in the frontend
-
-We reference the generated `paths` type to make API calls type-safe.
-
-**Example: typed Product create/update/list**
-
-```ts
-import { httpRequestJson } from '@/api/http'
-import type { paths } from '@/types/openapi'
-
-// Body and responses (narrowed to JSON content)
-type CreateBody = NonNullable<paths['/api/products']['post']['requestBody']>['content']['application/json']
-type Create201  = paths['/api/products']['post']['responses']['201']['content']['application/json']
-
-type UpdateBody = NonNullable<paths['/api/products/{productId}']['put']['requestBody']>['content']['application/json']
-type Update200  = paths['/api/products/{productId}']['put']['responses']['200']['content']['application/json']
-
-type List200    = paths['/api/products']['get']['responses']['200']['content']['application/json']
-
-export function createProduct(body: CreateBody) {
-  return httpRequestJson<Create201>('/api/products', { method: 'POST', body: JSON.stringify(body) })
-}
-export function updateProduct(productId: string, body: UpdateBody) {
-  return httpRequestJson<Update200>(`/api/products/${productId}`, { method: 'PUT', body: JSON.stringify(body) })
-}
-export function listProducts() {
-  return httpRequestJson<List200>('/api/products')
+**Success Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "product": {
+      "id": "cm...",
+      "productName": "Widget",
+      "productSku": "WDG-001",
+      "productPricePence": 1999,
+      "entityVersion": 1
+    }
+  }
 }
 ```
 
-Benefits:
-
-* Autocomplete for payload fields (e.g., `productName`, `currentEntityVersion`)
-* Compile-time errors if server schema changes
-* Zero manual DTO duplication
-
----
-
-## Correlation IDs (what/why/how)
-
-**What is it?**
-A unique request identifier attached to every incoming HTTP request and propagated through logs and error envelopes.
-
-**Why?**
-
-* Quickly trace a single request across logs (ingress → service → DB ops)
-* Include in error responses so users/devs can report an exact failing request
-
-**How it works here**
-
-* `requestIdMiddleware` assigns a UUIDv4 to `req.correlationId` (or reuses an inbound id if present)
-* `pino-http` is configured to log this id; the field shows up as `correlationId` in each line
-* Error responses (our standard error envelope) include the same `correlationId`:
-
+**Error Response:**
 ```json
 {
   "success": false,
@@ -248,303 +393,703 @@ A unique request identifier attached to every incoming HTTP request and propagat
     "errorCode": "VALIDATION_ERROR",
     "httpStatusCode": 400,
     "userFacingMessage": "Invalid request body",
-    "developerMessage": "…",
-    "correlationId": "af8da79c-bc7b-…"
+    "developerMessage": "productSku must be unique within tenant",
+    "correlationId": "af8da79c-bc7b-4e1a-9f3c-1234567890ab"
   }
 }
 ```
 
-Use this id to filter logs and pinpoint the exact failing path.
+**Rate Limit Headers:**
+```
+X-RateLimit-Limit: 600
+X-RateLimit-Remaining: 599
+X-RateLimit-Reset: 1640995200
+Retry-After: 60  (only when exhausted)
+```
 
 ---
 
-## Routes covered in the spec
+## RBAC Model
 
-* **Auth**: `POST /api/auth/sign-in`, `POST /api/auth/sign-out`, `GET /api/auth/me`, `POST /api/auth/switch-tenant`
-* **Products**: `GET /api/products`, `POST /api/products`, `PUT /api/products/{productId}`, `DELETE /api/products/{productId}`
-* **System**: `GET /api/health`, `GET /api/version`
-* **TenantUsers**: `GET /api/tenant-users`, `POST /api/tenant-users`, `PUT /api/tenant-users/{user-id}`, `DELETE /api/tenant-users/{user-id}`
+### Permission Catalog
 
-Adding a new route:
+Defined in `api-server/src/rbac/catalog.ts`:
 
-1. Implement Express route + Zod validation
-2. Add Zod schemas + `registerPath` entry in `openapi.ts`
-3. Regenerate frontend types (`admin-web`: `npm run openapi:gen`)
+```typescript
+export const PERMISSIONS = [
+  { key: 'products:read',  description: 'View products' },
+  { key: 'products:write', description: 'Create/update/delete products' },
+  { key: 'users:manage',   description: 'Invite or manage tenant users' },
+  { key: 'roles:manage',   description: 'Create/edit roles and permissions' },
+  { key: 'tenant:manage',  description: 'Manage tenant settings' },
+  { key: 'theme:manage',   description: 'Manage tenant theme/branding' },
+  { key: 'uploads:write',  description: 'Upload images/files' },
+  { key: 'branches:manage', description: 'Manage branches and memberships' },
+  { key: 'stock:read',      description: 'View branch stock, lots, and movements' },
+  { key: 'stock:write',     description: 'Receive and adjust stock' },
+  { key: 'stock:allocate',  description: 'Allocate/consume stock for orders' },
+]
+```
 
----
+### System Roles
 
-## CORS & ports (dev)
+| Role | Permissions | Typical Use Case |
+|------|-------------|------------------|
+| **OWNER** | All 12 permissions | Tenant owner, full control |
+| **ADMIN** | All except `roles:manage`, `tenant:manage` | Manager, can't change roles/settings |
+| **EDITOR** | `products:{read,write}`, `uploads:write`, `stock:{read,allocate}` | Warehouse staff, sales team |
+| **VIEWER** | `products:read`, `stock:read` | Read-only access |
 
-* API: `http://localhost:4000`
-* Frontend: `http://localhost:5174`
-* CORS allowlist is configured in `api-server/src/app.ts` (`FRONTEND_ORIGIN`)
+**Custom Roles:**
+- Admins with `roles:manage` permission can create per-tenant custom roles
+- Example: "Warehouse Manager" with `branches:manage` + `stock:{read,write,allocate}`
 
----
+### Enforcement Points
 
-## Tenant/User Management
+**Backend:**
+```typescript
+// api-server/src/routes/productRouter.ts
+router.post(
+  '/products',
+  requireAuthenticatedUserMiddleware,
+  requirePermission('products:write'),  // ← Check here
+  async (req, res) => { /* handler */ }
+)
+```
 
-**Who can use it?**
+**Frontend:**
+```tsx
+// admin-web/src/pages/ProductsPage.tsx
+<RequirePermission perm="products:write">
+  <Button onClick={handleCreate}>Create Product</Button>
+</RequirePermission>
 
-* Only `OWNER` and `ADMIN` roles can create, update, or delete tenant users.
-* `EDITOR` and `VIEWER` can only view.
-
-**Rules enforced by API:**
-
-* Cannot demote or delete the **last OWNER** of a tenant.
-* All user actions (create/update/delete) support **idempotency keys**.
-
-**UI features:**
-
-* `/[tenantSlug]/users` shows all tenant members with role, email, timestamps.
-* Owners/Admins can:
-
-  * Invite (create or attach) a user with email/password/role
-  * Update email, password, or role of existing members
-  * Remove members from the tenant
-* Friendly notifications and loading states
-* Role-gated controls (non-ADMIN/OWNER see disabled buttons)
-
----
-
-## Rate Limiting
-
-* Middleware: fixed-window limiter with configurable scope (`ip`, `session`, or `ip+session`).
-* Defaults in this POC: `300 requests per minute` per IP+session.
-* Headers returned on each response:
-
-  * `X-RateLimit-Limit`
-  * `X-RateLimit-Remaining`
-  * `X-RateLimit-Reset`
-  * `Retry-After` (when exhausted)
-* Exemptions: `OPTIONS`, `/api/health`, `/docs`.
-
----
-
-## Troubleshooting quick refs
-
-* **JSON body parsing issues**: ensure `Content-Type: application/json` and `express.json()` is registered before routes
-* **CORS 401/blocked**: confirm `FRONTEND_ORIGIN` matches the Vite port
-* **Type drift**: rerun `npm run openapi:gen` after server spec changes
-* **DB mismatch**: run `npm run db:deploy` or `npm run db:migrate -- --name …`
+// Or programmatic:
+const { hasPerm } = usePermissions()
+if (hasPerm('products:write')) {
+  // Show edit UI
+}
+```
 
 ---
 
-## How to Add a New Environment (Prod or Another Staging)
+## Local Setup
 
-This checklist walks you through creating a **new isolated environment** (e.g., production) alongside your current dev/staging setup. It covers Supabase (DB), Render (API), and Vercel (Web UI), plus required env vars and cookie/CORS gotchas.
+### Prerequisites
+
+- **Node.js** 20+ (LTS)
+- **PostgreSQL** 14+ (or Supabase account)
+- **npm** 10+
+
+### Environment Variables
+
+**API Server** (`api-server/.env`):
+
+```bash
+# Database (use Session Pooler URL for Supabase/Render)
+DATABASE_URL=postgresql://user:password@localhost:5432/dbname?sslmode=require
+
+# Server
+SERVER_PORT=4000
+NODE_ENV=development
+
+# Auth
+SESSION_JWT_SECRET=your-secret-key-min-32-chars
+SESSION_COOKIE_NAME=mt_session
+COOKIE_SAMESITE_MODE=lax  # Use 'none' for prod cross-site
+
+# CORS
+FRONTEND_ORIGIN=http://localhost:5174
+FRONTEND_DEV_ORIGIN=http://localhost:5174
+
+# Logging
+LOG_LEVEL=debug
+PRETTY_LOGS=true
+
+# Supabase (optional, for admin client)
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```
+
+**Admin Web** (`admin-web/.env`):
+
+```bash
+VITE_API_BASE_URL=http://localhost:4000
+```
+
+**Important:**
+- `FRONTEND_ORIGIN` must match Vite port exactly (no trailing slash)
+- For local dev, use `COOKIE_SAMESITE_MODE=lax` with `http://localhost`
+- For prod cross-site, use `COOKIE_SAMESITE_MODE=none` (requires HTTPS)
+- `DATABASE_URL` for Render/Supabase should use **Session Pooler (IPv4)** endpoint
+
+### Install & Run
+
+**Using Makefile (recommended):**
+
+```bash
+# Install all dependencies
+make install
+
+# Run API dev server (watch mode)
+make dev-api
+
+# Run admin web dev server (separate terminal)
+make dev-web
+```
+
+**Manual (per workspace):**
+
+```bash
+# API Server
+cd api-server
+npm install
+npm run prisma:generate          # Generate Prisma client
+npm run db:migrate -- --name init  # Create initial migration
+npm run db:seed                  # Seed demo data
+npm run dev                      # Start server (http://localhost:4000)
+
+# Admin Web (separate terminal)
+cd admin-web
+npm install
+npm run dev                      # Start Vite (http://localhost:5174)
+```
+
+### Database Setup
+
+**Initial Schema:**
+
+```bash
+cd api-server
+npm run prisma:generate          # Regenerate client after schema changes
+npm run db:migrate -- --name init  # Create and apply migration in dev
+npm run db:seed                  # Seed tenants, users, products
+```
+
+**Seed Data Includes:**
+- 2 demo tenants (Acme Corp, Test Co)
+- Test users (owner@acme.com / admin@acme.com / editor@acme.com / viewer@acme.com)
+- Default password: `password123`
+- Sample products
+- RBAC permissions and roles
+
+**RBAC Seeding (after schema changes):**
+
+```bash
+cd api-server
+npm run seed:rbac        # Sync permissions and roles to DB
+npm run seed:test-users  # Create test users for all tenants
+```
+
+**Reset Database (destructive!):**
+
+```bash
+cd api-server
+npm run db:reset:dev  # Drop DB, reapply migrations, re-seed
+```
+
+### OpenAPI → Frontend Type Generation
+
+**Workflow:**
+1. Make changes to Zod schemas in `api-server/src/openapi/paths/*.ts`
+2. Restart API server (spec regenerates on startup)
+3. Run type generation in admin-web:
+
+```bash
+cd admin-web
+npm run openapi:gen  # Fetches /openapi.json, generates types
+```
+
+This updates `admin-web/src/types/openapi.d.ts` with TypeScript types for all endpoints.
+
+---
+
+## Development Workflow
+
+### Common Scripts
+
+**API Server** (`api-server/`):
+
+```bash
+npm run dev                      # Hot-reload dev server (tsx watch)
+npm run build                    # Compile TypeScript → dist/
+npm run start                    # Production (migrate + start)
+npm run typecheck                # Type check without emitting
+npm run test:accept              # Run Jest acceptance tests
+npm run test:accept:watch        # Watch mode
+npm run test:accept:coverage     # Coverage report
+
+# Prisma
+npm run prisma:generate          # Regenerate client
+npm run db:migrate -- --name foo # Create migration (dev)
+npm run db:deploy                # Apply migrations (CI/prod)
+npm run db:studio                # Visual DB browser
+npm run db:seed                  # Seed demo data
+npm run db:reset:dev             # Reset DB (destructive)
+
+# RBAC
+npm run seed:rbac                # Sync permissions/roles
+npm run seed:test-users          # Seed test users
+```
+
+**Admin Web** (`admin-web/`):
+
+```bash
+npm run dev                      # Vite dev server (port 5174)
+npm run build                    # Build for production
+npm run preview                  # Preview prod build
+npm run typecheck                # Type check
+npm run lint                     # ESLint
+npm run test:accept              # Playwright E2E tests
+npm run test:accept:ui           # Playwright UI mode
+npm run test:accept:debug        # Debug mode
+npm run openapi:gen              # Generate types from OpenAPI
+```
+
+### Makefile Targets
+
+```bash
+# BMAD Workflow (CI tasks)
+make bmad-plan                   # Validate BMAD docs exist
+make bmad-test-api               # Typecheck + build API
+make bmad-test-web               # Typecheck + lint + build web
+make bmad-accept-api             # Run API acceptance tests (Jest)
+make bmad-accept-web             # Run web E2E tests (Playwright)
+make bmad-accept-all             # All acceptance tests
+
+# Development
+make dev-api                     # Start API watch mode
+make dev-web                     # Start Vite dev server
+make db-migrate                  # Create Prisma migration
+make db-seed                     # Seed database
+make install                     # Install all workspace deps
+```
+
+### Typical Workflows
+
+**Add a New Permission:**
+
+1. Add to `PERMISSIONS` array in `api-server/src/rbac/catalog.ts`:
+   ```typescript
+   { key: 'reports:view', description: 'View reports' }
+   ```
+2. Assign to roles in `ROLE_DEFS` (same file):
+   ```typescript
+   OWNER: [..., 'reports:view'],
+   ADMIN: [..., 'reports:view'],
+   ```
+3. Sync to database:
+   ```bash
+   cd api-server
+   npm run seed:rbac
+   ```
+4. Use in backend:
+   ```typescript
+   router.get('/reports', requirePermission('reports:view'), ...)
+   ```
+5. Use in frontend:
+   ```tsx
+   <RequirePermission perm="reports:view">...</RequirePermission>
+   ```
+
+**Add a New Endpoint:**
+
+1. **Backend:**
+   - Create service: `api-server/src/services/reports/reportService.ts`
+   - Create router: `api-server/src/routes/reportsRouter.ts`
+   - Mount in `api-server/src/routes/index.ts`:
+     ```typescript
+     import { reportsRouter } from './reportsRouter.js'
+     apiRouter.use('/reports', reportsRouter)
+     ```
+
+2. **OpenAPI:**
+   - Add schemas: `api-server/src/openapi/paths/reports.ts`
+   - Register in `api-server/src/openapi/index.ts`:
+     ```typescript
+     registry.registerPath({ ... })
+     ```
+
+3. **Frontend:**
+   - Restart API server (regenerates spec)
+   - Generate types:
+     ```bash
+     cd admin-web
+     npm run openapi:gen
+     ```
+   - Create API client: `admin-web/src/api/reports.ts`
+   - Create page: `admin-web/src/pages/ReportsPage.tsx`
+   - Add route in `admin-web/src/main.tsx`
+
+**Database Migration:**
+
+1. Edit `api-server/prisma/schema.prisma`
+2. Regenerate client:
+   ```bash
+   npm run prisma:generate
+   ```
+3. Create migration:
+   ```bash
+   npm run db:migrate -- --name add_reports_table
+   ```
+4. (Optional) Update seed script and re-seed:
+   ```bash
+   npm run db:seed
+   ```
+5. Restart API server if running
 
 ---
 
-### 1 Create a new database (Supabase)
+## Testing & QA
 
-1. **Create project** in the target region (ideally near your users).
-2. Copy the **connection strings** from **Project Settings → Database → Connection strings**:
+### Test Structure
 
-   * **Direct connection (IPv6)** → usually for local/dev
-   * **Session pooler (IPv4)** → required by Render
-3. In **SQL Editor** (optional if migrations already exist), ensure no manual schema; we’ll use Prisma migrations.
+**API Acceptance Tests** (Jest + Supertest):
+- Location: `api-server/__tests__/**/*.test.ts`
+- Config: `api-server/jest.config.js`
+- Mapped to stories/ACs (e.g., `[ST-001][AC-001-1]`)
 
-**Save these secrets** (you’ll paste them into Render later):
+**Web E2E Tests** (Playwright):
+- Location: `admin-web/e2e/**/*.spec.ts`
+- Config: `admin-web/playwright.config.ts`
+- Mapped to acceptance criteria (e.g., `[ST-001] Sign-in Page`, `[AC-001-1]`)
 
-* `DATABASE_URL` → Use the **Session Pooler** IPv4 URL for Render (often like `aws-1-<region>.pooler.supabase.com`). Append `?sslmode=require` if not present.
+### Running Tests
 
----
+**API Tests:**
 
-### 2 Deploy a new API service (Render)
+```bash
+cd api-server
+npm run test:accept              # Run all Jest tests
+npm run test:accept:watch        # Watch mode
+npm run test:accept:coverage     # With coverage report
+```
 
-1. **Create New → Web Service** and point to this repo.
+**Web E2E Tests:**
 
-2. **Environment**: Node
+```bash
+cd admin-web
+npm run test:accept              # Headless mode
+npm run test:accept:ui           # Interactive UI mode
+npm run test:accept:debug        # Debug mode with breakpoints
+npm run test:accept:report       # View last HTML report
+```
 
-3. **Build Command**: `npm ci && npm run build && npx prisma generate`
+### Mapping to Stories/ACs
 
-4. **Start Command**: `npm run start`
+Tests follow BMAD (Build-Measure-Analyze-Deploy) convention:
 
-5. **Environment Variables** (Render → Settings → Environment):
+- **ST-###** - Story ID (from `docs/bmad/PRD.md`)
+- **AC-###-#** - Acceptance Criteria ID (from `docs/bmad/QA.md`)
 
-   * `NODE_ENV=production`
-   * `SERVER_PORT=4000` (Render sets `PORT`, but your server reads `SERVER_PORT`—keep 4000 consistent internally)
-   * `FRONTEND_ORIGIN=https://<your-vercel-domain>` (no trailing slash)
-   * `DATABASE_URL=` (Supabase **Session Pooler** connection string)
-   * `SESSION_JWT_SECRET=` (strong random value)
-   * `SESSION_COOKIE_NAME=mt_session`
-   * `COOKIE_SAMESITE_MODE=none` (required for cross-site cookies in prod)
-   * `LOG_LEVEL=info`
-   * `PRETTY_LOGS=false`
+Example:
+```typescript
+// admin-web/e2e/signin.spec.ts
+test.describe('[ST-001] Sign-in Page', () => {
+  test('[AC-001-1] should display email input field', async ({ page }) => {
+    // ...
+  })
+})
+```
 
-6. **First deploy**. On start, the service runs `npm run start` which executes:
+**Current Test Coverage:**
+- Sign-in page E2E (7 acceptance criteria)
+- Health check API (basic smoke test)
+- _(Additional tests to be added per sprint stories)_
 
-   * `prisma migrate deploy` → applies migrations
-   * `node dist/server.js` → starts the API
+### QA Stage Gates
 
-7. **Health checks**: Visit `https://<render-app>.onrender.com/api/health`.
+From `docs/bmad/QA.md`:
 
----
+**Plan (Exit):**
+- [ ] All acceptance criteria defined
+- [ ] API contracts documented
+- [ ] Test data requirements identified
 
-### 3 Deploy a new Web UI (Vercel)
+**Build (Exit):**
+- [ ] All AC-### items have passing tests
+- [ ] OpenAPI types regenerated
+- [ ] No TypeScript errors
 
-1. **Import Project** from Git (same repo).
-2. **Environment Variables** (Vercel → Settings → Environment Variables):
+**QA (Entry):**
+- [ ] PR submitted with test evidence
+- [ ] All CI checks passing
 
-   * `VITE_API_BASE_URL=https://<your-render-api-domain>` (no trailing slash)
-3. **Domains**: add your custom domain later if needed.
-4. **Redeploy**.
-
----
-
-### 4 Cookie & CORS sanity
-
-* **Server CORS allow-list** (`FRONTEND_ORIGIN`) must match your Vercel domain **exactly** (no trailing slash).
-* **Cookies**:
-
-  * In **prod/staging cross-site**, set `COOKIE_SAMESITE_MODE=none` → the server sets `SameSite=None; Secure`.
-  * Locally, set `COOKIE_SAMESITE_MODE=lax` for `http://localhost`.
-
-**Quick test order**:
-
-1. Hit `POST /api/auth/sign-in` from the web app → expect `Set-Cookie` with `SameSite=None; Secure`.
-2. Then `GET /api/auth/me` should succeed (cookie sent back).
-3. CRUD on `/api/products` behaves as expected.
-
----
-
-### 5 Prisma data setup (optional)
-
-If you need initial data in the new environment:
-
-* **Option A: run seed locally against the new DB**
-
-  ```bash
-  # In api-server/
-  # Temporarily point your local .env DATABASE_URL to the NEW environment (Session Pooler URL)
-  npx prisma migrate deploy
-  npm run db:seed
-  ```
-
-* **Option B: admin UI**
-
-  * Sign in to the new environment and create data via the UI.
+**QA (Exit):**
+- [ ] Manual testing completed for each AC
+- [ ] Audit logs verified
+- [ ] Permission checks validated
 
 ---
 
-### 6 OpenAPI docs per environment
+## CI/CD
 
-* API serves the spec at `GET /openapi.json` and UI at `/docs`.
-* If you want the frontend to **download types** per environment (optional): point your OpenAPI generation script to the new `/openapi.json`.
+### GitHub Actions Workflow
+
+**File:** `.github/workflows/bmad.yml`
+
+**Trigger:** Pull requests to `main` branch
+
+**Jobs:**
+
+1. **test-api**
+   - Runs on: `ubuntu-latest`, Node 20
+   - Steps:
+     - Checkout code
+     - Install deps (`npm ci`)
+     - Install test deps (jest, ts-jest, supertest)
+     - Run `make bmad-test-api` (typecheck + build)
+   - Env vars: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (from secrets)
+
+2. **test-web**
+   - Runs on: `ubuntu-latest`, Node 20
+   - Steps:
+     - Checkout code
+     - Install deps (`npm ci`)
+     - Install Playwright browsers
+     - Run `npm run test:accept` (E2E tests)
+
+**Required Checks:**
+- `BMAD / test-api` - Must pass
+- `BMAD / test-web` - Must pass
+
+**Branch Protection:**
+- Require status checks before merging
+- Require PR approval (recommended)
+
+### Local CI Simulation
+
+Run the same checks locally before pushing:
+
+```bash
+# Full BMAD workflow
+make bmad-plan           # Validate docs
+make bmad-test-api       # API typecheck + build
+make bmad-test-web       # Web typecheck + lint + build
+make bmad-accept-all     # All acceptance tests
+```
+
+---
+
+## Deployment
+
+### Current Stack
+
+- **Database:** Supabase (PostgreSQL with Session Pooler)
+- **API:** Render (Node.js web service)
+- **Frontend:** Vercel (static React app)
+
+### Deployment Flow
+
+**API (Render):**
+
+1. **Build Command:** `npm ci && npm run build && npx prisma generate`
+2. **Start Command:** `npm run start` (runs `prisma migrate deploy && node dist/server.js`)
+3. **Environment Variables:**
+   ```
+   NODE_ENV=production
+   SERVER_PORT=4000
+   DATABASE_URL=<Supabase Session Pooler URL>
+   SESSION_JWT_SECRET=<strong random value>
+   SESSION_COOKIE_NAME=mt_session
+   COOKIE_SAMESITE_MODE=none
+   FRONTEND_ORIGIN=https://yourapp.vercel.app
+   LOG_LEVEL=info
+   PRETTY_LOGS=false
+   ```
+
+**Frontend (Vercel):**
+
+1. **Framework Preset:** Vite
+2. **Build Command:** `npm run build`
+3. **Output Directory:** `dist`
+4. **Environment Variables:**
+   ```
+   VITE_API_BASE_URL=https://your-api.onrender.com
+   ```
+
+### CORS & Cookie Constraints
+
+**Critical for Production:**
+
+1. **CORS:**
+   - `FRONTEND_ORIGIN` must match Vercel domain exactly (no trailing slash)
+   - Add to `app.ts` allowlist: `allowedOrigins` array
+
+2. **Cookies:**
+   - Cross-site (Vercel → Render): Set `COOKIE_SAMESITE_MODE=none`
+   - Requires HTTPS (Secure flag set automatically)
+   - Browser must allow 3rd-party cookies
+
+3. **Common Pitfalls:**
+   - ✅ `https://myapp.vercel.app` → Works
+   - ❌ `https://myapp.vercel.app/` → CORS blocked (trailing slash)
+   - ✅ `COOKIE_SAMESITE_MODE=none` + HTTPS → Works
+   - ❌ `COOKIE_SAMESITE_MODE=lax` + HTTPS → Cookie not sent cross-site
+
+### Observability & Logging
+
+**Structured Logs (Pino):**
+- JSON format in production (`PRETTY_LOGS=false`)
+- Fields: `correlationId`, `currentUserId`, `currentTenantId`, `statusCode`, `responseTime`
+- Ship to log aggregator (e.g., Datadog, LogDNA, CloudWatch)
+
+**Correlation IDs:**
+- Every request gets UUID
+- Propagated through logs and error responses
+- Use to trace failures: grep logs by `correlationId`
+
+**Database Logging:**
+- `ApiRequestLog` table captures HTTP requests (useful for debugging)
+- `AuditEvent` table tracks all entity changes
+- `StockLedger` table is append-only log of stock movements
+
+**Health Checks:**
+- `GET /api/health` - Simple liveness probe
+- Add DB ping check for readiness probe
+
+### Monitoring (Planned)
+
+From existing README "Future features":
+- [ ] Sentry for error tracking
+- [ ] Uptime monitor (e.g., Pingdom, UptimeRobot)
+- [ ] Prometheus metrics (optional)
 
 ---
 
-### 7 Common pitfalls
+## Roadmap
 
-* **Trailing slash** on `FRONTEND_ORIGIN` or `VITE_API_BASE_URL` → CORS/Cookie issues.
-* **Wrong Supabase endpoint**: Render requires **Session Pooler (IPv4)**.
-* **Cookie mode** not set to `none` in prod → cookie blocked by browser.
-* **Migrations not applied** → `P1001/Pxxxx` errors; ensure `prisma migrate deploy` runs at start.
+### Near-Term (Sprint 2)
+
+**From existing README:**
+
+- [x] Branch management ✅
+- [x] FIFO stock operations (receipt, adjustment) ✅
+- [ ] **Stock transfers between branches** (in progress)
+  - Transfer request workflow: `REQUESTED` → `ORDERED` → `PARTIALLY_RECEIVED` / `COMPLETE` / `REJECTED`
+  - Two-step ledger: source branch consumption + dest branch receipt
+- [ ] **Session expiry handling**
+  - Auto-redirect to sign-in page on 401
+  - Show clear expiry reason on login page
+  - Frontend session refresh mechanism
+- [ ] **UI/UX improvements**
+  - Stay on edit page after save (don't redirect to index)
+  - Fix table pagination (lock to bottom, scroll body only)
+
+### Mid-Term
+
+**From "Future features" section:**
+
+- [ ] **Purchasing module**
+  - Purchase orders to suppliers (`DRAFT` → `ORDERED` → `PARTIALLY_RECEIVED` → `COMPLETE`)
+  - Auto-update stock ledger on receipt completion
+- [ ] **Sales module**
+  - Quotes, sales orders, picking notes, invoicing
+  - Ledger account integration (credit customers)
+  - Stock allocation/reservation on order creation
+- [ ] **Dashboard**
+  - KPI tiles (stock value, low stock alerts, recent orders)
+  - Charts (sales trends, stock movements)
+- [ ] **Reporting**
+  - Stock valuation report (FIFO cost per branch)
+  - Aged stock report (identify slow-moving items)
+  - Product transaction log (all movements for a product)
+  - Nominal transactions (financial reconciliation)
+
+### Long-Term
+
+- [ ] **Multi-costing methods** (feature flag)
+  - FIFO (current) / LIFO / Weighted Average / Specific ID / FEFO
+- [ ] **CMS integration**
+  - Product catalog for e-commerce
+  - Public-facing inventory API
+- [ ] **Global search**
+  - Search products, customers, suppliers, orders from navbar
+- [ ] **AI support** (experimental)
+  - Chatbot for inventory queries
+  - Predictive stock suggestions
+
+### Known Gaps & Risks
+
+**From PRD/ARCH:**
+- **Branch-level permissions** - Currently only tenant-level RBAC; future: restrict users to specific branches
+- **Concurrent stock operations** - Mitigated by DB transactions + optimistic locking; add integration tests
+- **FIFO performance** - Lot scanning may slow down with thousands of lots; consider archiving consumed lots
+- **Idempotency TTL** - `IdempotencyRecord` cleanup job not implemented; may grow unbounded
+
+---
+
+## Glossary
+
+### Domain Terms
+
+- **Tenant** - Top-level organization (company, client) with isolated data
+- **Branch** - Physical location within a tenant (warehouse, store, distribution center)
+- **User** - Global user account that can belong to multiple tenants
+- **UserTenantMembership** - Join table linking user to tenant with a role
+- **UserBranchMembership** - Join table assigning user to specific branches
+- **Product** - Tenant-scoped item with SKU, price, and stock tracking
+- **ProductStock** - Aggregated quantity on hand per branch+product (denormalized)
+- **StockLot** - Individual receipt batch with FIFO tracking (qty received, qty remaining, unit cost, received date)
+- **StockLedger** - Append-only log of all stock movements (RECEIPT, ADJUSTMENT, CONSUMPTION, REVERSAL)
+- **FIFO** - First-In-First-Out costing method (oldest lots consumed first)
+- **Optimistic Locking** - Concurrency control using version field (prevents lost updates)
+- **Idempotency** - Ability to safely retry requests (same `Idempotency-Key` returns cached response)
+- **Correlation ID** - UUID tracking a single request through logs and errors
+- **Envelope** - Standard API response wrapper: `{ success, data, error }`
+
+### Testing Conventions
+
+- **ST-###** - Story ID from `docs/bmad/PRD.md` (e.g., `ST-001: Branch Management`)
+- **AC-###-#** - Acceptance Criteria ID from `docs/bmad/QA.md` (e.g., `AC-001-1: Admin can create branch`)
+- **BMAD** - Build-Measure-Analyze-Deploy workflow (stage gates for PRD → ARCH → QA → Release)
+
+### Technical Terms
+
+- **Zod** - TypeScript-first schema validation library (used for API contracts)
+- **Prisma** - Next-gen ORM for Node.js (type-safe database client)
+- **Pino** - High-performance JSON logger for Node.js
+- **Mantine** - React component library (UI framework)
+- **Zustand** - Lightweight state management for React
+- **OpenAPI** - API specification standard (formerly Swagger)
+- **Session Pooler** - Supabase connection pooling mode (required for serverless/Render)
+- **Minor Units** - Smallest currency denomination (pence for GBP, cents for USD)
 
 ---
 
-### 8 Minimal rollback plan
+## Appendix
 
-* Keep your **previous environment** running.
-* If the new environment misbehaves, just switch the domain you share with users back to the previous one.
+### Documentation Links
 
----
+**BMAD Artifacts** (in `docs/bmad/`):
+- [PRD.md](docs/bmad/PRD.md) - Product Requirements (Sprint 1: Stock Management & Branch Operations)
+- [ARCH.md](docs/bmad/ARCH.md) - Architecture decisions and API contracts
+- [QA.md](docs/bmad/QA.md) - Acceptance criteria and stage gates
 
-### 9 Tear-down (if needed)
+**Codebase Guide:**
+- [CLAUDE.md](CLAUDE.md) - Developer instructions for Claude Code (AI assistant)
 
-* Remove Vercel project (UI), Render service (API), and Supabase project (DB). Double-check backups before deletion.
+### Key Files Reference
 
----
+**Backend:**
+- `api-server/src/app.ts` - Express app setup, middleware order
+- `api-server/src/rbac/catalog.ts` - RBAC permissions and roles
+- `api-server/prisma/schema.prisma` - Database schema
+- `api-server/src/openapi/index.ts` - OpenAPI spec builder
+- `api-server/src/services/stockService.ts` - FIFO lot management
 
-### One-page checklist
+**Frontend:**
+- `admin-web/src/main.tsx` - React Router setup
+- `admin-web/src/stores/auth.ts` - Auth state and permissions
+- `admin-web/src/api/http.ts` - HTTP client base
+- `admin-web/src/types/openapi.d.ts` - Generated API types
 
-* [ ] Create Supabase project (copy **Session Pooler** `DATABASE_URL`).
-* [ ] New Render service: set env vars (see list), deploy, confirm `/api/health`.
-* [ ] New Vercel project: set `VITE_API_BASE_URL`, deploy, test sign-in.
-* [ ] Verify cookies/CORS; confirm `/api/auth/me` returns user.
-* [ ] (Optional) Seed data.
-* [ ] (Optional) Generate OpenAPI types against `/openapi.json`.
-* [ ] Document URLs and secrets.
+### Contact & Support
 
-## Future fetures
-### Features to complete by Monday
-* When creating/editing something and saving, keep them on the thing they are editting/creating instead of returning them to the index page
-* Fix UI of some of the tables. Pagination should be locked to the bottom of the section and only the itself should scroll
-
-* Find a way to simulate what happens when a session expires 
-  * Current suspicion is that you are not automatically logged out 
-  * Instead, any request you make just fails with the notification 'Please sign in to continue'
-  * Instead of this, any request that is made that requires the user to be logged in and they arent logged in, should be redirected to the login page automatically 
-  * Whenever a user is logged out and redirected to the login page, it should show a clear reason on the login page as to why they were logged out
-
-* Stock transfer between different branches/locations
-  * Effectively an 'order' between two branches 
-  * Will be able to exist in one of the following 'stages'
-    * Requested -> The item/items has been requested by one branch to another 
-    * Rejected -> The request has been rejected 
-    * Ordered -> The request has been accepted 
-    * Partially received -> The item/items that were ordered have only been partially received
-    * Complete -> The item/items have been received
-
-* Remake the Readme with latest feature updates
-
-### The rest
-* Feature flag to determine what type of stock management you want to use? 
-  * FIFO -> First in first out 
-  * LIFO -> Last in first out 
-  * Weighted average cost -> Uses average price 
-  * Specific identification -> Values each item separately 
-  * FEFO -> First expired first out
-
-* Current existing tabs that we don't currently have 
-  * Dashboard -> Self explantory
-  * Maintenance 
-    * Where users manage different Customers or suppliers
-  * Purchasing 
-    * Where users order in products from suppliers and manage those orders
-      * Draft -> A draft order, not confirmed yet
-      * Ordered -> A confirmed order
-      * Partially received -> Items in the order have partially been received 
-      * Fully received -> All items in the order have been received
-      * Complete/Cancelled -> Order has been marked as complete or cancelled.
-    * Once an order has been completed, the stock ledger for that product is updated with the new stock
-  * Sales 
-    * Where users manage sales to customers
-      * Quotes -> A quote has been generated and a pro forma can be sent to the customer
-      * Sales order -> An order is created, and either paid for using cash/card, or using a ledger account where the user has credit on their account. 
-      * Picking note -> Once the order has been confirmed as paid for, the user can print a picking note, that tells them exactly where to find the product in the warehouse for the order. (this bit is going to be tricky because i believe it will require intergrating the warehouse scanner technology)
-      * Awaiting approval -> If the user is a ledger account (i.e. they havn't paid with cash/card) then the order requires approval
-      * Invoiced -> once the order has been approved, an invoice is sent to the customer so they can pay for the order
-      * Credit note -> If the user wants to refund the order, you can create a separate credit note to do so
-  * Stock transfer -> already explained above 
-  * Reporting -> various statistics
-    * Yearly sales comparison -> compare sales data from previous years
-    * External sales reps -> Compare the performace of your external sales representatives 
-    * Stock valuation report
-      * View the total FIFO valuation for each location 
-      * Maybe also include the top products you have the most value sunk into
-    * Inventory items -> Search feature to allow you to check the stock levels and FIFO costs of items in your inventory
-    * Aged stock report -> Check the historical data for the products in your inventory
-    * Nominal Transactions report -> View and compare nominal transactions -> not a clue what this is 
-    * Product transactions report -> View and compare product transactions -> Basically just a log of every event that happens for any given product, will be supported by the api logs work we do
-  * System Config
-    * Broadcast message -> Allows an admin to broadcast a message on the dashboard screen to all the other users for a given period of time 
-    * Managers' config -> Setting global settings like minimum and maximum gross profit 
-    * System logs -> All api system logs for the given tenant
-  * CMS -> you know what this is 
-  * Ledger -> Not a clue what this is? Some form of VIM to the D3 machine?
-  * Global search -> Ability to search for anything anywhere on the project and go straight there 
-    * Products 
-    * Customers 
-    * Suppliers 
-    * Sales orders 
-    * Purchase orders 
-  * AI Support -> Unlikely something i would do but could give it a good ole college try. 
-  
-
-* Monitoring & metrics
-  * Sentry
-  * Uptime monitor
-  * Prometheus?
+- **Issues:** [GitHub Issues](https://github.com/your-org/your-repo/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/your-org/your-repo/discussions)
+- **Docs:** This README + `docs/bmad/` + `CLAUDE.md`
 
 ---
+
+**Generated:** 2025-10-11 | **Version:** Sprint 1 (Stock Management & Branches)
