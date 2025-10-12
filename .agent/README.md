@@ -29,7 +29,8 @@ Welcome to the comprehensive documentation for the Multi-Tenant Inventory Manage
 │   └── (feature-specific docs)
 └── SOP/                           # Standard operating procedures
     ├── adding_new_feature.md      # Step-by-step guide for new features
-    └── debugging_guide.md         # Troubleshooting common issues
+    ├── debugging_guide.md         # Troubleshooting common issues
+    └── testing_guide.md           # Testing strategy & best practices
 ```
 
 ---
@@ -191,6 +192,57 @@ Welcome to the comprehensive documentation for the Multi-Tenant Inventory Manage
 
 ---
 
+### Testing Guides
+
+**Quick Start:** [Testing Overview](./SOP/testing_overview.md) - Start here for an introduction to testing
+
+**Focused Guides:**
+- **[Backend Testing](./SOP/backend_testing.md)** - Jest, Supertest, integration tests, service tests
+- **[Frontend Testing](./SOP/frontend_testing.md)** - Playwright, E2E tests, selectors, patterns
+- **[Test Flakiness](./SOP/test_flakiness.md)** - Understanding and fixing flaky tests
+- **[Troubleshooting Tests](./SOP/troubleshooting_tests.md)** - 30+ common issues and solutions
+
+**Comprehensive Reference:** [Testing Guide](./SOP/testing_guide.md) - Complete testing documentation (2294 lines)
+
+**What's covered:**
+- **Test Strategy:** 299 passing tests across backend (227) and frontend (72)
+- **Backend:** Jest + Supertest, real PostgreSQL database, integration testing approach
+- **Frontend:** Playwright E2E, role-based permission testing, form interactions
+- **Test Isolation:** beforeEach patterns, cookie clearing, database cleanup
+- **Common Patterns:** Multi-tenant isolation, RBAC testing, FIFO stock testing
+- **Troubleshooting:** SecurityError, strict mode violations, permission issues, flaky tests
+
+**When to use:**
+- **Writing tests** → Start with Backend or Frontend guide
+- **Tests failing** → Check Troubleshooting guide first
+- **Tests flaking** → Read Test Flakiness guide
+- **Getting oriented** → Start with Testing Overview
+
+**Quick reference:**
+```bash
+# Backend tests (Jest)
+cd api-server
+npm run test:accept                # Run all (227 tests)
+npm run test:accept:watch          # TDD workflow
+npm run test:accept:coverage       # With coverage
+
+# Frontend tests (Playwright)
+cd admin-web
+npm run test:accept                # Headless (72 tests)
+npm run test:accept:ui             # Interactive UI mode
+npm run test:accept:debug          # Debug with breakpoints
+```
+
+**Test Coverage:**
+- ✅ Authentication & RBAC (46 tests)
+- ✅ Stock Management FIFO (23 tests)
+- ✅ Product CRUD (50 tests)
+- ✅ API Routes (70 tests)
+- ✅ Middleware (58 tests)
+- ✅ Permission-Based UI (21 tests)
+
+---
+
 ## 📋 Tasks Documentation
 
 **Purpose:** Feature-specific PRDs (Product Requirements Documents) and implementation plans.
@@ -283,6 +335,7 @@ Tasks/
 | **API Design** | [Project Architecture](./System/project_architecture.md#api-design-patterns) |
 | **OpenAPI** | [Project Architecture](./System/project_architecture.md#openapi--type-generation) |
 | **Adding Features** | [Adding a New Feature](./SOP/adding_new_feature.md) |
+| **Testing** | [Testing Guide](./SOP/testing_guide.md) |
 | **Debugging** | [Debugging Guide](./SOP/debugging_guide.md) |
 
 ### By Task
@@ -299,6 +352,9 @@ Tasks/
 | **Optimize query** | [Debugging Guide](./SOP/debugging_guide.md#issue-slow-api-requests) |
 | **Understand stock flow** | [Stock Management System](./System/stock_management.md#fifo-algorithm) |
 | **Add custom role** | [RBAC System Design](./System/rbac_system.md#custom-roles-tenant-specific) |
+| **Write backend tests** | [Testing Guide](./SOP/testing_guide.md#writing-backend-tests-jest) |
+| **Write E2E tests** | [Testing Guide](./SOP/testing_guide.md#writing-frontend-tests-playwright) |
+| **Debug failing tests** | [Testing Guide](./SOP/testing_guide.md#troubleshooting) |
 
 ---
 
@@ -393,6 +449,7 @@ Tasks/
 
 **Standard Procedures:** ✅ Complete
 - Adding New Features
+- Testing (Backend & Frontend)
 - Debugging Common Issues
 
 **Feature Tasks:** 🔄 As Needed
@@ -400,6 +457,6 @@ Tasks/
 
 ---
 
-**Last Updated:** 2025-10-11
-**Document Version:** 1.0
-**Total Documentation Files:** 6 (4 System, 0 Tasks, 2 SOP)
+**Last Updated:** 2025-10-12
+**Document Version:** 1.2
+**Total Documentation Files:** 11 (4 System, 1 Task, 6 SOP)

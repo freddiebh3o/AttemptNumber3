@@ -22,4 +22,5 @@ export default {
   ],
   coverageDirectory: 'coverage',
   verbose: true,
+  maxWorkers: 1, // Run tests serially to avoid database conflicts
 };

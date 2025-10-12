@@ -68,27 +68,41 @@ export function idempotencyMiddleware(requestTtlMinutes = 60) {
       existing.expiresAt > now &&
       existing.requestFingerprint === requestFingerprintHashHex
     ) {
-      // Replay stored response (assume JSON envelope)
-      return response.status(200).json(existing.storedResponseJson);
+      // Replay stored response with original status code
+      const storedData = existing.storedResponseJson as any;
+      // Determine original status from response or default to 200
+      const storedStatus = storedData?._idempotencyStatusCode || 200;
+      return response.status(storedStatus).json(storedData);
     }
 
-    // Wrap res.json to capture the body we’re about to send
+    // Wrap res.json to capture the body we're about to send
     const originalJson = response.json.bind(response);
+    const originalStatus = response.status.bind(response);
+    let capturedStatusCode = 200;
+
+    // Intercept status() to capture the status code
+    response.status = (statusCode: number) => {
+      capturedStatusCode = statusCode;
+      return originalStatus(statusCode);
+    };
+
     response.json = (body: any) => {
-      // Store before sending (best-effort; ignore errors to not block the response)
+      // Store the response with status code
       const expiresAt = new Date(Date.now() + requestTtlMinutes * 60 * 1000);
+      const storedBody = { ...body, _idempotencyStatusCode: capturedStatusCode };
+
       prismaClientInstance.idempotencyRecord
         .upsert({
           where: { idempotencyKey: idempotencyKeyHeaderValue },
           create: {
             idempotencyKey: idempotencyKeyHeaderValue,
             requestFingerprint: requestFingerprintHashHex,
-            storedResponseJson: body,
+            storedResponseJson: storedBody,
             expiresAt,
           },
           update: {
             requestFingerprint: requestFingerprintHashHex,
-            storedResponseJson: body,
+            storedResponseJson: storedBody,
             expiresAt,
           },
         })

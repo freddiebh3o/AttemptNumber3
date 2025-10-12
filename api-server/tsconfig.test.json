@@ -5,7 +5,8 @@
     "moduleResolution": "node",
     "isolatedModules": true,
     "esModuleInterop": true,
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "types": ["node", "jest"]
   },
   "include": ["src/**/*", "__tests__/**/*"]
 }

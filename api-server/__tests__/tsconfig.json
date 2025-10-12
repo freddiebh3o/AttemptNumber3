@@ -1,0 +1,9 @@
+{
+  "extends": "../tsconfig.test.json",
+  "compilerOptions": {
+    "types": ["node", "jest"],
+    "noEmit": true,
+    "rootDir": null
+  },
+  "include": ["./**/*", "../src/types/express.d.ts"]
+}

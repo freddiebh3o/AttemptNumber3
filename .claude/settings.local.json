@@ -1,12 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "workspace/**"
+      "Bash(npm run test:accept:*)",
+      "Bash(timeout 180 npm run test:accept stock-management.spec.ts)"
     ],
-    "ask": [
-      "workspace",
-      "workspace/**"
-    ],
-    "deny": []
+    "deny": [],
+    "ask": []
   }
 }

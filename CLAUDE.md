@@ -330,12 +330,30 @@ type CreateBody = paths['/api/products']['post']['requestBody']['content']['appl
 
 ## Testing & Debugging
 
+### Test Coverage Summary
+
+**Total: 299 passing tests (227 backend + 72 frontend)**
+
+**Backend (Jest):**
+- Authentication & RBAC: 46 tests
+- Stock Management FIFO: 23 tests
+- Product Service: 27 tests
+- API Routes: 70 tests (products, stock, tenant-users)
+- Middleware: 58 tests (session, permissions, rate limiting, idempotency, error handling)
+- Health checks: 4 tests
+
+**Frontend (Playwright E2E):**
+- Authentication Flow: 12 tests (sign-in page + full flow)
+- Product Management: 23 tests (CRUD, permissions, validation)
+- Stock Management: 20 tests (FIFO, adjust stock, ledger, branch selection)
+- Permission-Based UI: 21 tests (all roles across all features)
+
 ### Running Tests
 
 **API Server (Jest):**
 ```bash
 cd api-server
-npm run test:accept              # Run all tests
+npm run test:accept              # Run all tests (227 passing)
 npm run test:accept:watch        # Watch mode for TDD
 npm run test:accept:coverage     # Generate coverage report
 ```
@@ -343,11 +361,114 @@ npm run test:accept:coverage     # Generate coverage report
 **Admin Web (Playwright E2E):**
 ```bash
 cd admin-web
-npm run test:accept              # Headless mode
+npm run test:accept              # Headless mode (72 passing)
 npm run test:accept:ui           # Interactive UI mode (recommended for debugging)
 npm run test:accept:debug        # Debug with breakpoints
 npm run test:accept:report       # View HTML report of last run
+
+# Run specific test file
+npm run test:accept -- auth-flow.spec.ts
+npm run test:accept -- product-management.spec.ts
+npm run test:accept -- stock-management.spec.ts
+npm run test:accept -- permission-checks.spec.ts
 ```
+
+**Prerequisites for E2E tests:**
+- API server must be running: `cd api-server && npm run dev`
+- Database must be seeded with test data: `npm run db:seed`
+
+### Testing Documentation
+
+We maintain comprehensive testing guides in `.agent/SOP/`:
+
+- **[testing_overview.md](.agent/SOP/testing_overview.md)** - Start here! Quick start guide and navigation
+- **[backend_testing.md](.agent/SOP/backend_testing.md)** - Jest patterns, helpers, service tests
+- **[frontend_testing.md](.agent/SOP/frontend_testing.md)** - Playwright E2E patterns, selectors, debugging
+- **[test_flakiness.md](.agent/SOP/test_flakiness.md)** - Understanding and fixing flaky tests
+- **[troubleshooting_tests.md](.agent/SOP/troubleshooting_tests.md)** - 30+ common issues with solutions
+- **[testing_guide.md](.agent/SOP/testing_guide.md)** - Comprehensive reference (2294 lines)
+
+### Writing Tests
+
+**Backend (Jest + Supertest):**
+```typescript
+// Use test helpers for common setup
+import { setupTestDatabase, cleanupTestDatabase } from '@/__tests__/helpers/db';
+import { createTestUser, createSessionCookie } from '@/__tests__/helpers/auth';
+import { createTestTenant, createTestProduct } from '@/__tests__/helpers/factories';
+
+describe('Product API', () => {
+  beforeAll(setupTestDatabase);
+  afterAll(cleanupTestDatabase);
+
+  it('should create product with authentication', async () => {
+    const tenant = await createTestTenant('ACME Corp');
+    const user = await createTestUser(tenant.id, 'OWNER');
+    const sessionCookie = createSessionCookie(user.id, tenant.id);
+
+    const response = await request(app)
+      .post('/api/products')
+      .set('Cookie', sessionCookie)
+      .send({ name: 'Widget', sku: 'WID-001', unitPricePence: 1000 });
+
+    expect(response.status).toBe(201);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.name).toBe('Widget');
+  });
+});
+```
+
+**Frontend (Playwright E2E):**
+```typescript
+import { test, expect } from '@playwright/test';
+
+// Test users from seed data
+const TEST_USERS = {
+  owner: { email: 'owner@acme.test', password: 'Password123!', tenant: 'acme' },
+  viewer: { email: 'viewer@acme.test', password: 'Password123!', tenant: 'acme' },
+};
+
+async function signIn(page, user) {
+  await page.goto('/');
+  await page.getByLabel(/email address/i).fill(user.email);
+  await page.getByLabel(/password/i).fill(user.password);
+  await page.getByLabel(/tenant/i).fill(user.tenant);
+  await page.getByRole('button', { name: /sign in/i }).click();
+  await expect(page).toHaveURL(`/${user.tenant}/products`);
+}
+
+test('should create product', async ({ page }) => {
+  await signIn(page, TEST_USERS.owner);
+
+  await page.getByRole('button', { name: /new product/i }).click();
+  await page.getByLabel(/product name/i).fill('Test Widget');
+  await page.getByLabel(/sku/i).fill('TST-001');
+  await page.getByLabel(/price \(gbp\)/i).fill('10.00');
+  await page.getByRole('button', { name: /save/i }).click();
+
+  // Should redirect to product page with success notification
+  await expect(page).toHaveURL(/\/products\/.+/);
+  await expect(page.getByRole('alert')).toContainText('Product created');
+});
+```
+
+### Test Patterns & Best Practices
+
+**Backend:**
+- Use test helpers for database setup (`db.ts`, `auth.ts`, `factories.ts`)
+- Test against real database (no mocking Prisma)
+- Always test multi-tenant isolation
+- Test both success and error cases
+- Use `createTestRoleWithPermissions(permissionKeys)` for RBAC tests
+- Stock operations require UserBranchMembership
+
+**Frontend:**
+- Prefer role-based selectors: `getByRole('button', { name: /save/i })`
+- Scope to dialogs to avoid conflicts: `page.getByRole('dialog').getByLabel()`
+- Clear cookies between tests: `test.beforeEach(async ({ context }) => await context.clearCookies())`
+- Use `.first()` when multiple tables exist on page
+- Wait for specific elements, not fixed timeouts: `waitForSelector('table tbody tr')`
+- Test different user roles (owner, admin, editor, viewer)
 
 ### Local Debugging Tools
 
