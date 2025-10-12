@@ -15,6 +15,8 @@ export async function cleanDatabase() {
   // Delete in correct order to respect foreign key constraints
   await prisma.apiRequestLog.deleteMany();
   await prisma.auditEvent.deleteMany();
+  await prisma.stockTransferItem.deleteMany(); // Must delete before StockTransfer and Product
+  await prisma.stockTransfer.deleteMany(); // Must delete before Branch and User
   await prisma.stockLedger.deleteMany();
   await prisma.stockLot.deleteMany();
   await prisma.productStock.deleteMany();

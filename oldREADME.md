@@ -468,16 +468,19 @@ If you need initial data in the new environment:
 
 ## Future fetures
 ### Features to complete by Monday
-
-
-* Stock transfer between different branches/locations
-  * Effectively an 'order' between two branches 
-  * Will be able to exist in one of the following 'stages'
-    * Requested -> The item/items has been requested by one branch to another 
-    * Rejected -> The request has been rejected 
-    * Ordered -> The request has been accepted 
-    * Partially received -> The item/items that were ordered have only been partially received
-    * Complete -> The item/items have been received
+* Stock transfer - Whats left 
+  1. **Multi-product FIFO optimization**: Batch consume across products in single transaction
+  2. **Transfer templates**: Save common transfer configurations
+  3. **Recurring transfers**: Auto-create transfers on schedule
+  4. **Transfer approval delegation**: Multi-level approval workflow
+  5. **In-transit tracking**: Integration with logistics providers (tracking numbers)
+  6. **Cost override**: Allow manual cost adjustment on receive
+  7. **Transfer reversal**: Reverse completed transfer (return stock)
+  8. **Bulk receive**: Scan barcodes to receive all items at once
+  9. **Transfer analytics**: Dashboards for transfer velocity, branch dependencies
+  10. **Email notifications**: Notify users on status changes
+  11. **Transfer prioritization**: Mark urgent transfers, prioritize in queue
+  12. **Partial shipment**: Ship less than approved (if stock insufficient)
 
 
 ### The rest

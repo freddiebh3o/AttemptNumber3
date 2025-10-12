@@ -10,6 +10,7 @@ import { roleRouter } from './roleRouter.js';
 import { stockRouter } from './stockRouter.js';
 import { branchRouter } from './branchRouter.js';
 import { auditLoggerRouter } from './auditLoggerRouter.js';
+import { stockTransfersRouter } from './stockTransfersRouter.js';
 
 export const apiRouter = Router()
 apiRouter.use('/', healthRouter)
@@ -22,3 +23,4 @@ apiRouter.use('/', roleRouter)
 apiRouter.use('/stock', stockRouter)
 apiRouter.use('/branches', branchRouter)
 apiRouter.use('/audit', auditLoggerRouter)
+apiRouter.use('/stock-transfers', stockTransfersRouter)

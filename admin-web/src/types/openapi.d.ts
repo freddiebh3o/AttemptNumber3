@@ -3980,6 +3980,680 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/stock-transfers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List stock transfers */
+        get: {
+            parameters: {
+                query?: {
+                    branchId?: string;
+                    direction?: "inbound" | "outbound";
+                    status?: string;
+                    q?: string;
+                    sortBy?: "requestedAt" | "updatedAt" | "transferNumber" | "status";
+                    sortDir?: "asc" | "desc";
+                    requestedAtFrom?: string;
+                    requestedAtTo?: string;
+                    shippedAtFrom?: string;
+                    shippedAtTo?: string;
+                    limit?: string;
+                    cursor?: string;
+                    includeTotal?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                items: {
+                                    id: string;
+                                    tenantId: string;
+                                    transferNumber: string;
+                                    sourceBranchId: string;
+                                    destinationBranchId: string;
+                                    /** @enum {string} */
+                                    status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
+                                    requestedByUserId: string;
+                                    reviewedByUserId: string | null;
+                                    shippedByUserId: string | null;
+                                    requestedAt: string;
+                                    reviewedAt: string | null;
+                                    shippedAt: string | null;
+                                    completedAt: string | null;
+                                    requestNotes: string | null;
+                                    reviewNotes: string | null;
+                                    items: {
+                                        id: string;
+                                        productId: string;
+                                        qtyRequested: number;
+                                        qtyApproved: number | null;
+                                        qtyShipped: number;
+                                        qtyReceived: number;
+                                        avgUnitCostPence: number | null;
+                                        lotsConsumed: {
+                                            lotId: string;
+                                            qty: number;
+                                            unitCostPence: number | null;
+                                        }[] | null;
+                                        product?: {
+                                            id: string;
+                                            productName: string;
+                                            productSku: string;
+                                        };
+                                    }[];
+                                    sourceBranch?: {
+                                        id: string;
+                                        branchName: string;
+                                        branchSlug: string;
+                                    };
+                                    destinationBranch?: {
+                                        id: string;
+                                        branchName: string;
+                                        branchSlug: string;
+                                    };
+                                    requestedByUser?: {
+                                        id: string;
+                                        userEmailAddress: string;
+                                    };
+                                    reviewedByUser?: {
+                                        id: string;
+                                        userEmailAddress: string;
+                                    } | null;
+                                    shippedByUser?: {
+                                        id: string;
+                                        userEmailAddress: string;
+                                    } | null;
+                                    createdAt: string;
+                                    updatedAt: string;
+                                }[];
+                                pageInfo: {
+                                    hasNextPage: boolean;
+                                    nextCursor: string | null;
+                                    totalCount?: number;
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Create a stock transfer request */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        sourceBranchId: string;
+                        destinationBranchId: string;
+                        requestNotes?: string;
+                        items: {
+                            productId: string;
+                            qtyRequested: number;
+                        }[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                id: string;
+                                tenantId: string;
+                                transferNumber: string;
+                                sourceBranchId: string;
+                                destinationBranchId: string;
+                                /** @enum {string} */
+                                status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
+                                requestedByUserId: string;
+                                reviewedByUserId: string | null;
+                                shippedByUserId: string | null;
+                                requestedAt: string;
+                                reviewedAt: string | null;
+                                shippedAt: string | null;
+                                completedAt: string | null;
+                                requestNotes: string | null;
+                                reviewNotes: string | null;
+                                items: {
+                                    id: string;
+                                    productId: string;
+                                    qtyRequested: number;
+                                    qtyApproved: number | null;
+                                    qtyShipped: number;
+                                    qtyReceived: number;
+                                    avgUnitCostPence: number | null;
+                                    lotsConsumed: {
+                                        lotId: string;
+                                        qty: number;
+                                        unitCostPence: number | null;
+                                    }[] | null;
+                                    product?: {
+                                        id: string;
+                                        productName: string;
+                                        productSku: string;
+                                    };
+                                }[];
+                                sourceBranch?: {
+                                    id: string;
+                                    branchName: string;
+                                    branchSlug: string;
+                                };
+                                destinationBranch?: {
+                                    id: string;
+                                    branchName: string;
+                                    branchSlug: string;
+                                };
+                                requestedByUser?: {
+                                    id: string;
+                                    userEmailAddress: string;
+                                };
+                                reviewedByUser?: {
+                                    id: string;
+                                    userEmailAddress: string;
+                                } | null;
+                                shippedByUser?: {
+                                    id: string;
+                                    userEmailAddress: string;
+                                } | null;
+                                createdAt: string;
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stock-transfers/{transferId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get transfer details */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    transferId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                id: string;
+                                tenantId: string;
+                                transferNumber: string;
+                                sourceBranchId: string;
+                                destinationBranchId: string;
+                                /** @enum {string} */
+                                status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
+                                requestedByUserId: string;
+                                reviewedByUserId: string | null;
+                                shippedByUserId: string | null;
+                                requestedAt: string;
+                                reviewedAt: string | null;
+                                shippedAt: string | null;
+                                completedAt: string | null;
+                                requestNotes: string | null;
+                                reviewNotes: string | null;
+                                items: {
+                                    id: string;
+                                    productId: string;
+                                    qtyRequested: number;
+                                    qtyApproved: number | null;
+                                    qtyShipped: number;
+                                    qtyReceived: number;
+                                    avgUnitCostPence: number | null;
+                                    lotsConsumed: {
+                                        lotId: string;
+                                        qty: number;
+                                        unitCostPence: number | null;
+                                    }[] | null;
+                                    product?: {
+                                        id: string;
+                                        productName: string;
+                                        productSku: string;
+                                    };
+                                }[];
+                                sourceBranch?: {
+                                    id: string;
+                                    branchName: string;
+                                    branchSlug: string;
+                                };
+                                destinationBranch?: {
+                                    id: string;
+                                    branchName: string;
+                                    branchSlug: string;
+                                };
+                                requestedByUser?: {
+                                    id: string;
+                                    userEmailAddress: string;
+                                };
+                                reviewedByUser?: {
+                                    id: string;
+                                    userEmailAddress: string;
+                                } | null;
+                                shippedByUser?: {
+                                    id: string;
+                                    userEmailAddress: string;
+                                } | null;
+                                createdAt: string;
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /** Cancel transfer (REQUESTED only) */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    transferId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stock-transfers/{transferId}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Approve or reject transfer */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    transferId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        action: "approve" | "reject";
+                        reviewNotes?: string;
+                        items?: {
+                            itemId: string;
+                            qtyApproved: number;
+                        }[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                id: string;
+                                tenantId: string;
+                                transferNumber: string;
+                                sourceBranchId: string;
+                                destinationBranchId: string;
+                                /** @enum {string} */
+                                status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
+                                requestedByUserId: string;
+                                reviewedByUserId: string | null;
+                                shippedByUserId: string | null;
+                                requestedAt: string;
+                                reviewedAt: string | null;
+                                shippedAt: string | null;
+                                completedAt: string | null;
+                                requestNotes: string | null;
+                                reviewNotes: string | null;
+                                items: {
+                                    id: string;
+                                    productId: string;
+                                    qtyRequested: number;
+                                    qtyApproved: number | null;
+                                    qtyShipped: number;
+                                    qtyReceived: number;
+                                    avgUnitCostPence: number | null;
+                                    lotsConsumed: {
+                                        lotId: string;
+                                        qty: number;
+                                        unitCostPence: number | null;
+                                    }[] | null;
+                                    product?: {
+                                        id: string;
+                                        productName: string;
+                                        productSku: string;
+                                    };
+                                }[];
+                                sourceBranch?: {
+                                    id: string;
+                                    branchName: string;
+                                    branchSlug: string;
+                                };
+                                destinationBranch?: {
+                                    id: string;
+                                    branchName: string;
+                                    branchSlug: string;
+                                };
+                                requestedByUser?: {
+                                    id: string;
+                                    userEmailAddress: string;
+                                };
+                                reviewedByUser?: {
+                                    id: string;
+                                    userEmailAddress: string;
+                                } | null;
+                                shippedByUser?: {
+                                    id: string;
+                                    userEmailAddress: string;
+                                } | null;
+                                createdAt: string;
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/stock-transfers/{transferId}/ship": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ship approved transfer */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    transferId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                id: string;
+                                tenantId: string;
+                                transferNumber: string;
+                                sourceBranchId: string;
+                                destinationBranchId: string;
+                                /** @enum {string} */
+                                status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
+                                requestedByUserId: string;
+                                reviewedByUserId: string | null;
+                                shippedByUserId: string | null;
+                                requestedAt: string;
+                                reviewedAt: string | null;
+                                shippedAt: string | null;
+                                completedAt: string | null;
+                                requestNotes: string | null;
+                                reviewNotes: string | null;
+                                items: {
+                                    id: string;
+                                    productId: string;
+                                    qtyRequested: number;
+                                    qtyApproved: number | null;
+                                    qtyShipped: number;
+                                    qtyReceived: number;
+                                    avgUnitCostPence: number | null;
+                                    lotsConsumed: {
+                                        lotId: string;
+                                        qty: number;
+                                        unitCostPence: number | null;
+                                    }[] | null;
+                                    product?: {
+                                        id: string;
+                                        productName: string;
+                                        productSku: string;
+                                    };
+                                }[];
+                                sourceBranch?: {
+                                    id: string;
+                                    branchName: string;
+                                    branchSlug: string;
+                                };
+                                destinationBranch?: {
+                                    id: string;
+                                    branchName: string;
+                                    branchSlug: string;
+                                };
+                                requestedByUser?: {
+                                    id: string;
+                                    userEmailAddress: string;
+                                };
+                                reviewedByUser?: {
+                                    id: string;
+                                    userEmailAddress: string;
+                                } | null;
+                                shippedByUser?: {
+                                    id: string;
+                                    userEmailAddress: string;
+                                } | null;
+                                createdAt: string;
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stock-transfers/{transferId}/receive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Receive transferred items */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    transferId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        items: {
+                            itemId: string;
+                            qtyReceived: number;
+                        }[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                id: string;
+                                tenantId: string;
+                                transferNumber: string;
+                                sourceBranchId: string;
+                                destinationBranchId: string;
+                                /** @enum {string} */
+                                status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
+                                requestedByUserId: string;
+                                reviewedByUserId: string | null;
+                                shippedByUserId: string | null;
+                                requestedAt: string;
+                                reviewedAt: string | null;
+                                shippedAt: string | null;
+                                completedAt: string | null;
+                                requestNotes: string | null;
+                                reviewNotes: string | null;
+                                items: {
+                                    id: string;
+                                    productId: string;
+                                    qtyRequested: number;
+                                    qtyApproved: number | null;
+                                    qtyShipped: number;
+                                    qtyReceived: number;
+                                    avgUnitCostPence: number | null;
+                                    lotsConsumed: {
+                                        lotId: string;
+                                        qty: number;
+                                        unitCostPence: number | null;
+                                    }[] | null;
+                                    product?: {
+                                        id: string;
+                                        productName: string;
+                                        productSku: string;
+                                    };
+                                }[];
+                                sourceBranch?: {
+                                    id: string;
+                                    branchName: string;
+                                    branchSlug: string;
+                                };
+                                destinationBranch?: {
+                                    id: string;
+                                    branchName: string;
+                                    branchSlug: string;
+                                };
+                                requestedByUser?: {
+                                    id: string;
+                                    userEmailAddress: string;
+                                };
+                                reviewedByUser?: {
+                                    id: string;
+                                    userEmailAddress: string;
+                                } | null;
+                                shippedByUser?: {
+                                    id: string;
+                                    userEmailAddress: string;
+                                } | null;
+                                createdAt: string;
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {

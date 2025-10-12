@@ -206,6 +206,152 @@ async function addUserToBranches(userId: string, tenantId: string, branchIds: st
   }
 }
 
+async function seedStockTransfers(
+  acmeId: string,
+  users: SeededUsers,
+  acmeBranches: SlimBranch[]
+) {
+  // Helper to find branch by slug
+  const mustFind = (list: SlimBranch[], slug: string) => {
+    const b = list.find(x => x.branchSlug === slug);
+    if (!b) throw new Error(`Branch not found: ${slug}`);
+    return b;
+  };
+
+  const acmeWarehouse = mustFind(acmeBranches, 'acme-warehouse');
+  const acmeRetail1 = mustFind(acmeBranches, 'acme-retail-1');
+
+  // Get some products for the transfers
+  const products = await prisma.product.findMany({
+    where: {
+      tenantId: acmeId,
+      productSku: { in: ['ACME-SKU-001', 'ACME-SKU-002'] },
+    },
+    select: { id: true, productSku: true },
+  });
+
+  if (products.length < 2) {
+    console.log('Skipping stock transfer seed: not enough products');
+    return;
+  }
+
+  const product1 = products.find(p => p.productSku === 'ACME-SKU-001')!;
+  const product2 = products.find(p => p.productSku === 'ACME-SKU-002')!;
+
+  // Create a COMPLETED transfer (for demo/testing)
+  await prisma.stockTransfer.upsert({
+    where: {
+      tenantId_transferNumber: {
+        tenantId: acmeId,
+        transferNumber: 'TRF-2025-001',
+      },
+    },
+    update: {},
+    create: {
+      tenantId: acmeId,
+      transferNumber: 'TRF-2025-001',
+      sourceBranchId: acmeWarehouse.id,
+      destinationBranchId: acmeRetail1.id,
+      status: 'COMPLETED',
+      requestedByUserId: users.viewer.id, // viewer at retail-1
+      reviewedByUserId: users.admin.id, // admin at warehouse
+      shippedByUserId: users.admin.id,
+      requestedAt: new Date('2025-01-15T09:00:00Z'),
+      reviewedAt: new Date('2025-01-15T10:30:00Z'),
+      shippedAt: new Date('2025-01-15T14:00:00Z'),
+      completedAt: new Date('2025-01-16T09:00:00Z'),
+      requestNotes: 'Stock running low at retail store',
+      items: {
+        create: [
+          {
+            productId: product1.id,
+            qtyRequested: 50,
+            qtyApproved: 50,
+            qtyShipped: 50,
+            qtyReceived: 50,
+            avgUnitCostPence: 1200,
+          },
+        ],
+      },
+    },
+  });
+
+  // Create an IN_TRANSIT transfer
+  await prisma.stockTransfer.upsert({
+    where: {
+      tenantId_transferNumber: {
+        tenantId: acmeId,
+        transferNumber: 'TRF-2025-002',
+      },
+    },
+    update: {},
+    create: {
+      tenantId: acmeId,
+      transferNumber: 'TRF-2025-002',
+      sourceBranchId: acmeWarehouse.id,
+      destinationBranchId: acmeRetail1.id,
+      status: 'IN_TRANSIT',
+      requestedByUserId: users.viewer.id,
+      reviewedByUserId: users.admin.id,
+      shippedByUserId: users.admin.id,
+      requestedAt: new Date('2025-01-20T09:00:00Z'),
+      reviewedAt: new Date('2025-01-20T11:00:00Z'),
+      shippedAt: new Date('2025-01-20T15:00:00Z'),
+      requestNotes: 'Restock for weekend rush',
+      items: {
+        create: [
+          {
+            productId: product2.id,
+            qtyRequested: 30,
+            qtyApproved: 30,
+            qtyShipped: 30,
+            qtyReceived: 0,
+            avgUnitCostPence: 3500,
+          },
+        ],
+      },
+    },
+  });
+
+  // Create a REQUESTED transfer
+  await prisma.stockTransfer.upsert({
+    where: {
+      tenantId_transferNumber: {
+        tenantId: acmeId,
+        transferNumber: 'TRF-2025-003',
+      },
+    },
+    update: {},
+    create: {
+      tenantId: acmeId,
+      transferNumber: 'TRF-2025-003',
+      sourceBranchId: acmeWarehouse.id,
+      destinationBranchId: acmeRetail1.id,
+      status: 'REQUESTED',
+      requestedByUserId: users.viewer.id,
+      requestedAt: new Date('2025-01-22T09:00:00Z'),
+      requestNotes: 'Monthly restock request',
+      items: {
+        create: [
+          {
+            productId: product1.id,
+            qtyRequested: 100,
+          },
+          {
+            productId: product2.id,
+            qtyRequested: 75,
+          },
+        ],
+      },
+    },
+  });
+
+  console.log('--- Stock transfers seeded ---');
+  console.log('TRF-2025-001: COMPLETED (Warehouse → Retail #1)');
+  console.log('TRF-2025-002: IN_TRANSIT (Warehouse → Retail #1)');
+  console.log('TRF-2025-003: REQUESTED (Warehouse → Retail #1)');
+}
+
 async function main() {
   // Tenants + RBAC
   const { acmeId, globexId } = await seedTenantsAndRBAC();
@@ -237,6 +383,9 @@ async function main() {
   await addUserToBranches(users.viewer.id, acmeId, [acmeRetail1.id]);
   await addUserToBranches(users.mixed.id, acmeId,   [acmeHQ.id]);
   await addUserToBranches(users.mixed.id, globexId, [globexHQ.id]);   // and globex
+
+  // Stock transfers
+  await seedStockTransfers(acmeId, users, acmeBranches);
 
   console.log('Seed complete. Tenants: acme, globex');
 }

@@ -1,6 +1,15 @@
 /* admin-web/src/components/shell/SidebarNav.tsx */
 import { NavLink, Stack, Text, Image, Box, Divider, Group } from "@mantine/core";
 import { Link, useLocation, useParams } from "react-router-dom";
+import {
+  IconTruckDelivery,
+  IconPackage,
+  IconUsers,
+  IconPalette,
+  IconShield,
+  IconBuilding,
+  IconHistory
+} from "@tabler/icons-react";
 import { useThemeStore } from "../../stores/theme";
 import { useAuthStore } from "../../stores/auth";
 import { usePermissions } from "../../hooks/usePermissions"; // <-- add
@@ -28,6 +37,7 @@ export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) 
             to={`${base}/products`}
             active={active(`${base}/products`)}
             onClick={onNavigate}
+            leftSection={<IconPackage size={16} />}
           />
         )}
 
@@ -38,6 +48,7 @@ export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) 
             to={`${base}/users`}
             active={active(`${base}/users`)}
             onClick={onNavigate}
+            leftSection={<IconUsers size={16} />}
           />
         )}
 
@@ -48,6 +59,7 @@ export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) 
             to={`${base}/settings/theme?tab=settings`}
             active={active(`${base}/settings/theme`)}
             onClick={onNavigate}
+            leftSection={<IconPalette size={16} />}
           />
         )}
 
@@ -58,6 +70,7 @@ export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) 
             to={`${base}/roles`}
             active={active(`${base}/roles`)}
             onClick={onNavigate}
+            leftSection={<IconShield size={16} />}
           />
         )}
 
@@ -68,6 +81,18 @@ export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) 
             to={`${base}/branches`}
             active={active(`${base}/branches`)}
             onClick={onNavigate}
+            leftSection={<IconBuilding size={16} />}
+          />
+        )}
+
+        {hasPerm("stock:read") && (
+          <NavLink
+            label="Stock Transfers"
+            component={Link}
+            to={`${base}/stock-transfers`}
+            active={active(`${base}/stock-transfers`)}
+            onClick={onNavigate}
+            leftSection={<IconTruckDelivery size={16} />}
           />
         )}
 
@@ -79,6 +104,7 @@ export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) 
             to={`${base}/audit`}
             active={active(`${base}/audit`)}
             onClick={onNavigate}
+            leftSection={<IconHistory size={16} />}
           />
         )}
 

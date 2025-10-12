@@ -1,0 +1,1 @@
+{"root":["./e2e/auth-flow.spec.ts","./e2e/permission-checks.spec.ts","./e2e/product-management.spec.ts","./e2e/signin.spec.ts","./e2e/stock-management.spec.ts"],"errors":true,"version":"5.9.2"}

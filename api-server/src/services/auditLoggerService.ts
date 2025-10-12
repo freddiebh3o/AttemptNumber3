@@ -50,6 +50,10 @@ function whitelistSnapshot(entityType: AuditEntityType, input: Jsonish) {
       return pick(['id', 'name', 'description', 'tenantId', 'isSystem', 'permissions']);
     case 'TENANT':
       return pick(['id','tenantSlug','tenantName']);
+    case 'STOCK_TRANSFER':
+      return pick(['id', 'transferNumber', 'sourceBranchId', 'destinationBranchId', 'status', 'requestedByUserId', 'reviewedByUserId', 'shippedByUserId', 'requestedAt', 'reviewedAt', 'shippedAt', 'completedAt', 'requestNotes', 'reviewNotes']);
+    case 'STOCK_TRANSFER_ITEM':
+      return pick(['id', 'transferId', 'productId', 'qtyRequested', 'qtyApproved', 'qtyShipped', 'qtyReceived', 'avgUnitCostPence']);
     default:
       return redact(i);
   }

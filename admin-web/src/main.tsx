@@ -23,6 +23,8 @@ import ProductPage from './pages/ProductPage'
 import AuditLogPage from './pages/AuditLogPage'
 import RolePage from './pages/RolePage'
 import BranchPage from './pages/BranchPage'
+import StockTransfersPage from './pages/StockTransfersPage'
+import StockTransferDetailPage from './pages/StockTransferDetailPage'
 
 const router = createBrowserRouter([
   {
@@ -151,6 +153,24 @@ const router = createBrowserRouter([
             element: (
               <RequirePermission perm="branches:manage">
                 <BranchPage />
+              </RequirePermission>
+            ),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
+            path: 'stock-transfers',
+            element: (
+              <RequirePermission perm="stock:read">
+                <StockTransfersPage />
+              </RequirePermission>
+            ),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
+            path: 'stock-transfers/:transferId',
+            element: (
+              <RequirePermission perm="stock:read">
+                <StockTransferDetailPage />
               </RequirePermission>
             ),
             errorElement: <RouteErrorBoundary />,
