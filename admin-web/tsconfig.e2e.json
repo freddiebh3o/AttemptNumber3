@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.node.json",
+  "compilerOptions": {
+    "types": ["node", "@playwright/test"],
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "include": ["e2e/**/*.ts", "e2e/**/*.tsx"],
+  "exclude": ["node_modules"]
+}

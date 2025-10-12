@@ -250,9 +250,12 @@ export default function ProductPage() {
                 onChangePrice={setPrice}
               />
               {isEdit && entityVersion != null && (
-                <Text size="sm" c="dimmed" mt="sm">
-                  Current version: <Badge>{entityVersion}</Badge>
-                </Text>
+                <Group gap="xs" mt="sm">
+                  <Text size="sm" c="dimmed">
+                    Current version:
+                  </Text>
+                  <Badge>{entityVersion}</Badge>
+                </Group>
               )}
             </Tabs.Panel>
 

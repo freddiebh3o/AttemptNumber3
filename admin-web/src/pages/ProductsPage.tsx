@@ -38,7 +38,8 @@ import {
   IconChevronUp,
   IconPlayerTrackNext,
   IconPlayerTrackPrev,
-  IconLink
+  IconLink,
+  IconEye
 } from "@tabler/icons-react";
 import { handlePageError } from "../utils/pageError";
 import { useAuthStore } from "../stores/auth";
@@ -1026,10 +1027,10 @@ export default function ProductsPage() {
                                 variant="light"
                                 size="md"
                                 onClick={() => navigate(`/${tenantSlug}/products/${p.id}`)}
-                                disabled={!canWriteProducts}
+                                // disabled={!canWriteProducts}
                                 title="Edit product"
                               >
-                                <IconPencil size={16} />
+                                <IconEye size={16} />
                               </ActionIcon>
                               <ActionIcon
                                 variant="light"
