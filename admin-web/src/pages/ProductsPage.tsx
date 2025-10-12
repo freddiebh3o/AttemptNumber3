@@ -28,7 +28,6 @@ import {
 import type { ProductRecord } from "../api/apiTypes";
 import {
   IconTrash,
-  IconPencil,
   IconRefresh,
   IconArrowsSort,
   IconArrowUp,

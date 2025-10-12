@@ -57,6 +57,16 @@ export function RouteErrorBoundary() {
   const e = err as ErrLike | undefined;
   const status = e?.httpStatusCode ?? e?.status;
 
+  // Handle 401 (session expired) - redirect to sign-in with reason
+  if (status === 401) {
+    // Clear auth store and redirect (backup handler for route/loader errors)
+    import('../../stores/auth.js').then(({ useAuthStore }) => {
+      useAuthStore.getState().clear();
+    });
+    window.location.href = '/sign-in?reason=session_expired';
+    return null; // Won't render since redirecting
+  }
+
   if (status === 403) return <AccessDenied />;
   if (status === 404) return <NotFound />;
   return <GenericError error={e} />;

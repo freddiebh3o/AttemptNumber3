@@ -695,7 +695,6 @@ export function BranchActivityTab({ branchId }: { branchId: string }) {
         withBorder
         p="md"
         radius="md"
-        className="bg-white max-h-[70vh] overflow-y-auto"
       >
         <Group justify="space-between" align="center" gap="xs" wrap="wrap">
           <Group gap="xs" mt={0} wrap="wrap" style={{ flex: 1 }}>
@@ -758,7 +757,7 @@ export function BranchActivityTab({ branchId }: { branchId: string }) {
 
         <Space h="md" />
 
-        <div className="relative">
+        <div className="relative max-h-[60vh] overflow-y-auto">
           {isPaginating && (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-white/60 rounded-md">
               <Loader size="sm" />

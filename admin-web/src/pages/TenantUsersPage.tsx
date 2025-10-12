@@ -34,7 +34,6 @@ import { handlePageError } from "../utils/pageError";
 import { useAuthStore } from "../stores/auth";
 import {
   IconPlus,
-  IconPencil,
   IconTrash,
   IconRefresh,
   IconArrowsSort,
@@ -46,6 +45,7 @@ import {
   IconPlayerTrackNext,
   IconPlayerTrackPrev,
   IconLink,
+  IconEye
 } from "@tabler/icons-react";
 import { FilterBar } from "../components/common/FilterBar";
 import type { components } from "../types/openapi";
@@ -1051,10 +1051,9 @@ export default function TenantUsersPage() {
                               variant="light"
                               size="md"
                               onClick={() => navigate(`/${tenantSlug}/users/${r.userId}`)}
-                              disabled={!canManageUsers}
                               title="Edit user"
                             >
-                              <IconPencil size={16} />
+                              <IconEye size={16} />
                             </ActionIcon>
                             <ActionIcon
                               variant="light"

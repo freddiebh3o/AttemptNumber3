@@ -787,7 +787,6 @@ export default function BranchesPage() {
           withBorder
           p="md"
           radius="md"
-          className="bg-white max-h-[80vh] overflow-y-auto"
         >
           <Group justify="space-between" mb="md">
             <Title order={4}>All Branches</Title>
@@ -824,7 +823,7 @@ export default function BranchesPage() {
               <Text ml="sm">Loading branches…</Text>
             </div>
           ) : (
-            <>
+            <div className="max-h-[60vh] overflow-y-auto">
               {/** Chips */}
               {activeFilterChips.length > 0 && (
                 <Group
@@ -1112,7 +1111,7 @@ export default function BranchesPage() {
                   </Button>
                 </Group>
               </Group>
-            </>
+            </div>
           )}
         </Paper>
       </div>

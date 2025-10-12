@@ -20,7 +20,10 @@ type TabKey = "overview" | "activity";
 
 export default function RolePage() {
   const { tenantSlug, roleId } = useParams<{ tenantSlug: string; roleId?: string }>();
-  const isEdit = Boolean(roleId);
+  // Treat /roles/new as "create" mode
+  const isNew = !roleId || roleId === "new";
+  const isEdit = !isNew;
+
   const navigate = useNavigate();
   const canManageRoles = useAuthStore((s) => s.hasPerm("roles:manage"));
 
@@ -51,6 +54,9 @@ export default function RolePage() {
   const [saving, setSaving] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
+  // Trigger a refetch after successful updates
+  const [refreshTick, setRefreshTick] = useState(0);
+
   // Load permissions catalogue (once)
   useEffect(() => {
     let cancelled = false;
@@ -60,14 +66,16 @@ export default function RolePage() {
         if (!cancelled && res.success) {
           setPermOptions(res.data.permissions);
         }
-      } catch (e) {
+      } catch {
         // non-fatal; the tab shows a nice "loading perms" label
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // Load role on edit
+  // Load role on edit (and whenever refreshTick changes)
   useEffect(() => {
     if (!isEdit || !roleId) return;
     let cancelled = false;
@@ -93,8 +101,10 @@ export default function RolePage() {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
-  }, [isEdit, roleId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [isEdit, roleId, refreshTick]);
 
   async function handleSave() {
     if (!name.trim()) {
@@ -108,7 +118,7 @@ export default function RolePage() {
     setSaving(true);
     try {
       const idempotencyKey = (crypto as any)?.randomUUID?.() ?? String(Date.now());
-      if (!isEdit) {
+      if (isNew) {
         const res = await createRoleApiRequest(
           {
             name: name.trim(),
@@ -136,7 +146,9 @@ export default function RolePage() {
         );
         if (res.success) {
           notifications.show({ color: "green", message: "Role updated." });
-          navigate(`/${tenantSlug}/roles`);
+          // Stay on this page and refresh the latest data
+          setRefreshTick((t) => t + 1);
+          return;
         }
       }
     } catch (e) {

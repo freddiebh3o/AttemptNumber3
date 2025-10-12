@@ -184,6 +184,12 @@ export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts })
   const [stockReason, setStockReason] = useState<string>("");
   const [submittingStock, setSubmittingStock] = useState(false);
 
+  // NEW: expand/collapse heights
+  const [levelsExpanded, setLevelsExpanded] = useState(false);
+  const [ledgerExpanded, setLedgerExpanded] = useState(false);
+  const LEVELS_SCROLL_ID = "levels-scroll";
+  const LEDGER_SCROLL_ID = "ledger-scroll";
+
   // Restrict branches by current-tenant memberships
   const branchMemberships = useAuthStore((s) => s.branchMembershipsCurrentTenant);
   const allowedBranchIds = useMemo(
@@ -831,37 +837,57 @@ export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts })
             <Text size="sm">
               On hand: <b>{levels.productStock.qtyOnHand}</b> (allocated: {levels.productStock.qtyAllocated})
             </Text>
-            <Table striped withTableBorder withColumnBorders stickyHeader>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Lot</Table.Th>
-                  <Table.Th>Received</Table.Th>
-                  <Table.Th>Remaining</Table.Th>
-                  <Table.Th>Unit cost</Table.Th>
-                  <Table.Th>Source</Table.Th>
-                  <Table.Th>Received at</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
 
-              <Table.Tbody>
-                {levels.lots.map((lot) => (
-                  <Table.Tr key={lot.id}>
-                    <Table.Td>
-                      <Badge>{lot.id.slice(0, 6)}…</Badge>
-                    </Table.Td>
-                    <Table.Td>{lot.qtyReceived}</Table.Td>
-                    <Table.Td>{lot.qtyRemaining}</Table.Td>
-                    <Table.Td>
-                      {typeof lot.unitCostPence === "number"
-                        ? formatPenceAsGBP(lot.unitCostPence)
-                        : "—"}
-                    </Table.Td>
-                    <Table.Td>{lot.sourceRef ?? "—"}</Table.Td>
-                    <Table.Td>{new Date(lot.receivedAt).toLocaleString()}</Table.Td>
+            <div
+              id={LEVELS_SCROLL_ID}
+              className={`${levelsExpanded ? "max-h-[65vh]" : "max-h-[25vh]"} overflow-y-auto`}
+              aria-expanded={levelsExpanded}
+            >
+              <Table striped withTableBorder withColumnBorders stickyHeader>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Lot</Table.Th>
+                    <Table.Th>Received</Table.Th>
+                    <Table.Th>Remaining</Table.Th>
+                    <Table.Th>Unit cost</Table.Th>
+                    <Table.Th>Source</Table.Th>
+                    <Table.Th>Received at</Table.Th>
                   </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
+                </Table.Thead>
+
+                <Table.Tbody>
+                  {levels.lots.map((lot) => (
+                    <Table.Tr key={lot.id}>
+                      <Table.Td>
+                        <Badge>{lot.id.slice(0, 6)}…</Badge>
+                      </Table.Td>
+                      <Table.Td>{lot.qtyReceived}</Table.Td>
+                      <Table.Td>{lot.qtyRemaining}</Table.Td>
+                      <Table.Td>
+                        {typeof lot.unitCostPence === "number"
+                          ? formatPenceAsGBP(lot.unitCostPence)
+                          : "—"}
+                      </Table.Td>
+                      <Table.Td>{lot.sourceRef ?? "—"}</Table.Td>
+                      <Table.Td>{new Date(lot.receivedAt).toLocaleString()}</Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </div>
+
+            <Group justify="center" mt="xs">
+              <Button
+                variant="subtle"
+                size="xs"
+                onClick={() => setLevelsExpanded((v) => !v)}
+                aria-expanded={levelsExpanded}
+                aria-controls={LEVELS_SCROLL_ID}
+                rightSection={levelsExpanded ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
+              >
+                {levelsExpanded ? "Show less" : "Show more"}
+              </Button>
+            </Group>
           </Stack>
         </Paper>
       ) : (
@@ -971,7 +997,7 @@ export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts })
           )}
         </FilterBar>
 
-        <Paper withBorder p="md" radius="md" className="bg-white max-h-[70vh] overflow-y-auto">
+        <Paper withBorder p="md" radius="md">
           <Group justify="space-between" mb={activeFilterChips.length > 0 ? "0" : "md"}>
             <Title order={5}>Ledger</Title>
 
@@ -1037,7 +1063,12 @@ export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts })
             </Alert>
           ) : (
             <>
-              <div className="max-h-[55vh] overflow-y-auto" aria-busy={ledgerLoading}>
+              <div
+                id={LEDGER_SCROLL_ID}
+                className={`${ledgerExpanded ? "max-h-[65vh]" : "max-h-[25vh]"} overflow-y-auto`}
+                aria-busy={ledgerLoading}
+                aria-expanded={ledgerExpanded}
+              >
                 <Table
                   id={TABLE_ID}
                   striped
@@ -1119,6 +1150,19 @@ export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts })
                   </Table.Tbody>
                 </Table>
               </div>
+
+              <Group justify="center" mt="xs">
+                <Button
+                  variant="subtle"
+                  size="xs"
+                  onClick={() => setLedgerExpanded((v) => !v)}
+                  aria-expanded={ledgerExpanded}
+                  aria-controls={LEDGER_SCROLL_ID}
+                  rightSection={ledgerExpanded ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
+                >
+                  {ledgerExpanded ? "Show less" : "Show more"}
+                </Button>
+              </Group>
 
               {/* Pagination + range */}
               <Group justify="space-between" mt="md">

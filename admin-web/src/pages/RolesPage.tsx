@@ -39,7 +39,7 @@ import {
   IconPlus,
   IconRefresh,
   IconTrash,
-  IconPencil,
+  IconEye,
   IconFilter,
   IconChevronDown,
   IconChevronUp,
@@ -1194,7 +1194,7 @@ export default function RolesPage() {
                                   : "Edit role"
                               }
                             >
-                              <IconPencil size={16} />
+                              <IconEye size={16} />
                             </ActionIcon>
 
                             <ActionIcon

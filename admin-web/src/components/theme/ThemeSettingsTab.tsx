@@ -358,31 +358,6 @@ export default function ThemeSettingsPage() {
             />
           </Group>
 
-          <Group grow>
-            <NumberInput
-              label="Primary shade (light)"
-              min={0}
-              max={9}
-              value={lightShade}
-              onChange={(v) =>
-                patchOverrides(key, {
-                  primaryShade: { light: toShade(v, 6), dark: darkShade },
-                })
-              }
-            />
-            <NumberInput
-              label="Primary shade (dark)"
-              min={0}
-              max={9}
-              value={darkShade}
-              onChange={(v) =>
-                patchOverrides(key, {
-                  primaryShade: { light: lightShade, dark: toShade(v, 8) },
-                })
-              }
-            />
-          </Group>
-
           <Divider my="xs" />
 
           {/* Logo upload */}

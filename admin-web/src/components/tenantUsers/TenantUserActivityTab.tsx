@@ -634,7 +634,7 @@ export function TenantUserActivityTab({ userId }: { userId: string }) {
       {header}
       {filterPanel}
 
-      <Paper withBorder p="md" radius="md" className="bg-white max-h-[70vh] overflow-y-auto">
+      <Paper withBorder p="md" radius="md" >
         <Group justify="space-between" align="center" gap="xs" wrap="wrap">
           <Group gap="xs" mt={activeFilterChips.length > 0 ? "xs" : 0} wrap="wrap" style={{ flex: 1 }}>
             {activeFilterChips.length > 0 && (
@@ -687,7 +687,7 @@ export function TenantUserActivityTab({ userId }: { userId: string }) {
 
         <Space h="md" />
 
-        <div className="relative">
+        <div className="relative max-h-[60vh] overflow-y-auto">
           <Overlay />
           <Table id="tenant-user-activity-table" striped withTableBorder withColumnBorders stickyHeader>
             <Table.Thead>

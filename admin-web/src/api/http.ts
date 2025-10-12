@@ -129,6 +129,17 @@ export async function httpRequestJson<DataShape>(
     error.httpStatusCode = errorBody?.httpStatusCode ?? httpResponse.status;
     error.correlationId = errorBody?.correlationId ?? json?.correlationId;
 
+    // Handle 401 Unauthorized (session expired)
+    if (error.httpStatusCode === 401 || errorBody?.errorCode === 'AUTH_REQUIRED') {
+      // Dynamic import to avoid circular dependency
+      import('../stores/auth.js').then(({ useAuthStore }) => {
+        useAuthStore.getState().clear();
+      });
+
+      // Redirect to sign-in with reason parameter (survives hard redirect)
+      window.location.href = '/sign-in?reason=session_expired';
+    }
+
     throw error;
   };
 
@@ -215,5 +226,17 @@ export async function httpRequestMultipart<DataShape>(
   error.details = json;
   error.httpStatusCode = errorBody?.httpStatusCode ?? httpResponse.status;
   error.correlationId = errorBody?.correlationId ?? json?.correlationId;
+
+  // Handle 401 Unauthorized (session expired)
+  if (error.httpStatusCode === 401 || errorBody?.errorCode === 'AUTH_REQUIRED') {
+    // Dynamic import to avoid circular dependency
+    import('../stores/auth.js').then(({ useAuthStore }) => {
+      useAuthStore.getState().clear();
+    });
+
+    // Redirect to sign-in with reason parameter (survives hard redirect)
+    window.location.href = '/sign-in?reason=session_expired';
+  }
+
   throw error;
 }

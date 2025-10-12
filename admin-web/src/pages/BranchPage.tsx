@@ -1,3 +1,4 @@
+// admin-web/src/pages/BranchPage.tsx
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Badge, Button, Group, Loader, Paper, Tabs, Text, Title } from "@mantine/core";
@@ -16,7 +17,10 @@ type TabKey = "overview" | "activity";
 
 export default function BranchPage() {
   const { tenantSlug, branchId } = useParams<{ tenantSlug: string; branchId?: string }>();
-  const isEdit = Boolean(branchId);
+  // Treat /branches/new as create mode
+  const isNew = !branchId || branchId === "new";
+  const isEdit = !isNew;
+
   const navigate = useNavigate();
   const canManage = useAuthStore((s) => s.hasPerm("branches:manage"));
 
@@ -39,6 +43,9 @@ export default function BranchPage() {
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [notFound, setNotFound] = useState(false);
+
+  // trigger refetch after successful update
+  const [refreshTick, setRefreshTick] = useState(0);
 
   // Load on edit
   useEffect(() => {
@@ -65,8 +72,10 @@ export default function BranchPage() {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
-  }, [isEdit, branchId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [isEdit, branchId, refreshTick]);
 
   async function handleSave() {
     if (!branchSlug.trim()) {
@@ -85,7 +94,7 @@ export default function BranchPage() {
     setSaving(true);
     try {
       const idempotencyKey = (crypto as any)?.randomUUID?.() ?? String(Date.now());
-      if (!isEdit) {
+      if (isNew) {
         const res = await createBranchApiRequest({
           branchSlug: branchSlug.trim(),
           branchName: branchName.trim(),
@@ -108,7 +117,9 @@ export default function BranchPage() {
         });
         if (res.success) {
           notifications.show({ color: "green", message: "Branch updated." });
-          navigate(`/${tenantSlug}/branches`);
+          // Stay on page and refresh latest data
+          setRefreshTick((t) => t + 1);
+          return;
         }
       }
     } catch (e) {

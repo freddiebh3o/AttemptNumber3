@@ -41,15 +41,16 @@ export default function ProductPage() {
 
   function setTabInUrl(tab: TabKey, opts?: { welcome?: boolean }) {
     const next = new URLSearchParams();
-  
+
     next.set("tab", tab);
-  
+
     if (opts?.welcome && tab === "fifo") {
       next.set("welcome", "fifo");
     }
-  
+
     setSearchParams(next, { replace: false });
   }
+
   // Product form state
   const [name, setName] = useState("");
   const [sku, setSku] = useState("");
@@ -60,7 +61,10 @@ export default function ProductPage() {
   const [saving, setSaving] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
-  // Load product on edit
+  // A simple tick to trigger a refetch of the product after updates
+  const [refreshTick, setRefreshTick] = useState(0);
+
+  // Load product on edit (and whenever refreshTick changes)
   useEffect(() => {
     if (!isEdit || !productId) return;
     let cancelled = false;
@@ -90,7 +94,7 @@ export default function ProductPage() {
     return () => {
       cancelled = true;
     };
-  }, [isEdit, productId]);
+  }, [isEdit, productId, refreshTick]);
 
   async function handleSave() {
     if (!name.trim()) {
@@ -136,7 +140,10 @@ export default function ProductPage() {
         });
         if (res.success) {
           notifications.show({ color: "green", message: "Product updated." });
-          navigate(`/${tenantSlug}/products`);
+
+          // Stay on the page and refresh product data to get latest fields/version.
+          setRefreshTick((t) => t + 1);
+          return;
         }
       }
     } catch (e) {

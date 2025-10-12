@@ -1,17 +1,58 @@
 /* admin-web/src/pages/SignInPage.tsx */
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { TextInput, PasswordInput, Button, Paper, Title, Stack } from '@mantine/core';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { TextInput, PasswordInput, Button, Paper, Title, Stack, Alert } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { signInApiRequest } from '../api/auth';
 import { useAuthStore } from '../stores/auth';
 
 export default function SignInPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const reason = searchParams.get('reason');
+
   const [userEmailInputValue, setUserEmailInputValue] = useState('');
   const [userPasswordInputValue, setUserPasswordInputValue] = useState('');
   const [tenantSlugInputValue, setTenantSlugInputValue] = useState('');
   const [isSubmittingSignInForm, setIsSubmittingSignInForm] = useState(false);
+  const [showAlert, setShowAlert] = useState(!!reason);
+
+  // Clear URL param after user starts interacting with the form
+  useEffect(() => {
+    if (reason && showAlert) {
+      // Show alert initially
+      setShowAlert(true);
+    }
+  }, [reason, showAlert]);
+
+  // Clear URL param when user focuses on any input (they've seen the message)
+  const handleInputFocus = () => {
+    if (reason) {
+      navigate('/sign-in', { replace: true });
+      setShowAlert(false);
+    }
+  };
+
+  // Message definitions for different logout reasons
+  const messages: Record<string, { title: string; message: string; color: string }> = {
+    session_expired: {
+      title: 'Session expired',
+      message: 'Your session has expired. Please sign in again.',
+      color: 'yellow',
+    },
+    logged_out: {
+      title: 'Signed out',
+      message: "You've been signed out successfully.",
+      color: 'blue',
+    },
+    unauthorized: {
+      title: 'Authentication required',
+      message: 'Please sign in to continue.',
+      color: 'red',
+    },
+  };
+
+  const alert = showAlert && reason && messages[reason];
 
   async function handleSubmitSignInForm(event: React.FormEvent) {
     event.preventDefault();
@@ -45,6 +86,14 @@ export default function SignInPage() {
       <div className="flex items-center justify-center p-6 bg-gray-50">
         <Paper withBorder shadow="sm" radius="md" p="lg" className="w-full max-w-md bg-white">
           <Title order={3} mb="md">Multi-Tenant Admin — Sign in</Title>
+
+          {/* Show alert banner if reason is present */}
+          {alert && (
+            <Alert color={alert.color} title={alert.title} mb="md">
+              {alert.message}
+            </Alert>
+          )}
+
           <form onSubmit={handleSubmitSignInForm}>
             <Stack>
               <TextInput
@@ -53,12 +102,14 @@ export default function SignInPage() {
                 required
                 value={userEmailInputValue}
                 onChange={(e) => setUserEmailInputValue(e.currentTarget.value)}
+                onFocus={handleInputFocus}
               />
               <PasswordInput
                 label="Password"
                 required
                 value={userPasswordInputValue}
                 onChange={(e) => setUserPasswordInputValue(e.currentTarget.value)}
+                onFocus={handleInputFocus}
               />
               <TextInput
                 label="Tenant"
@@ -66,6 +117,7 @@ export default function SignInPage() {
                 required
                 value={tenantSlugInputValue}
                 onChange={(e) => setTenantSlugInputValue(e.currentTarget.value)}
+                onFocus={handleInputFocus}
               />
               <Button loading={isSubmittingSignInForm} type="submit">
                 Sign in

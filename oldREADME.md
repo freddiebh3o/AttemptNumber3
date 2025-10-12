@@ -468,14 +468,7 @@ If you need initial data in the new environment:
 
 ## Future fetures
 ### Features to complete by Monday
-* When creating/editing something and saving, keep them on the thing they are editting/creating instead of returning them to the index page
-* Fix UI of some of the tables. Pagination should be locked to the bottom of the section and only the itself should scroll
 
-* Find a way to simulate what happens when a session expires 
-  * Current suspicion is that you are not automatically logged out 
-  * Instead, any request you make just fails with the notification 'Please sign in to continue'
-  * Instead of this, any request that is made that requires the user to be logged in and they arent logged in, should be redirected to the login page automatically 
-  * Whenever a user is logged out and redirected to the login page, it should show a clear reason on the login page as to why they were logged out
 
 * Stock transfer between different branches/locations
   * Effectively an 'order' between two branches 
@@ -486,7 +479,6 @@ If you need initial data in the new environment:
     * Partially received -> The item/items that were ordered have only been partially received
     * Complete -> The item/items have been received
 
-* Remake the Readme with latest feature updates
 
 ### The rest
 * Feature flag to determine what type of stock management you want to use? 

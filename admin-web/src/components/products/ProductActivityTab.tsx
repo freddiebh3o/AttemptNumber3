@@ -825,7 +825,7 @@ export function ProductActivityTab({ productId }: { productId: string }) {
       {filterPanel}
 
       {/* Per-page control (table top-right) */}
-      <Paper withBorder p="md" radius="md" className="bg-white max-h-[70vh] overflow-y-auto">
+      <Paper withBorder p="md" radius="md">
         <Group justify="space-between" align="center" gap="xs" wrap="wrap">
           {/* Left area always exists and takes horizontal space */}
           <Group
@@ -894,7 +894,7 @@ export function ProductActivityTab({ productId }: { productId: string }) {
 
         <Space h="md" />
 
-        <div className="relative">
+        <div className="relative max-h-[60vh] overflow-y-auto">
           <Overlay />
           <Table id="product-activity-table" striped withTableBorder withColumnBorders stickyHeader>
             <Table.Thead>

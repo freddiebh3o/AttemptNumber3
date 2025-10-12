@@ -83,6 +83,9 @@ export default function TenantUserPage() {
 
   const [saving, setSaving] = useState(false);
 
+  // trigger refetch after successful update
+  const [refreshTick, setRefreshTick] = useState(0);
+
   // load roles
   useEffect(() => {
     let cancelled = false;
@@ -122,7 +125,7 @@ export default function TenantUserPage() {
     return () => void (cancelled = true);
   }, []);
 
-  // fetch user on edit
+  // fetch user on edit (and when refreshTick bumps)
   useEffect(() => {
     if (!isEdit || !userId) return;
     let cancelled = false;
@@ -150,7 +153,7 @@ export default function TenantUserPage() {
       }
     })();
     return () => void (cancelled = true);
-  }, [isEdit, userId]);
+  }, [isEdit, userId, refreshTick]);
 
   const roleChoices = useMemo(
     () => (roles ?? []).map((r) => ({ value: r.id, label: r.name })),
@@ -158,7 +161,11 @@ export default function TenantUserPage() {
   );
 
   const branchChoices = useMemo(
-    () => (branches ?? []).map((b) => ({ value: b.id, label: b.branchName + (b.isActive ? "" : " (inactive)") })),
+    () =>
+      (branches ?? []).map((b) => ({
+        value: b.id,
+        label: b.branchName + (b.isActive ? "" : " (inactive)"),
+      })),
     [branches]
   );
 
@@ -201,12 +208,14 @@ export default function TenantUserPage() {
         const res = await createTenantUserApiRequest({ ...body, idempotencyKeyOptional: idk });
         if (res.success) {
           notifications.show({ color: "green", message: "User created." });
+          // Keep existing behavior for creates: go back to the users list.
           navigate(`/${tenantSlug}/users`);
         }
       } else {
         if (!userId) return;
 
-        const initialBranchIds: string[] = ((initial as any)?.branches?.map((b: any) => b.id) as string[]) ?? [];
+        const initialBranchIds: string[] =
+          ((initial as any)?.branches?.map((b: any) => b.id) as string[]) ?? [];
         const updateBody: UpdateBody = {
           ...(initial?.userEmailAddress !== email.trim() && { email: email.trim() }),
           ...(password ? { password } : {}),
@@ -214,10 +223,17 @@ export default function TenantUserPage() {
           ...(!setsEqual(initialBranchIds, branchIds) && { branchIds }),
         } as any;
 
-        const res = await updateTenantUserApiRequest({ userId, ...updateBody, idempotencyKeyOptional: idk });
+        const res = await updateTenantUserApiRequest({
+          userId,
+          ...updateBody,
+          idempotencyKeyOptional: idk,
+        });
         if (res.success) {
           notifications.show({ color: "green", message: "User updated." });
-          navigate(`/${tenantSlug}/users`);
+          // Stay on page and refresh latest data
+          setRefreshTick((t) => t + 1);
+          // Clear password field after successful update to avoid confusion
+          setPassword("");
         }
       }
     } catch (e) {
@@ -234,7 +250,9 @@ export default function TenantUserPage() {
         <Group justify="space-between" align="start">
           <Title order={2}>Edit user</Title>
           <Group>
-            <Button variant="default" onClick={() => navigate(-1)}>Back</Button>
+            <Button variant="default" onClick={() => navigate(-1)}>
+              Back
+            </Button>
           </Group>
         </Group>
 

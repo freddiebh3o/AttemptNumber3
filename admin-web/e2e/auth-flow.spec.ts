@@ -227,9 +227,10 @@ test.describe('[ST-002] Authentication Flow', () => {
       // Try to access products page directly after sign-out
       await page.goto(`/${TEST_USERS.editor.tenant}/products`);
 
-      // Should show permission denied error message from RequirePermission component
-      await expect(page.getByText(/no access/i)).toBeVisible();
-      await expect(page.getByText(/you don't have permission/i)).toBeVisible();
+      // With the new 401 handler, should be automatically redirected back to sign-in
+      // (because the session is expired, API returns 401, and the handler redirects)
+      await expect(page).toHaveURL('/sign-in');
+      await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible();
 
       // Should NOT show the actual products content
       await expect(page.getByRole('heading', { name: /all products/i })).not.toBeVisible();

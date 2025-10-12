@@ -367,9 +367,6 @@ test.describe('Edit Product Flow', () => {
     // Should show success notification
     await expect(page.getByRole('alert')).toBeVisible();
     await expect(page.getByText(/product updated/i)).toBeVisible();
-
-    // Should redirect back to products list
-    await expect(page).toHaveURL(`/${TEST_USERS.editor.tenant}/products`);
   });
 
   test('should show tabs for editing product', async ({ page }) => {
