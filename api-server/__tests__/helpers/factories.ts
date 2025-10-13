@@ -4,7 +4,8 @@
  */
 
 import { PrismaClient } from '@prisma/client';
-import type { User, Tenant, Role, Product, Branch } from '@prisma/client';
+import type { User, Tenant, Role, Product, Branch, TransferApprovalRule } from '@prisma/client';
+import type { ApprovalRuleConditionType, ApprovalMode } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -281,4 +282,167 @@ export async function createTestScenario(options: {
     membership,
     permissions,
   };
+}
+
+/**
+ * Create a test approval rule with conditions and levels
+ */
+export async function createTestApprovalRule(options: {
+  tenantId: string;
+  name?: string;
+  description?: string;
+  isActive?: boolean;
+  approvalMode?: ApprovalMode;
+  priority?: number;
+  conditions?: Array<{
+    conditionType: ApprovalRuleConditionType;
+    threshold?: number;
+    branchId?: string;
+  }>;
+  levels?: Array<{
+    level: number;
+    name: string;
+    requiredRoleId?: string;
+    requiredUserId?: string;
+  }>;
+}): Promise<TransferApprovalRule> {
+  const timestamp = Date.now();
+  const name = options.name || `Test Approval Rule ${timestamp}`;
+  const description = options.description;
+  const isActive = options.isActive !== undefined ? options.isActive : true;
+  const approvalMode = options.approvalMode || 'SEQUENTIAL';
+  const priority = options.priority || 1;
+  const { tenantId } = options;
+
+  // Create the rule
+  const rule = await prisma.transferApprovalRule.create({
+    data: {
+      tenantId,
+      name,
+      description,
+      isActive,
+      approvalMode,
+      priority,
+    },
+  });
+
+  // Create conditions if provided
+  if (options.conditions && options.conditions.length > 0) {
+    await prisma.transferApprovalCondition.createMany({
+      data: options.conditions.map((condition) => ({
+        ruleId: rule.id,
+        conditionType: condition.conditionType,
+        threshold: condition.threshold,
+        branchId: condition.branchId,
+      })),
+    });
+  }
+
+  // Create levels if provided
+  if (options.levels && options.levels.length > 0) {
+    await prisma.transferApprovalLevel.createMany({
+      data: options.levels.map((level) => ({
+        ruleId: rule.id,
+        level: level.level,
+        name: level.name,
+        requiredRoleId: level.requiredRoleId,
+        requiredUserId: level.requiredUserId,
+      })),
+    });
+  }
+
+  return rule;
+}
+
+/**
+ * Create a simple quantity-based approval rule
+ */
+export async function createTestQuantityApprovalRule(params: {
+  tenantId: string;
+  threshold: number;
+  approvalLevels: Array<{
+    level: number;
+    name: string;
+    requiredRoleId?: string;
+    requiredUserId?: string;
+  }>;
+  name?: string;
+  isActive?: boolean;
+}): Promise<TransferApprovalRule> {
+  return await createTestApprovalRule({
+    tenantId: params.tenantId,
+    name: params.name || `Quantity Rule (>${params.threshold} units) ${Date.now()}`,
+    isActive: params.isActive !== undefined ? params.isActive : true,
+    approvalMode: 'SEQUENTIAL',
+    priority: 1,
+    conditions: [
+      {
+        conditionType: 'QUANTITY_THRESHOLD',
+        threshold: params.threshold,
+      },
+    ],
+    levels: params.approvalLevels,
+  });
+}
+
+/**
+ * Create a simple value-based approval rule
+ */
+export async function createTestValueApprovalRule(params: {
+  tenantId: string;
+  thresholdPence: number;
+  approvalLevels: Array<{
+    level: number;
+    name: string;
+    requiredRoleId?: string;
+    requiredUserId?: string;
+  }>;
+  name?: string;
+  isActive?: boolean;
+}): Promise<TransferApprovalRule> {
+  return await createTestApprovalRule({
+    tenantId: params.tenantId,
+    name: params.name || `Value Rule (>£${params.thresholdPence / 100}) ${Date.now()}`,
+    isActive: params.isActive !== undefined ? params.isActive : true,
+    approvalMode: 'SEQUENTIAL',
+    priority: 1,
+    conditions: [
+      {
+        conditionType: 'VALUE_THRESHOLD',
+        threshold: params.thresholdPence,
+      },
+    ],
+    levels: params.approvalLevels,
+  });
+}
+
+/**
+ * Create a branch-specific approval rule
+ */
+export async function createTestBranchApprovalRule(params: {
+  tenantId: string;
+  branchId: string;
+  approvalLevels: Array<{
+    level: number;
+    name: string;
+    requiredRoleId?: string;
+    requiredUserId?: string;
+  }>;
+  name?: string;
+  isActive?: boolean;
+}): Promise<TransferApprovalRule> {
+  return await createTestApprovalRule({
+    tenantId: params.tenantId,
+    name: params.name || `Branch Rule ${Date.now()}`,
+    isActive: params.isActive !== undefined ? params.isActive : true,
+    approvalMode: 'SEQUENTIAL',
+    priority: 1,
+    conditions: [
+      {
+        conditionType: 'BRANCH_SOURCE',
+        branchId: params.branchId,
+      },
+    ],
+    levels: params.approvalLevels,
+  });
 }

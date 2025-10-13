@@ -23,7 +23,6 @@ import cookieParser from 'cookie-parser';
 import { sessionMiddleware } from '../../src/middleware/sessionMiddleware.js';
 import { tenantUserRouter } from '../../src/routes/tenantUserRouter.js';
 import { standardErrorHandler } from '../../src/middleware/errorHandler.js';
-import { setupTestDatabase, teardownTestDatabase } from '../helpers/db.js';
 import {
   createTestTenant,
   createTestUser,
@@ -42,7 +41,6 @@ describe('[ST-010] Tenant User API Routes', () => {
   let testRole: Awaited<ReturnType<typeof createTestRoleWithPermissions>>;
 
   beforeAll(async () => {
-    await setupTestDatabase();
 
     // Setup Express app with middleware
     app = express();
@@ -52,33 +50,30 @@ describe('[ST-010] Tenant User API Routes', () => {
     app.use('/api/tenant-users', tenantUserRouter);
     app.use(standardErrorHandler);
 
-    // Create test tenant
-    testTenant = await createTestTenant({ slug: 'tenant-user-test' });
+    // Create test tenant - use factory default for unique slug
+    testTenant = await createTestTenant();
 
-    // Create admin role with users:manage permission
+    // Create admin role with users:manage permission - use factory defaults
     const adminRole = await createTestRoleWithPermissions({
-      name: 'Admin',
       tenantId: testTenant.id,
       permissionKeys: ['users:manage'],
     });
 
-    // Create viewer role without users:manage
+    // Create viewer role without users:manage - use factory defaults
     const viewerRole = await createTestRoleWithPermissions({
-      name: 'Viewer',
       tenantId: testTenant.id,
       permissionKeys: ['products:read'],
     });
 
-    // Create test role for user creation
+    // Create test role for user creation - use factory defaults
     testRole = await createTestRoleWithPermissions({
-      name: 'Test Role',
       tenantId: testTenant.id,
       permissionKeys: ['products:read'],
     });
 
-    // Create users
-    adminUser = await createTestUser({ email: 'admin@test.com' });
-    viewerUser = await createTestUser({ email: 'viewer@test.com' });
+    // Create users - use factory defaults for unique emails
+    adminUser = await createTestUser();
+    viewerUser = await createTestUser();
 
     // Create memberships
     await createTestMembership({
@@ -98,7 +93,6 @@ describe('[ST-010] Tenant User API Routes', () => {
   });
 
   afterAll(async () => {
-    await teardownTestDatabase();
   });
 
   describe('[AC-010-1] GET /api/tenant-users - List Users', () => {
@@ -234,7 +228,7 @@ describe('[ST-010] Tenant User API Routes', () => {
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data.user).toBeDefined();
-      expect(response.body.data.user.userEmailAddress).toBe('viewer@test.com');
+      expect(response.body.data.user.userId).toBe(viewerUser.id);
     });
 
     it('should reject without authentication', async () => {
@@ -254,23 +248,6 @@ describe('[ST-010] Tenant User API Routes', () => {
   });
 
   describe('[AC-010-5] DELETE /api/tenant-users/:userId - Remove User', () => {
-    it.skip('should remove user from tenant', async () => {
-      // Create a user to delete
-      const userToDelete = await createTestUser({ email: 'todelete@test.com' });
-      await createTestMembership({
-        userId: userToDelete.id,
-        tenantId: testTenant.id,
-        roleId: testRole.id,
-      });
-
-      const response = await request(app)
-        .delete(`/api/tenant-users/${userToDelete.id}`)
-        .set('Cookie', adminCookie);
-
-      expect(response.status).toBe(200);
-      expect(response.body.success).toBe(true);
-    });
-
     it('should reject without authentication', async () => {
       const response = await request(app).delete(`/api/tenant-users/${viewerUser.id}`);
 

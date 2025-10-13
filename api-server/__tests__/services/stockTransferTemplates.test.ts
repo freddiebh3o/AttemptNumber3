@@ -21,7 +21,6 @@
  */
 
 import * as templateService from '../../src/services/stockTransfers/templateService.js';
-import { cleanDatabase } from '../helpers/db.js';
 import {
   createTestUser,
   createTestTenant,
@@ -39,35 +38,26 @@ describe('[ST-010] Stock Transfer Templates Service', () => {
   let product2: Awaited<ReturnType<typeof createTestProduct>>;
 
   beforeEach(async () => {
-    await cleanDatabase();
 
-    // Create tenant
-    testTenant = await createTestTenant({ slug: 'template-test-tenant' });
+    // Create tenant - use factory default for unique slug
+    testTenant = await createTestTenant();
 
-    // Create user
-    user = await createTestUser({ email: 'user@test.com' });
+    // Create user - use factory default for unique email
+    user = await createTestUser();
 
-    // Create branches
+    // Create branches - use factory defaults for unique names/slugs
     sourceBranch = await createTestBranch({
-      name: 'Warehouse',
-      slug: 'warehouse',
       tenantId: testTenant.id,
     });
     destinationBranch = await createTestBranch({
-      name: 'Retail Store',
-      slug: 'retail-store',
       tenantId: testTenant.id,
     });
 
-    // Create products
+    // Create products - use factory defaults for unique names/SKUs
     product1 = await createTestProduct({
-      name: 'Widget A',
-      sku: 'WID-A-001',
       tenantId: testTenant.id,
     });
     product2 = await createTestProduct({
-      name: 'Widget B',
-      sku: 'WID-B-001',
       tenantId: testTenant.id,
     });
   });
@@ -244,21 +234,15 @@ describe('[ST-010] Stock Transfer Templates Service', () => {
     });
 
     it('should isolate templates by tenant', async () => {
-      // Create another tenant with templates
-      const otherTenant = await createTestTenant({ slug: 'other-tenant' });
+      // Create another tenant with templates - use factory defaults
+      const otherTenant = await createTestTenant();
       const otherBranch1 = await createTestBranch({
-        name: 'Other Warehouse',
-        slug: 'other-warehouse',
         tenantId: otherTenant.id,
       });
       const otherBranch2 = await createTestBranch({
-        name: 'Other Store',
-        slug: 'other-store',
         tenantId: otherTenant.id,
       });
       const otherProduct = await createTestProduct({
-        name: 'Other Product',
-        sku: 'OTHER-001',
         tenantId: otherTenant.id,
       });
 
@@ -333,7 +317,7 @@ describe('[ST-010] Stock Transfer Templates Service', () => {
         },
       });
 
-      const otherTenant = await createTestTenant({ slug: 'other-tenant' });
+      const otherTenant = await createTestTenant();
 
       await expect(
         templateService.getTransferTemplate({
@@ -385,8 +369,6 @@ describe('[ST-010] Stock Transfer Templates Service', () => {
       });
 
       const newSource = await createTestBranch({
-        name: 'New Warehouse',
-        slug: 'new-warehouse',
         tenantId: testTenant.id,
       });
 

@@ -15,6 +15,7 @@ import { registerStockPaths } from './paths/stock.js';
 import { registerAuditLoggerPaths } from './paths/auditLogger.js';
 import { registerStockTransferPaths } from './paths/stockTransfers.js';
 import './paths/stockTransferTemplates.js';
+import { registerTransferApprovalRulePaths } from './paths/transferApprovalRules.js';
 
 export function buildOpenApiDocument() {
   // Register all feature paths
@@ -29,6 +30,7 @@ export function buildOpenApiDocument() {
   registerStockPaths(registry);
   registerAuditLoggerPaths(registry);
   registerStockTransferPaths(registry);
+  registerTransferApprovalRulePaths(registry);
 
   const generator = new OpenApiGeneratorV3(registry.definitions);
 
@@ -58,6 +60,7 @@ export function buildOpenApiDocument() {
       { name: 'Stock' },
       { name: 'Stock Transfers' },
       { name: 'Stock Transfer Templates' },
+      { name: 'Transfer Approval' },
       { name: 'Audit' },
     ],
   });

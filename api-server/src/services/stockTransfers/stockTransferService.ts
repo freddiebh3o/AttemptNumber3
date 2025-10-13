@@ -10,6 +10,7 @@ import {
   assertTransferAccess,
   assertBranchMembership,
 } from './transferHelpers.js';
+import { evaluateApprovalRules } from './approvalEvaluationService.js';
 
 type Ids = {
   currentTenantId: string;
@@ -168,6 +169,7 @@ export async function createStockTransfer(params: {
                 id: true,
                 productName: true,
                 productSku: true,
+                productPricePence: true,
               },
             },
           },
@@ -183,6 +185,20 @@ export async function createStockTransfer(params: {
         },
       },
     });
+
+    // Evaluate approval rules
+    const approvalResult = await evaluateApprovalRules({
+      transfer,
+      tx,
+    });
+
+    // If a rule matched, update transfer to require multi-level approval
+    if (approvalResult.matched) {
+      await tx.stockTransfer.update({
+        where: { id: transfer.id },
+        data: { requiresMultiLevelApproval: true },
+      });
+    }
 
     // Write audit event
     try {
@@ -274,6 +290,11 @@ export async function reviewStockTransfer(params: {
   // Validate: transfer is in REQUESTED status
   if (transfer.status !== StockTransferStatus.REQUESTED) {
     throw Errors.conflict('Transfer can only be reviewed when in REQUESTED status');
+  }
+
+  // Validate: if multi-level approval required, must use approval workflow instead
+  if (transfer.requiresMultiLevelApproval) {
+    throw Errors.conflict('Transfer requires multi-level approval. Use the approval workflow instead.');
   }
 
   // Update transfer in transaction

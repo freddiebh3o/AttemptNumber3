@@ -57,6 +57,7 @@ const StockTransferSchema = z.object({
   reversalOfId: z.string().nullable(),
   reversedById: z.string().nullable(),
   reversalReason: z.string().nullable(),
+  requiresMultiLevelApproval: z.boolean(),
   items: z.array(StockTransferItemSchema),
   sourceBranch: z
     .object({

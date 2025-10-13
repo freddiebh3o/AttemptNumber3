@@ -4,7 +4,6 @@ import type { Express } from 'express';
 import request from 'supertest';
 import { requirePermission, requireAnyPermission } from '../../src/middleware/permissionMiddleware.js';
 import { standardErrorHandler } from '../../src/middleware/errorHandler.js';
-import { cleanDatabase } from '../helpers/db.js';
 import {
   createTestUser,
   createTestTenant,
@@ -72,21 +71,17 @@ describe('[ST-005] Permission Middleware', () => {
   });
 
   beforeEach(async () => {
-    await cleanDatabase();
+    // Create test tenant and user - use factory defaults for unique values
+    testTenant = await createTestTenant();
+    testUser = await createTestUser();
 
-    // Create test tenant and user
-    testTenant = await createTestTenant({ slug: 'test-tenant' });
-    testUser = await createTestUser({ email: 'testuser@example.com' });
-
-    // Create roles with specific permissions
+    // Create roles with specific permissions - use factory defaults for unique names
     editorRole = await createTestRoleWithPermissions({
-      name: 'Editor',
       tenantId: testTenant.id,
       permissionKeys: ROLE_DEFS.EDITOR,
     });
 
     viewerRole = await createTestRoleWithPermissions({
-      name: 'Viewer',
       tenantId: testTenant.id,
       permissionKeys: ROLE_DEFS.VIEWER,
     });
@@ -216,7 +211,7 @@ describe('[ST-005] Permission Middleware', () => {
     it('should allow access when user has multiple of the required permissions', async () => {
       // Create role with multiple permissions
       const customRole = await createTestRoleWithPermissions({
-        name: 'Custom',
+        // Use factory default name
         tenantId: testTenant.id,
         permissionKeys: ['products:read', 'stock:read'],
       });
@@ -266,7 +261,7 @@ describe('[ST-005] Permission Middleware', () => {
   describe('[AC-005-3] System role permissions', () => {
     it('should grant OWNER role all permissions', async () => {
       const ownerRole = await createTestRoleWithPermissions({
-        name: 'Owner',
+        // Use factory default name
         tenantId: testTenant.id,
         permissionKeys: ROLE_DEFS.OWNER,
       });
@@ -299,7 +294,7 @@ describe('[ST-005] Permission Middleware', () => {
 
     it('should grant ADMIN role appropriate permissions', async () => {
       const adminRole = await createTestRoleWithPermissions({
-        name: 'Admin',
+        // Use factory default name
         tenantId: testTenant.id,
         permissionKeys: ROLE_DEFS.ADMIN,
       });
@@ -383,7 +378,7 @@ describe('[ST-005] Permission Middleware', () => {
     it('should grant custom role with specific permissions correct access', async () => {
       // Create custom role with only stock permissions
       const stockRole = await createTestRoleWithPermissions({
-        name: 'Stock Manager',
+        // Use factory default name
         tenantId: testTenant.id,
         permissionKeys: ['stock:read', 'stock:write', 'stock:allocate'],
       });
@@ -412,7 +407,7 @@ describe('[ST-005] Permission Middleware', () => {
     it('should handle custom role with no permissions', async () => {
       // Create role with no permissions
       const emptyRole = await createTestRoleWithPermissions({
-        name: 'Empty Role',
+        // Use factory default name
         tenantId: testTenant.id,
         permissionKeys: [],
       });
@@ -440,7 +435,7 @@ describe('[ST-005] Permission Middleware', () => {
     it('should handle role with mixed permissions correctly', async () => {
       // Create role with read-only products but write stock
       const mixedRole = await createTestRoleWithPermissions({
-        name: 'Mixed Role',
+        // Use factory default name
         tenantId: testTenant.id,
         permissionKeys: ['products:read', 'stock:write'],
       });
@@ -470,12 +465,11 @@ describe('[ST-005] Permission Middleware', () => {
 
   describe('[AC-005-5] Multi-tenant permission isolation', () => {
     it('should deny access when user has permission in different tenant', async () => {
-      // Create second tenant
-      const otherTenant = await createTestTenant({ slug: 'other-tenant' });
+      // Create second tenant - use factory default for unique slug
+      const otherTenant = await createTestTenant();
 
-      // Create role in OTHER tenant
+      // Create role in OTHER tenant - use factory default for unique name
       const otherRole = await createTestRoleWithPermissions({
-        name: 'Other Viewer',
         tenantId: otherTenant.id,
         permissionKeys: ROLE_DEFS.VIEWER,
       });
@@ -498,18 +492,16 @@ describe('[ST-005] Permission Middleware', () => {
     });
 
     it('should allow access only to correct tenant context', async () => {
-      // Create memberships in both tenants
-      const tenant1 = await createTestTenant({ slug: 'tenant-1' });
-      const tenant2 = await createTestTenant({ slug: 'tenant-2' });
+      // Create memberships in both tenants - use factory defaults
+      const tenant1 = await createTestTenant();
+      const tenant2 = await createTestTenant();
 
       const role1 = await createTestRoleWithPermissions({
-        name: 'Role 1',
         tenantId: tenant1.id,
         permissionKeys: ['products:read'],
       });
 
       const role2 = await createTestRoleWithPermissions({
-        name: 'Role 2',
         tenantId: tenant2.id,
         permissionKeys: [], // No permissions in tenant 2
       });

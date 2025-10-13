@@ -21,7 +21,6 @@ import { idempotencyMiddleware } from '../../src/middleware/idempotencyMiddlewar
 import { requestIdMiddleware } from '../../src/middleware/requestIdMiddleware.js';
 import { sessionMiddleware } from '../../src/middleware/sessionMiddleware.js';
 import cookieParser from 'cookie-parser';
-import { setupTestDatabase } from '../helpers/db.js';
 import { createTestTenant, createTestUser } from '../helpers/factories.js';
 import { createSessionCookie } from '../helpers/auth.js';
 import { prismaClientInstance } from '../../src/db/prismaClient.js';
@@ -33,12 +32,10 @@ describe('[ST-013] Idempotency Middleware', () => {
   let sessionCookie: string;
 
   beforeAll(async () => {
-    await setupTestDatabase();
 
-    // Create test tenant and user
-    testTenant = await createTestTenant({ name: 'Test Tenant' });
+    // Create test tenant and user - use factory defaults for unique values
+    testTenant = await createTestTenant();
     testUser = await createTestUser({
-      email: 'test@example.com',
       password: 'password123',
     });
 
@@ -185,9 +182,8 @@ describe('[ST-013] Idempotency Middleware', () => {
     });
 
     it('should treat different users as different fingerprints', async () => {
-      // Create second user
+      // Create second user - use factory default for unique email
       const user2 = await createTestUser({
-        email: 'user2@example.com',
         password: 'password123',
       });
       const user2Cookie = createSessionCookie(user2.id, testTenant.id);

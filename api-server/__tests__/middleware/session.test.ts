@@ -4,9 +4,6 @@ import type { Express } from 'express';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import {
-  setupTestDatabase,
-  teardownTestDatabase,
-  cleanDatabase,
 } from '../helpers/db.js';
 import {
   generateSessionToken,
@@ -29,15 +26,12 @@ describe('[ST-004] Session Middleware', () => {
   let testTenant: any;
 
   beforeAll(async () => {
-    await setupTestDatabase();
   });
 
   afterAll(async () => {
-    await teardownTestDatabase();
   });
 
   beforeEach(async () => {
-    await cleanDatabase();
 
     // Create test app with session middleware
     app = express();
@@ -65,9 +59,9 @@ describe('[ST-004] Session Middleware', () => {
     // Error handler
     app.use(standardErrorHandler);
 
-    // Create test data
-    testUser = await createTestUser({ email: 'session-test@example.com' });
-    testTenant = await createTestTenant({ slug: 'session-test-tenant' });
+    // Create test data - use factory defaults for unique values
+    testUser = await createTestUser();
+    testTenant = await createTestTenant();
     const permissions = await getPermissionsByKeys(['products:read']);
     const role = await createTestRole({
       tenantId: testTenant.id,
@@ -121,14 +115,6 @@ describe('[ST-004] Session Middleware', () => {
         currentTenantId: null,
         hasSession: false,
       });
-    });
-
-    // NOTE: Expired token test skipped - JWT exp time calculated from creation, not iat
-    // In production, expired tokens are rejected by jwt.verify() in sessionMiddleware
-    it.skip('should not set session fields for expired token', async () => {
-      // This test is challenging because JWT expiration is calculated from token creation time
-      // not from an explicit "issued at" field. The middleware handles this via jwt.verify()
-      // which will throw an error for genuinely expired tokens in production.
     });
 
     it('should not set session fields for token with wrong secret', async () => {
@@ -229,11 +215,6 @@ describe('[ST-004] Session Middleware', () => {
           errorCode: 'AUTH_REQUIRED',
         },
       });
-    });
-
-    // NOTE: Expired token test skipped - see note above
-    it.skip('should return 401 with expired session cookie', async () => {
-      // See similar test in sessionMiddleware section for explanation
     });
 
     it('should return 401 if only currentUserId is set', async () => {

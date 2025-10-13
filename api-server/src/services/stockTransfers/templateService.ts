@@ -328,8 +328,16 @@ export async function updateTransferTemplate(params: {
     const updateData: Prisma.StockTransferTemplateUpdateInput = {};
     if (data.name !== undefined) updateData.name = data.name.trim();
     if (data.description !== undefined) updateData.description = data.description?.trim() ?? null;
-    if (data.sourceBranchId) updateData.sourceBranchId = data.sourceBranchId;
-    if (data.destinationBranchId) updateData.destinationBranchId = data.destinationBranchId;
+    if (data.sourceBranchId) {
+      updateData.sourceBranch = {
+        connect: { id: data.sourceBranchId },
+      };
+    }
+    if (data.destinationBranchId) {
+      updateData.destinationBranch = {
+        connect: { id: data.destinationBranchId },
+      };
+    }
 
     await tx.stockTransferTemplate.update({
       where: { id: templateId },

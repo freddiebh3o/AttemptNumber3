@@ -5,7 +5,6 @@ import { productRouter } from '../../src/routes/productRouter.js';
 import { sessionMiddleware } from '../../src/middleware/sessionMiddleware.js';
 import { standardErrorHandler } from '../../src/middleware/errorHandler.js';
 import cookieParser from 'cookie-parser';
-import { cleanDatabase } from '../helpers/db.js';
 import {
   createTestUser,
   createTestTenant,
@@ -33,14 +32,12 @@ describe('[ST-008] Product API Routes', () => {
   });
 
   beforeEach(async () => {
-    await cleanDatabase();
 
-    testTenant = await createTestTenant({ slug: 'route-test-tenant' });
-    testUser = await createTestUser({ email: 'route@test.com' });
+    testTenant = await createTestTenant();
+    testUser = await createTestUser();
 
-    // Create role with full product permissions
+    // Create role with full product permissions - use factory default for unique name
     const role = await createTestRoleWithPermissions({
-      name: 'Product Manager',
       tenantId: testTenant.id,
       permissionKeys: ROLE_DEFS.EDITOR, // Has products:read and products:write
     });
@@ -88,10 +85,9 @@ describe('[ST-008] Product API Routes', () => {
     });
 
     it('should reject without products:write permission', async () => {
-      // Create user with read-only permissions
-      const viewer = await createTestUser({ email: 'viewer@test.com' });
+      // Create user with read-only permissions - use factory defaults
+      const viewer = await createTestUser();
       const viewerRole = await createTestRoleWithPermissions({
-        name: 'Viewer',
         tenantId: testTenant.id,
         permissionKeys: ROLE_DEFS.VIEWER, // Only has products:read
       });
@@ -232,10 +228,8 @@ describe('[ST-008] Product API Routes', () => {
     });
 
     it('should not allow access to other tenant products', async () => {
-      const otherTenant = await createTestTenant({ slug: 'other-tenant' });
+      const otherTenant = await createTestTenant();
       const otherProduct = await createTestProduct({
-        name: 'Other Product',
-        sku: 'OTHER-001',
         tenantId: otherTenant.id,
       });
 
@@ -446,9 +440,8 @@ describe('[ST-008] Product API Routes', () => {
     });
 
     it('should reject without products:write permission', async () => {
-      const viewer = await createTestUser({ email: 'viewer2@test.com' });
+      const viewer = await createTestUser();
       const viewerRole = await createTestRoleWithPermissions({
-        name: 'Viewer',
         tenantId: testTenant.id,
         permissionKeys: ['products:read'],
       });
@@ -542,9 +535,8 @@ describe('[ST-008] Product API Routes', () => {
     });
 
     it('should reject without products:write permission', async () => {
-      const viewer = await createTestUser({ email: 'viewer3@test.com' });
+      const viewer = await createTestUser();
       const viewerRole = await createTestRoleWithPermissions({
-        name: 'Viewer',
         tenantId: testTenant.id,
         permissionKeys: ['products:read'],
       });

@@ -55,10 +55,17 @@ stockTransferTemplatesRouter.post(
   async (req, res, next) => {
     try {
       assertAuthed(req);
+      const body = req.validatedBody as z.infer<typeof CreateTemplateBodySchema>;
       const template = await templateService.createTransferTemplate({
         tenantId: req.currentTenantId,
         userId: req.currentUserId,
-        data: req.validatedBody as z.infer<typeof CreateTemplateBodySchema>,
+        data: {
+          name: body.name,
+          sourceBranchId: body.sourceBranchId,
+          destinationBranchId: body.destinationBranchId,
+          items: body.items,
+          ...(body.description !== undefined ? { description: body.description } : {}),
+        },
       });
       return res.status(200).json(createStandardSuccessResponse(template));
     } catch (e) {
@@ -75,14 +82,20 @@ stockTransferTemplatesRouter.get(
   async (req, res, next) => {
     try {
       assertAuthed(req);
+      const q = req.query.q as string | undefined;
+      const sourceBranchId = req.query.sourceBranchId as string | undefined;
+      const destinationBranchId = req.query.destinationBranchId as string | undefined;
+      const limitStr = req.query.limit as string | undefined;
+      const cursor = req.query.cursor as string | undefined;
+
       const result = await templateService.listTransferTemplates({
         tenantId: req.currentTenantId,
         filters: {
-          q: req.query.q as string | undefined,
-          sourceBranchId: req.query.sourceBranchId as string | undefined,
-          destinationBranchId: req.query.destinationBranchId as string | undefined,
-          limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
-          cursor: req.query.cursor as string | undefined,
+          ...(q !== undefined ? { q } : {}),
+          ...(sourceBranchId !== undefined ? { sourceBranchId } : {}),
+          ...(destinationBranchId !== undefined ? { destinationBranchId } : {}),
+          ...(limitStr !== undefined ? { limit: parseInt(limitStr) } : {}),
+          ...(cursor !== undefined ? { cursor } : {}),
         },
       });
       return res.status(200).json(createStandardSuccessResponse(result));
@@ -132,10 +145,17 @@ stockTransferTemplatesRouter.patch(
         throw new Error('Template ID is required');
       }
 
+      const body = req.validatedBody as z.infer<typeof UpdateTemplateBodySchema>;
       const template = await templateService.updateTransferTemplate({
         tenantId: req.currentTenantId,
         templateId,
-        data: req.validatedBody as z.infer<typeof UpdateTemplateBodySchema>,
+        data: {
+          ...(body.name !== undefined ? { name: body.name } : {}),
+          ...(body.description !== undefined ? { description: body.description } : {}),
+          ...(body.sourceBranchId !== undefined ? { sourceBranchId: body.sourceBranchId } : {}),
+          ...(body.destinationBranchId !== undefined ? { destinationBranchId: body.destinationBranchId } : {}),
+          ...(body.items !== undefined ? { items: body.items } : {}),
+        },
       });
       return res.status(200).json(createStandardSuccessResponse(template));
     } catch (e) {
@@ -189,7 +209,7 @@ stockTransferTemplatesRouter.post(
         tenantId: req.currentTenantId,
         userId: req.currentUserId,
         templateId,
-        newName,
+        ...(newName !== undefined ? { newName } : {}),
       });
       return res.status(200).json(createStandardSuccessResponse(template));
     } catch (e) {

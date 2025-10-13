@@ -2,7 +2,7 @@
 
 **Purpose:** Guide for writing backend tests using Jest, Supertest, and real database testing.
 
-**Last Updated:** 2025-10-12
+**Last Updated:** 2025-10-13
 
 ---
 
@@ -23,11 +23,10 @@
 ```
 api-server/__tests__/
 ├── helpers/
-│   ├── db.ts         # Database setup/cleanup
+│   ├── db.ts         # Database utilities (no cleanup)
 │   ├── auth.ts       # Session cookie helpers
-│   └── factories.ts  # Test data factories
-└── fixtures/
-    └── testData.ts   # Static test data
+│   └── factories.ts  # Test data factories (timestamp-based)
+└── README.md         # Test setup documentation
 ```
 
 ### Required Setup Before Tests
@@ -57,22 +56,18 @@ npm run db:seed
 ```typescript
 import request from 'supertest';
 import app from '../src/app';
-import { cleanDatabase, createTestTenant, createTestUser } from './helpers/db';
+import { createTestTenant, createTestUser } from './helpers/factories';
 import { createSessionCookie } from './helpers/auth';
 
 describe('Product Routes', () => {
-  beforeEach(async () => {
-    await cleanDatabase();
-  });
-
-  afterAll(async () => {
-    await cleanDatabase();
-  });
+  // No cleanup needed - tests use timestamp-based unique data
 
   test('should create a product', async () => {
-    // Setup: Create test data
+    // Setup: Create test data with unique values
     const tenant = await createTestTenant();
-    const user = await createTestUser(tenant.id, 'OWNER');
+    const user = await createTestUser();
+    const role = await createTestRole({ tenantId: tenant.id, permissionKeys: ROLE_DEFS.OWNER });
+    await addUserToTenant(user.id, tenant.id, role.id);
     const sessionCookie = createSessionCookie(user.id, tenant.id);
 
     // Execute: Make request
@@ -81,7 +76,7 @@ describe('Product Routes', () => {
       .set('Cookie', sessionCookie)
       .send({
         name: 'Test Product',
-        sku: 'TEST-001',
+        sku: `TEST-${Date.now()}`,  // Unique SKU
         priceInPence: 1000,
       });
 
@@ -90,11 +85,16 @@ describe('Product Routes', () => {
     expect(response.body.success).toBe(true);
     expect(response.body.data.product).toMatchObject({
       name: 'Test Product',
-      sku: 'TEST-001',
     });
   });
 });
 ```
+
+**Key Changes from Old Pattern:**
+- ❌ No `cleanDatabase()` calls
+- ✅ Use factory defaults for unique values
+- ✅ Tests run safely on dev database
+- ✅ Use `Date.now()` for unique identifiers when needed
 
 ### Pattern: Authentication Tests
 
@@ -179,26 +179,23 @@ import { productService } from '../src/services/productService';
 import prisma from '../src/lib/prisma';
 
 describe('Product Service', () => {
-  beforeEach(async () => {
-    await cleanDatabase();
-  });
+  // No cleanup needed - use factory defaults
 
   test('should create product with audit log', async () => {
     const tenant = await createTestTenant();
-    const user = await createTestUser(tenant.id, 'OWNER');
+    const user = await createTestUser();
 
     const product = await productService.createProduct({
       tenantId: tenant.id,
       currentUserId: user.id,
       name: 'Product',
-      sku: 'SKU-001',
+      sku: `SKU-${Date.now()}`,  // Unique SKU
       priceInPence: 1000,
     });
 
     // Check product was created
     expect(product).toMatchObject({
       name: 'Product',
-      sku: 'SKU-001',
       entityVersion: 1,
     });
 
@@ -271,94 +268,73 @@ describe('Stock FIFO', () => {
 
 ## Test Helpers
 
-### Database Helpers (`helpers/db.ts`)
+### Factory Helpers (`helpers/factories.ts`)
 
 ```typescript
 import prisma from '../../src/lib/prisma';
 
-// Clean database before each test
-export async function cleanDatabase() {
-  // Delete in correct order (children first, parents last)
-  await prisma.stockLedger.deleteMany();
-  await prisma.stockLot.deleteMany();
-  await prisma.productStock.deleteMany();
-  await prisma.product.deleteMany();
-  await prisma.userBranchMembership.deleteMany();
-  await prisma.userTenantMembership.deleteMany();
-  await prisma.branch.deleteMany();
-  await prisma.user.deleteMany();
-  await prisma.tenant.deleteMany();
-}
-
-// Create test tenant
-export async function createTestTenant(name = 'Test Tenant') {
+// Create test tenant (timestamp-based unique slug)
+export async function createTestTenant(options = {}) {
+  const timestamp = Date.now();
   return await prisma.tenant.create({
     data: {
-      tenantName: name,
-      tenantSlug: name.toLowerCase().replace(/\s+/g, '-'),
+      tenantName: options.name || `Test Tenant ${timestamp}`,
+      tenantSlug: options.slug || `test-tenant-${timestamp}`,
     },
   });
 }
 
-// Create test user with role
-export async function createTestUser(
-  tenantId: string,
-  roleIdOrName: string = 'OWNER'
-) {
-  const user = await prisma.user.create({
+// Create test user (timestamp-based unique email)
+export async function createTestUser(options = {}) {
+  const timestamp = Date.now();
+  return await prisma.user.create({
     data: {
-      userEmailAddress: `test-${Date.now()}@example.com`,
-      userPasswordHash: 'hashed-password',
-      userDisplayName: 'Test User',
+      userEmailAddress: options.email || `test-${timestamp}@example.com`,
+      userHashedPassword: await bcrypt.hash(options.password || 'password123', 10),
     },
   });
-
-  // Get role
-  const role = await prisma.role.findFirst({
-    where: {
-      OR: [
-        { id: roleIdOrName },
-        { roleName: roleIdOrName, tenantId },
-      ],
-    },
-  });
-
-  if (!role) throw new Error(`Role ${roleIdOrName} not found`);
-
-  // Create membership
-  await prisma.userTenantMembership.create({
-    data: {
-      userId: user.id,
-      tenantId,
-      roleId: role.id,
-    },
-  });
-
-  return user;
 }
 
 // Create test role with specific permissions
-export async function createTestRoleWithPermissions(
-  tenantId: string,
-  permissionKeys: string[]
-) {
-  const permissions = await prisma.permission.findMany({
-    where: { key: { in: permissionKeys } },
-  });
+export async function createTestRoleWithPermissions(options) {
+  const timestamp = Date.now();
+  const { tenantId, permissionKeys } = options;
+
+  const permissions = await getPermissionsByKeys(permissionKeys);
 
   const role = await prisma.role.create({
     data: {
       tenantId,
-      roleName: `test-role-${Date.now()}`,
-      rolePermissions: {
-        create: permissions.map(p => ({ permissionId: p.id })),
-      },
+      name: options.name || `Test Role ${timestamp}`,
+      description: 'Test role',
+      isSystem: false,
     },
+  });
+
+  // Assign permissions
+  await prisma.rolePermission.createMany({
+    data: permissions.map(p => ({
+      roleId: role.id,
+      permissionId: p.id,
+    })),
   });
 
   return role;
 }
+
+// Add user to tenant
+export async function addUserToTenant(userId, tenantId, roleId) {
+  return await prisma.userTenantMembership.create({
+    data: {
+      userId,
+      tenantId,
+      roleId,
+    },
+  });
+}
 ```
+
+**Key Principle:** All factories use `Date.now()` timestamps to create unique values, eliminating the need for database cleanup.
 
 ### Authentication Helpers (`helpers/auth.ts`)
 
@@ -412,19 +388,28 @@ export async function createTestBranch(tenantId: string, name = 'Test Branch') {
 
 ## Common Patterns
 
-### Pattern 1: Test Data Cleanup
+### Pattern 1: Test Isolation with Timestamps
 
-Always clean database before each test to ensure isolation:
+Use factory defaults with timestamps to ensure test isolation:
 
 ```typescript
-beforeEach(async () => {
-  await cleanDatabase();
-});
+describe('Product Tests', () => {
+  // No cleanup needed!
 
-afterAll(async () => {
-  await cleanDatabase();
+  test('should create product', async () => {
+    // Each test creates unique data
+    const tenant = await createTestTenant();  // slug: test-tenant-1729...
+    const user = await createTestUser();       // email: test-1729...@example.com
+
+    // Tests never conflict
+  });
 });
 ```
+
+**Why this works:**
+- `Date.now()` ensures every entity is unique
+- No conflicts with seed data or other tests
+- Can run tests multiple times safely
 
 ### Pattern 2: Request Validation
 
@@ -432,6 +417,12 @@ Test request body validation with Zod schemas:
 
 ```typescript
 test('should validate request body', async () => {
+  const tenant = await createTestTenant();
+  const user = await createTestUser();
+  const role = await createTestRoleWithPermissions({ tenantId: tenant.id, permissionKeys: ROLE_DEFS.OWNER });
+  await addUserToTenant(user.id, tenant.id, role.id);
+  const sessionCookie = createSessionCookie(user.id, tenant.id);
+
   const response = await request(app)
     .post('/api/products')
     .set('Cookie', sessionCookie)
@@ -510,7 +501,7 @@ test('should rate limit excessive requests', async () => {
 
 ### ✅ DO
 
-1. **Clean database before each test** - Ensures test isolation
+1. **Use factory defaults** - Let timestamps create unique data automatically
 2. **Use real database** - Don't mock Prisma or the database
 3. **Test complete request flow** - Use Supertest to test HTTP layer
 4. **Use test helpers** - DRY principle with factories and utilities
@@ -518,15 +509,17 @@ test('should rate limit excessive requests', async () => {
 6. **Use descriptive test names** - "should create product with valid data"
 7. **Test multi-tenant isolation** - Verify data segregation
 8. **Check audit logs** - Verify mutations create audit events
+9. **Trust timestamp-based isolation** - Tests run safely on dev database
 
 ### ❌ DON'T
 
-1. **Don't mock the database** - Use real PostgreSQL with transactions
-2. **Don't share state between tests** - Each test should be independent
+1. **Don't mock the database** - Use real PostgreSQL
+2. **Don't hardcode test values** - Defeats timestamp uniqueness (causes constraint violations)
 3. **Don't hardcode IDs** - Use factories to create data dynamically
-4. **Don't skip cleanup** - Always clean database in afterAll/beforeEach
+4. **Don't add cleanup** - Timestamp-based isolation eliminates the need
 5. **Don't test implementation details** - Test behavior, not internals
 6. **Don't use magic numbers** - Use constants or variables with clear names
+7. **Don't assume clean database** - Write tests that work regardless of existing data
 
 ---
 
@@ -540,9 +533,10 @@ test('should rate limit excessive requests', async () => {
 - Import with `import type { ... }` for type-only imports
 - IDs are strings (cuid), not numbers
 
-### Database Cleanup Order
-- Delete children first, parents last
-- Foreign key constraints require correct order
+### Test Isolation
+- All factories use `Date.now()` for unique values
+- No database cleanup needed
+- Tests safe to run on dev database
 
 ### Permission Testing
 - Use `createTestRoleWithPermissions(permissionKeys)` not `createTestRole(permissionIds)`

@@ -443,6 +443,137 @@ async function seedTransferTemplates(
   console.log('Template 2: Emergency Restock (1 product)');
 }
 
+async function seedApprovalRules(
+  acmeId: string,
+  users: SeededUsers,
+  acmeBranches: SlimBranch[]
+) {
+  // Helper to find branch by slug
+  const mustFind = (list: SlimBranch[], slug: string) => {
+    const b = list.find(x => x.branchSlug === slug);
+    if (!b) throw new Error(`Branch not found: ${slug}`);
+    return b;
+  };
+
+  const acmeWarehouse = mustFind(acmeBranches, 'acme-warehouse');
+
+  // Get ADMIN and OWNER role IDs
+  const adminRoleId = await getRoleId(acmeId, 'ADMIN');
+  const ownerRoleId = await getRoleId(acmeId, 'OWNER');
+
+  // Rule 1: High Quantity Approval (>100 units requires 2-level approval)
+  await prisma.transferApprovalRule.upsert({
+    where: {
+      id: 'acme-rule-high-qty',
+    },
+    update: {},
+    create: {
+      id: 'acme-rule-high-qty',
+      tenantId: acmeId,
+      name: 'High Quantity Transfer Approval',
+      description: 'Transfers with more than 100 total units require manager and director approval',
+      isActive: true,
+      approvalMode: 'SEQUENTIAL',
+      priority: 10,
+      conditions: {
+        create: [
+          {
+            conditionType: 'TOTAL_QTY_THRESHOLD',
+            threshold: 100,
+          },
+        ],
+      },
+      levels: {
+        create: [
+          {
+            level: 1,
+            name: 'Manager Approval',
+            requiredRoleId: adminRoleId,
+          },
+          {
+            level: 2,
+            name: 'Director Approval',
+            requiredRoleId: ownerRoleId,
+          },
+        ],
+      },
+    },
+  });
+
+  // Rule 2: High Value Approval (>£100 requires owner approval)
+  await prisma.transferApprovalRule.upsert({
+    where: {
+      id: 'acme-rule-high-value',
+    },
+    update: {},
+    create: {
+      id: 'acme-rule-high-value',
+      tenantId: acmeId,
+      name: 'High Value Transfer Approval',
+      description: 'Transfers valued over £100 require owner approval',
+      isActive: true,
+      approvalMode: 'SEQUENTIAL',
+      priority: 20,
+      conditions: {
+        create: [
+          {
+            conditionType: 'TOTAL_VALUE_THRESHOLD',
+            threshold: 10000, // £100 in pence
+          },
+        ],
+      },
+      levels: {
+        create: [
+          {
+            level: 1,
+            name: 'Owner Approval',
+            requiredRoleId: ownerRoleId,
+          },
+        ],
+      },
+    },
+  });
+
+  // Rule 3: Warehouse Outbound Approval (transfers FROM warehouse require manager approval)
+  await prisma.transferApprovalRule.upsert({
+    where: {
+      id: 'acme-rule-warehouse-outbound',
+    },
+    update: {},
+    create: {
+      id: 'acme-rule-warehouse-outbound',
+      tenantId: acmeId,
+      name: 'Warehouse Outbound Approval',
+      description: 'All transfers from the warehouse require manager approval',
+      isActive: false, // Disabled by default (demo rule)
+      approvalMode: 'PARALLEL',
+      priority: 5,
+      conditions: {
+        create: [
+          {
+            conditionType: 'SOURCE_BRANCH',
+            branchId: acmeWarehouse.id,
+          },
+        ],
+      },
+      levels: {
+        create: [
+          {
+            level: 1,
+            name: 'Warehouse Manager',
+            requiredRoleId: adminRoleId,
+          },
+        ],
+      },
+    },
+  });
+
+  console.log('--- Approval rules seeded ---');
+  console.log('Rule 1: High Quantity (>100 units) - ACTIVE, 2-level sequential');
+  console.log('Rule 2: High Value (>£100) - ACTIVE, 1-level');
+  console.log('Rule 3: Warehouse Outbound - INACTIVE (demo rule)');
+}
+
 async function main() {
   // Tenants + RBAC
   const { acmeId, globexId } = await seedTenantsAndRBAC();
@@ -480,6 +611,9 @@ async function main() {
 
   // Transfer templates
   await seedTransferTemplates(acmeId, users, acmeBranches);
+
+  // Approval rules
+  await seedApprovalRules(acmeId, users, acmeBranches);
 
   console.log('Seed complete. Tenants: acme, globex');
 }

@@ -6,7 +6,6 @@ import {
   adjustStock,
   getStockLevelsForProductService,
 } from '../../src/services/stockService.js';
-import { cleanDatabase } from '../helpers/db.js';
 import {
   createTestUser,
   createTestTenant,
@@ -25,25 +24,19 @@ describe('[ST-006] Stock Service - FIFO', () => {
   let testBranch: Awaited<ReturnType<typeof createTestBranch>>;
 
   beforeEach(async () => {
-    await cleanDatabase();
 
-    // Create tenant, user, and give user appropriate role
-    testTenant = await createTestTenant({ slug: 'stock-test-tenant' });
-    testUser = await createTestUser({ email: 'stock@test.com' });
+    // Create tenant, user - use factory defaults for unique values
+    testTenant = await createTestTenant();
+    testUser = await createTestUser();
     testProduct = await createTestProduct({
-      name: 'Test Widget',
-      sku: 'WIDGET-001',
       tenantId: testTenant.id,
     });
     testBranch = await createTestBranch({
-      name: 'Main Warehouse',
-      slug: 'main-warehouse',
       tenantId: testTenant.id,
     });
 
-    // Create role with stock permissions
+    // Create role with stock permissions - use factory default for unique name
     const role = await createTestRoleWithPermissions({
-      name: 'Stock Manager',
       tenantId: testTenant.id,
       permissionKeys: ['stock:read', 'stock:write', 'stock:allocate'],
     });
@@ -179,7 +172,7 @@ describe('[ST-006] Stock Service - FIFO', () => {
     });
 
     it('should reject if branch does not belong to tenant', async () => {
-      const otherTenant = await createTestTenant({ slug: 'other-tenant' });
+      const otherTenant = await createTestTenant();
 
       await expect(
         receiveStock(
@@ -215,10 +208,8 @@ describe('[ST-006] Stock Service - FIFO', () => {
     });
 
     it('should reject if product does not belong to tenant', async () => {
-      const otherTenant = await createTestTenant({ slug: 'other-tenant-2' });
+      const otherTenant = await createTestTenant();
       const otherProduct = await createTestProduct({
-        name: 'Other Product',
-        sku: 'OTHER-001',
         tenantId: otherTenant.id,
       });
 
@@ -771,16 +762,12 @@ describe('[ST-006] Stock Service - FIFO', () => {
 
   describe('[AC-006-7] Multi-Tenant Isolation', () => {
     it('should isolate stock between tenants', async () => {
-      // Create second tenant with same setup
-      const tenant2 = await createTestTenant({ slug: 'tenant-2' });
+      // Create second tenant with same setup - use factory defaults
+      const tenant2 = await createTestTenant();
       const product2 = await createTestProduct({
-        name: 'Test Widget',
-        sku: 'WIDGET-001',
         tenantId: tenant2.id,
       });
       const branch2 = await createTestBranch({
-        name: 'Warehouse',
-        slug: 'warehouse',
         tenantId: tenant2.id,
       });
 

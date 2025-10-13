@@ -2,7 +2,7 @@
 
 **Purpose:** High-level overview of testing in the Multi-Tenant Inventory Management System.
 
-**Last Updated:** 2025-10-12
+**Last Updated:** 2025-10-13
 
 ---
 
@@ -13,7 +13,8 @@
 - **HTTP Testing:** Supertest
 - **Database:** Real PostgreSQL database (not mocked)
 - **Approach:** Integration tests (test entire request → response flow)
-- **Test Count:** 227 passing, 4 skipped across 12 test suites
+- **Test Count:** 279 passing across 14 test suites
+- **Test Isolation:** Timestamp-based unique data (no cleanup required)
 
 ### Frontend (Admin Web)
 - **Framework:** Playwright
@@ -33,15 +34,14 @@
 api-server/
 ├── __tests__/
 │   ├── helpers/          # Test utilities
-│   │   ├── db.ts         # Database setup/cleanup
+│   │   ├── db.ts         # Database utilities (no cleanup)
 │   │   ├── auth.ts       # Authentication helpers
-│   │   └── factories.ts  # Test data factories
-│   ├── fixtures/         # Static test data
-│   │   └── testData.ts   # Constants and sample data
+│   │   └── factories.ts  # Test data factories (timestamp-based)
 │   ├── middleware/       # Middleware tests
 │   ├── routes/           # API route tests
 │   ├── services/         # Service layer tests
-│   └── auth.test.ts      # Auth endpoint tests
+│   ├── auth.test.ts      # Auth endpoint tests
+│   └── README.md         # Test setup documentation
 └── jest.config.js        # Jest configuration
 
 admin-web/
@@ -133,13 +133,15 @@ make bmad-accept-all             # Run all tests
 - Avoid excessive mocking
 
 ### 3. Real Data, Real Database
-- Backend tests use real PostgreSQL
+- Backend tests use real PostgreSQL (dev database)
 - No database mocking
-- Clean database before each test
+- Timestamp-based unique data for isolation
 
 ### 4. Test Isolation
-- Each test should be independent
-- Clear cookies/state between tests
+- Each test creates unique data with `Date.now()` timestamps
+- No database cleanup required between tests
+- Tests don't interfere with dev seed data
+- Clear cookies/state between tests in frontend
 - Don't rely on test execution order
 
 ---
@@ -150,9 +152,10 @@ make bmad-accept-all             # Run all tests
 - ✅ Authentication & RBAC (46 tests)
 - ✅ Stock Management FIFO (23 tests)
 - ✅ Product Service (27 tests)
-- ✅ API Routes (70 tests)
-- ✅ Middleware (58 tests)
+- ✅ API Routes (117 tests)
+- ✅ Middleware (62 tests)
 - ✅ Health checks (4 tests)
+- **Total: 279 tests passing, 0 skipped**
 
 ### Frontend Coverage ✅ COMPLETE
 - ✅ Authentication flows (17 tests)
@@ -165,10 +168,11 @@ make bmad-accept-all             # Run all tests
 ## Success Metrics
 
 **Backend:**
-- ✅ 227 tests passing, 4 skipped
+- ✅ 279 tests passing, 0 skipped
 - ✅ All critical paths covered
 - ✅ Multi-tenant isolation verified
 - ✅ RBAC enforcement tested
+- ✅ Timestamp-based isolation (no cleanup needed)
 
 **Frontend:**
 - ✅ 72 tests passing
@@ -180,7 +184,8 @@ make bmad-accept-all             # Run all tests
 - ✅ Test infrastructure solid and reusable
 - ✅ Documentation comprehensive
 - ✅ Test failures actionable and debuggable
-- 91% pass rate (excellent for E2E tests)
+- ✅ 100% pass rate on backend tests
+- ✅ Tests safe to run on dev database
 
 ---
 
@@ -200,8 +205,15 @@ make bmad-accept-all             # Run all tests
 
 ## Important Notes
 
-- **API server must be running** for frontend E2E tests: `cd api-server && npm run dev`
-- **Seed data required** for tests: `npm run db:seed` (run once after migrations)
+### Backend Tests
+- **Run against dev database** - Tests use timestamp-based unique data
+- **No cleanup needed** - Your seed data is never modified
+- **Safe to run anytime** - Tests create unique entities with `Date.now()`
+- **See `api-server/__tests__/README.md`** for detailed setup info
+
+### Frontend Tests
+- **API server must be running**: `cd api-server && npm run dev`
+- **Seed data required**: `npm run db:seed` (run once after migrations)
 - **RBAC permissions** must be seeded: `npm run seed:rbac`
 - **Test users** from seed data:
   - `owner@acme.test` (Password: `Password123!`)

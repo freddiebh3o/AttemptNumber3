@@ -37,6 +37,10 @@ model Role {
   // reverse relation to memberships
   memberships UserTenantMembership[]
 
+  // approval levels
+  approvalLevels TransferApprovalLevel[] @relation("ApprovalLevelRequiredRole")
+  approvalRecords TransferApprovalRecord[] @relation("ApprovalRecordRequiredRole")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -75,6 +79,7 @@ model Tenant {
   stockLedgers          StockLedger[]
   stockTransfers        StockTransfer[]
   transferTemplates     StockTransferTemplate[]
+  transferApprovalRules TransferApprovalRule[]
 
   // Back-relation for AuditEvent. One tenant -> many audit events.
   auditEvents AuditEvent[]
@@ -100,6 +105,27 @@ enum StockTransferStatus {
   CANCELLED
 }
 
+enum ApprovalRuleConditionType {
+  TOTAL_QTY_THRESHOLD       // Total quantity > X
+  TOTAL_VALUE_THRESHOLD     // Total value (pence) > X
+  SOURCE_BRANCH             // Specific source branch
+  DESTINATION_BRANCH        // Specific destination branch
+  PRODUCT_CATEGORY          // Product has category X (future)
+}
+
+enum ApprovalMode {
+  SEQUENTIAL  // Must approve in order
+  PARALLEL    // All can approve simultaneously
+  HYBRID      // Level 1 first, then 2+ parallel
+}
+
+enum ApprovalStatus {
+  PENDING     // Awaiting approval
+  APPROVED    // Approved
+  REJECTED    // Rejected
+  SKIPPED     // Not required (rule didn't match)
+}
+
 model Branch {
   id       String @id @default(cuid())
   tenantId String
@@ -118,6 +144,7 @@ model Branch {
   transfersAsDestination    StockTransfer[]        @relation("TransferDestination")
   templateAsSource          StockTransferTemplate[] @relation("TemplateSource")
   templateAsDestination     StockTransferTemplate[] @relation("TemplateDestination")
+  approvalConditions        TransferApprovalCondition[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -240,6 +267,9 @@ model User {
   transfersReviewed     StockTransfer[]        @relation("TransferReviewer")
   transfersShipped      StockTransfer[]        @relation("TransferShipper")
   transferTemplatesCreated StockTransferTemplate[]
+  approvalLevelsAsRequired TransferApprovalLevel[] @relation("ApprovalLevelRequiredUser")
+  approvalRecordsAsRequired TransferApprovalRecord[] @relation("ApprovalRecordRequiredUser")
+  approvalRecordsAsApprover TransferApprovalRecord[] @relation("ApprovalRecordApprover")
 
   // Back-relation for AuditEvent where this user is the actor.
   auditEvents AuditEvent[]
@@ -329,6 +359,9 @@ model StockTransfer {
   reversedById   String? // Links to reversal transfer (if reversed)
   reversalReason String? @db.Text // Why reversal occurred
 
+  // Multi-level approval
+  requiresMultiLevelApproval Boolean @default(false)
+
   // Relations
   tenant            Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   sourceBranch      Branch              @relation("TransferSource", fields: [sourceBranchId], references: [id], onDelete: Restrict)
@@ -339,6 +372,7 @@ model StockTransfer {
   items             StockTransferItem[]
   reversalOf        StockTransfer?      @relation("TransferReversal", fields: [reversalOfId], references: [id], onDelete: SetNull)
   reversedBy        StockTransfer?      @relation("TransferReversal")
+  approvalRecords   TransferApprovalRecord[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -423,6 +457,99 @@ model StockTransferTemplateItem {
 
   @@unique([templateId, productId])
   @@index([productId])
+}
+
+/// Transfer approval rules for multi-level approval workflow
+model TransferApprovalRule {
+  id           String        @id @default(cuid())
+  tenantId     String
+  name         String        // "High-Value Transfer Approval"
+  description  String?       @db.Text
+  isActive     Boolean       @default(true)
+  approvalMode ApprovalMode  @default(SEQUENTIAL)
+  priority     Int           @default(0) // Higher priority rules evaluated first
+
+  // Relations
+  tenant     Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conditions TransferApprovalCondition[]
+  levels     TransferApprovalLevel[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, isActive])
+  @@index([tenantId, priority])
+}
+
+/// Conditions that trigger an approval rule
+model TransferApprovalCondition {
+  id            String                      @id @default(cuid())
+  ruleId        String
+  conditionType ApprovalRuleConditionType
+  threshold     Int?                        // For QTY/VALUE thresholds
+  branchId      String?                     // For branch conditions (source or destination based on conditionType)
+
+  // Relations
+  rule   TransferApprovalRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  branch Branch?              @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ruleId])
+  @@index([branchId])
+}
+
+/// Approval levels required by a rule
+model TransferApprovalLevel {
+  id             String  @id @default(cuid())
+  ruleId         String
+  level          Int     // 1, 2, 3, etc.
+  name           String  // "Manager", "Director", "Finance"
+  requiredRoleId String? // Specific role required (e.g., OWNER)
+  requiredUserId String? // Specific user required (e.g., Finance Director)
+
+  // Relations
+  rule TransferApprovalRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  role Role?                @relation("ApprovalLevelRequiredRole", fields: [requiredRoleId], references: [id], onDelete: SetNull)
+  user User?                @relation("ApprovalLevelRequiredUser", fields: [requiredUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([ruleId, level])
+  @@index([ruleId])
+  @@index([requiredRoleId])
+  @@index([requiredUserId])
+}
+
+/// Records approval status for each level of a transfer
+model TransferApprovalRecord {
+  id               String         @id @default(cuid())
+  transferId       String
+  level            Int            // Which approval level this is
+  levelName        String         // "Manager", "Director", etc.
+  status           ApprovalStatus @default(PENDING)
+  requiredRoleId   String?        // Role required for this approval
+  requiredUserId   String?        // User required for this approval
+  approvedByUserId String?        // Who actually approved
+  approvedAt       DateTime?
+  notes            String?        @db.Text
+
+  // Relations
+  transfer       StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  requiredRole   Role?         @relation("ApprovalRecordRequiredRole", fields: [requiredRoleId], references: [id], onDelete: SetNull)
+  requiredUser   User?         @relation("ApprovalRecordRequiredUser", fields: [requiredUserId], references: [id], onDelete: SetNull)
+  approvedByUser User?         @relation("ApprovalRecordApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([transferId, level])
+  @@index([status])
+  @@index([requiredRoleId])
+  @@index([requiredUserId])
+  @@index([approvedByUserId])
 }
 
 /// Stores idempotency for POST/PUT so we can replay the same result for duplicate requests
@@ -526,6 +653,10 @@ enum AuditAction {
   TRANSFER_RECEIVE
   TRANSFER_CANCEL
   TRANSFER_REVERSE
+  TRANSFER_APPROVE_LEVEL // Multi-level approval submission
+  APPROVAL_RULE_CREATE
+  APPROVAL_RULE_UPDATE
+  APPROVAL_RULE_DELETE
 }
 
 // --- Append-only audit log ---

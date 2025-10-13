@@ -3,9 +3,6 @@ import request from 'supertest';
 import type { Express } from 'express';
 import { createConfiguredExpressApplicationInstance } from '../src/app.js';
 import {
-  setupTestDatabase,
-  teardownTestDatabase,
-  cleanDatabase,
   prisma,
 } from './helpers/db.js';
 import {
@@ -20,37 +17,30 @@ import {
   decodeSessionToken,
   createSessionCookie,
 } from './helpers/auth.js';
-import { TEST_USERS, TEST_TENANTS } from './fixtures/testData.js';
 
 describe('[ST-003] Authentication', () => {
   let app: Express;
 
   beforeAll(async () => {
-    await setupTestDatabase();
     const { expressApplicationInstance } = createConfiguredExpressApplicationInstance();
     app = expressApplicationInstance;
   });
 
   afterAll(async () => {
-    await teardownTestDatabase();
   });
 
   beforeEach(async () => {
-    await cleanDatabase();
   });
 
   describe('[AC-003-1] POST /api/auth/sign-in', () => {
     it('should successfully sign in with valid credentials', async () => {
       // Arrange: Create test user, tenant, and membership
+      const testPassword = 'TestPassword123!';
       const user = await createTestUser({
-        email: TEST_USERS.admin.email,
-        password: TEST_USERS.admin.password,
+        password: testPassword,
       });
 
-      const tenant = await createTestTenant({
-        name: TEST_TENANTS.acme.name,
-        slug: TEST_TENANTS.acme.slug,
-      });
+      const tenant = await createTestTenant();
 
       const permissions = await getPermissionsByKeys(['products:read']);
       const role = await createTestRole({
@@ -64,9 +54,9 @@ describe('[ST-003] Authentication', () => {
       const response = await request(app)
         .post('/api/auth/sign-in')
         .send({
-          email: TEST_USERS.admin.email,
-          password: TEST_USERS.admin.password,
-          tenantSlug: TEST_TENANTS.acme.slug,
+          email: user.userEmailAddress,
+          password: testPassword,
+          tenantSlug: tenant.tenantSlug,
         });
 
       // Assert
@@ -104,14 +94,12 @@ describe('[ST-003] Authentication', () => {
 
     it('should return 400 for invalid password', async () => {
       // Arrange
+      const testPassword = 'TestPassword123!';
       const user = await createTestUser({
-        email: TEST_USERS.admin.email,
-        password: TEST_USERS.admin.password,
+        password: testPassword,
       });
 
-      const tenant = await createTestTenant({
-        slug: TEST_TENANTS.acme.slug,
-      });
+      const tenant = await createTestTenant();
 
       const permissions = await getPermissionsByKeys(['products:read']);
       const role = await createTestRole({
@@ -125,9 +113,9 @@ describe('[ST-003] Authentication', () => {
       const response = await request(app)
         .post('/api/auth/sign-in')
         .send({
-          email: TEST_USERS.admin.email,
+          email: user.userEmailAddress,
           password: 'wrongpassword123',
-          tenantSlug: TEST_TENANTS.acme.slug,
+          tenantSlug: tenant.tenantSlug,
         });
 
       // Assert
@@ -137,22 +125,20 @@ describe('[ST-003] Authentication', () => {
 
     it('should return 400 when user is not a member of the tenant', async () => {
       // Arrange: Create user and tenant but NO membership
+      const testPassword = 'TestPassword123!';
       const user = await createTestUser({
-        email: TEST_USERS.admin.email,
-        password: TEST_USERS.admin.password,
+        password: testPassword,
       });
 
-      await createTestTenant({
-        slug: TEST_TENANTS.acme.slug,
-      });
+      const tenant = await createTestTenant();
 
       // Act: Try to sign in
       const response = await request(app)
         .post('/api/auth/sign-in')
         .send({
-          email: TEST_USERS.admin.email,
-          password: TEST_USERS.admin.password,
-          tenantSlug: TEST_TENANTS.acme.slug,
+          email: user.userEmailAddress,
+          password: testPassword,
+          tenantSlug: tenant.tenantSlug,
         });
 
       // Assert
@@ -164,8 +150,8 @@ describe('[ST-003] Authentication', () => {
       const response = await request(app)
         .post('/api/auth/sign-in')
         .send({
-          email: TEST_USERS.admin.email,
-          password: TEST_USERS.admin.password,
+          email: 'test@example.com',
+          password: 'TestPassword123!',
           // tenantSlug missing
         });
 
@@ -177,9 +163,9 @@ describe('[ST-003] Authentication', () => {
       const response = await request(app)
         .post('/api/auth/sign-in')
         .send({
-          email: TEST_USERS.admin.email,
+          email: 'test@example.com',
           password: 'short',
-          tenantSlug: TEST_TENANTS.acme.slug,
+          tenantSlug: 'test-tenant',
         });
 
       expect(response.status).toBe(400);
@@ -241,13 +227,9 @@ describe('[ST-003] Authentication', () => {
   describe('[AC-003-3] GET /api/auth/me', () => {
     it('should return current user info for authenticated user', async () => {
       // Arrange
-      const user = await createTestUser({
-        email: TEST_USERS.admin.email,
-      });
+      const user = await createTestUser();
 
-      const tenant = await createTestTenant({
-        slug: TEST_TENANTS.acme.slug,
-      });
+      const tenant = await createTestTenant();
 
       const permissions = await getPermissionsByKeys([
         'products:read',
@@ -273,11 +255,11 @@ describe('[ST-003] Authentication', () => {
       expect(response.body.data).toMatchObject({
         user: {
           id: user.id,
-          userEmailAddress: TEST_USERS.admin.email,
+          userEmailAddress: user.userEmailAddress,
         },
         currentTenant: {
           tenantId: tenant.id,
-          tenantSlug: TEST_TENANTS.acme.slug,
+          tenantSlug: tenant.tenantSlug,
           role: {
             name: 'Admin',
             tenantId: tenant.id,
@@ -319,12 +301,8 @@ describe('[ST-003] Authentication', () => {
       // Arrange: User is member of two tenants
       const user = await createTestUser();
 
-      const tenant1 = await createTestTenant({
-        slug: 'tenant-one',
-      });
-      const tenant2 = await createTestTenant({
-        slug: 'tenant-two',
-      });
+      const tenant1 = await createTestTenant();
+      const tenant2 = await createTestTenant();
 
       const permissions = await getPermissionsByKeys(['products:read']);
 
@@ -346,7 +324,7 @@ describe('[ST-003] Authentication', () => {
         .post('/api/auth/switch-tenant')
         .set('Cookie', sessionCookie)
         .send({
-          tenantSlug: 'tenant-two',
+          tenantSlug: tenant2.tenantSlug,
         });
 
       // Assert
@@ -368,8 +346,8 @@ describe('[ST-003] Authentication', () => {
     it('should return 403 when user is not a member of target tenant', async () => {
       // Arrange: User is only member of tenant1
       const user = await createTestUser();
-      const tenant1 = await createTestTenant({ slug: 'tenant-one' });
-      const tenant2 = await createTestTenant({ slug: 'tenant-two' });
+      const tenant1 = await createTestTenant();
+      const tenant2 = await createTestTenant();
 
       const permissions = await getPermissionsByKeys(['products:read']);
       const role1 = await createTestRole({
@@ -386,7 +364,7 @@ describe('[ST-003] Authentication', () => {
         .post('/api/auth/switch-tenant')
         .set('Cookie', sessionCookie)
         .send({
-          tenantSlug: 'tenant-two',
+          tenantSlug: tenant2.tenantSlug,
         });
 
       // Assert

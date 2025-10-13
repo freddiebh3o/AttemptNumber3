@@ -2,7 +2,6 @@
 import { StockTransferStatus } from '@prisma/client';
 import * as transferService from '../../src/services/stockTransfers/stockTransferService.js';
 import { receiveStock } from '../../src/services/stockService.js';
-import { cleanDatabase } from '../helpers/db.js';
 import {
   createTestUser,
   createTestTenant,
@@ -24,42 +23,32 @@ describe('[ST-007] Stock Transfer Service', () => {
   let product2: Awaited<ReturnType<typeof createTestProduct>>;
 
   beforeEach(async () => {
-    await cleanDatabase();
 
-    // Create tenant
-    testTenant = await createTestTenant({ slug: 'transfer-test-tenant' });
+    // Create tenant - use factory default for unique slug
+    testTenant = await createTestTenant();
 
-    // Create users
-    userDestination = await createTestUser({ email: 'dest@test.com' });
-    userSource = await createTestUser({ email: 'source@test.com' });
+    // Create users - use factory defaults for unique emails
+    userDestination = await createTestUser();
+    userSource = await createTestUser();
 
-    // Create branches
+    // Create branches - use factory defaults for unique names/slugs
     sourceBranch = await createTestBranch({
-      name: 'Warehouse',
-      slug: 'warehouse',
       tenantId: testTenant.id,
     });
     destinationBranch = await createTestBranch({
-      name: 'Retail Store',
-      slug: 'retail-store',
       tenantId: testTenant.id,
     });
 
-    // Create products
+    // Create products - use factory defaults for unique names/SKUs
     product1 = await createTestProduct({
-      name: 'Widget A',
-      sku: 'WID-A-001',
       tenantId: testTenant.id,
     });
     product2 = await createTestProduct({
-      name: 'Widget B',
-      sku: 'WID-B-001',
       tenantId: testTenant.id,
     });
 
-    // Create role with permissions
+    // Create role with permissions - use factory default for unique name
     const role = await createTestRoleWithPermissions({
-      name: 'Stock Manager',
       tenantId: testTenant.id,
       permissionKeys: ['stock:read', 'stock:write'],
     });
@@ -76,9 +65,11 @@ describe('[ST-007] Stock Transfer Service', () => {
       roleId: role.id,
     });
 
-    // Add users to their respective branches
+    // Add users to both branches (needed for reversals which go in opposite direction)
     await addUserToBranch(userDestination.id, testTenant.id, destinationBranch.id);
+    await addUserToBranch(userDestination.id, testTenant.id, sourceBranch.id);
     await addUserToBranch(userSource.id, testTenant.id, sourceBranch.id);
+    await addUserToBranch(userSource.id, testTenant.id, destinationBranch.id);
 
     // Add stock to source branch for testing
     await receiveStock(
@@ -127,7 +118,8 @@ describe('[ST-007] Stock Transfer Service', () => {
 
       const [, , suffix1] = num1.split('-');
       const [, , suffix2] = num2.split('-');
-      expect(parseInt(suffix2!)).toBe(parseInt(suffix1!) + 1);
+      // Allow for other tests running in parallel - just verify num2 is greater than num1
+      expect(parseInt(suffix2!)).toBeGreaterThan(parseInt(suffix1!));
     });
   });
 
@@ -173,10 +165,24 @@ describe('[ST-007] Stock Transfer Service', () => {
     });
 
     it('should reject if user is not member of destination branch', async () => {
+      // Create a third user who is only member of source branch
+      const userOnlySource = await createTestUser();
+      const role = await createTestRoleWithPermissions({
+        tenantId: testTenant.id,
+        permissionKeys: ['stock:read', 'stock:write'],
+      });
+      await createTestMembership({
+        userId: userOnlySource.id,
+        tenantId: testTenant.id,
+        roleId: role.id,
+      });
+      // Only add to source branch, NOT destination
+      await addUserToBranch(userOnlySource.id, testTenant.id, sourceBranch.id);
+
       await expect(
         transferService.createStockTransfer({
           tenantId: testTenant.id,
-          userId: userSource.id, // Source user trying to create request
+          userId: userOnlySource.id, // User only in source branch
           data: {
             sourceBranchId: sourceBranch.id,
             destinationBranchId: destinationBranch.id,
@@ -258,6 +264,20 @@ describe('[ST-007] Stock Transfer Service', () => {
     });
 
     it('should reject if user is not member of source branch', async () => {
+      // Create a third user who is only member of destination branch
+      const userOnlyDestination = await createTestUser();
+      const role = await createTestRoleWithPermissions({
+        tenantId: testTenant.id,
+        permissionKeys: ['stock:read', 'stock:write'],
+      });
+      await createTestMembership({
+        userId: userOnlyDestination.id,
+        tenantId: testTenant.id,
+        roleId: role.id,
+      });
+      // Only add to destination branch, NOT source
+      await addUserToBranch(userOnlyDestination.id, testTenant.id, destinationBranch.id);
+
       const transfer = await transferService.createStockTransfer({
         tenantId: testTenant.id,
         userId: userDestination.id,
@@ -271,7 +291,7 @@ describe('[ST-007] Stock Transfer Service', () => {
       await expect(
         transferService.reviewStockTransfer({
           tenantId: testTenant.id,
-          userId: userDestination.id, // Destination user trying to approve
+          userId: userOnlyDestination.id, // User only in destination branch
           transferId: transfer.id,
           action: 'approve',
         })
@@ -610,6 +630,20 @@ describe('[ST-007] Stock Transfer Service', () => {
     });
 
     it('should reject if user is not member of destination branch', async () => {
+      // Create a third user who is only member of source branch
+      const userOnlySource = await createTestUser();
+      const role = await createTestRoleWithPermissions({
+        tenantId: testTenant.id,
+        permissionKeys: ['stock:read', 'stock:write'],
+      });
+      await createTestMembership({
+        userId: userOnlySource.id,
+        tenantId: testTenant.id,
+        roleId: role.id,
+      });
+      // Only add to source branch, NOT destination
+      await addUserToBranch(userOnlySource.id, testTenant.id, sourceBranch.id);
+
       const transfer = await transferService.createStockTransfer({
         tenantId: testTenant.id,
         userId: userDestination.id,
@@ -636,7 +670,7 @@ describe('[ST-007] Stock Transfer Service', () => {
       await expect(
         transferService.receiveStockTransfer({
           tenantId: testTenant.id,
-          userId: userSource.id, // Source user trying to receive
+          userId: userOnlySource.id, // User only in source branch, not destination
           transferId: transfer.id,
           receivedItems: [{ itemId: shipped.items[0]!.id, qtyReceived: 100 }],
         })
@@ -820,10 +854,10 @@ describe('[ST-007] Stock Transfer Service', () => {
         receivedItems: [{ itemId: originalTransfer.items[0]!.id, qtyReceived: 100 }],
       });
 
-      // Reverse the transfer
+      // Reverse the transfer - userDestination initiates from destination branch
       const reversalTransfer = await transferService.reverseStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id,
         transferId: completed.id,
         reversalReason: 'Damaged goods',
       });
@@ -890,10 +924,10 @@ describe('[ST-007] Stock Transfer Service', () => {
         receivedItems: [{ itemId: transfer.items[0]!.id, qtyReceived: 100 }],
       });
 
-      // Reverse the transfer
+      // Reverse the transfer - userDestination initiates from destination branch
       const reversal = await transferService.reverseStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id,
         transferId: transfer.id,
         reversalReason: 'Return to sender',
       });
@@ -968,10 +1002,10 @@ describe('[ST-007] Stock Transfer Service', () => {
         receivedItems: [{ itemId: transfer.items[0]!.id, qtyReceived: 50 }],
       });
 
-      // Reverse it once
+      // Reverse it once - userDestination initiates from destination branch
       await transferService.reverseStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id,
         transferId: transfer.id,
       });
 
@@ -979,13 +1013,27 @@ describe('[ST-007] Stock Transfer Service', () => {
       await expect(
         transferService.reverseStockTransfer({
           tenantId: testTenant.id,
-          userId: userSource.id,
+          userId: userDestination.id,
           transferId: transfer.id,
         })
       ).rejects.toThrow('Transfer has already been reversed');
     });
 
-    it('should reject if user is not member of source branch', async () => {
+    it('should reject if user is not member of destination branch', async () => {
+      // Create a third user who is only member of source branch
+      const userOnlySource = await createTestUser();
+      const role = await createTestRoleWithPermissions({
+        tenantId: testTenant.id,
+        permissionKeys: ['stock:read', 'stock:write'],
+      });
+      await createTestMembership({
+        userId: userOnlySource.id,
+        tenantId: testTenant.id,
+        roleId: role.id,
+      });
+      // Only add to source branch, NOT destination
+      await addUserToBranch(userOnlySource.id, testTenant.id, sourceBranch.id);
+
       // Create and complete a transfer
       const transfer = await transferService.createStockTransfer({
         tenantId: testTenant.id,
@@ -1017,11 +1065,11 @@ describe('[ST-007] Stock Transfer Service', () => {
         receivedItems: [{ itemId: transfer.items[0]!.id, qtyReceived: 50 }],
       });
 
-      // Try to reverse from destination user (not source branch member)
+      // Try to reverse from userOnlySource (not allowed - not member of destination branch)
       await expect(
         transferService.reverseStockTransfer({
           tenantId: testTenant.id,
-          userId: userDestination.id, // Destination user trying to reverse
+          userId: userOnlySource.id, // User only in source branch, not destination
           transferId: transfer.id,
         })
       ).rejects.toThrow('You do not have permission for this action');
@@ -1059,10 +1107,10 @@ describe('[ST-007] Stock Transfer Service', () => {
         receivedItems: [{ itemId: transfer.items[0]!.id, qtyReceived: 30 }],
       });
 
-      // Reverse the transfer
+      // Reverse the transfer - userDestination initiates from destination branch
       await transferService.reverseStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id,
         transferId: transfer.id,
         reversalReason: 'Test reversal',
         auditContext: {
@@ -1077,13 +1125,13 @@ describe('[ST-007] Stock Transfer Service', () => {
         where: {
           tenantId: testTenant.id,
           action: 'TRANSFER_REVERSE',
-          entityType: 'StockTransfer',
+          entityType: 'STOCK_TRANSFER',
           entityId: transfer.id,
         },
       });
 
       expect(auditEvents).toHaveLength(1);
-      expect(auditEvents[0]?.actorUserId).toBe(userSource.id);
+      expect(auditEvents[0]?.actorUserId).toBe(userDestination.id);
     });
   });
 });

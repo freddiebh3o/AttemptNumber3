@@ -6,6 +6,7 @@ import { requirePermission } from '../middleware/permissionMiddleware.js';
 import { assertAuthed } from '../types/assertions.js';
 import { createStandardSuccessResponse } from '../utils/standardResponse.js';
 import * as transferService from '../services/stockTransfers/stockTransferService.js';
+import * as approvalEvaluationService from '../services/stockTransfers/approvalEvaluationService.js';
 import { getAuditContext } from '../utils/auditContext.js';
 
 export const stockTransfersRouter = Router();
@@ -283,6 +284,11 @@ const ReverseTransferBodySchema = z.object({
   reversalReason: z.string().max(1000).optional(),
 });
 
+// Approval validation schema
+const SubmitApprovalBodySchema = z.object({
+  notes: z.string().max(1000).optional(),
+});
+
 // POST /api/stock-transfers/:transferId/reverse - Reverse completed transfer
 stockTransfersRouter.post(
   '/:transferId/reverse',
@@ -303,11 +309,74 @@ stockTransfersRouter.post(
         tenantId: req.currentTenantId,
         userId: req.currentUserId,
         transferId,
-        reversalReason,
+        ...(reversalReason !== undefined ? { reversalReason } : {}),
         auditContext: getAuditContext(req),
       });
 
       return res.status(200).json(createStandardSuccessResponse(reversalTransfer));
+    } catch (e) {
+      return next(e);
+    }
+  }
+);
+
+// POST /api/stock-transfers/:transferId/approve/:level - Submit approval for level
+stockTransfersRouter.post(
+  '/:transferId/approve/:level',
+  requireAuthenticatedUserMiddleware,
+  requirePermission('stock:write'),
+  validateRequestBodyWithZod(SubmitApprovalBodySchema),
+  async (req, res, next) => {
+    try {
+      assertAuthed(req);
+      const { transferId, level: levelStr } = req.params;
+      const body = req.validatedBody as z.infer<typeof SubmitApprovalBodySchema>;
+
+      if (!transferId || !levelStr) {
+        throw new Error('Transfer ID and level are required');
+      }
+
+      const level = parseInt(levelStr, 10);
+      if (isNaN(level) || level < 1) {
+        throw new Error('Level must be a positive integer');
+      }
+
+      const transfer = await approvalEvaluationService.submitApproval({
+        tenantId: req.currentTenantId,
+        userId: req.currentUserId,
+        transferId,
+        level,
+        ...(body.notes !== undefined ? { notes: body.notes } : {}),
+        auditContext: getAuditContext(req),
+      });
+
+      return res.status(200).json(createStandardSuccessResponse(transfer));
+    } catch (e) {
+      return next(e);
+    }
+  }
+);
+
+// GET /api/stock-transfers/:transferId/approval-progress - Get approval progress
+stockTransfersRouter.get(
+  '/:transferId/approval-progress',
+  requireAuthenticatedUserMiddleware,
+  requirePermission('stock:read'),
+  async (req, res, next) => {
+    try {
+      assertAuthed(req);
+      const { transferId } = req.params;
+
+      if (!transferId) {
+        throw new Error('Transfer ID is required');
+      }
+
+      const progress = await approvalEvaluationService.getApprovalProgress({
+        tenantId: req.currentTenantId,
+        transferId,
+      });
+
+      return res.status(200).json(createStandardSuccessResponse(progress));
     } catch (e) {
       return next(e);
     }

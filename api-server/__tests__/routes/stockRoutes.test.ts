@@ -26,7 +26,6 @@ import cookieParser from 'cookie-parser';
 import { sessionMiddleware } from '../../src/middleware/sessionMiddleware.js';
 import { stockRouter } from '../../src/routes/stockRouter.js';
 import { standardErrorHandler } from '../../src/middleware/errorHandler.js';
-import { setupTestDatabase, teardownTestDatabase } from '../helpers/db.js';
 import {
   createTestTenant,
   createTestUser,
@@ -49,7 +48,6 @@ describe('[ST-009] Stock API Routes', () => {
   let testProduct: Awaited<ReturnType<typeof createTestProduct>>;
 
   beforeAll(async () => {
-    await setupTestDatabase();
 
     // Setup Express app with middleware
     app = express();
@@ -59,26 +57,24 @@ describe('[ST-009] Stock API Routes', () => {
     app.use('/api/stock', stockRouter);
     app.use(standardErrorHandler);
 
-    // Create test tenant
-    testTenant = await createTestTenant({ slug: 'stock-test-tenant' });
+    // Create test tenant - use factory default for unique slug
+    testTenant = await createTestTenant();
 
-    // Create editor role with stock:write permission
+    // Create editor role with stock:write permission - use factory defaults
     const editorRole = await createTestRoleWithPermissions({
-      name: 'Editor',
       tenantId: testTenant.id,
       permissionKeys: ['stock:read', 'stock:write'],
     });
 
-    // Create viewer role with only stock:read
+    // Create viewer role with only stock:read - use factory defaults
     const viewerRole = await createTestRoleWithPermissions({
-      name: 'Viewer',
       tenantId: testTenant.id,
       permissionKeys: ['stock:read'],
     });
 
-    // Create users
-    editorUser = await createTestUser({ email: 'editor@test.com' });
-    viewerUser = await createTestUser({ email: 'viewer@test.com' });
+    // Create users - use factory defaults for unique emails
+    editorUser = await createTestUser();
+    viewerUser = await createTestUser();
 
     // Create memberships
     await createTestMembership({
@@ -126,7 +122,6 @@ describe('[ST-009] Stock API Routes', () => {
   });
 
   afterAll(async () => {
-    await teardownTestDatabase();
   });
 
   describe('[AC-009-1] POST /api/stock/receive - Receive Stock', () => {

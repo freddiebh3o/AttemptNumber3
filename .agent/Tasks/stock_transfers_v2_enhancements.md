@@ -3,7 +3,7 @@
 ## Status
 - [x] Planned
 - [x] Phase 1: Transfer Templates & Reversal - **✅ COMPLETE (Implementation + Testing)**
-- [ ] Phase 2: Transfer Approval Delegation
+- [x] Phase 2: Transfer Approval Delegation - **⏳ IN PROGRESS (Backend ✅ | Testing & Frontend Pending)**
 - [ ] Phase 3: Barcode-Based Bulk Receive
 - [ ] Phase 4: Transfer Analytics Dashboard
 
@@ -437,6 +437,73 @@ enum AuditAction {
 **Estimated Effort:** 3-4 days
 **Complexity:** High
 **Priority:** Medium (valuable for large organizations, complex implementation)
+
+**Status:** ⏳ IN PROGRESS (Backend Complete - Testing & Frontend Pending)
+
+**Progress:**
+
+**Backend (Complete ✅):**
+- ✅ Database schema updated (migration `20251013185058_add_transfer_approval_delegation`)
+  - ✅ 4 new tables: TransferApprovalRule, TransferApprovalCondition, TransferApprovalLevel, TransferApprovalRecord
+  - ✅ 3 new enums: ApprovalRuleConditionType, ApprovalMode, ApprovalStatus
+  - ✅ Updated StockTransfer with `requiresMultiLevelApproval` field
+  - ✅ Updated AuditAction enum with approval-related actions
+- ✅ Prisma client regenerated
+- ✅ Seed data updated with 3 sample approval rules
+  - Rule 1: High Quantity (>100 units) - 2-level sequential approval
+  - Rule 2: High Value (>£100) - 1-level owner approval
+  - Rule 3: Warehouse Outbound - 1-level approval (inactive demo)
+- ✅ Approval rules service layer created (`approvalRulesService.ts`)
+  - ✅ `createApprovalRule()` - Create rule with conditions and levels
+  - ✅ `listApprovalRules()` - List rules with filtering and pagination
+  - ✅ `getApprovalRule()` - Get single rule with full details
+  - ✅ `updateApprovalRule()` - Update rule properties
+  - ✅ `deleteApprovalRule()` - Delete rule (cascades conditions/levels)
+- ✅ Approval evaluation service created (`approvalEvaluationService.ts`)
+  - ✅ `evaluateApprovalRules()` - Evaluate all active rules against transfer
+  - ✅ `evaluateRuleConditions()` - Check if transfer matches rule conditions
+  - ✅ `submitApproval()` - Submit approval for specific level
+  - ✅ `isUserAuthorizedForLevel()` - Check user authorization for level
+  - ✅ `getApprovalProgress()` - Get approval status for transfer
+- ✅ Integrated approval evaluation into `createStockTransfer()`
+  - Auto-evaluates rules when transfer created
+  - Creates approval records if rule matches
+  - Sets `requiresMultiLevelApproval` flag automatically
+- ✅ Updated `reviewStockTransfer()` to prevent standard approval if multi-level required
+- ✅ OpenAPI schemas created (`transferApprovalRules.ts`)
+  - 5 rule CRUD endpoints
+  - 2 approval submission endpoints
+- ✅ Approval rules router created (`transferApprovalRulesRouter.ts`)
+  - POST/GET/PATCH/DELETE for rules
+- ✅ Approval endpoints added to stock transfers router
+  - POST /:transferId/approve/:level - Submit approval
+  - GET /:transferId/approval-progress - Get progress
+- ✅ Routes registered in main API router (`/api/transfer-approval-rules`)
+- ✅ All TypeScript errors fixed (Phase 1 & Phase 2)
+- ✅ Backend builds successfully
+
+**Testing (Pending ⏳):**
+- [ ] Refactor existing tests for proper isolation (no seed data pollution)
+- [ ] Backend unit tests for approval rules CRUD
+- [ ] Backend unit tests for rule evaluation logic
+- [ ] Backend unit tests for sequential approval workflow
+- [ ] Backend unit tests for parallel approval workflow
+- [ ] Backend unit tests for rejection workflow
+- [ ] E2E tests for approval rule management UI
+- [ ] E2E tests for multi-level approval workflow
+- [ ] E2E tests for permission checks
+
+**Frontend (Pending ⏳):**
+- [ ] Create approval rules API client
+- [ ] Create TransferApprovalRulesPage component
+- [ ] Create CreateApprovalRuleModal component
+- [ ] Update StockTransfersPage with approval indicators
+- [ ] Update StockTransferDetailPage with approval UI
+  - Show approval progress (levels, status, approvers)
+  - Show "Approve Level X" buttons for authorized users
+  - Show approval history timeline
+- [ ] Add navigation link to sidebar
+- [ ] Regenerate OpenAPI types for frontend
 
 ---
 

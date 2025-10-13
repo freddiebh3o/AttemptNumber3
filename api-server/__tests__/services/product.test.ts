@@ -6,7 +6,6 @@ import {
   updateProductForCurrentTenantService,
   deleteProductForCurrentTenantService,
 } from '../../src/services/products/productService.js';
-import { cleanDatabase } from '../helpers/db.js';
 import {
   createTestUser,
   createTestTenant,
@@ -19,9 +18,8 @@ describe('[ST-007] Product Service', () => {
   let testTenant: Awaited<ReturnType<typeof createTestTenant>>;
 
   beforeEach(async () => {
-    await cleanDatabase();
-    testTenant = await createTestTenant({ slug: 'product-test-tenant' });
-    testUser = await createTestUser({ email: 'product@test.com' });
+    testTenant = await createTestTenant();
+    testUser = await createTestUser();
   });
 
   describe('[AC-007-1] createProductForCurrentTenantService - Create Product', () => {
@@ -82,7 +80,7 @@ describe('[ST-007] Product Service', () => {
     });
 
     it('should allow same SKU in different tenants', async () => {
-      const tenant2 = await createTestTenant({ slug: 'other-tenant' });
+      const tenant2 = await createTestTenant();
 
       await createProductForCurrentTenantService({
         currentTenantId: testTenant.id,
@@ -134,10 +132,8 @@ describe('[ST-007] Product Service', () => {
     });
 
     it('should not allow access to product from different tenant', async () => {
-      const tenant2 = await createTestTenant({ slug: 'other-tenant-2' });
+      const tenant2 = await createTestTenant();
       const otherProduct = await createTestProduct({
-        name: 'Other Product',
-        sku: 'OTHER-001',
         tenantId: tenant2.id,
       });
 
@@ -264,10 +260,8 @@ describe('[ST-007] Product Service', () => {
     });
 
     it('should not allow update of product from different tenant', async () => {
-      const tenant2 = await createTestTenant({ slug: 'update-tenant-2' });
+      const tenant2 = await createTestTenant();
       const otherProduct = await createTestProduct({
-        name: 'Other Product',
-        sku: 'OTHER-UPDATE-001',
         tenantId: tenant2.id,
       });
 
@@ -369,10 +363,8 @@ describe('[ST-007] Product Service', () => {
     });
 
     it('should not allow delete of product from different tenant', async () => {
-      const tenant2 = await createTestTenant({ slug: 'delete-tenant-2' });
+      const tenant2 = await createTestTenant();
       const otherProduct = await createTestProduct({
-        name: 'Other Product',
-        sku: 'OTHER-DELETE-001',
         tenantId: tenant2.id,
       });
 
@@ -502,10 +494,8 @@ describe('[ST-007] Product Service', () => {
     });
 
     it('should only return products for current tenant', async () => {
-      const tenant2 = await createTestTenant({ slug: 'list-tenant-2' });
+      const tenant2 = await createTestTenant();
       await createTestProduct({
-        name: 'Other Tenant Product',
-        sku: 'OTHER-001',
         tenantId: tenant2.id,
       });
 
@@ -520,19 +510,15 @@ describe('[ST-007] Product Service', () => {
 
   describe('[AC-007-6] Multi-Tenant Isolation', () => {
     it('should completely isolate products between tenants', async () => {
-      const tenant1 = await createTestTenant({ slug: 'tenant-1' });
-      const tenant2 = await createTestTenant({ slug: 'tenant-2' });
+      const tenant1 = await createTestTenant();
+      const tenant2 = await createTestTenant();
 
-      // Create products in each tenant
+      // Create products in each tenant - use factory defaults
       const product1 = await createTestProduct({
-        name: 'Tenant 1 Product',
-        sku: 'T1-001',
         tenantId: tenant1.id,
       });
 
       const product2 = await createTestProduct({
-        name: 'Tenant 2 Product',
-        sku: 'T2-001',
         tenantId: tenant2.id,
       });
 
