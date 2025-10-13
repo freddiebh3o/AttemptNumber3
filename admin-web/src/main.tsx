@@ -25,6 +25,7 @@ import RolePage from './pages/RolePage'
 import BranchPage from './pages/BranchPage'
 import StockTransfersPage from './pages/StockTransfersPage'
 import StockTransferDetailPage from './pages/StockTransferDetailPage'
+import TransferTemplatesPage from './pages/TransferTemplatesPage'
 
 const router = createBrowserRouter([
   {
@@ -171,6 +172,15 @@ const router = createBrowserRouter([
             element: (
               <RequirePermission perm="stock:read">
                 <StockTransferDetailPage />
+              </RequirePermission>
+            ),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
+            path: 'transfer-templates',
+            element: (
+              <RequirePermission perm="stock:read">
+                <TransferTemplatesPage />
               </RequirePermission>
             ),
             errorElement: <RouteErrorBoundary />,

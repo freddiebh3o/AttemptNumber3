@@ -277,3 +277,39 @@ stockTransfersRouter.delete(
     }
   }
 );
+
+// Reversal validation schema
+const ReverseTransferBodySchema = z.object({
+  reversalReason: z.string().max(1000).optional(),
+});
+
+// POST /api/stock-transfers/:transferId/reverse - Reverse completed transfer
+stockTransfersRouter.post(
+  '/:transferId/reverse',
+  requireAuthenticatedUserMiddleware,
+  requirePermission('stock:write'),
+  validateRequestBodyWithZod(ReverseTransferBodySchema),
+  async (req, res, next) => {
+    try {
+      assertAuthed(req);
+      const { transferId } = req.params;
+      const { reversalReason } = req.validatedBody as z.infer<typeof ReverseTransferBodySchema>;
+
+      if (!transferId) {
+        throw new Error('Transfer ID is required');
+      }
+
+      const reversalTransfer = await transferService.reverseStockTransfer({
+        tenantId: req.currentTenantId,
+        userId: req.currentUserId,
+        transferId,
+        reversalReason,
+        auditContext: getAuditContext(req),
+      });
+
+      return res.status(200).json(createStandardSuccessResponse(reversalTransfer));
+    } catch (e) {
+      return next(e);
+    }
+  }
+);

@@ -1049,3 +1049,238 @@ export async function getStockTransfer(params: {
 
   return transfer;
 }
+
+/**
+ * Reverse a completed stock transfer
+ * Creates a new transfer in reverse direction (automatic approval and shipment)
+ */
+export async function reverseStockTransfer(params: {
+  tenantId: string;
+  userId: string;
+  transferId: string;
+  reversalReason?: string;
+  auditContext?: AuditCtx;
+}) {
+  const { tenantId, userId, transferId, reversalReason, auditContext } = params;
+
+  // Get original transfer
+  const original = await prismaClientInstance.stockTransfer.findFirst({
+    where: { id: transferId, tenantId },
+    include: {
+      items: {
+        include: {
+          product: {
+            select: {
+              id: true,
+              productName: true,
+              productSku: true,
+            },
+          },
+        },
+      },
+      sourceBranch: { select: { id: true, branchName: true } },
+      destinationBranch: { select: { id: true, branchName: true } },
+    },
+  });
+
+  if (!original) throw Errors.notFound('Transfer not found');
+
+  // Validate: only COMPLETED transfers can be reversed
+  if (original.status !== StockTransferStatus.COMPLETED) {
+    throw Errors.conflict('Only completed transfers can be reversed');
+  }
+
+  // Validate: transfer hasn't already been reversed
+  if (original.reversedById) {
+    throw Errors.conflict('Transfer has already been reversed');
+  }
+
+  // Validate: user is member of destination branch (now the source for reversal)
+  await assertBranchMembership({
+    userId,
+    tenantId,
+    branchId: original.destinationBranchId,
+    errorMessage: 'You must be a member of the destination branch to reverse transfers',
+  });
+
+  // Process stock movements for reversal items (consume at original destination, receive at original source)
+  const reversalItemUpdates: Array<{
+    productId: string;
+    qtyReceived: number;
+    lotsConsumed: Array<{ lotId: string; qty: number; unitCostPence: number | null }>;
+    avgUnitCostPence: number;
+  }> = [];
+
+  for (const item of original.items) {
+    if (item.qtyReceived <= 0) continue;
+
+    // Get lots at original destination (now source for reversal)
+    const lots = await prismaClientInstance.stockLot.findMany({
+      where: {
+        tenantId,
+        branchId: original.destinationBranchId, // Original destination
+        productId: item.productId,
+        qtyRemaining: { gt: 0 },
+      },
+      orderBy: [{ receivedAt: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
+      select: { id: true, unitCostPence: true, qtyRemaining: true },
+    });
+
+    // Consume stock at original destination using FIFO
+    const consumeResult = await consumeStock(
+      { currentTenantId: tenantId, currentUserId: userId },
+      {
+        branchId: original.destinationBranchId,
+        productId: item.productId,
+        qty: item.qtyReceived,
+        reason: `Reversal of transfer ${original.transferNumber}`,
+        ...(auditContext ? { auditContextOptional: auditContext } : {}),
+      }
+    );
+
+    // Extract lot consumption details
+    const lotsConsumed = extractLotsConsumed(consumeResult, lots);
+
+    // Calculate weighted average cost (use original cost if lots empty)
+    const avgUnitCostPence = lotsConsumed.length > 0
+      ? calculateWeightedAvgCost(lotsConsumed)
+      : item.avgUnitCostPence ?? 0;
+
+    reversalItemUpdates.push({
+      productId: item.productId,
+      qtyReceived: item.qtyReceived,
+      lotsConsumed,
+      avgUnitCostPence,
+    });
+  }
+
+  // Now create reversal transfer and receive stock in transaction
+  const result = await prismaClientInstance.$transaction(async (tx) => {
+    // Generate transfer number for reversal
+    const reversalTransferNumber = await generateTransferNumber(tenantId, tx);
+
+    // Create reversal transfer
+    const reversal = await tx.stockTransfer.create({
+      data: {
+        tenantId,
+        transferNumber: reversalTransferNumber,
+        sourceBranchId: original.destinationBranchId, // Swap: dest becomes source
+        destinationBranchId: original.sourceBranchId, // Swap: source becomes dest
+        status: StockTransferStatus.COMPLETED, // Immediate completion
+        isReversal: true,
+        reversalOfId: original.id,
+        reversalReason: reversalReason ?? null,
+        requestedByUserId: userId,
+        reviewedByUserId: userId, // Auto-approved
+        shippedByUserId: userId, // Auto-shipped
+        requestedAt: new Date(),
+        reviewedAt: new Date(),
+        shippedAt: new Date(),
+        completedAt: new Date(),
+        items: {
+          create: reversalItemUpdates.map((update) => ({
+            productId: update.productId,
+            qtyRequested: update.qtyReceived,
+            qtyApproved: update.qtyReceived,
+            qtyShipped: update.qtyReceived,
+            qtyReceived: update.qtyReceived,
+            lotsConsumed: update.lotsConsumed as any,
+            avgUnitCostPence: update.avgUnitCostPence,
+          })),
+        },
+      },
+      include: {
+        items: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                productName: true,
+                productSku: true,
+              },
+            },
+          },
+        },
+        sourceBranch: {
+          select: { id: true, branchName: true, branchSlug: true },
+        },
+        destinationBranch: {
+          select: { id: true, branchName: true, branchSlug: true },
+        },
+        requestedByUser: {
+          select: { id: true, userEmailAddress: true },
+        },
+      },
+    });
+
+    // Update original transfer with reversal link
+    await tx.stockTransfer.update({
+      where: { id: original.id },
+      data: { reversedById: reversal.id },
+    });
+
+    // Audit reversal creation
+    try {
+      await writeAuditEvent(tx, {
+        tenantId,
+        actorUserId: userId,
+        entityType: AuditEntityType.STOCK_TRANSFER,
+        entityId: reversal.id,
+        action: AuditAction.TRANSFER_REVERSE,
+        entityName: reversal.transferNumber,
+        before: null,
+        after: {
+          id: reversal.id,
+          transferNumber: reversal.transferNumber,
+          reversalOfId: original.id,
+          reversalReason,
+          status: reversal.status,
+        },
+        correlationId: auditContext?.correlationId ?? null,
+        ip: auditContext?.ip ?? null,
+        userAgent: auditContext?.userAgent ?? null,
+      });
+    } catch {
+      // Swallow audit errors
+    }
+
+    // Audit original transfer update
+    try {
+      await writeAuditEvent(tx, {
+        tenantId,
+        actorUserId: userId,
+        entityType: AuditEntityType.STOCK_TRANSFER,
+        entityId: original.id,
+        action: AuditAction.TRANSFER_REVERSE,
+        entityName: original.transferNumber,
+        before: { reversedById: null },
+        after: { reversedById: reversal.id },
+        correlationId: auditContext?.correlationId ?? null,
+        ip: auditContext?.ip ?? null,
+        userAgent: auditContext?.userAgent ?? null,
+      });
+    } catch {
+      // Swallow audit errors
+    }
+
+    return reversal;
+  });
+
+  // Receive stock at original source (now destination for reversal)
+  for (const update of reversalItemUpdates) {
+    await receiveStock(
+      { currentTenantId: tenantId, currentUserId: userId },
+      {
+        branchId: original.sourceBranchId, // Original source, now receiving
+        productId: update.productId,
+        qty: update.qtyReceived,
+        unitCostPence: update.avgUnitCostPence,
+        sourceRef: `Reversal ${result.transferNumber}`,
+        reason: `Reversal of transfer ${original.transferNumber}`,
+        ...(auditContext ? { auditContextOptional: auditContext } : {}),
+      }
+    );
+  }
+
+  return result;
+}

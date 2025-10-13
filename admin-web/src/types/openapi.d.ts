@@ -4,6 +4,442 @@
  */
 
 export interface paths {
+    "/api/stock-transfer-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List stock transfer templates */
+        get: {
+            parameters: {
+                query?: {
+                    q?: string;
+                    sourceBranchId?: string;
+                    destinationBranchId?: string;
+                    limit?: string;
+                    cursor?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                items: {
+                                    id: string;
+                                    tenantId: string;
+                                    name: string;
+                                    description: string | null;
+                                    sourceBranchId: string;
+                                    destinationBranchId: string;
+                                    createdByUserId: string;
+                                    items: {
+                                        id: string;
+                                        templateId: string;
+                                        productId: string;
+                                        defaultQty: number;
+                                        product: {
+                                            id: string;
+                                            productName: string;
+                                            productSku: string;
+                                            productPricePence: number;
+                                        };
+                                        createdAt: string;
+                                        updatedAt: string;
+                                    }[];
+                                    sourceBranch: {
+                                        id: string;
+                                        branchName: string;
+                                        branchSlug: string;
+                                    };
+                                    destinationBranch: {
+                                        id: string;
+                                        branchName: string;
+                                        branchSlug: string;
+                                    };
+                                    createdByUser: {
+                                        id: string;
+                                        userEmailAddress: string;
+                                    };
+                                    createdAt: string;
+                                    updatedAt: string;
+                                }[];
+                                pageInfo: {
+                                    hasNextPage: boolean;
+                                    nextCursor: string | null;
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Create a stock transfer template */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        name: string;
+                        description?: string;
+                        sourceBranchId: string;
+                        destinationBranchId: string;
+                        items: {
+                            productId: string;
+                            defaultQty: number;
+                        }[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                id: string;
+                                tenantId: string;
+                                name: string;
+                                description: string | null;
+                                sourceBranchId: string;
+                                destinationBranchId: string;
+                                createdByUserId: string;
+                                items: {
+                                    id: string;
+                                    templateId: string;
+                                    productId: string;
+                                    defaultQty: number;
+                                    product: {
+                                        id: string;
+                                        productName: string;
+                                        productSku: string;
+                                        productPricePence: number;
+                                    };
+                                    createdAt: string;
+                                    updatedAt: string;
+                                }[];
+                                sourceBranch: {
+                                    id: string;
+                                    branchName: string;
+                                    branchSlug: string;
+                                };
+                                destinationBranch: {
+                                    id: string;
+                                    branchName: string;
+                                    branchSlug: string;
+                                };
+                                createdByUser: {
+                                    id: string;
+                                    userEmailAddress: string;
+                                };
+                                createdAt: string;
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stock-transfer-templates/{templateId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get template details */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    templateId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                id: string;
+                                tenantId: string;
+                                name: string;
+                                description: string | null;
+                                sourceBranchId: string;
+                                destinationBranchId: string;
+                                createdByUserId: string;
+                                items: {
+                                    id: string;
+                                    templateId: string;
+                                    productId: string;
+                                    defaultQty: number;
+                                    product: {
+                                        id: string;
+                                        productName: string;
+                                        productSku: string;
+                                        productPricePence: number;
+                                    };
+                                    createdAt: string;
+                                    updatedAt: string;
+                                }[];
+                                sourceBranch: {
+                                    id: string;
+                                    branchName: string;
+                                    branchSlug: string;
+                                };
+                                destinationBranch: {
+                                    id: string;
+                                    branchName: string;
+                                    branchSlug: string;
+                                };
+                                createdByUser: {
+                                    id: string;
+                                    userEmailAddress: string;
+                                };
+                                createdAt: string;
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /** Delete template */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    templateId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                success: boolean;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Update template */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    templateId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        name?: string;
+                        description?: string;
+                        sourceBranchId?: string;
+                        destinationBranchId?: string;
+                        items?: {
+                            productId: string;
+                            defaultQty: number;
+                        }[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                id: string;
+                                tenantId: string;
+                                name: string;
+                                description: string | null;
+                                sourceBranchId: string;
+                                destinationBranchId: string;
+                                createdByUserId: string;
+                                items: {
+                                    id: string;
+                                    templateId: string;
+                                    productId: string;
+                                    defaultQty: number;
+                                    product: {
+                                        id: string;
+                                        productName: string;
+                                        productSku: string;
+                                        productPricePence: number;
+                                    };
+                                    createdAt: string;
+                                    updatedAt: string;
+                                }[];
+                                sourceBranch: {
+                                    id: string;
+                                    branchName: string;
+                                    branchSlug: string;
+                                };
+                                destinationBranch: {
+                                    id: string;
+                                    branchName: string;
+                                    branchSlug: string;
+                                };
+                                createdByUser: {
+                                    id: string;
+                                    userEmailAddress: string;
+                                };
+                                createdAt: string;
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/stock-transfer-templates/{templateId}/duplicate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Duplicate template */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    templateId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        newName?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                id: string;
+                                tenantId: string;
+                                name: string;
+                                description: string | null;
+                                sourceBranchId: string;
+                                destinationBranchId: string;
+                                createdByUserId: string;
+                                items: {
+                                    id: string;
+                                    templateId: string;
+                                    productId: string;
+                                    defaultQty: number;
+                                    product: {
+                                        id: string;
+                                        productName: string;
+                                        productSku: string;
+                                        productPricePence: number;
+                                    };
+                                    createdAt: string;
+                                    updatedAt: string;
+                                }[];
+                                sourceBranch: {
+                                    id: string;
+                                    branchName: string;
+                                    branchSlug: string;
+                                };
+                                destinationBranch: {
+                                    id: string;
+                                    branchName: string;
+                                    branchSlug: string;
+                                };
+                                createdByUser: {
+                                    id: string;
+                                    userEmailAddress: string;
+                                };
+                                createdAt: string;
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/sign-in": {
         parameters: {
             query?: never;
@@ -4038,6 +4474,10 @@ export interface paths {
                                     completedAt: string | null;
                                     requestNotes: string | null;
                                     reviewNotes: string | null;
+                                    isReversal: boolean;
+                                    reversalOfId: string | null;
+                                    reversedById: string | null;
+                                    reversalReason: string | null;
                                     items: {
                                         id: string;
                                         productId: string;
@@ -4142,6 +4582,10 @@ export interface paths {
                                 completedAt: string | null;
                                 requestNotes: string | null;
                                 reviewNotes: string | null;
+                                isReversal: boolean;
+                                reversalOfId: string | null;
+                                reversedById: string | null;
+                                reversalReason: string | null;
                                 items: {
                                     id: string;
                                     productId: string;
@@ -4242,6 +4686,10 @@ export interface paths {
                                 completedAt: string | null;
                                 requestNotes: string | null;
                                 reviewNotes: string | null;
+                                isReversal: boolean;
+                                reversalOfId: string | null;
+                                reversedById: string | null;
+                                reversalReason: string | null;
                                 items: {
                                     id: string;
                                     productId: string;
@@ -4390,6 +4838,10 @@ export interface paths {
                                 completedAt: string | null;
                                 requestNotes: string | null;
                                 reviewNotes: string | null;
+                                isReversal: boolean;
+                                reversalOfId: string | null;
+                                reversedById: string | null;
+                                reversalReason: string | null;
                                 items: {
                                     id: string;
                                     productId: string;
@@ -4488,6 +4940,10 @@ export interface paths {
                                 completedAt: string | null;
                                 requestNotes: string | null;
                                 reviewNotes: string | null;
+                                isReversal: boolean;
+                                reversalOfId: string | null;
+                                reversedById: string | null;
+                                reversalReason: string | null;
                                 items: {
                                     id: string;
                                     productId: string;
@@ -4599,6 +5055,122 @@ export interface paths {
                                 completedAt: string | null;
                                 requestNotes: string | null;
                                 reviewNotes: string | null;
+                                isReversal: boolean;
+                                reversalOfId: string | null;
+                                reversedById: string | null;
+                                reversalReason: string | null;
+                                items: {
+                                    id: string;
+                                    productId: string;
+                                    qtyRequested: number;
+                                    qtyApproved: number | null;
+                                    qtyShipped: number;
+                                    qtyReceived: number;
+                                    avgUnitCostPence: number | null;
+                                    lotsConsumed: {
+                                        lotId: string;
+                                        qty: number;
+                                        unitCostPence: number | null;
+                                    }[] | null;
+                                    product?: {
+                                        id: string;
+                                        productName: string;
+                                        productSku: string;
+                                    };
+                                }[];
+                                sourceBranch?: {
+                                    id: string;
+                                    branchName: string;
+                                    branchSlug: string;
+                                };
+                                destinationBranch?: {
+                                    id: string;
+                                    branchName: string;
+                                    branchSlug: string;
+                                };
+                                requestedByUser?: {
+                                    id: string;
+                                    userEmailAddress: string;
+                                };
+                                reviewedByUser?: {
+                                    id: string;
+                                    userEmailAddress: string;
+                                } | null;
+                                shippedByUser?: {
+                                    id: string;
+                                    userEmailAddress: string;
+                                } | null;
+                                createdAt: string;
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stock-transfers/{transferId}/reverse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reverse a completed transfer */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    transferId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        reversalReason?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Success - Returns the newly created reversal transfer */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                id: string;
+                                tenantId: string;
+                                transferNumber: string;
+                                sourceBranchId: string;
+                                destinationBranchId: string;
+                                /** @enum {string} */
+                                status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
+                                requestedByUserId: string;
+                                reviewedByUserId: string | null;
+                                shippedByUserId: string | null;
+                                requestedAt: string;
+                                reviewedAt: string | null;
+                                shippedAt: string | null;
+                                completedAt: string | null;
+                                requestNotes: string | null;
+                                reviewNotes: string | null;
+                                isReversal: boolean;
+                                reversalOfId: string | null;
+                                reversedById: string | null;
+                                reversalReason: string | null;
                                 items: {
                                     id: string;
                                     productId: string;

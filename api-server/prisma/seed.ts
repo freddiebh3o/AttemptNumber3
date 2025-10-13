@@ -352,6 +352,97 @@ async function seedStockTransfers(
   console.log('TRF-2025-003: REQUESTED (Warehouse → Retail #1)');
 }
 
+async function seedTransferTemplates(
+  acmeId: string,
+  users: SeededUsers,
+  acmeBranches: SlimBranch[]
+) {
+  // Helper to find branch by slug
+  const mustFind = (list: SlimBranch[], slug: string) => {
+    const b = list.find(x => x.branchSlug === slug);
+    if (!b) throw new Error(`Branch not found: ${slug}`);
+    return b;
+  };
+
+  const acmeWarehouse = mustFind(acmeBranches, 'acme-warehouse');
+  const acmeRetail1 = mustFind(acmeBranches, 'acme-retail-1');
+
+  // Get products for templates
+  const products = await prisma.product.findMany({
+    where: {
+      tenantId: acmeId,
+      productSku: { in: ['ACME-SKU-001', 'ACME-SKU-002'] },
+    },
+    select: { id: true, productSku: true },
+  });
+
+  if (products.length < 2) {
+    console.log('Skipping transfer template seed: not enough products');
+    return;
+  }
+
+  const product1 = products.find(p => p.productSku === 'ACME-SKU-001')!;
+  const product2 = products.find(p => p.productSku === 'ACME-SKU-002')!;
+
+  // Template 1: Weekly Retail Restock
+  const template1 = await prisma.stockTransferTemplate.upsert({
+    where: {
+      id: 'acme-template-1', // Use fixed ID for upsert
+    },
+    update: {},
+    create: {
+      id: 'acme-template-1',
+      tenantId: acmeId,
+      name: 'Weekly Retail Restock',
+      description: 'Standard weekly transfer from warehouse to retail store #1',
+      sourceBranchId: acmeWarehouse.id,
+      destinationBranchId: acmeRetail1.id,
+      createdByUserId: users.admin.id,
+      items: {
+        create: [
+          {
+            productId: product1.id,
+            defaultQty: 50,
+          },
+          {
+            productId: product2.id,
+            defaultQty: 30,
+          },
+        ],
+      },
+    },
+  });
+
+  // Template 2: Emergency Restock
+  const template2 = await prisma.stockTransferTemplate.upsert({
+    where: {
+      id: 'acme-template-2',
+    },
+    update: {},
+    create: {
+      id: 'acme-template-2',
+      tenantId: acmeId,
+      name: 'Emergency Restock',
+      description: 'Urgent transfer for stock-out situations',
+      sourceBranchId: acmeWarehouse.id,
+      destinationBranchId: acmeRetail1.id,
+      createdByUserId: users.admin.id,
+      items: {
+        create: [
+          {
+            productId: product1.id,
+            defaultQty: 100,
+          },
+        ],
+      },
+    },
+  });
+
+  console.log('--- Transfer templates seeded ---');
+  console.log('Template 1: Weekly Retail Restock (2 products)');
+  console.log('Template 2: Emergency Restock (1 product)');
+}
+
 async function main() {
   // Tenants + RBAC
   const { acmeId, globexId } = await seedTenantsAndRBAC();
@@ -379,13 +470,16 @@ async function main() {
 
   await addUserToBranches(users.owner.id, acmeId, [acmeHQ.id, acmeWarehouse.id, acmeRetail1.id]);
   await addUserToBranches(users.admin.id, acmeId, [acmeHQ.id, acmeWarehouse.id]);
-  await addUserToBranches(users.editor.id, acmeId, [acmeHQ.id]);
+  await addUserToBranches(users.editor.id, acmeId, [acmeHQ.id, acmeWarehouse.id, acmeRetail1.id]);
   await addUserToBranches(users.viewer.id, acmeId, [acmeRetail1.id]);
   await addUserToBranches(users.mixed.id, acmeId,   [acmeHQ.id]);
   await addUserToBranches(users.mixed.id, globexId, [globexHQ.id]);   // and globex
 
   // Stock transfers
   await seedStockTransfers(acmeId, users, acmeBranches);
+
+  // Transfer templates
+  await seedTransferTemplates(acmeId, users, acmeBranches);
 
   console.log('Seed complete. Tenants: acme, globex');
 }

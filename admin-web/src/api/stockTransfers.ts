@@ -38,6 +38,13 @@ type ShipTransfer200Response =
 type CancelTransfer200Response =
   paths["/api/stock-transfers/{transferId}"]["delete"]["responses"]["200"]["content"]["application/json"];
 
+type ReverseTransferRequestBody = NonNullable<
+  paths["/api/stock-transfers/{transferId}/reverse"]["post"]["requestBody"]
+>["content"]["application/json"];
+
+type ReverseTransfer200Response =
+  paths["/api/stock-transfers/{transferId}/reverse"]["post"]["responses"]["200"]["content"]["application/json"];
+
 // Export the StockTransfer type for use in components
 export type { StockTransfer };
 
@@ -161,6 +168,24 @@ export async function cancelStockTransferApiRequest(
     `/api/stock-transfers/${transferId}`,
     {
       method: "DELETE",
+      headers: idempotencyKeyOptional
+        ? { "Idempotency-Key": idempotencyKeyOptional }
+        : undefined,
+    }
+  );
+}
+
+// Reverse transfer (POST /api/stock-transfers/{transferId}/reverse)
+export async function reverseStockTransferApiRequest(
+  transferId: string,
+  params: ReverseTransferRequestBody & { idempotencyKeyOptional?: string }
+) {
+  const { idempotencyKeyOptional, ...body } = params;
+  return httpRequestJson<ReverseTransfer200Response>(
+    `/api/stock-transfers/${transferId}/reverse`,
+    {
+      method: "POST",
+      body: JSON.stringify(body),
       headers: idempotencyKeyOptional
         ? { "Idempotency-Key": idempotencyKeyOptional }
         : undefined,

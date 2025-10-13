@@ -74,6 +74,7 @@ model Tenant {
   stockLots             StockLot[]
   stockLedgers          StockLedger[]
   stockTransfers        StockTransfer[]
+  transferTemplates     StockTransferTemplate[]
 
   // Back-relation for AuditEvent. One tenant -> many audit events.
   auditEvents AuditEvent[]
@@ -109,12 +110,14 @@ model Branch {
   isActive   Boolean @default(true)
 
   // Relations
-  memberships            UserBranchMembership[]
-  productStocks          ProductStock[]
-  stockLots              StockLot[]
-  stockLedgers           StockLedger[]
-  transfersAsSource      StockTransfer[]        @relation("TransferSource")
-  transfersAsDestination StockTransfer[]        @relation("TransferDestination")
+  memberships               UserBranchMembership[]
+  productStocks             ProductStock[]
+  stockLots                 StockLot[]
+  stockLedgers              StockLedger[]
+  transfersAsSource         StockTransfer[]        @relation("TransferSource")
+  transfersAsDestination    StockTransfer[]        @relation("TransferDestination")
+  templateAsSource          StockTransferTemplate[] @relation("TemplateSource")
+  templateAsDestination     StockTransferTemplate[] @relation("TemplateDestination")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -231,11 +234,12 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  branchMemberships UserBranchMembership[]
-  stockLedgerEvents StockLedger[]
-  transfersRequested StockTransfer[] @relation("TransferRequester")
-  transfersReviewed  StockTransfer[] @relation("TransferReviewer")
-  transfersShipped   StockTransfer[] @relation("TransferShipper")
+  branchMemberships     UserBranchMembership[]
+  stockLedgerEvents     StockLedger[]
+  transfersRequested    StockTransfer[]        @relation("TransferRequester")
+  transfersReviewed     StockTransfer[]        @relation("TransferReviewer")
+  transfersShipped      StockTransfer[]        @relation("TransferShipper")
+  transferTemplatesCreated StockTransferTemplate[]
 
   // Back-relation for AuditEvent where this user is the actor.
   auditEvents AuditEvent[]
@@ -279,10 +283,11 @@ model Product {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  stocks        ProductStock[]
-  stockLots     StockLot[]
-  stockLedgers  StockLedger[]
-  transferItems StockTransferItem[]
+  stocks             ProductStock[]
+  stockLots          StockLot[]
+  stockLedgers       StockLedger[]
+  transferItems      StockTransferItem[]
+  transferTemplateItems StockTransferTemplateItem[]
 
   @@unique([tenantId, productSku])
   @@index([tenantId])
@@ -318,6 +323,12 @@ model StockTransfer {
   requestNotes String? @db.Text
   reviewNotes  String? @db.Text // Reason for rejection
 
+  // Reversal fields
+  isReversal     Boolean @default(false) // True if this is a reversal transfer
+  reversalOfId   String? // Links to original transfer (if reversal)
+  reversedById   String? // Links to reversal transfer (if reversed)
+  reversalReason String? @db.Text // Why reversal occurred
+
   // Relations
   tenant            Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   sourceBranch      Branch              @relation("TransferSource", fields: [sourceBranchId], references: [id], onDelete: Restrict)
@@ -326,15 +337,19 @@ model StockTransfer {
   reviewedByUser    User?               @relation("TransferReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
   shippedByUser     User?               @relation("TransferShipper", fields: [shippedByUserId], references: [id], onDelete: SetNull)
   items             StockTransferItem[]
+  reversalOf        StockTransfer?      @relation("TransferReversal", fields: [reversalOfId], references: [id], onDelete: SetNull)
+  reversedBy        StockTransfer?      @relation("TransferReversal")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([tenantId, transferNumber])
+  @@unique([reversalOfId])
   @@index([tenantId, status, createdAt])
   @@index([sourceBranchId, status])
   @@index([destinationBranchId, status])
   @@index([requestedByUserId])
+  @@index([reversedById])
 }
 
 /// Line items for stock transfer
@@ -361,6 +376,52 @@ model StockTransferItem {
   updatedAt DateTime @updatedAt
 
   @@unique([transferId, productId])
+  @@index([productId])
+}
+
+/// Stock transfer templates for saving common transfer configurations
+model StockTransferTemplate {
+  id          String @id @default(cuid())
+  tenantId    String
+  name        String // "Weekly Retail Restock"
+  description String? @db.Text
+
+  sourceBranchId      String
+  destinationBranchId String
+
+  createdByUserId String
+
+  // Relations
+  tenant            Tenant                        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sourceBranch      Branch                        @relation("TemplateSource", fields: [sourceBranchId], references: [id], onDelete: Cascade)
+  destinationBranch Branch                        @relation("TemplateDestination", fields: [destinationBranchId], references: [id], onDelete: Cascade)
+  createdByUser     User                          @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
+  items             StockTransferTemplateItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([sourceBranchId])
+  @@index([destinationBranchId])
+  @@index([createdByUserId])
+}
+
+/// Line items for stock transfer templates
+model StockTransferTemplateItem {
+  id         String @id @default(cuid())
+  templateId String
+  productId  String
+  defaultQty Int // Default quantity for this product
+
+  // Relations
+  template StockTransferTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  product  Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([templateId, productId])
   @@index([productId])
 }
 
@@ -464,6 +525,7 @@ enum AuditAction {
   TRANSFER_SHIP
   TRANSFER_RECEIVE
   TRANSFER_CANCEL
+  TRANSFER_REVERSE
 }
 
 // --- Append-only audit log ---

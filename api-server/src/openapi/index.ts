@@ -14,6 +14,7 @@ import { registerBranchPaths } from './paths/branches.js';
 import { registerStockPaths } from './paths/stock.js';
 import { registerAuditLoggerPaths } from './paths/auditLogger.js';
 import { registerStockTransferPaths } from './paths/stockTransfers.js';
+import './paths/stockTransferTemplates.js';
 
 export function buildOpenApiDocument() {
   // Register all feature paths
@@ -56,6 +57,7 @@ export function buildOpenApiDocument() {
       { name: 'Branches' },
       { name: 'Stock' },
       { name: 'Stock Transfers' },
+      { name: 'Stock Transfer Templates' },
       { name: 'Audit' },
     ],
   });

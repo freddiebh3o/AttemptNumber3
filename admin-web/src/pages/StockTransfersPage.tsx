@@ -47,6 +47,7 @@ import {
   IconArrowDown,
   IconPlayerTrackNext,
   IconPlayerTrackPrev,
+  IconTemplate,
 } from "@tabler/icons-react";
 import { DatePickerInput } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
@@ -55,6 +56,8 @@ import type { StockTransfer } from "../api/stockTransfers";
 import { handlePageError } from "../utils/pageError";
 import { useAuthStore } from "../stores/auth";
 import CreateTransferModal from "../components/stockTransfers/CreateTransferModal";
+import SelectTemplateModal from "../components/stockTransfers/SelectTemplateModal";
+import type { StockTransferTemplate } from "../api/stockTransferTemplates";
 import { FilterBar } from "../components/common/FilterBar";
 import { buildCommonDatePresets } from "../utils/datePresets";
 
@@ -167,6 +170,16 @@ export default function StockTransfersPage() {
 
   // Modals
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [selectTemplateModalOpen, setSelectTemplateModalOpen] = useState(false);
+  const [templateInitialValues, setTemplateInitialValues] = useState<{
+    sourceBranchId?: string;
+    destinationBranchId?: string;
+    items?: Array<{
+      productId: string;
+      productName: string;
+      qtyRequested: number;
+    }>;
+  } | undefined>(undefined);
 
   if (errorForBoundary) throw errorForBoundary;
 
@@ -595,11 +608,32 @@ export default function StockTransfersPage() {
 
   function handleCreateSuccess() {
     setCreateModalOpen(false);
+    setTemplateInitialValues(undefined);
     notifications.show({
       color: "green",
       message: "Transfer request created successfully",
     });
     resetToFirstPageAndFetch();
+  }
+
+  function handleTemplateSelected(template: StockTransferTemplate) {
+    setSelectTemplateModalOpen(false);
+
+    // Convert template items to transfer items
+    const items = template.items?.map((item) => ({
+      productId: item.productId,
+      productName: item.product?.productName ?? "Unknown",
+      qtyRequested: item.defaultQty,
+    })) ?? [];
+
+    setTemplateInitialValues({
+      sourceBranchId: template.sourceBranchId,
+      destinationBranchId: template.destinationBranchId,
+      items,
+    });
+
+    // Open create modal with pre-filled data
+    setCreateModalOpen(true);
   }
 
   async function copyShareableLink() {
@@ -712,8 +746,20 @@ export default function StockTransfersPage() {
             </Button>
 
             <Button
+              leftSection={<IconTemplate size={16} />}
+              onClick={() => setSelectTemplateModalOpen(true)}
+              disabled={!canWriteStock || branchMemberships.length === 0}
+              variant="light"
+            >
+              Use Template
+            </Button>
+
+            <Button
               leftSection={<IconPlus size={16} />}
-              onClick={() => setCreateModalOpen(true)}
+              onClick={() => {
+                setTemplateInitialValues(undefined);
+                setCreateModalOpen(true);
+              }}
               disabled={!canWriteStock || branchMemberships.length === 0}
             >
               New Transfer Request
@@ -1259,8 +1305,19 @@ export default function StockTransfersPage() {
       {/* Create Transfer Modal */}
       <CreateTransferModal
         opened={createModalOpen}
-        onClose={() => setCreateModalOpen(false)}
+        onClose={() => {
+          setCreateModalOpen(false);
+          setTemplateInitialValues(undefined);
+        }}
         onSuccess={handleCreateSuccess}
+        initialValues={templateInitialValues}
+      />
+
+      {/* Select Template Modal */}
+      <SelectTemplateModal
+        opened={selectTemplateModalOpen}
+        onClose={() => setSelectTemplateModalOpen(false)}
+        onSelectTemplate={handleTemplateSelected}
       />
     </div>
   );

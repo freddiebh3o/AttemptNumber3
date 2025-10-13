@@ -24,6 +24,7 @@ import {
   IconPackage,
   IconClock,
   IconAlertCircle,
+  IconArrowBack,
 } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import {
@@ -36,6 +37,7 @@ import { handlePageError } from "../utils/pageError";
 import { useAuthStore } from "../stores/auth";
 import ReviewTransferModal from "../components/stockTransfers/ReviewTransferModal";
 import ReceiveTransferModal from "../components/stockTransfers/ReceiveTransferModal";
+import ReverseTransferModal from "../components/stockTransfers/ReverseTransferModal";
 
 type TransferStatus =
   | "REQUESTED"
@@ -85,6 +87,7 @@ export default function StockTransferDetailPage() {
 
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [receiveModalOpen, setReceiveModalOpen] = useState(false);
+  const [reverseModalOpen, setReverseModalOpen] = useState(false);
   const [isShipping, setIsShipping] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
 
@@ -146,6 +149,12 @@ export default function StockTransferDetailPage() {
   const canCancel =
     canWriteStock &&
     transfer?.status === "REQUESTED";
+
+  const canReverse =
+    canWriteStock &&
+    isMemberOfSource &&
+    transfer?.status === "COMPLETED" &&
+    !transfer?.reversedById;
 
   async function handleShip() {
     if (!transfer) return;
@@ -221,6 +230,15 @@ export default function StockTransferDetailPage() {
     void fetchTransfer();
   }
 
+  function handleReverseSuccess() {
+    setReverseModalOpen(false);
+    notifications.show({
+      color: "green",
+      message: "Transfer reversed successfully",
+    });
+    void fetchTransfer();
+  }
+
   if (transfer === null || isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -245,12 +263,27 @@ export default function StockTransferDetailPage() {
                 Back to Transfers
               </Button>
             </Group>
-            <Group gap="md" align="center">
-              <Title order={3}>{transfer.transferNumber}</Title>
-              <Badge color={getStatusColor(transfer.status)} variant="filled" size="lg">
-                {transfer.status.replace(/_/g, " ")}
-              </Badge>
-            </Group>
+            <Stack gap="xs">
+              <Group gap="md" align="center">
+                <Title order={3}>{transfer.transferNumber}</Title>
+                <Badge color={getStatusColor(transfer.status)} variant="filled" size="lg">
+                  {transfer.status.replace(/_/g, " ")}
+                </Badge>
+              </Group>
+
+              {/* Reversal Info Badges */}
+              {transfer.isReversal && transfer.reversalOfId && (
+                <Badge color="orange" variant="light" size="md">
+                  This is a reversal of another transfer
+                </Badge>
+              )}
+
+              {transfer.reversedById && (
+                <Badge color="red" variant="light" size="md">
+                  This transfer has been reversed
+                </Badge>
+              )}
+            </Stack>
           </div>
           <Group gap="xs">
             {canApprove && (
@@ -277,6 +310,16 @@ export default function StockTransferDetailPage() {
                 color="green"
               >
                 Receive Items
+              </Button>
+            )}
+            {canReverse && (
+              <Button
+                leftSection={<IconArrowBack size={16} />}
+                onClick={() => setReverseModalOpen(true)}
+                color="orange"
+                variant="light"
+              >
+                Reverse Transfer
               </Button>
             )}
             {canCancel && (
@@ -475,6 +518,13 @@ export default function StockTransferDetailPage() {
         onClose={() => setReceiveModalOpen(false)}
         transfer={transfer}
         onSuccess={handleReceiveSuccess}
+      />
+
+      <ReverseTransferModal
+        opened={reverseModalOpen}
+        onClose={() => setReverseModalOpen(false)}
+        transfer={transfer}
+        onSuccess={handleReverseSuccess}
       />
     </div>
   );

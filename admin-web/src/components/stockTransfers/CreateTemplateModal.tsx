@@ -1,4 +1,4 @@
-// admin-web/src/components/stockTransfers/CreateTransferModal.tsx
+// admin-web/src/components/stockTransfers/CreateTemplateModal.tsx
 import { useState, useEffect } from "react";
 import {
   Modal,
@@ -12,57 +12,53 @@ import {
   ActionIcon,
   Table,
   Alert,
+  TextInput,
 } from "@mantine/core";
 import { IconPlus, IconTrash, IconAlertCircle } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
-import { createStockTransferApiRequest } from "../../api/stockTransfers";
+import {
+  createTransferTemplateApiRequest,
+  getTransferTemplateApiRequest,
+} from "../../api/stockTransferTemplates";
 import { listBranchesApiRequest } from "../../api/branches";
 import { listProductsApiRequest } from "../../api/products";
 import { useAuthStore } from "../../stores/auth";
 
-interface CreateTransferModalProps {
+interface CreateTemplateModalProps {
   opened: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  initialValues?: {
-    sourceBranchId?: string;
-    destinationBranchId?: string;
-    items?: Array<{
-      productId: string;
-      productName: string;
-      qtyRequested: number;
-    }>;
-  };
+  editTemplateId?: string;
 }
 
-interface TransferItem {
+interface TemplateItem {
   productId: string;
   productName: string;
-  qtyRequested: number;
+  defaultQty: number;
 }
 
-export default function CreateTransferModal({
+export default function CreateTemplateModal({
   opened,
   onClose,
   onSuccess,
-  initialValues,
-}: CreateTransferModalProps) {
+  editTemplateId,
+}: CreateTemplateModalProps) {
   const branchMemberships = useAuthStore((s) => s.branchMembershipsCurrentTenant);
 
+  const [templateName, setTemplateName] = useState("");
+  const [description, setDescription] = useState("");
   const [sourceBranchId, setSourceBranchId] = useState<string>("");
   const [destinationBranchId, setDestinationBranchId] = useState<string>("");
-  const [requestNotes, setRequestNotes] = useState("");
-  const [items, setItems] = useState<TransferItem[]>([]);
+  const [items, setItems] = useState<TemplateItem[]>([]);
 
-  const [branches, setBranches] = useState<
-    Array<{ value: string; label: string }>
-  >([]);
+  const [branches, setBranches] = useState<Array<{ value: string; label: string }>>([]);
   const [products, setProducts] = useState<
     Array<{ value: string; label: string; name: string }>
   >([]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false);
+  const [isLoadingTemplate, setIsLoadingTemplate] = useState(false);
 
   // Load branches and products when modal opens
   useEffect(() => {
@@ -107,40 +103,64 @@ export default function CreateTransferModal({
     void loadData();
   }, [opened]);
 
-  // Initialize from template values if provided
+  // Load template data if editing (for duplication)
   useEffect(() => {
-    if (opened && initialValues) {
-      if (initialValues.sourceBranchId) {
-        setSourceBranchId(initialValues.sourceBranchId);
-      }
-      if (initialValues.destinationBranchId) {
-        setDestinationBranchId(initialValues.destinationBranchId);
-      }
-      if (initialValues.items && initialValues.items.length > 0) {
-        setItems(initialValues.items);
+    if (!opened || !editTemplateId) return;
+
+    async function loadTemplate() {
+      if (!editTemplateId) return; // TypeScript guard
+
+      setIsLoadingTemplate(true);
+      try {
+        const response = await getTransferTemplateApiRequest(editTemplateId);
+
+        if (response.success) {
+          const template = response.data;
+          setTemplateName(template.name);
+          setDescription(template.description ?? "");
+          setSourceBranchId(template.sourceBranchId);
+          setDestinationBranchId(template.destinationBranchId);
+          setItems(
+            template.items.map((item) => ({
+              productId: item.productId,
+              productName: item.product?.productName ?? "Unknown",
+              defaultQty: item.defaultQty,
+            }))
+          );
+        }
+      } catch (error: any) {
+        notifications.show({
+          color: "red",
+          message: error?.message ?? "Failed to load template",
+        });
+      } finally {
+        setIsLoadingTemplate(false);
       }
     }
-  }, [opened, initialValues]);
+
+    void loadTemplate();
+  }, [opened, editTemplateId]);
 
   // Reset form when modal closes
   useEffect(() => {
     if (!opened) {
+      setTemplateName("");
+      setDescription("");
       setSourceBranchId("");
       setDestinationBranchId("");
-      setRequestNotes("");
       setItems([]);
     }
   }, [opened]);
 
   function addItem() {
-    setItems([...items, { productId: "", productName: "", qtyRequested: 1 }]);
+    setItems([...items, { productId: "", productName: "", defaultQty: 1 }]);
   }
 
   function removeItem(index: number) {
     setItems(items.filter((_, i) => i !== index));
   }
 
-  function updateItem(index: number, field: keyof TransferItem, value: any) {
+  function updateItem(index: number, field: keyof TemplateItem, value: any) {
     const newItems = [...items];
     newItems[index] = { ...newItems[index], [field]: value };
 
@@ -157,6 +177,14 @@ export default function CreateTransferModal({
 
   async function handleSubmit() {
     // Validation
+    if (!templateName.trim()) {
+      notifications.show({
+        color: "red",
+        message: "Please enter a template name",
+      });
+      return;
+    }
+
     if (!sourceBranchId) {
       notifications.show({
         color: "red",
@@ -198,28 +226,34 @@ export default function CreateTransferModal({
         });
         return;
       }
-      if (item.qtyRequested <= 0) {
+      if (item.defaultQty <= 0) {
         notifications.show({
           color: "red",
-          message: "Quantity must be greater than 0",
+          message: "Default quantity must be greater than 0",
         });
         return;
       }
     }
 
+    // Note: If in edit mode, we're actually viewing a template for duplication
+    // The backend doesn't support direct updates, so we always create a new template
     setIsSubmitting(true);
     try {
-      const idempotencyKey = `create-transfer-${Date.now()}`;
-      const response = await createStockTransferApiRequest({
+      const idempotencyKey = `create-template-${Date.now()}`;
+
+      const payload = {
+        name: templateName.trim(),
+        description: description.trim() || undefined,
         sourceBranchId,
         destinationBranchId,
-        requestNotes: requestNotes.trim() || undefined,
         items: items.map((item) => ({
           productId: item.productId,
-          qtyRequested: item.qtyRequested,
+          defaultQty: item.defaultQty,
         })),
         idempotencyKeyOptional: idempotencyKey,
-      });
+      };
+
+      const response = await createTransferTemplateApiRequest(payload);
 
       if (response.success) {
         onSuccess();
@@ -227,7 +261,7 @@ export default function CreateTransferModal({
     } catch (error: any) {
       notifications.show({
         color: "red",
-        message: error?.message ?? "Failed to create transfer",
+        message: error?.message ?? "Failed to create template",
       });
     } finally {
       setIsSubmitting(false);
@@ -237,19 +271,42 @@ export default function CreateTransferModal({
   const userBranchIds = new Set(branchMemberships.map((b) => b.branchId));
   const availableBranches = branches.filter((b) => userBranchIds.has(b.value));
 
+  const isLoading = isLoadingData || isLoadingTemplate;
+
   return (
     <Modal
       opened={opened}
       onClose={onClose}
-      title="Create Transfer Request"
+      title={editTemplateId ? "Duplicate Transfer Template" : "Create Transfer Template"}
       size="xl"
     >
       <Stack gap="md">
-        {availableBranches.length === 0 && !isLoadingData && (
+        {availableBranches.length === 0 && !isLoading && (
           <Alert icon={<IconAlertCircle size={16} />} color="yellow">
             You are not a member of any branches. Please contact your administrator.
           </Alert>
         )}
+
+        <TextInput
+          label="Template Name"
+          placeholder="e.g. Weekly Warehouse to Store Transfer"
+          value={templateName}
+          onChange={(e) => setTemplateName(e.currentTarget.value)}
+          disabled={isLoading}
+          required
+          maxLength={100}
+        />
+
+        <Textarea
+          label="Description (Optional)"
+          placeholder="Describe the purpose of this template..."
+          value={description}
+          onChange={(e) => setDescription(e.currentTarget.value)}
+          minRows={2}
+          maxRows={4}
+          maxLength={500}
+          disabled={isLoading}
+        />
 
         <Select
           label="Source Branch (Sending From)"
@@ -258,7 +315,7 @@ export default function CreateTransferModal({
           value={sourceBranchId}
           onChange={(v) => setSourceBranchId(v || "")}
           searchable
-          disabled={isLoadingData}
+          disabled={isLoading}
           required
         />
 
@@ -269,7 +326,7 @@ export default function CreateTransferModal({
           value={destinationBranchId}
           onChange={(v) => setDestinationBranchId(v || "")}
           searchable
-          disabled={isLoadingData}
+          disabled={isLoading}
           required
         />
 
@@ -283,21 +340,20 @@ export default function CreateTransferModal({
               leftSection={<IconPlus size={14} />}
               onClick={addItem}
               variant="light"
+              disabled={isLoading}
             >
               Add Item
             </Button>
           </Group>
 
           {items.length === 0 ? (
-            <Alert color="blue">
-              Click "Add Item" to add products to this transfer
-            </Alert>
+            <Alert color="blue">Click "Add Item" to add products to this template</Alert>
           ) : (
             <Table striped withTableBorder>
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>Product</Table.Th>
-                  <Table.Th style={{ width: 120 }}>Quantity</Table.Th>
+                  <Table.Th style={{ width: 140 }}>Default Quantity</Table.Th>
                   <Table.Th style={{ width: 60 }}></Table.Th>
                 </Table.Tr>
               </Table.Thead>
@@ -311,21 +367,18 @@ export default function CreateTransferModal({
                         value={item.productId}
                         onChange={(v) => updateItem(index, "productId", v || "")}
                         searchable
-                        disabled={isLoadingData}
+                        disabled={isLoading}
                       />
                     </Table.Td>
                     <Table.Td>
                       <NumberInput
                         placeholder="Qty"
-                        value={item.qtyRequested}
+                        value={item.defaultQty}
                         onChange={(v) =>
-                          updateItem(
-                            index,
-                            "qtyRequested",
-                            typeof v === "number" ? v : 1
-                          )
+                          updateItem(index, "defaultQty", typeof v === "number" ? v : 1)
                         }
                         min={1}
+                        disabled={isLoading}
                       />
                     </Table.Td>
                     <Table.Td>
@@ -333,6 +386,7 @@ export default function CreateTransferModal({
                         color="red"
                         variant="light"
                         onClick={() => removeItem(index)}
+                        disabled={isLoading}
                       >
                         <IconTrash size={16} />
                       </ActionIcon>
@@ -344,21 +398,12 @@ export default function CreateTransferModal({
           )}
         </div>
 
-        <Textarea
-          label="Request Notes (Optional)"
-          placeholder="Why do you need this stock transfer?"
-          value={requestNotes}
-          onChange={(e) => setRequestNotes(e.currentTarget.value)}
-          minRows={3}
-          maxLength={1000}
-        />
-
         <Group justify="flex-end" gap="xs">
           <Button variant="light" onClick={onClose} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} loading={isSubmitting} data-testid="create-transfer-button">
-            Create Transfer Request
+          <Button onClick={handleSubmit} loading={isSubmitting} disabled={isLoading}>
+            {editTemplateId ? "Duplicate Template" : "Create Template"}
           </Button>
         </Group>
       </Stack>

@@ -8,7 +8,10 @@ import {
   IconPalette,
   IconShield,
   IconBuilding,
-  IconHistory
+  IconHistory,
+  IconTemplate,
+  IconBoxSeam,
+  IconUserCog,
 } from "@tabler/icons-react";
 import { useThemeStore } from "../../stores/theme";
 import { useAuthStore } from "../../stores/auth";
@@ -41,37 +44,60 @@ export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) 
           />
         )}
 
-        {hasPerm("users:manage") && (
+        {hasPerm("stock:read") && (
           <NavLink
-            label="Users"
-            component={Link}
-            to={`${base}/users`}
-            active={active(`${base}/users`)}
-            onClick={onNavigate}
-            leftSection={<IconUsers size={16} />}
-          />
+            label="Stock Management"
+            leftSection={<IconBoxSeam size={16} />}
+            defaultOpened
+            childrenOffset={28}
+          >
+            <NavLink
+              label="Stock Transfers"
+              component={Link}
+              to={`${base}/stock-transfers`}
+              active={active(`${base}/stock-transfers`)}
+              onClick={onNavigate}
+              leftSection={<IconTruckDelivery size={16} />}
+            />
+            <NavLink
+              label="Transfer Templates"
+              component={Link}
+              to={`${base}/transfer-templates`}
+              active={active(`${base}/transfer-templates`)}
+              onClick={onNavigate}
+              leftSection={<IconTemplate size={16} />}
+            />
+          </NavLink>
         )}
 
-        {hasPerm("theme:manage") && (
+        {(hasPerm("users:manage") || hasPerm("roles:manage")) && (
           <NavLink
-            label="Theme"
-            component={Link}
-            to={`${base}/settings/theme?tab=settings`}
-            active={active(`${base}/settings/theme`)}
-            onClick={onNavigate}
-            leftSection={<IconPalette size={16} />}
-          />
-        )}
-
-        {hasPerm("roles:manage") && (
-          <NavLink
-            label="Roles"
-            component={Link}
-            to={`${base}/roles`}
-            active={active(`${base}/roles`)}
-            onClick={onNavigate}
-            leftSection={<IconShield size={16} />}
-          />
+            label="User Management"
+            leftSection={<IconUserCog size={16} />}
+            defaultOpened
+            childrenOffset={28}
+          >
+            {hasPerm("users:manage") && (
+              <NavLink
+                label="Users"
+                component={Link}
+                to={`${base}/users`}
+                active={active(`${base}/users`)}
+                onClick={onNavigate}
+                leftSection={<IconUsers size={16} />}
+              />
+            )}
+            {hasPerm("roles:manage") && (
+              <NavLink
+                label="Roles"
+                component={Link}
+                to={`${base}/roles`}
+                active={active(`${base}/roles`)}
+                onClick={onNavigate}
+                leftSection={<IconShield size={16} />}
+              />
+            )}
+          </NavLink>
         )}
 
         {hasPerm("branches:manage") && (
@@ -85,14 +111,14 @@ export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) 
           />
         )}
 
-        {hasPerm("stock:read") && (
+        {hasPerm("theme:manage") && (
           <NavLink
-            label="Stock Transfers"
+            label="Theme"
             component={Link}
-            to={`${base}/stock-transfers`}
-            active={active(`${base}/stock-transfers`)}
+            to={`${base}/settings/theme?tab=settings`}
+            active={active(`${base}/settings/theme`)}
             onClick={onNavigate}
-            leftSection={<IconTruckDelivery size={16} />}
+            leftSection={<IconPalette size={16} />}
           />
         )}
 

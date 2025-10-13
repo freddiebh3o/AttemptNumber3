@@ -53,6 +53,10 @@ const StockTransferSchema = z.object({
   completedAt: z.string().nullable(),
   requestNotes: z.string().nullable(),
   reviewNotes: z.string().nullable(),
+  isReversal: z.boolean(),
+  reversalOfId: z.string().nullable(),
+  reversedById: z.string().nullable(),
+  reversalReason: z.string().nullable(),
   items: z.array(StockTransferItemSchema),
   sourceBranch: z
     .object({
@@ -322,6 +326,39 @@ export function registerStockTransferPaths(registry: OpenAPIRegistry) {
             schema: z.object({
               success: z.literal(true),
               data: z.object({ message: z.string() }),
+            }),
+          },
+        },
+      },
+    },
+  });
+
+  // POST /api/stock-transfers/:transferId/reverse - Reverse completed transfer
+  registry.registerPath({
+    method: 'post',
+    path: '/api/stock-transfers/{transferId}/reverse',
+    tags: ['Stock Transfers'],
+    summary: 'Reverse a completed transfer',
+    request: {
+      params: z.object({ transferId: z.string() }),
+      body: {
+        content: {
+          'application/json': {
+            schema: z.object({
+              reversalReason: z.string().max(1000).optional(),
+            }),
+          },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: 'Success - Returns the newly created reversal transfer',
+        content: {
+          'application/json': {
+            schema: z.object({
+              success: z.literal(true),
+              data: StockTransferSchema,
             }),
           },
         },

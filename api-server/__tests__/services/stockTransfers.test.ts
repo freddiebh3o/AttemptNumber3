@@ -786,4 +786,304 @@ describe('[ST-007] Stock Transfer Service', () => {
       expect(approved.items[0]?.id).toBe(transfer1.id);
     });
   });
+
+  describe('[AC-007-9] reverseStockTransfer', () => {
+    it('should reverse completed transfer and create new transfer in opposite direction', async () => {
+      // Create and complete a transfer
+      const originalTransfer = await transferService.createStockTransfer({
+        tenantId: testTenant.id,
+        userId: userDestination.id,
+        data: {
+          sourceBranchId: sourceBranch.id,
+          destinationBranchId: destinationBranch.id,
+          items: [{ productId: product1.id, qtyRequested: 100 }],
+        },
+      });
+
+      await transferService.reviewStockTransfer({
+        tenantId: testTenant.id,
+        userId: userSource.id,
+        transferId: originalTransfer.id,
+        action: 'approve',
+      });
+
+      await transferService.shipStockTransfer({
+        tenantId: testTenant.id,
+        userId: userSource.id,
+        transferId: originalTransfer.id,
+      });
+
+      const completed = await transferService.receiveStockTransfer({
+        tenantId: testTenant.id,
+        userId: userDestination.id,
+        transferId: originalTransfer.id,
+        receivedItems: [{ itemId: originalTransfer.items[0]!.id, qtyReceived: 100 }],
+      });
+
+      // Reverse the transfer
+      const reversalTransfer = await transferService.reverseStockTransfer({
+        tenantId: testTenant.id,
+        userId: userSource.id,
+        transferId: completed.id,
+        reversalReason: 'Damaged goods',
+      });
+
+      // Reversal transfer should have swapped source/destination
+      expect(reversalTransfer.sourceBranchId).toBe(completed.destinationBranchId);
+      expect(reversalTransfer.destinationBranchId).toBe(completed.sourceBranchId);
+      expect(reversalTransfer.isReversal).toBe(true);
+      expect(reversalTransfer.reversalOfId).toBe(completed.id);
+      expect(reversalTransfer.reversalReason).toBe('Damaged goods');
+      expect(reversalTransfer.status).toBe(StockTransferStatus.COMPLETED);
+
+      // Original transfer should be marked as reversed
+      const updatedOriginal = await prisma.stockTransfer.findUnique({
+        where: { id: completed.id },
+      });
+      expect(updatedOriginal?.reversedById).toBe(reversalTransfer.id);
+
+      // Stock should be returned to original source
+      const sourceStock = await prisma.productStock.findUnique({
+        where: {
+          tenantId_branchId_productId: {
+            tenantId: testTenant.id,
+            branchId: sourceBranch.id,
+            productId: product1.id,
+          },
+        },
+      });
+      // Original: 1000, Shipped: -100, Reversed: +100 = 1000
+      expect(sourceStock?.qtyOnHand).toBe(1000);
+    });
+
+    it('should preserve FIFO cost during reversal', async () => {
+      // Create and complete a transfer
+      const transfer = await transferService.createStockTransfer({
+        tenantId: testTenant.id,
+        userId: userDestination.id,
+        data: {
+          sourceBranchId: sourceBranch.id,
+          destinationBranchId: destinationBranch.id,
+          items: [{ productId: product1.id, qtyRequested: 100 }],
+        },
+      });
+
+      await transferService.reviewStockTransfer({
+        tenantId: testTenant.id,
+        userId: userSource.id,
+        transferId: transfer.id,
+        action: 'approve',
+      });
+
+      const shipped = await transferService.shipStockTransfer({
+        tenantId: testTenant.id,
+        userId: userSource.id,
+        transferId: transfer.id,
+      });
+
+      const avgCost = shipped.items[0]?.avgUnitCostPence;
+
+      await transferService.receiveStockTransfer({
+        tenantId: testTenant.id,
+        userId: userDestination.id,
+        transferId: transfer.id,
+        receivedItems: [{ itemId: transfer.items[0]!.id, qtyReceived: 100 }],
+      });
+
+      // Reverse the transfer
+      const reversal = await transferService.reverseStockTransfer({
+        tenantId: testTenant.id,
+        userId: userSource.id,
+        transferId: transfer.id,
+        reversalReason: 'Return to sender',
+      });
+
+      // Reversal should preserve cost
+      expect(reversal.items[0]?.avgUnitCostPence).toBe(avgCost);
+
+      // Stock lot at original source should have same cost
+      const sourceLots = await prisma.stockLot.findMany({
+        where: {
+          tenantId: testTenant.id,
+          branchId: sourceBranch.id,
+          productId: product1.id,
+        },
+        orderBy: { receivedAt: 'desc' },
+      });
+
+      // Should have reversal lot with preserved cost
+      const reversalLot = sourceLots.find((lot) => lot.qtyRemaining === 100);
+      expect(reversalLot?.unitCostPence).toBe(avgCost);
+    });
+
+    it('should reject reversing non-COMPLETED transfer', async () => {
+      const transfer = await transferService.createStockTransfer({
+        tenantId: testTenant.id,
+        userId: userDestination.id,
+        data: {
+          sourceBranchId: sourceBranch.id,
+          destinationBranchId: destinationBranch.id,
+          items: [{ productId: product1.id, qtyRequested: 100 }],
+        },
+      });
+
+      await expect(
+        transferService.reverseStockTransfer({
+          tenantId: testTenant.id,
+          userId: userSource.id,
+          transferId: transfer.id,
+        })
+      ).rejects.toThrow('Only completed transfers can be reversed');
+    });
+
+    it('should reject reversing already-reversed transfer', async () => {
+      // Create and complete a transfer
+      const transfer = await transferService.createStockTransfer({
+        tenantId: testTenant.id,
+        userId: userDestination.id,
+        data: {
+          sourceBranchId: sourceBranch.id,
+          destinationBranchId: destinationBranch.id,
+          items: [{ productId: product1.id, qtyRequested: 50 }],
+        },
+      });
+
+      await transferService.reviewStockTransfer({
+        tenantId: testTenant.id,
+        userId: userSource.id,
+        transferId: transfer.id,
+        action: 'approve',
+      });
+
+      await transferService.shipStockTransfer({
+        tenantId: testTenant.id,
+        userId: userSource.id,
+        transferId: transfer.id,
+      });
+
+      await transferService.receiveStockTransfer({
+        tenantId: testTenant.id,
+        userId: userDestination.id,
+        transferId: transfer.id,
+        receivedItems: [{ itemId: transfer.items[0]!.id, qtyReceived: 50 }],
+      });
+
+      // Reverse it once
+      await transferService.reverseStockTransfer({
+        tenantId: testTenant.id,
+        userId: userSource.id,
+        transferId: transfer.id,
+      });
+
+      // Try to reverse again
+      await expect(
+        transferService.reverseStockTransfer({
+          tenantId: testTenant.id,
+          userId: userSource.id,
+          transferId: transfer.id,
+        })
+      ).rejects.toThrow('Transfer has already been reversed');
+    });
+
+    it('should reject if user is not member of source branch', async () => {
+      // Create and complete a transfer
+      const transfer = await transferService.createStockTransfer({
+        tenantId: testTenant.id,
+        userId: userDestination.id,
+        data: {
+          sourceBranchId: sourceBranch.id,
+          destinationBranchId: destinationBranch.id,
+          items: [{ productId: product1.id, qtyRequested: 50 }],
+        },
+      });
+
+      await transferService.reviewStockTransfer({
+        tenantId: testTenant.id,
+        userId: userSource.id,
+        transferId: transfer.id,
+        action: 'approve',
+      });
+
+      await transferService.shipStockTransfer({
+        tenantId: testTenant.id,
+        userId: userSource.id,
+        transferId: transfer.id,
+      });
+
+      await transferService.receiveStockTransfer({
+        tenantId: testTenant.id,
+        userId: userDestination.id,
+        transferId: transfer.id,
+        receivedItems: [{ itemId: transfer.items[0]!.id, qtyReceived: 50 }],
+      });
+
+      // Try to reverse from destination user (not source branch member)
+      await expect(
+        transferService.reverseStockTransfer({
+          tenantId: testTenant.id,
+          userId: userDestination.id, // Destination user trying to reverse
+          transferId: transfer.id,
+        })
+      ).rejects.toThrow('You do not have permission for this action');
+    });
+
+    it('should create audit event for reversal', async () => {
+      // Create and complete a transfer
+      const transfer = await transferService.createStockTransfer({
+        tenantId: testTenant.id,
+        userId: userDestination.id,
+        data: {
+          sourceBranchId: sourceBranch.id,
+          destinationBranchId: destinationBranch.id,
+          items: [{ productId: product1.id, qtyRequested: 30 }],
+        },
+      });
+
+      await transferService.reviewStockTransfer({
+        tenantId: testTenant.id,
+        userId: userSource.id,
+        transferId: transfer.id,
+        action: 'approve',
+      });
+
+      await transferService.shipStockTransfer({
+        tenantId: testTenant.id,
+        userId: userSource.id,
+        transferId: transfer.id,
+      });
+
+      await transferService.receiveStockTransfer({
+        tenantId: testTenant.id,
+        userId: userDestination.id,
+        transferId: transfer.id,
+        receivedItems: [{ itemId: transfer.items[0]!.id, qtyReceived: 30 }],
+      });
+
+      // Reverse the transfer
+      await transferService.reverseStockTransfer({
+        tenantId: testTenant.id,
+        userId: userSource.id,
+        transferId: transfer.id,
+        reversalReason: 'Test reversal',
+        auditContext: {
+          ip: '127.0.0.1',
+          userAgent: 'test',
+          correlationId: 'test-correlation',
+        },
+      });
+
+      // Check for TRANSFER_REVERSE audit event
+      const auditEvents = await prisma.auditEvent.findMany({
+        where: {
+          tenantId: testTenant.id,
+          action: 'TRANSFER_REVERSE',
+          entityType: 'StockTransfer',
+          entityId: transfer.id,
+        },
+      });
+
+      expect(auditEvents).toHaveLength(1);
+      expect(auditEvents[0]?.actorUserId).toBe(userSource.id);
+    });
+  });
 });
