@@ -10,7 +10,8 @@ Jest backend tests, Playwright E2E tests, test helpers/factories, RBAC testing, 
 <!-- Agents will update this section automatically -->
 <!-- Format: - [YYYY-MM-DD] [Task Name](./work/filename.md) - Brief description -->
 
-_No work completed yet_
+- [2025-10-14] [Barcode Transfer Race Condition Fix](./work/barcode-transfer-race-condition-fix-2025-10-14.md) - Fixed E2E test race condition causing unique constraint violations on transferNumber (moved serial mode to file level)
+- [2025-10-14] [Barcode Scanning Tests](./work/barcode-scanning-tests-2025-10-14.md) - Comprehensive test coverage for barcode scanning feature (60 tests: 45 backend + 15 frontend)
 
 ## Common Patterns
 

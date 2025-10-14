@@ -10,7 +10,8 @@ Express API routes, service layer business logic, OpenAPI schemas, request valid
 <!-- Agents will update this section automatically -->
 <!-- Format: - [YYYY-MM-DD] [Task Name](./work/filename.md) - Brief description -->
 
-_No work completed yet_
+- [2025-10-14] [Barcode Product Service Fix](./work/barcode-product-service-fix-2025-10-14.md) - CRITICAL FIX: Product CREATE/UPDATE endpoints now accept barcode fields. Fixed service layer and route handlers to handle barcode/barcodeType parameters. All 23/23 tests passing. Unblocked deployment.
+- [2025-10-14] [Barcode Lookup API](./work/barcode-lookup-api-2025-10-14.md) - Created GET /api/products/by-barcode/:barcode endpoint for barcode scanning during stock transfer receiving. Includes optional branch stock information and full multi-tenant isolation.
 
 ## Common Patterns
 

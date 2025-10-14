@@ -29,6 +29,7 @@ import {
   IconArrowBack,
   IconShieldCheck,
   IconShieldX,
+  IconQrcode,
 } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import {
@@ -44,6 +45,8 @@ import { useAuthStore } from "../stores/auth";
 import ReviewTransferModal from "../components/stockTransfers/ReviewTransferModal";
 import ReceiveTransferModal from "../components/stockTransfers/ReceiveTransferModal";
 import ReverseTransferModal from "../components/stockTransfers/ReverseTransferModal";
+import BarcodeScannerModal from "../components/stockTransfers/BarcodeScannerModal";
+import { useFeatureFlag } from "../hooks/useFeatureFlag";
 
 type TransferStatus =
   | "REQUESTED"
@@ -92,6 +95,9 @@ export default function StockTransferDetailPage() {
     return membership?.role?.id;
   });
 
+  // Feature flags
+  const barcodeScanningEnabled = useFeatureFlag("barcodeScanningEnabled");
+
   const [isLoading, setIsLoading] = useState(false);
   const [transfer, setTransfer] = useState<StockTransfer | null>(null);
   const [errorForBoundary, setErrorForBoundary] = useState<
@@ -100,6 +106,7 @@ export default function StockTransferDetailPage() {
 
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [receiveModalOpen, setReceiveModalOpen] = useState(false);
+  const [scannerModalOpen, setScannerModalOpen] = useState(false);
   const [reverseModalOpen, setReverseModalOpen] = useState(false);
   const [isShipping, setIsShipping] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -290,6 +297,15 @@ export default function StockTransferDetailPage() {
     void fetchTransfer();
   }
 
+  function handleScannerSuccess() {
+    setScannerModalOpen(false);
+    notifications.show({
+      color: "green",
+      message: "Items received successfully via barcode scan",
+    });
+    void fetchTransfer();
+  }
+
   function handleReverseSuccess() {
     setReverseModalOpen(false);
     notifications.show({
@@ -405,13 +421,26 @@ export default function StockTransferDetailPage() {
               </Button>
             )}
             {canReceive && (
-              <Button
-                leftSection={<IconPackage size={16} />}
-                onClick={() => setReceiveModalOpen(true)}
-                color="green"
-              >
-                Receive Items
-              </Button>
+              <>
+                {barcodeScanningEnabled && (
+                  <Button
+                    leftSection={<IconQrcode size={16} />}
+                    onClick={() => setScannerModalOpen(true)}
+                    color="green"
+                    variant="filled"
+                  >
+                    Scan to Receive
+                  </Button>
+                )}
+                <Button
+                  leftSection={<IconPackage size={16} />}
+                  onClick={() => setReceiveModalOpen(true)}
+                  color="green"
+                  variant={barcodeScanningEnabled ? "light" : "filled"}
+                >
+                  {barcodeScanningEnabled ? "Manual Receive" : "Receive Items"}
+                </Button>
+              </>
             )}
             {canReverse && (
               <Button
@@ -744,6 +773,14 @@ export default function StockTransferDetailPage() {
         onClose={() => setReceiveModalOpen(false)}
         transfer={transfer}
         onSuccess={handleReceiveSuccess}
+      />
+
+      <BarcodeScannerModal
+        opened={scannerModalOpen}
+        onClose={() => setScannerModalOpen(false)}
+        transfer={transfer}
+        branchId={transfer.destinationBranchId}
+        onSuccess={handleScannerSuccess}
       />
 
       <ReverseTransferModal

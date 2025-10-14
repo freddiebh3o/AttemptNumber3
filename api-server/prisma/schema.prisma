@@ -66,6 +66,10 @@ model Tenant {
   tenantSlug String @unique
   tenantName String
 
+  /// Feature flags for per-tenant feature control
+  /// Example: {"barcodeScanningEnabled": false, "barcodeScanningMode": null}
+  featureFlags Json?
+
   memberships UserTenantMembership[]
   products    Product[]
   branding    TenantBranding?        @relation("TenantToBranding")
@@ -308,6 +312,11 @@ model Product {
   /// Product price stored in **pence** (GBP minor units)
   productPricePence Int
 
+  /// Barcode value (EAN-13, UPC-A, Code128, QR)
+  barcode     String?
+  /// Barcode format type (EAN13, UPCA, CODE128, QR)
+  barcodeType String?
+
   entityVersion Int @default(1)
 
   createdAt DateTime @default(now())
@@ -320,7 +329,9 @@ model Product {
   transferTemplateItems StockTransferTemplateItem[]
 
   @@unique([tenantId, productSku])
+  @@unique([tenantId, barcode])
   @@index([tenantId])
+  @@index([barcode])
   @@index([createdAt])
   @@index([updatedAt])
 }

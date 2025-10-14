@@ -4,7 +4,13 @@
       "Bash(npm run test:accept:*)",
       "Bash(timeout 180 npm run test:accept stock-management.spec.ts)",
       "Bash(timeout 30 npm run test:accept:*)",
-      "Bash(npm run typecheck)"
+      "Bash(npm run typecheck)",
+      "Bash(timeout 30 npm run prisma:generate:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run dev)",
+      "Bash(curl:*)",
+      "Bash(npm run openapi:gen:*)",
+      "Bash(npm run build)"
     ],
     "deny": [],
     "ask": []

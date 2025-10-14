@@ -15,6 +15,7 @@ import {
   updateProductForCurrentTenantService,
   deleteProductForCurrentTenantService,
   getProductForCurrentTenantService,
+  getProductByBarcodeForCurrentTenantService,
 } from "../services/products/productService.js";
 import { assertAuthed } from "../types/assertions.js";
 import { requirePermission } from "../middleware/permissionMiddleware.js";
@@ -55,6 +56,8 @@ const createBodySchema = z.object({
       "SKU must be A-Z, 0-9, or hyphen (3-40 chars)"
     ),
   productPricePence: z.coerce.number().int().min(0),
+  barcode: z.string().trim().min(1).max(100).optional(),
+  barcodeType: z.enum(["EAN13", "UPCA", "CODE128", "QR"]).optional(),
 });
 
 const updateParamsSchema = z.object({
@@ -64,10 +67,20 @@ const updateParamsSchema = z.object({
 const updateBodySchema = z.object({
   productName: z.string().min(1).max(200).optional(),
   productPricePence: z.coerce.number().int().min(0).max(1_000_000).optional(),
+  barcode: z.string().trim().min(1).max(100).optional().nullable(),
+  barcodeType: z.enum(["EAN13", "UPCA", "CODE128", "QR"]).optional().nullable(),
   currentEntityVersion: z.coerce.number().int().min(1),
 });
 
 const getParamsSchema = z.object({ productId: z.string().min(1) });
+
+const barcodeLookupParamsSchema = z.object({
+  barcode: z.string().min(1).max(100),
+});
+
+const barcodeLookupQuerySchema = z.object({
+  branchId: z.string().optional(),
+});
 
 const activityParamsSchema = z.object({ productId: z.string().min(1) });
 const activityQuerySchema = z.object({
@@ -171,6 +184,39 @@ productRouter.get(
   }
 );
 
+// GET /api/products/by-barcode/:barcode
+productRouter.get(
+  "/by-barcode/:barcode",
+  requireAuthenticatedUserMiddleware,
+  requirePermission("products:read"),
+  validateRequestParamsWithZod(barcodeLookupParamsSchema),
+  validateRequestQueryWithZod(barcodeLookupQuerySchema),
+  async (request, response, next) => {
+    try {
+      assertAuthed(request);
+      const currentTenantId: string = request.currentTenantId;
+      const { barcode } = request.validatedParams as z.infer<
+        typeof barcodeLookupParamsSchema
+      >;
+      const { branchId } = request.validatedQuery as z.infer<
+        typeof barcodeLookupQuerySchema
+      >;
+
+      const product = await getProductByBarcodeForCurrentTenantService({
+        currentTenantId,
+        barcodePathParam: barcode,
+        ...(branchId !== undefined && { branchIdOptional: branchId }),
+      });
+
+      return response
+        .status(200)
+        .json(createStandardSuccessResponse({ product }));
+    } catch (error) {
+      return next(error);
+    }
+  }
+);
+
 // POST /api/products  (ADMIN+; idempotent via Idempotency-Key)
 productRouter.post(
   "/",
@@ -182,7 +228,7 @@ productRouter.post(
     try {
       assertAuthed(request);
       const currentTenantId: string = request.currentTenantId;
-      const { productName, productSku, productPricePence } =
+      const { productName, productSku, productPricePence, barcode, barcodeType } =
         request.validatedBody as z.infer<typeof createBodySchema>;
 
       const createdProduct = await createProductForCurrentTenantService({
@@ -190,6 +236,8 @@ productRouter.post(
         productNameInputValue: productName,
         productSkuInputValue: productSku,
         productPricePenceInputValue: productPricePence,
+        ...(barcode !== undefined && { barcode }),
+        ...(barcodeType !== undefined && { barcodeType }),
         auditContextOptional: getAuditContext(request),
       });
       return response
@@ -216,8 +264,8 @@ productRouter.put(
       const { productId } = request.validatedParams as z.infer<
         typeof updateParamsSchema
       >;
-      const { productName, productPricePence, currentEntityVersion } =
-        request.validatedBody as z.infer<typeof updateBodySchema>;
+      const validatedBody = request.validatedBody as z.infer<typeof updateBodySchema>;
+      const { productName, productPricePence, currentEntityVersion } = validatedBody;
 
       const updatedProduct = await updateProductForCurrentTenantService({
         currentTenantId,
@@ -226,6 +274,8 @@ productRouter.put(
         ...(productPricePence !== undefined && {
           productPricePenceInputValue: productPricePence,
         }),
+        ...('barcode' in validatedBody && { barcode: validatedBody.barcode }),
+        ...('barcodeType' in validatedBody && { barcodeType: validatedBody.barcodeType }),
         currentEntityVersionInputValue: currentEntityVersion,
         auditContextOptional: getAuditContext(request),
       });

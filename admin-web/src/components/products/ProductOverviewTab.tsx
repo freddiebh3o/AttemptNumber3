@@ -1,6 +1,7 @@
-// admin-web/src/pages/tabs/products/ProductOverviewTab.tsx  
-import { NumberInput, Stack, TextInput } from "@mantine/core";
+// admin-web/src/pages/tabs/products/ProductOverviewTab.tsx
+import { NumberInput, Stack, TextInput, Select } from "@mantine/core";
 import React from "react";
+import { useFeatureFlag } from "../../hooks/useFeatureFlag";
 
 type Props = {
   isEdit: boolean;
@@ -8,11 +9,15 @@ type Props = {
   sku: string;
   /** Still pence in parent state; we convert to/from pounds only for the UI */
   price: number | "";
+  barcode: string;
+  barcodeType: string;
   entityVersion: number | null;
   onChangeName: (v: string) => void;
   onChangeSku: (v: string) => void;
   /** Pass pence back to parent (or "" when cleared) */
   onChangePrice: (v: number | "") => void;
+  onChangeBarcode: (v: string) => void;
+  onChangeBarcodeType: (v: string) => void;
 };
 
 export const ProductOverviewTab: React.FC<Props> = ({
@@ -20,10 +25,24 @@ export const ProductOverviewTab: React.FC<Props> = ({
   name,
   sku,
   price,
+  barcode,
+  barcodeType,
   onChangeName,
   onChangeSku,
   onChangePrice,
+  onChangeBarcode,
+  onChangeBarcodeType,
 }) => {
+  const barcodeScanningEnabled = useFeatureFlag("barcodeScanningEnabled");
+
+  const barcodeTypeOptions = [
+    { value: "", label: "None" },
+    { value: "EAN13", label: "EAN-13" },
+    { value: "UPCA", label: "UPC-A" },
+    { value: "CODE128", label: "Code 128" },
+    { value: "QR", label: "QR Code" },
+  ];
+
   return (
     <Stack gap="md">
       <TextInput
@@ -56,6 +75,27 @@ export const ProductOverviewTab: React.FC<Props> = ({
         leftSection="£"
         leftSectionPointerEvents="none"
       />
+
+      {barcodeScanningEnabled && (
+        <>
+          <Select
+            label="Barcode Type"
+            placeholder="Select barcode type"
+            value={barcodeType}
+            onChange={(v) => onChangeBarcodeType(v || "")}
+            data={barcodeTypeOptions}
+            clearable
+          />
+
+          <TextInput
+            label="Barcode"
+            placeholder="e.g. 5012345678900"
+            value={barcode}
+            onChange={(e) => onChangeBarcode(e.currentTarget.value)}
+            description={barcodeType ? `Enter ${barcodeType} barcode value` : "Select barcode type first"}
+          />
+        </>
+      )}
     </Stack>
   );
 };

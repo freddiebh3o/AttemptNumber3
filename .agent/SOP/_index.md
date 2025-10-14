@@ -12,7 +12,7 @@ This directory contains step-by-step guides for common development tasks, testin
 | **Testing** | [testing-overview.md](#testing-overview), [backend-testing.md](#backend-testing), [frontend-testing.md](#frontend-testing), [testing-guide.md](#testing-guide) |
 | **Test Quality** | [test-flakiness.md](#test-flakiness), [test-isolation-pattern.md](#test-isolation-pattern), [frontend-test-isolation.md](#frontend-test-isolation), [troubleshooting-tests.md](#troubleshooting-tests) |
 | **Debugging** | [debugging-guide.md](#debugging-guide) |
-| **Feature Guides** | [stock-transfers-feature-guide.md](#stock-transfers-feature-guide) |
+| **Feature Guides** | [stock-transfers-feature-guide.md](#stock-transfers-feature-guide), [feature_flags_usage.md](#feature-flags-usage) |
 
 ---
 
@@ -494,6 +494,59 @@ Complete guide to the stock transfer feature (v1 and v2 enhancements).
 - Reversal workflow
 - Barcode scanning integration
 - Multi-branch coordination
+
+---
+
+### feature_flags_usage.md
+
+**Full Path:** `.agent/SOP/feature_flags_usage.md`
+
+**What it covers:**
+Complete guide to using the tenant-level feature flag system for controlling feature availability.
+
+**Topics:**
+- Feature flags architecture (JSON column on Tenant)
+- Backend usage patterns
+- Frontend usage with `useFeatureFlag()` hook
+- Adding new feature flags
+- Feature flags vs permissions
+- Best practices and troubleshooting
+
+**When to use:**
+- ✅ Controlling feature availability per tenant
+- ✅ Implementing gradual feature rollout
+- ✅ Client-specific feature customization
+- ✅ A/B testing new features
+- ✅ Understanding when to use flags vs permissions
+
+**Key concepts:**
+- **Per-tenant control:** Enable/disable features without code changes
+- **JSON flexibility:** Add new flags without schema migrations
+- **Graceful degradation:** Features hide when disabled
+- **Default disabled:** New features safe by default
+- **Frontend hooks:** Clean component integration
+
+**Current feature flags:**
+- `barcodeScanningEnabled` (boolean) - Controls barcode scanning features
+- `barcodeScanningMode` ('camera' | 'hardware' | 'both' | null) - Scanning mode
+
+**Example usage:**
+```typescript
+// Frontend component
+import { useFeatureFlag } from '@/hooks/useFeatureFlag';
+
+function MyComponent() {
+  const barcodeScanningEnabled = useFeatureFlag('barcodeScanningEnabled');
+
+  return (
+    <>
+      {barcodeScanningEnabled && (
+        <Button>Scan Barcode</Button>
+      )}
+    </>
+  );
+}
+```
 
 ---
 

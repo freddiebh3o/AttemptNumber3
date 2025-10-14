@@ -293,6 +293,74 @@ await page.locator('div[value="warehouse"][data-combobox-option="true"]').click(
 - Playwright's getByRole ignores hidden elements automatically
 - Scope properly when multiple selects exist on the page
 
+#### Pattern 1b: Mantine Select with Display Labels (Updated 2025-10-14)
+
+**Problem:** Some Mantine Select components display formatted labels but store internal enum values. Tests must check against the display labels, not internal codes.
+
+**Example:** Barcode Type selector displays "EAN-13" but stores "EAN13" internally.
+
+**Correct Pattern:**
+
+```typescript
+// Step 1: Target the textbox (not getByLabel - that matches 2 elements!)
+const select = page.getByRole('textbox', { name: /barcode type/i });
+
+// Step 2: Click to open dropdown
+await select.click();
+await page.waitForTimeout(500);
+
+// Step 3: Select using EXACT display text
+await page.getByText('EAN-13', { exact: true }).click();  // NOT /ean13/i
+
+// Step 4: Assert against display label
+await expect(page.getByRole('textbox', { name: /barcode type/i }))
+  .toHaveValue('EAN-13');  // NOT "EAN13"
+```
+
+**Common Value Mappings:**
+
+| Internal Value | Display Label | Click Selector | Assert Value |
+|---------------|--------------|----------------|--------------|
+| `EAN13` | "EAN-13" | `getByText('EAN-13', { exact: true })` | `'EAN-13'` |
+| `UPCA` | "UPC-A" | `getByText('UPC-A', { exact: true })` | `'UPC-A'` |
+| `CODE128` | "Code 128" | `getByText('Code 128', { exact: true })` | `'Code 128'` |
+| `QR` | "QR Code" | `getByText('QR Code', { exact: true })` | `'QR Code'` |
+| `""` (empty) | "None" | `getByText('None', { exact: true })` | `'None'` |
+
+**Common Mistakes:**
+
+```typescript
+// ❌ WRONG - Using getByLabel (matches 2 elements)
+await page.getByLabel(/barcode type/i).click();
+
+// ❌ WRONG - Using getByRole('option') with regex
+await page.getByRole('option', { name: /ean13/i }).click();
+
+// ❌ WRONG - Checking internal enum value
+await expect(select).toHaveValue('EAN13');  // Fails! Display is "EAN-13"
+
+// ✅ CORRECT - Use getByRole('textbox')
+await page.getByRole('textbox', { name: /barcode type/i }).click();
+
+// ✅ CORRECT - Use exact display text
+await page.getByText('EAN-13', { exact: true }).click();
+
+// ✅ CORRECT - Check display label
+await expect(select).toHaveValue('EAN-13');
+```
+
+**Why This Happens:**
+- Mantine Select creates both an input element and a listbox dropdown
+- Both share the same ARIA label, causing strict mode violations with `getByLabel()`
+- The component displays user-friendly labels but stores machine-readable codes
+- Options are rendered as `<div>` elements, not `<option>` elements
+
+**Key Principles:**
+1. Always use `getByRole('textbox')` to target the input
+2. Always use `getByText()` with `{ exact: true }` for selections
+3. Always assert against the display label, never the internal code
+4. Wait 500ms after clicking for dropdown animation
+
 ### Pattern 2: Multiple Tables on Same Page
 
 When a page has multiple tables (e.g., FIFO lots table and ledger table):

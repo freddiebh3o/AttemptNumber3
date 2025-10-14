@@ -1263,6 +1263,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/products/by-barcode/{barcode}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    branchId?: string;
+                };
+                header?: never;
+                path: {
+                    barcode: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Product found by barcode with optional stock information */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: components["schemas"]["BarcodeLookupResponseData"];
+                            error: unknown;
+                        };
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        "X-RateLimit-Limit": string;
+                        "X-RateLimit-Remaining": string;
+                        "X-RateLimit-Reset": string;
+                        "Retry-After": string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Internal Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tenant-users": {
         parameters: {
             query?: never;
@@ -5775,6 +5877,8 @@ export interface components {
             productName: string;
             productSku: string;
             productPricePence: number;
+            barcode?: string | null;
+            barcodeType?: string | null;
             entityVersion: number;
             /** Format: date-time */
             createdAt: string;
@@ -5811,10 +5915,16 @@ export interface components {
             productName: string;
             productSku: string;
             productPricePence: number;
+            barcode?: string;
+            /** @enum {string} */
+            barcodeType?: "EAN13" | "UPCA" | "CODE128" | "QR";
         };
         UpdateProductRequestBody: {
             productName?: string;
             productPricePence?: number;
+            barcode?: string | null;
+            /** @enum {string|null} */
+            barcodeType?: "EAN13" | "UPCA" | "CODE128" | "QR" | null;
             currentEntityVersion: number;
         };
         ProductActivityActor: {
@@ -5882,6 +5992,29 @@ export interface components {
         };
         /** @enum {string} */
         ProductActivityType: "all" | "audit" | "ledger";
+        ProductWithStock: {
+            id: string;
+            tenantId: string;
+            productName: string;
+            productSku: string;
+            productPricePence: number;
+            barcode?: string | null;
+            barcodeType?: string | null;
+            entityVersion: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            stock?: {
+                branchId: string;
+                branchName: string;
+                qtyOnHand: number;
+                qtyAllocated: number;
+            } | null;
+        };
+        BarcodeLookupResponseData: {
+            product: components["schemas"]["ProductWithStock"];
+        };
         RoleSummary: {
             id: string;
             name: string;

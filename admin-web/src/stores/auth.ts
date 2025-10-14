@@ -15,6 +15,7 @@ type CurrentTenant =
   | {
       tenantId: string;
       tenantSlug: string;
+      featureFlags: Record<string, any>;
       role: RoleLite | null; // comes from /auth/me
     }
   | null;
@@ -74,6 +75,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           ? {
               tenantId: d.currentTenant.tenantId,
               tenantSlug: d.currentTenant.tenantSlug,
+              featureFlags: d.currentTenant.featureFlags ?? {},
               role: d.currentTenant.role ?? null,
             }
           : null,

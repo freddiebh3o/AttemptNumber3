@@ -79,46 +79,102 @@ async function seedTenantsAndRBAC() {
 
   const acme = await prisma.tenant.upsert({
     where: { tenantSlug: 'acme' },
-    update: {},
-    create: { tenantSlug: 'acme', tenantName: 'Acme Incorporated' },
+    update: {
+      featureFlags: {
+        barcodeScanningEnabled: true,  // Enable for testing
+        barcodeScanningMode: 'camera',
+      },
+    },
+    create: {
+      tenantSlug: 'acme',
+      tenantName: 'Acme Incorporated',
+      featureFlags: {
+        barcodeScanningEnabled: true,  // Enable for testing
+        barcodeScanningMode: 'camera',
+      },
+    },
   });
   await provisionTenantRBAC(acme.id, prisma); // ensures/aligns system roles
 
   const globex = await prisma.tenant.upsert({
     where: { tenantSlug: 'globex' },
-    update: {},
-    create: { tenantSlug: 'globex', tenantName: 'Globex Corporation' },
+    update: {
+      featureFlags: {
+        barcodeScanningEnabled: false, // Disabled by default
+        barcodeScanningMode: null,
+      },
+    },
+    create: {
+      tenantSlug: 'globex',
+      tenantName: 'Globex Corporation',
+      featureFlags: {
+        barcodeScanningEnabled: false, // Disabled by default
+        barcodeScanningMode: null,
+      },
+    },
   });
   await provisionTenantRBAC(globex.id, prisma);
+
+  console.log('--- Feature flags seeded ---');
+  console.log('ACME: barcodeScanningEnabled=true (camera mode)');
+  console.log('Globex: barcodeScanningEnabled=false');
 
   return { acmeId: acme.id, globexId: globex.id };
 }
 
 async function seedProducts(acmeId: string, globexId: string) {
   // Hand-authored examples (prices in **pence**)
+  // With barcodes for barcode scanning feature testing
   await prisma.product.upsert({
     where: { tenantId_productSku: { tenantId: acmeId, productSku: 'ACME-SKU-001' } },
-    update: { productName: 'Acme Anvil', productPricePence: 1999 },
-    create: { tenantId: acmeId, productName: 'Acme Anvil', productSku: 'ACME-SKU-001', productPricePence: 1999 },
+    update: { productName: 'Acme Anvil', productPricePence: 1999, barcode: '5012345678900', barcodeType: 'EAN13' },
+    create: {
+      tenantId: acmeId,
+      productName: 'Acme Anvil',
+      productSku: 'ACME-SKU-001',
+      productPricePence: 1999,
+      barcode: '5012345678900', // EAN-13 format
+      barcodeType: 'EAN13'
+    },
   });
   await prisma.product.upsert({
     where: { tenantId_productSku: { tenantId: acmeId, productSku: 'ACME-SKU-002' } },
-    update: { productName: 'Acme Rocket Skates', productPricePence: 4999 },
-    create: { tenantId: acmeId, productName: 'Acme Rocket Skates', productSku: 'ACME-SKU-002', productPricePence: 4999 },
+    update: { productName: 'Acme Rocket Skates', productPricePence: 4999, barcode: '012345678905', barcodeType: 'UPCA' },
+    create: {
+      tenantId: acmeId,
+      productName: 'Acme Rocket Skates',
+      productSku: 'ACME-SKU-002',
+      productPricePence: 4999,
+      barcode: '012345678905', // UPC-A format
+      barcodeType: 'UPCA'
+    },
   });
 
   await prisma.product.upsert({
     where: { tenantId_productSku: { tenantId: globexId, productSku: 'GLOBEX-SKU-001' } },
-    update: { productName: 'Globex Heat Lamp', productPricePence: 2999 },
-    create: { tenantId: globexId, productName: 'Globex Heat Lamp', productSku: 'GLOBEX-SKU-001', productPricePence: 2999 },
+    update: { productName: 'Globex Heat Lamp', productPricePence: 2999, barcode: 'GLX-HEAT-001', barcodeType: 'CODE128' },
+    create: {
+      tenantId: globexId,
+      productName: 'Globex Heat Lamp',
+      productSku: 'GLOBEX-SKU-001',
+      productPricePence: 2999,
+      barcode: 'GLX-HEAT-001', // Code 128 format (alphanumeric)
+      barcodeType: 'CODE128'
+    },
   });
   await prisma.product.upsert({
     where: { tenantId_productSku: { tenantId: globexId, productSku: 'GLOBEX-SKU-002' } },
     update: { productName: 'Globex Shrink Ray', productPricePence: 9999 },
-    create: { tenantId: globexId, productName: 'Globex Shrink Ray', productSku: 'GLOBEX-SKU-002', productPricePence: 9999 },
+    create: {
+      tenantId: globexId,
+      productName: 'Globex Shrink Ray',
+      productSku: 'GLOBEX-SKU-002',
+      productPricePence: 9999
+      // No barcode - demonstrates optional barcode field
+    },
   });
 
-  // Bulk for pagination testing
+  // Bulk for pagination testing (no barcodes)
   await upsertManyProductsForTenant({ tenantId: acmeId, tenantPrefix: 'ACME', startIndex: 100, count: 150 });
   await upsertManyProductsForTenant({ tenantId: globexId, tenantPrefix: 'GLOBEX', startIndex: 100, count: 120 });
 }

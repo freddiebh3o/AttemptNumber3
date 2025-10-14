@@ -28,6 +28,9 @@ type DeleteProduct200Response =
 type GetProductActivity200Response =
   paths["/api/products/{productId}/activity"]["get"]["responses"]["200"]["content"]["application/json"];
 
+type GetProductByBarcode200Response =
+  paths["/api/products/by-barcode/{barcode}"]["get"]["responses"]["200"]["content"]["application/json"];
+
 export async function getProductApiRequest(params: { productId: string }) {
   return httpRequestJson<GetProduct200Response>(`/api/products/${params.productId}`);
 }
@@ -75,6 +78,8 @@ export async function createProductApiRequest(
       productName: params.productName,
       productSku: params.productSku,
       productPricePence: params.productPricePence,
+      ...(params.barcode !== undefined && { barcode: params.barcode }),
+      ...(params.barcodeType !== undefined && { barcodeType: params.barcodeType }),
     }),
     headers: params.idempotencyKeyOptional
       ? { "Idempotency-Key": params.idempotencyKeyOptional }
@@ -98,6 +103,8 @@ export async function updateProductApiRequest(
         ...(params.productPricePence !== undefined && {
           productPricePence: params.productPricePence,
         }),
+        ...(params.barcode !== undefined && { barcode: params.barcode }),
+        ...(params.barcodeType !== undefined && { barcodeType: params.barcodeType }),
         currentEntityVersion: params.currentEntityVersion,
       }),
       headers: params.idempotencyKeyOptional
@@ -142,9 +149,22 @@ export async function getProductActivityApiRequest(params: {
   if (params.actorIds && params.actorIds.length) search.set("actorIds", params.actorIds.join(","));
   if (params.includeFacets) search.set("includeFacets", "1");
   if (params.includeTotal) search.set("includeTotal", "1");
-  
+
   const qs = search.toString();
   return httpRequestJson<GetProductActivity200Response>(
     `/api/products/${params.productId}/activity${qs ? `?${qs}` : ""}`
+  );
+}
+
+export async function getProductByBarcodeApiRequest(params: {
+  barcode: string;
+  branchId?: string;
+}) {
+  const search = new URLSearchParams();
+  if (params.branchId) search.set("branchId", params.branchId);
+
+  const qs = search.toString();
+  return httpRequestJson<GetProductByBarcode200Response>(
+    `/api/products/by-barcode/${encodeURIComponent(params.barcode)}${qs ? `?${qs}` : ""}`
   );
 }

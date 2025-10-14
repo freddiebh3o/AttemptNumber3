@@ -127,10 +127,11 @@ authRouter.get('/me', requireAuthenticatedUserMiddleware, async (request, respon
     // 2) All memberships with full role objects
     const tenantMemberships = await getUserMembershipsService({ currentUserId });
 
-    // 3) Current tenant block: { tenantId, tenantSlug, role }
+    // 3) Current tenant block: { tenantId, tenantSlug, featureFlags, role }
     let currentTenant: {
       tenantId: string;
       tenantSlug: string;
+      featureFlags: any;
       role: null | {
         id: string;
         name: string;
@@ -145,7 +146,7 @@ authRouter.get('/me', requireAuthenticatedUserMiddleware, async (request, respon
 
     const tenant = await prismaClientInstance.tenant.findUnique({
       where: { id: currentTenantId },
-      select: { id: true, tenantSlug: true },
+      select: { id: true, tenantSlug: true, featureFlags: true },
     });
 
     if (tenant) {
@@ -170,6 +171,7 @@ authRouter.get('/me', requireAuthenticatedUserMiddleware, async (request, respon
       currentTenant = {
         tenantId: tenant.id,
         tenantSlug: tenant.tenantSlug,
+        featureFlags: tenant.featureFlags ?? {},
         role: membership?.role
           ? {
               id: membership.role.id,

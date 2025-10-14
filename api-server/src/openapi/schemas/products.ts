@@ -11,6 +11,8 @@ export const ZodProductRecord = z
     productName: z.string(),
     productSku: z.string(),
     productPricePence: z.number().int(),
+    barcode: z.string().nullable().optional(),
+    barcodeType: z.string().nullable().optional(),
     entityVersion: z.number().int(),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
@@ -22,6 +24,8 @@ export const ZodCreateProductRequestBody = z
     productName: z.string().min(1).max(200),
     productSku: z.string().min(1).max(100),
     productPricePence: z.number().int().min(0),
+    barcode: z.string().min(1).max(100).optional(),
+    barcodeType: z.enum(["EAN13", "UPCA", "CODE128", "QR"]).optional(),
   })
   .openapi("CreateProductRequestBody");
 
@@ -35,6 +39,8 @@ export const ZodUpdateProductRequestBody = z
   .object({
     productName: z.string().min(1).max(200).optional(),
     productPricePence: z.number().int().min(0).optional(),
+    barcode: z.string().min(1).max(100).optional().nullable(),
+    barcodeType: z.enum(["EAN13", "UPCA", "CODE128", "QR"]).optional().nullable(),
     currentEntityVersion: z.number().int().min(1),
   })
   .openapi("UpdateProductRequestBody");
@@ -214,3 +220,47 @@ export const ZodProductActivityResponseData = z
       .optional(),
   })
   .openapi("ProductActivityResponseData");
+
+/** ---------------- Barcode Lookup ---------------- */
+
+export const ZodBarcodeLookupParams = z
+  .object({
+    barcode: z.string().min(1).max(100),
+  })
+  .openapi("BarcodeLookupParams");
+
+export const ZodBarcodeLookupQuery = z
+  .object({
+    branchId: z.string().optional(),
+  })
+  .openapi("BarcodeLookupQuery");
+
+export const ZodProductWithStock = z
+  .object({
+    id: z.string(),
+    tenantId: z.string(),
+    productName: z.string(),
+    productSku: z.string(),
+    productPricePence: z.number().int(),
+    barcode: z.string().nullable().optional(),
+    barcodeType: z.string().nullable().optional(),
+    entityVersion: z.number().int(),
+    createdAt: z.string().datetime(),
+    updatedAt: z.string().datetime(),
+    stock: z
+      .object({
+        branchId: z.string(),
+        branchName: z.string(),
+        qtyOnHand: z.number().int(),
+        qtyAllocated: z.number().int(),
+      })
+      .nullable()
+      .optional(),
+  })
+  .openapi("ProductWithStock");
+
+export const ZodBarcodeLookupResponseData = z
+  .object({
+    product: ZodProductWithStock,
+  })
+  .openapi("BarcodeLookupResponseData");

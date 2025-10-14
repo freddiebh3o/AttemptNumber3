@@ -274,7 +274,7 @@ PostgreSQL database managed by Prisma ORM with multi-tenant row-level isolation.
 
 ### 7. Product
 
-**Purpose:** Tenant-scoped product catalog with optimistic locking.
+**Purpose:** Tenant-scoped product catalog with optimistic locking and barcode support.
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
@@ -283,15 +283,19 @@ PostgreSQL database managed by Prisma ORM with multi-tenant row-level isolation.
 | `productName` | String | NOT NULL | Product display name |
 | `productSku` | String | NOT NULL | Stock-keeping unit (SKU) |
 | `productPricePence` | Int | NOT NULL | Price in minor units (pence/cents) |
+| `barcode` | String | NULLABLE | Barcode value (EAN-13, UPC-A, Code128, QR) |
+| `barcodeType` | String | NULLABLE | Barcode format type (EAN13, UPCA, CODE128, QR) |
 | `entityVersion` | Int | DEFAULT 1 | Optimistic locking version |
 | `createdAt` | DateTime | DEFAULT now() | Product creation timestamp |
 | `updatedAt` | DateTime | AUTO UPDATE | Last modification timestamp |
 
 **Unique Constraints:**
 - `@@unique([tenantId, productSku])` - SKU unique per tenant
+- `@@unique([tenantId, barcode])` - Barcode unique per tenant (when present)
 
 **Indexes:**
 - `@@index([tenantId])`
+- `@@index([barcode])` - Fast barcode lookups
 - `@@index([createdAt])`
 - `@@index([updatedAt])`
 
@@ -300,10 +304,15 @@ PostgreSQL database managed by Prisma ORM with multi-tenant row-level isolation.
 - `stocks` → ProductStock[] (stock levels per branch)
 - `stockLots` → StockLot[] (FIFO lots)
 - `stockLedgers` → StockLedger[] (movement history)
+- `transferItems` → StockTransferItem[] (transfer line items)
+- `transferTemplateItems` → StockTransferTemplateItem[] (template items)
 
 **Notes:**
 - Prices stored in minor units (100 pence = £1.00)
 - `entityVersion` incremented on every update for conflict detection
+- Barcode fields optional (not all products have barcodes)
+- Supported barcode formats: EAN13, UPCA, CODE128, QR
+- Barcode uniqueness scoped to tenant (multi-tenant isolation)
 
 ---
 
@@ -839,5 +848,5 @@ await prisma.$transaction([
 
 ---
 
-**Last Updated:** 2025-10-11
-**Document Version:** 1.0
+**Last Updated:** 2025-10-14
+**Document Version:** 1.1 (Added barcode support to Product model)

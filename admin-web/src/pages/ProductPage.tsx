@@ -55,6 +55,8 @@ export default function ProductPage() {
   const [name, setName] = useState("");
   const [sku, setSku] = useState("");
   const [price, setPrice] = useState<number | "">("");
+  const [barcode, setBarcode] = useState("");
+  const [barcodeType, setBarcodeType] = useState<string>("");
   const [entityVersion, setEntityVersion] = useState<number | null>(null);
 
   const [loadingProduct, setLoadingProduct] = useState(isEdit);
@@ -78,6 +80,8 @@ export default function ProductPage() {
           setName(p.productName);
           setSku(p.productSku);
           setPrice(p.productPricePence);
+          setBarcode(p.barcode || "");
+          setBarcodeType(p.barcodeType || "");
           setEntityVersion(p.entityVersion);
         }
       } catch (e: any) {
@@ -119,6 +123,8 @@ export default function ProductPage() {
           productName: name.trim(),
           productSku: sku.trim(),
           productPricePence: Number(price),
+          barcode: barcode.trim() || undefined,
+          barcodeType: (barcodeType && barcodeType !== "" ? barcodeType : undefined) as "EAN13" | "UPCA" | "CODE128" | "QR" | undefined,
           idempotencyKeyOptional: key,
         });
         if (res.success) {
@@ -135,6 +141,8 @@ export default function ProductPage() {
           productId,
           ...(name.trim() ? { productName: name.trim() } : {}),
           ...(typeof price === "number" ? { productPricePence: Number(price) } : {}),
+          barcode: barcode.trim() || null,
+          barcodeType: (barcodeType && barcodeType !== "" ? barcodeType : null) as "EAN13" | "UPCA" | "CODE128" | "QR" | null,
           currentEntityVersion: entityVersion,
           idempotencyKeyOptional: key,
         });
@@ -251,10 +259,14 @@ export default function ProductPage() {
                 name={name}
                 sku={sku}
                 price={price}
+                barcode={barcode}
+                barcodeType={barcodeType}
                 entityVersion={entityVersion}
                 onChangeName={setName}
                 onChangeSku={setSku}
                 onChangePrice={setPrice}
+                onChangeBarcode={setBarcode}
+                onChangeBarcodeType={setBarcodeType}
               />
               {isEdit && entityVersion != null && (
                 <Group gap="xs" mt="sm">

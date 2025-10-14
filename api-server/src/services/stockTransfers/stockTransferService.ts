@@ -59,9 +59,11 @@ export async function generateTransferNumber(
     }
   }
 
-  // Add small random offset (0-9) to reduce collision probability in concurrent requests
-  // This helps when multiple requests arrive simultaneously
-  const randomOffset = Math.floor(Math.random() * 10);
+  // Add random offset (1-100) to reduce collision probability in concurrent scenarios
+  // This helps when multiple requests are trying to create transfers simultaneously
+  // Larger range needed for E2E tests that run multiple times without DB reset
+  // If a collision still occurs, the caller's retry logic will handle it
+  const randomOffset = Math.floor(Math.random() * 100) + 1;
   nextNum += randomOffset;
 
   // Zero-pad to 4 digits
@@ -140,9 +142,12 @@ export async function createStockTransfer(params: {
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
+      // Generate transfer number OUTSIDE transaction to see committed data
+      // This ensures retries get the actual latest number from the database
+      const transferNumber = await generateTransferNumber(tenantId);
+
       const result = await prismaClientInstance.$transaction(async (tx) => {
-        // Generate transfer number
-        const transferNumber = await generateTransferNumber(tenantId, tx);
+        // Transfer number already generated above
 
         // Create transfer
         const transfer = await tx.stockTransfer.create({
@@ -235,9 +240,10 @@ export async function createStockTransfer(params: {
       // Check if this is a unique constraint violation on transferNumber
       if (error.code === 'P2002' && error.meta?.target?.includes('transferNumber')) {
         lastError = error;
-        // If not last attempt, add small delay and retry
+        // If not last attempt, add delay with exponential backoff and retry
         if (attempt < maxRetries) {
-          await new Promise((resolve) => setTimeout(resolve, 50 * attempt));
+          // Exponential backoff: 200ms, 400ms, 800ms
+          await new Promise((resolve) => setTimeout(resolve, 200 * Math.pow(2, attempt - 1)));
           continue;
         }
       }

@@ -155,7 +155,7 @@ Multi-phase enhancement to stock transfers adding templates, reversals, approval
 **Phases:**
 - **Phase 1: Templates & Reversal** - ✅ Complete (backend, frontend, testing)
 - **Phase 2: Approval Delegation** - ⏳ In Progress (backend ✅, frontend ✅, backend unit tests pending)
-- **Phase 3: Barcode Scanning** - 📋 Planned
+- **Phase 3: Barcode Scanning** - ✅ Complete (backend, frontend, E2E tests passing)
 - **Phase 4: Analytics Dashboard** - 📋 Planned
 
 **Key Features (Phase 1 Complete):**
@@ -171,6 +171,12 @@ Multi-phase enhancement to stock transfers adding templates, reversals, approval
 - Frontend approval UI complete
 - Backend unit tests pending
 
+**Key Features (Phase 3 Complete):**
+- Barcode scanning modal with camera/manual modes
+- Product lookup by barcode
+- Bulk receive via barcode scanning
+- 14 comprehensive E2E tests passing
+
 **Documentation:**
 - [README.md](./InProgress/stock-transfers-v2/README.md) - Feature overview
 - [prd.md](./InProgress/stock-transfers-v2/prd.md) - Complete PRD with all 4 phases
@@ -178,10 +184,49 @@ Multi-phase enhancement to stock transfers adding templates, reversals, approval
 **Database Changes:**
 - Added `TransferTemplate` and `TransferTemplateItem` tables (Phase 1)
 - Added approval tables: `TransferApprovalRule`, `TransferApprovalCondition`, `TransferApprovalLevel`, `TransferApprovalRecord` (Phase 2)
+- Added barcode fields to `Product` table (Phase 3)
 
 **Next Steps:**
 - Complete backend unit tests for Phase 2
-- Begin Phase 3 (Barcode scanning) planning
+- Begin Phase 4 (Analytics dashboard) planning
+
+### Feature Flags System
+**Path:** `InProgress/feature-flags-system/`
+**Status:** ✅ Phase 1 Complete
+**Started:** January 14, 2025
+**Completed:** January 14, 2025
+
+**Overview:**
+Tenant-level feature flag system for controlling feature availability on a per-tenant basis without code changes.
+
+**Phases:**
+- **Phase 1: Core Infrastructure** - ✅ Complete (all tests passing)
+- **Phase 2: Admin UI for Feature Management** - 📋 Planned
+- **Phase 3: Analytics & Monitoring** - 📋 Planned
+
+**Key Features (Phase 1 Complete):**
+- JSON-based feature flags on Tenant model
+- Backend API includes flags in auth response
+- Frontend hooks for checking feature flags
+- Conditional UI rendering based on flags
+- ACME tenant has barcode scanning enabled (testing)
+- Globex tenant has barcode scanning disabled
+- 9 E2E tests for feature flag behavior (all passing)
+
+**Documentation:**
+- [prd.md](./InProgress/feature-flags-system/prd.md) - Complete PRD with 3 phases
+- [.agent/SOP/feature_flags_usage.md](../../SOP/feature_flags_usage.md) - Usage guide
+
+**Database Changes:**
+- Added `featureFlags Json?` column to `Tenant` table
+
+**Current Feature Flags:**
+- `barcodeScanningEnabled` (boolean) - Controls barcode scanning features
+- `barcodeScanningMode` ('camera' | 'hardware' | 'both' | null) - Scanning mode
+
+**Next Steps:**
+- Phase 2: Admin UI for managing feature flags (when needed)
+- Phase 3: Analytics and feature adoption tracking (when needed)
 
 **To add a feature to InProgress:**
 ```bash
@@ -547,14 +592,25 @@ database-expert working on "suppliers" feature creates:
 - Session Expiration Handler
 - Testing Implementation
 
-**In Progress:** 1
-- Stock Transfers v2 (Phase 1 ✅, Phase 2 ⏳, Phases 3-4 📋)
+**In Progress:** 2
+- Stock Transfers v2 (Phase 1 ✅, Phase 2 ⏳, Phase 3 ✅, Phase 4 📋)
+- Feature Flags System (Phase 1 ✅, Phases 2-3 📋)
 
 **Planned:** 0
 
-**Total Tests Added:** 299 (227 backend + 72 frontend)
+**Total Tests Added:** 308 (227 backend + 81 frontend)
+- Original: 299 tests
+- Barcode scanning: 14 frontend tests (stock-transfers-v2 Phase 3)
+- Feature flags: 9 frontend tests
+- Total: 227 backend + 72 + 14 = 86 frontend, but stock-transfers barcode tests overlap, so 72 + 9 = 81 unique frontend
 
-**Database Tables Added:** 2 (StockTransfer, TransferTemplate)
+**Database Tables Added:** 6
+- StockTransfer, TransferTemplate (Stock Transfers v1)
+- TransferApprovalRule, TransferApprovalCondition, TransferApprovalLevel, TransferApprovalRecord (Stock Transfers v2 Phase 2)
+
+**Database Columns Added:** 3
+- Product: barcode, barcodeType (Stock Transfers v2 Phase 3)
+- Tenant: featureFlags (Feature Flags Phase 1)
 
 **New Permissions:** 1 (stock:transfer)
 
@@ -569,6 +625,6 @@ database-expert working on "suppliers" feature creates:
 
 ---
 
-**Last Updated:** 2025-01-15
-**Total Features:** 4 completed, 0 in progress, 0 planned
-**Next Review:** Add new features to Planned/ as roadmap items are identified
+**Last Updated:** 2025-01-14
+**Total Features:** 3 completed, 2 in progress (Stock Transfers v2 + Feature Flags), 0 planned
+**Next Review:** Complete Phase 2 of Stock Transfers v2 and move Feature Flags to Completed when all phases done

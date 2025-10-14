@@ -51,6 +51,8 @@ export async function getProductForCurrentTenantService(params: {
       productName: true,
       productSku: true,
       productPricePence: true,
+      barcode: true,
+      barcodeType: true,
       entityVersion: true,
       updatedAt: true,
       createdAt: true,
@@ -157,6 +159,8 @@ export async function listProductsForCurrentTenantService(args: ListProductsArgs
       productName: true,
       productSku: true,
       productPricePence: true,
+      barcode: true,
+      barcodeType: true,
       entityVersion: true,
       updatedAt: true,
       createdAt: true,
@@ -207,6 +211,8 @@ export async function createProductForCurrentTenantService(params: {
   productNameInputValue: string;
   productSkuInputValue: string;
   productPricePenceInputValue: number;
+  barcode?: string;
+  barcodeType?: string;
   auditContextOptional?: AuditCtx;
 }) {
   const {
@@ -214,6 +220,8 @@ export async function createProductForCurrentTenantService(params: {
     productNameInputValue,
     productSkuInputValue,
     productPricePenceInputValue,
+    barcode,
+    barcodeType,
     auditContextOptional,
   } = params;
 
@@ -225,6 +233,8 @@ export async function createProductForCurrentTenantService(params: {
           productName: productNameInputValue,
           productSku: productSkuInputValue,
           productPricePence: productPricePenceInputValue,
+          barcode: barcode || null,
+          barcodeType: barcodeType || null,
         },
         select: {
           id: true,
@@ -232,6 +242,8 @@ export async function createProductForCurrentTenantService(params: {
           productName: true,
           productSku: true,
           productPricePence: true,
+          barcode: true,
+          barcodeType: true,
           entityVersion: true,
           updatedAt: true,
           createdAt: true,
@@ -259,6 +271,10 @@ export async function createProductForCurrentTenantService(params: {
     return created;
   } catch (error: any) {
     if (error?.code === 'P2002') {
+      // Check which field caused the unique constraint violation
+      if (error?.meta?.target?.includes('barcode')) {
+        throw Errors.conflict('A product with this barcode already exists for this tenant.');
+      }
       throw Errors.conflict('A product with this SKU already exists for this tenant.');
     }
     throw error;
@@ -271,6 +287,8 @@ export async function updateProductForCurrentTenantService(params: {
   productIdPathParam: string;
   productNameInputValue?: string;
   productPricePenceInputValue?: number;
+  barcode?: string | null | undefined;
+  barcodeType?: string | null | undefined;
   currentEntityVersionInputValue: number;
   auditContextOptional?: AuditCtx;
 }) {
@@ -279,6 +297,8 @@ export async function updateProductForCurrentTenantService(params: {
     productIdPathParam,
     productNameInputValue,
     productPricePenceInputValue,
+    barcode,
+    barcodeType,
     currentEntityVersionInputValue,
     auditContextOptional,
   } = params;
@@ -293,6 +313,8 @@ export async function updateProductForCurrentTenantService(params: {
         productName: true,
         productSku: true,
         productPricePence: true,
+        barcode: true,
+        barcodeType: true,
         entityVersion: true,
         updatedAt: true,
         createdAt: true,
@@ -300,19 +322,31 @@ export async function updateProductForCurrentTenantService(params: {
     });
     if (!before) throw Errors.notFound('Product not found.');
 
+    // Build updates object - handle optional and nullable fields correctly
+    const updates: Prisma.ProductUpdateManyMutationInput = {
+      entityVersion: { increment: 1 },
+    };
+
+    if (productNameInputValue !== undefined) {
+      updates.productName = productNameInputValue;
+    }
+    if (productPricePenceInputValue !== undefined) {
+      updates.productPricePence = productPricePenceInputValue;
+    }
+    if ('barcode' in params) {
+      updates.barcode = barcode || null;
+    }
+    if ('barcodeType' in params) {
+      updates.barcodeType = barcodeType || null;
+    }
+
     const updateResult = await tx.product.updateMany({
       where: {
         id: productIdPathParam,
         tenantId: currentTenantId,
         entityVersion: currentEntityVersionInputValue,
       },
-      data: {
-        ...(productNameInputValue !== undefined ? { productName: productNameInputValue } : {}),
-        ...(productPricePenceInputValue !== undefined
-          ? { productPricePence: productPricePenceInputValue }
-          : {}),
-        entityVersion: { increment: 1 },
-      },
+      data: updates,
     });
 
     if (updateResult.count === 0) {
@@ -327,6 +361,8 @@ export async function updateProductForCurrentTenantService(params: {
         productName: true,
         productSku: true,
         productPricePence: true,
+        barcode: true,
+        barcodeType: true,
         entityVersion: true,
         updatedAt: true,
         createdAt: true,
@@ -370,6 +406,8 @@ export async function deleteProductForCurrentTenantService(params: {
         productName: true,
         productSku: true,
         productPricePence: true,
+        barcode: true,
+        barcodeType: true,
         entityVersion: true,
         updatedAt: true,
         createdAt: true,
@@ -399,4 +437,87 @@ export async function deleteProductForCurrentTenantService(params: {
 
     return { hasDeletedProduct: true };
   });
+}
+
+/**
+ * Lookup product by barcode for the current tenant.
+ * Optionally includes stock information if branchId is provided.
+ */
+export async function getProductByBarcodeForCurrentTenantService(params: {
+  currentTenantId: string;
+  barcodePathParam: string;
+  branchIdOptional?: string;
+}) {
+  const { currentTenantId, barcodePathParam, branchIdOptional } = params;
+
+  // Validate barcode parameter
+  if (!barcodePathParam || barcodePathParam.trim().length === 0) {
+    throw Errors.validation('Barcode parameter is required and cannot be empty.');
+  }
+
+  // Query product by barcode and tenant
+  const product = await prismaClientInstance.product.findFirst({
+    where: {
+      tenantId: currentTenantId,
+      barcode: barcodePathParam,
+    },
+    select: {
+      id: true,
+      tenantId: true,
+      productName: true,
+      productSku: true,
+      productPricePence: true,
+      barcode: true,
+      barcodeType: true,
+      entityVersion: true,
+      updatedAt: true,
+      createdAt: true,
+    },
+  });
+
+  if (!product) {
+    throw Errors.notFound(`Product with barcode '${barcodePathParam}' not found for this tenant.`);
+  }
+
+  // If branchId provided, include stock information
+  let stockInfo: {
+    branchId: string;
+    branchName: string;
+    qtyOnHand: number;
+    qtyAllocated: number;
+  } | null = null;
+
+  if (branchIdOptional) {
+    const productStock = await prismaClientInstance.productStock.findFirst({
+      where: {
+        tenantId: currentTenantId,
+        branchId: branchIdOptional,
+        productId: product.id,
+      },
+      select: {
+        branchId: true,
+        qtyOnHand: true,
+        qtyAllocated: true,
+        branch: {
+          select: {
+            branchName: true,
+          },
+        },
+      },
+    });
+
+    if (productStock) {
+      stockInfo = {
+        branchId: productStock.branchId,
+        branchName: productStock.branch.branchName,
+        qtyOnHand: productStock.qtyOnHand,
+        qtyAllocated: productStock.qtyAllocated,
+      };
+    }
+  }
+
+  return {
+    ...product,
+    stock: stockInfo,
+  };
 }
