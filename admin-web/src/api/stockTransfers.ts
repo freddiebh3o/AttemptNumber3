@@ -45,6 +45,16 @@ type ReverseTransferRequestBody = NonNullable<
 type ReverseTransfer200Response =
   paths["/api/stock-transfers/{transferId}/reverse"]["post"]["responses"]["200"]["content"]["application/json"];
 
+type SubmitApprovalRequestBody = NonNullable<
+  paths["/api/stock-transfers/{transferId}/approve/{level}"]["post"]["requestBody"]
+>["content"]["application/json"];
+
+type SubmitApproval200Response =
+  paths["/api/stock-transfers/{transferId}/approve/{level}"]["post"]["responses"]["200"]["content"]["application/json"];
+
+type GetApprovalProgress200Response =
+  paths["/api/stock-transfers/{transferId}/approval-progress"]["get"]["responses"]["200"]["content"]["application/json"];
+
 // Export the StockTransfer type for use in components
 export type { StockTransfer };
 
@@ -190,5 +200,31 @@ export async function reverseStockTransferApiRequest(
         ? { "Idempotency-Key": idempotencyKeyOptional }
         : undefined,
     }
+  );
+}
+
+// Submit approval for a level (POST /api/stock-transfers/{transferId}/approve/{level})
+export async function submitApprovalApiRequest(
+  transferId: string,
+  level: number,
+  params: SubmitApprovalRequestBody & { idempotencyKeyOptional?: string }
+) {
+  const { idempotencyKeyOptional, ...body } = params;
+  return httpRequestJson<SubmitApproval200Response>(
+    `/api/stock-transfers/${transferId}/approve/${level}`,
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+      headers: idempotencyKeyOptional
+        ? { "Idempotency-Key": idempotencyKeyOptional }
+        : undefined,
+    }
+  );
+}
+
+// Get approval progress (GET /api/stock-transfers/{transferId}/approval-progress)
+export async function getApprovalProgressApiRequest(transferId: string) {
+  return httpRequestJson<GetApprovalProgress200Response>(
+    `/api/stock-transfers/${transferId}/approval-progress`
   );
 }

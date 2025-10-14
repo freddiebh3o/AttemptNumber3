@@ -229,7 +229,8 @@ test.describe('[ST-002] Authentication Flow', () => {
 
       // With the new 401 handler, should be automatically redirected back to sign-in
       // (because the session is expired, API returns 401, and the handler redirects)
-      await expect(page).toHaveURL('/sign-in');
+      // The URL may include query params like ?reason=session_expired
+      await expect(page).toHaveURL(/\/sign-in/);
       await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible();
 
       // Should NOT show the actual products content

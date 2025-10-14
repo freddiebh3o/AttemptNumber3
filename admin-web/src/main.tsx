@@ -26,6 +26,7 @@ import BranchPage from './pages/BranchPage'
 import StockTransfersPage from './pages/StockTransfersPage'
 import StockTransferDetailPage from './pages/StockTransferDetailPage'
 import TransferTemplatesPage from './pages/TransferTemplatesPage'
+import TransferApprovalRulesPage from './pages/TransferApprovalRulesPage'
 
 const router = createBrowserRouter([
   {
@@ -181,6 +182,15 @@ const router = createBrowserRouter([
             element: (
               <RequirePermission perm="stock:read">
                 <TransferTemplatesPage />
+              </RequirePermission>
+            ),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
+            path: 'stock-transfers/approval-rules',
+            element: (
+              <RequirePermission perm="stock:write">
+                <TransferApprovalRulesPage />
               </RequirePermission>
             ),
             errorElement: <RouteErrorBoundary />,

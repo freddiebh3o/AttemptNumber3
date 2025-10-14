@@ -19,7 +19,6 @@ import {
   useMantineTheme,
   Collapse,
 } from "@mantine/core";
-import type { MantineColorShade } from "@mantine/core";
 import { useThemeStore } from "../../stores/theme";
 import { PRESET_META, THEME_PRESETS, type PresetKey } from "../../theme/presets";
 import PaletteEditor from "./PaletteEditor";
@@ -32,12 +31,6 @@ import type { paths } from "../../types/openapi";
 import { useDirtyStore } from "../../stores/dirty";
 import ImageUploadCard from "../common/ImageUploadCard";
 import { useAuthStore } from "../../stores/auth";
-
-const toShade = (v: unknown, fallback: MantineColorShade): MantineColorShade => {
-  const n = typeof v === "number" ? v : Number(v);
-  const clamped = Number.isFinite(n) ? Math.min(9, Math.max(0, n)) : fallback;
-  return clamped as MantineColorShade;
-};
 
 type PutThemeBody = NonNullable<
   paths["/api/tenants/{tenantSlug}/theme"]["put"]["requestBody"]
@@ -119,16 +112,6 @@ export default function ThemeSettingsPage() {
   // Current palette choices & shades
   const paletteChoices = Object.keys(theme.colors).sort();
   const currentPrimary = rec.overrides.primaryColor ?? "indigo";
-
-  const lightShade: MantineColorShade =
-    (typeof rec.overrides.primaryShade === "number"
-      ? rec.overrides.primaryShade
-      : rec.overrides.primaryShade?.light) ?? 6;
-
-  const darkShade: MantineColorShade =
-    (typeof rec.overrides.primaryShade === "number"
-      ? rec.overrides.primaryShade
-      : rec.overrides.primaryShade?.dark) ?? 8;
 
   // ----- Dirty tracking -----
   // Baseline is the "last saved" snapshot (or first load if none)

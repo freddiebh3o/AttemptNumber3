@@ -12,6 +12,7 @@ import {
   IconTemplate,
   IconBoxSeam,
   IconUserCog,
+  IconChecklist,
 } from "@tabler/icons-react";
 import { useThemeStore } from "../../stores/theme";
 import { useAuthStore } from "../../stores/auth";
@@ -67,6 +68,16 @@ export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) 
               onClick={onNavigate}
               leftSection={<IconTemplate size={16} />}
             />
+            {hasPerm("stock:write") && (
+              <NavLink
+                label="Approval Rules"
+                component={Link}
+                to={`${base}/stock-transfers/approval-rules`}
+                active={active(`${base}/stock-transfers/approval-rules`)}
+                onClick={onNavigate}
+                leftSection={<IconChecklist size={16} />}
+              />
+            )}
           </NavLink>
         )}
 

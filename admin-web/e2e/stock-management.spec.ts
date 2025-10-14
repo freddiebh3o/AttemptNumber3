@@ -50,9 +50,101 @@ test.beforeEach(async ({ context }) => {
   await context.clearCookies();
   // Note: Don't clear localStorage/sessionStorage here - it causes SecurityError
   // when page hasn't navigated yet. Browser storage is cleared on navigation anyway.
-
-
 });
+
+// Helper: Create product with stock via API
+async function createProductWithStockViaAPI(page: Page): Promise<{ productId: string; branchId: string }> {
+  const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
+  const cookies = await page.context().cookies();
+  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+
+  // Create product
+  const timestamp = Date.now();
+  const productRes = await page.request.post(`${apiUrl}/api/products`, {
+    data: {
+      productName: `E2E Ledger Test ${timestamp}`,
+      productSku: `LEDGER-${timestamp}`,
+      productPricePence: 1000,
+    },
+    headers: {
+      'Cookie': cookieHeader,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!productRes.ok()) {
+    const errorText = await productRes.text();
+    throw new Error(`Failed to create product: ${productRes.status()} - ${errorText}`);
+  }
+
+  const productData = await productRes.json();
+  const productId = productData.data.product.id;
+
+  // Get first branch
+  const branchRes = await page.request.get(`${apiUrl}/api/branches`, {
+    headers: { 'Cookie': cookieHeader },
+  });
+
+  if (!branchRes.ok()) {
+    throw new Error(`Failed to get branches: ${branchRes.status()}`);
+  }
+
+  const branchData = await branchRes.json();
+  const branchId = branchData.data.items[0].id;
+
+  // Add initial stock (creates ledger entries)
+  const adjustRes1 = await page.request.post(`${apiUrl}/api/stock/adjust`, {
+    data: {
+      productId,
+      branchId,
+      qtyDelta: 20,
+      unitCostPence: 100,
+      reason: 'E2E test setup',
+    },
+    headers: {
+      'Cookie': cookieHeader,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!adjustRes1.ok()) {
+    const errorText = await adjustRes1.text();
+    throw new Error(`Failed to adjust stock (1): ${adjustRes1.status()} - ${errorText}`);
+  }
+
+  // Add another adjustment for pagination testing
+  const adjustRes2 = await page.request.post(`${apiUrl}/api/stock/adjust`, {
+    data: {
+      productId,
+      branchId,
+      qtyDelta: 10,
+      unitCostPence: 120,
+      reason: 'E2E test setup 2',
+    },
+    headers: {
+      'Cookie': cookieHeader,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!adjustRes2.ok()) {
+    const errorText = await adjustRes2.text();
+    throw new Error(`Failed to adjust stock (2): ${adjustRes2.status()} - ${errorText}`);
+  }
+
+  return { productId, branchId };
+}
+
+// Helper: Delete product via API
+async function deleteProductViaAPI(page: Page, productId: string): Promise<void> {
+  const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
+  const cookies = await page.context().cookies();
+  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+
+  await page.request.delete(`${apiUrl}/api/products/${productId}`, {
+    headers: { 'Cookie': cookieHeader },
+  });
+}
 
 test.describe('FIFO Tab - Stock Levels and Lots', () => {
   test('should display FIFO tab with stock levels', async ({ page }) => {
@@ -251,26 +343,38 @@ test.describe('FIFO Tab - Adjust Stock Modal', () => {
 
 test.describe('FIFO Tab - Ledger Display and Filtering', () => {
   test('should display ledger table with entries', async ({ page }) => {
-    await signIn(page, TEST_USERS.owner); // Owner has stock activity from seed data
+    test.setTimeout(15000); // Set timeout to 15 seconds
+    await signIn(page, TEST_USERS.owner);
 
-    await page.waitForSelector('table tbody tr:first-child', { state: 'visible', timeout: 10000 });
-    const firstRow = page.locator('table tbody tr:first-child');
-    await firstRow.locator('td').last().locator('button').first().click();
+    // Create product with stock (guarantees ledger entries exist)
+    const { productId } = await createProductWithStockViaAPI(page);
 
-    await page.getByRole('tab', { name: /fifo/i }).click();
-    await page.waitForTimeout(1000);
+    try {
+      // Navigate to the product we just created
+      await page.goto(`/${TEST_USERS.owner.tenant}/products/${productId}?tab=fifo`);
+      await page.waitForTimeout(1500);
 
-    // Should show Ledger heading (level 4)
-    await expect(page.getByRole('heading', { level: 4, name: /ledger/i })).toBeVisible();
+      // Should show Ledger heading (level 4)
+      await expect(page.getByRole('heading', { level: 4, name: /ledger/i })).toBeVisible();
 
-    // Should show ledger table
-    const ledgerTable = page.locator('table').last();
-    await expect(ledgerTable).toBeVisible();
+      // Wait for both tables to be visible (lots table and ledger table)
+      await page.waitForSelector('table', { state: 'visible' });
+      await page.waitForTimeout(500); // Give time for second table to appear
 
-    // Should show ledger columns
-    await expect(ledgerTable.getByRole('columnheader', { name: /date/i })).toBeVisible();
-    await expect(ledgerTable.getByRole('columnheader', { name: /kind/i })).toBeVisible();
-    await expect(ledgerTable.getByRole('columnheader', { name: /qty/i })).toBeVisible();
+      // Should show ledger table (last table on the page)
+      const ledgerTable = page.locator('table').last();
+      await expect(ledgerTable).toBeVisible();
+
+      // Should show ledger columns
+      await expect(ledgerTable.getByRole('columnheader', { name: /date/i })).toBeVisible();
+      await expect(ledgerTable.getByRole('columnheader', { name: /kind/i })).toBeVisible();
+      await expect(ledgerTable.getByRole('columnheader', { name: /qty/i })).toBeVisible();
+
+      // Should show at least one ledger entry
+      await expect(ledgerTable.locator('tbody tr').first()).toBeVisible();
+    } finally {
+      await deleteProductViaAPI(page, productId);
+    }
   });
 
   test('should open filters panel', async ({ page }) => {
@@ -320,28 +424,42 @@ test.describe('FIFO Tab - Ledger Display and Filtering', () => {
   });
 
   test('should paginate ledger entries', async ({ page }) => {
-    await signIn(page, TEST_USERS.owner); // Owner has stock activity with ledger entries
+    test.setTimeout(15000); // Set timeout to 15 seconds
+    await signIn(page, TEST_USERS.owner);
 
-    await page.waitForSelector('table tbody tr:first-child', { state: 'visible', timeout: 10000 });
-    const firstRow = page.locator('table tbody tr:first-child');
-    await firstRow.locator('td').last().locator('button').first().click();
+    // Create product with stock (guarantees ledger entries exist - 2 entries from helper)
+    const { productId } = await createProductWithStockViaAPI(page);
 
-    await page.getByRole('tab', { name: /fifo/i }).click();
-    await page.waitForTimeout(1000);
+    try {
+      // Navigate to the product we just created
+      await page.goto(`/${TEST_USERS.owner.tenant}/products/${productId}?tab=fifo`);
+      await page.waitForTimeout(1500);
 
-    // Check if Next button is enabled (depends on data)
-    const nextButton = page.getByRole('button', { name: /next/i }).last();
-    const isEnabled = await nextButton.isEnabled();
+      // Wait for ledger table to load
+      await expect(page.getByRole('heading', { level: 4, name: /ledger/i })).toBeVisible();
+      await page.waitForTimeout(500);
 
-    if (isEnabled) {
-      // Click next
-      await nextButton.click();
+      // Check if ledger has entries
+      const ledgerTable = page.locator('table').last();
+      const entries = await ledgerTable.locator('tbody tr').count();
+      expect(entries).toBeGreaterThan(0);
 
-      // Page number should change
-      await expect(page.getByText(/page \d+/i).last()).toBeVisible();
+      // Check if Next button is enabled (depends on data - we only created 2 entries, so likely only 1 page)
+      const nextButton = page.getByRole('button', { name: /next/i }).last();
+      const isEnabled = await nextButton.isEnabled();
 
-      // Previous button should be enabled
-      await expect(page.getByRole('button', { name: /prev/i }).last()).toBeEnabled();
+      if (isEnabled) {
+        // Click next
+        await nextButton.click();
+
+        // Page number should change
+        await expect(page.getByText(/page \d+/i).last()).toBeVisible();
+
+        // Previous button should be enabled
+        await expect(page.getByRole('button', { name: /prev/i }).last()).toBeEnabled();
+      }
+    } finally {
+      await deleteProductViaAPI(page, productId);
     }
   });
 

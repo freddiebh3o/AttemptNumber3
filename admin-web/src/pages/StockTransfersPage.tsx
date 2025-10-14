@@ -1170,6 +1170,8 @@ export default function StockTransfersPage() {
                           </Group>
                         </Table.Th>
 
+                        <Table.Th scope="col">Approval</Table.Th>
+
                         <Table.Th scope="col">Items</Table.Th>
 
                         <Table.Th scope="col" aria-sort={colAriaSort("requestedAt")}>
@@ -1227,6 +1229,19 @@ export default function StockTransfersPage() {
                                   {transfer.status === "CANCELLED" && <IconBan size={12} />}
                                 </Group>
                               </Badge>
+                            </Table.Td>
+                            <Table.Td>
+                              {transfer.requiresMultiLevelApproval ? (
+                                <Tooltip label="Requires multi-level approval" withArrow>
+                                  <Badge color="orange" variant="light">
+                                    Multi-Level
+                                  </Badge>
+                                </Tooltip>
+                              ) : (
+                                <Text size="sm" c="dimmed">
+                                  -
+                                </Text>
+                              )}
                             </Table.Td>
                             <Table.Td>
                               <Text size="sm">

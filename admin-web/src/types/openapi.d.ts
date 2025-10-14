@@ -4478,6 +4478,7 @@ export interface paths {
                                     reversalOfId: string | null;
                                     reversedById: string | null;
                                     reversalReason: string | null;
+                                    requiresMultiLevelApproval: boolean;
                                     items: {
                                         id: string;
                                         productId: string;
@@ -4586,6 +4587,7 @@ export interface paths {
                                 reversalOfId: string | null;
                                 reversedById: string | null;
                                 reversalReason: string | null;
+                                requiresMultiLevelApproval: boolean;
                                 items: {
                                     id: string;
                                     productId: string;
@@ -4690,6 +4692,7 @@ export interface paths {
                                 reversalOfId: string | null;
                                 reversedById: string | null;
                                 reversalReason: string | null;
+                                requiresMultiLevelApproval: boolean;
                                 items: {
                                     id: string;
                                     productId: string;
@@ -4842,6 +4845,7 @@ export interface paths {
                                 reversalOfId: string | null;
                                 reversedById: string | null;
                                 reversalReason: string | null;
+                                requiresMultiLevelApproval: boolean;
                                 items: {
                                     id: string;
                                     productId: string;
@@ -4944,6 +4948,7 @@ export interface paths {
                                 reversalOfId: string | null;
                                 reversedById: string | null;
                                 reversalReason: string | null;
+                                requiresMultiLevelApproval: boolean;
                                 items: {
                                     id: string;
                                     productId: string;
@@ -5059,6 +5064,7 @@ export interface paths {
                                 reversalOfId: string | null;
                                 reversedById: string | null;
                                 reversalReason: string | null;
+                                requiresMultiLevelApproval: boolean;
                                 items: {
                                     id: string;
                                     productId: string;
@@ -5171,6 +5177,7 @@ export interface paths {
                                 reversalOfId: string | null;
                                 reversedById: string | null;
                                 reversalReason: string | null;
+                                requiresMultiLevelApproval: boolean;
                                 items: {
                                     id: string;
                                     productId: string;
@@ -5220,6 +5227,484 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/transfer-approval-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List transfer approval rules */
+        get: {
+            parameters: {
+                query?: {
+                    isActive?: "true" | "false";
+                    sortBy?: "priority" | "name" | "createdAt";
+                    sortDir?: "asc" | "desc";
+                    limit?: string;
+                    cursor?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                items: {
+                                    id: string;
+                                    tenantId: string;
+                                    name: string;
+                                    description: string | null;
+                                    isActive: boolean;
+                                    /** @enum {string} */
+                                    approvalMode: "SEQUENTIAL" | "PARALLEL" | "HYBRID";
+                                    priority: number;
+                                    conditions: {
+                                        id: string;
+                                        /** @enum {string} */
+                                        conditionType: "TOTAL_QTY_THRESHOLD" | "TOTAL_VALUE_THRESHOLD" | "SOURCE_BRANCH" | "DESTINATION_BRANCH" | "PRODUCT_CATEGORY";
+                                        threshold: number | null;
+                                        branchId: string | null;
+                                        branch?: {
+                                            id: string;
+                                            branchName: string;
+                                            branchSlug: string;
+                                        } | null;
+                                    }[];
+                                    levels: {
+                                        id: string;
+                                        level: number;
+                                        name: string;
+                                        requiredRoleId: string | null;
+                                        requiredUserId: string | null;
+                                        role?: {
+                                            id: string;
+                                            name: string;
+                                        } | null;
+                                        user?: {
+                                            id: string;
+                                            userEmailAddress: string;
+                                        } | null;
+                                    }[];
+                                    createdAt: string;
+                                    updatedAt: string;
+                                }[];
+                                pageInfo: {
+                                    hasNextPage: boolean;
+                                    nextCursor: string | null;
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Create a transfer approval rule */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        name: string;
+                        description?: string;
+                        isActive?: boolean;
+                        /** @enum {string} */
+                        approvalMode?: "SEQUENTIAL" | "PARALLEL" | "HYBRID";
+                        priority?: number;
+                        conditions: {
+                            /** @enum {string} */
+                            conditionType: "TOTAL_QTY_THRESHOLD" | "TOTAL_VALUE_THRESHOLD" | "SOURCE_BRANCH" | "DESTINATION_BRANCH" | "PRODUCT_CATEGORY";
+                            threshold?: number;
+                            branchId?: string;
+                        }[];
+                        levels: {
+                            level: number;
+                            name: string;
+                            requiredRoleId?: string;
+                            requiredUserId?: string;
+                        }[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                id: string;
+                                tenantId: string;
+                                name: string;
+                                description: string | null;
+                                isActive: boolean;
+                                /** @enum {string} */
+                                approvalMode: "SEQUENTIAL" | "PARALLEL" | "HYBRID";
+                                priority: number;
+                                conditions: {
+                                    id: string;
+                                    /** @enum {string} */
+                                    conditionType: "TOTAL_QTY_THRESHOLD" | "TOTAL_VALUE_THRESHOLD" | "SOURCE_BRANCH" | "DESTINATION_BRANCH" | "PRODUCT_CATEGORY";
+                                    threshold: number | null;
+                                    branchId: string | null;
+                                    branch?: {
+                                        id: string;
+                                        branchName: string;
+                                        branchSlug: string;
+                                    } | null;
+                                }[];
+                                levels: {
+                                    id: string;
+                                    level: number;
+                                    name: string;
+                                    requiredRoleId: string | null;
+                                    requiredUserId: string | null;
+                                    role?: {
+                                        id: string;
+                                        name: string;
+                                    } | null;
+                                    user?: {
+                                        id: string;
+                                        userEmailAddress: string;
+                                    } | null;
+                                }[];
+                                createdAt: string;
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/transfer-approval-rules/{ruleId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get approval rule details */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    ruleId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                id: string;
+                                tenantId: string;
+                                name: string;
+                                description: string | null;
+                                isActive: boolean;
+                                /** @enum {string} */
+                                approvalMode: "SEQUENTIAL" | "PARALLEL" | "HYBRID";
+                                priority: number;
+                                conditions: {
+                                    id: string;
+                                    /** @enum {string} */
+                                    conditionType: "TOTAL_QTY_THRESHOLD" | "TOTAL_VALUE_THRESHOLD" | "SOURCE_BRANCH" | "DESTINATION_BRANCH" | "PRODUCT_CATEGORY";
+                                    threshold: number | null;
+                                    branchId: string | null;
+                                    branch?: {
+                                        id: string;
+                                        branchName: string;
+                                        branchSlug: string;
+                                    } | null;
+                                }[];
+                                levels: {
+                                    id: string;
+                                    level: number;
+                                    name: string;
+                                    requiredRoleId: string | null;
+                                    requiredUserId: string | null;
+                                    role?: {
+                                        id: string;
+                                        name: string;
+                                    } | null;
+                                    user?: {
+                                        id: string;
+                                        userEmailAddress: string;
+                                    } | null;
+                                }[];
+                                createdAt: string;
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /** Delete approval rule */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    ruleId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                success: boolean;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Update approval rule */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    ruleId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        name?: string;
+                        description?: string;
+                        isActive?: boolean;
+                        /** @enum {string} */
+                        approvalMode?: "SEQUENTIAL" | "PARALLEL" | "HYBRID";
+                        priority?: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                id: string;
+                                tenantId: string;
+                                name: string;
+                                description: string | null;
+                                isActive: boolean;
+                                /** @enum {string} */
+                                approvalMode: "SEQUENTIAL" | "PARALLEL" | "HYBRID";
+                                priority: number;
+                                conditions: {
+                                    id: string;
+                                    /** @enum {string} */
+                                    conditionType: "TOTAL_QTY_THRESHOLD" | "TOTAL_VALUE_THRESHOLD" | "SOURCE_BRANCH" | "DESTINATION_BRANCH" | "PRODUCT_CATEGORY";
+                                    threshold: number | null;
+                                    branchId: string | null;
+                                    branch?: {
+                                        id: string;
+                                        branchName: string;
+                                        branchSlug: string;
+                                    } | null;
+                                }[];
+                                levels: {
+                                    id: string;
+                                    level: number;
+                                    name: string;
+                                    requiredRoleId: string | null;
+                                    requiredUserId: string | null;
+                                    role?: {
+                                        id: string;
+                                        name: string;
+                                    } | null;
+                                    user?: {
+                                        id: string;
+                                        userEmailAddress: string;
+                                    } | null;
+                                }[];
+                                createdAt: string;
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/stock-transfers/{transferId}/approve/{level}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit approval for a specific level */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    transferId: string;
+                    level: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        notes?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Success - Returns updated transfer with approval records */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data?: unknown;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stock-transfers/{transferId}/approval-progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get approval progress for a transfer */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    transferId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                requiresApproval: boolean;
+                                records: {
+                                    id: string;
+                                    transferId: string;
+                                    level: number;
+                                    levelName: string;
+                                    /** @enum {string} */
+                                    status: "PENDING" | "APPROVED" | "REJECTED" | "SKIPPED";
+                                    requiredRoleId: string | null;
+                                    requiredUserId: string | null;
+                                    approvedByUserId: string | null;
+                                    approvedAt: string | null;
+                                    notes: string | null;
+                                    requiredRole?: {
+                                        id: string;
+                                        name: string;
+                                    } | null;
+                                    requiredUser?: {
+                                        id: string;
+                                        userEmailAddress: string;
+                                    } | null;
+                                    approvedByUser?: {
+                                        id: string;
+                                        userEmailAddress: string;
+                                    } | null;
+                                    createdAt: string;
+                                    updatedAt: string;
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;

@@ -14,6 +14,8 @@ import {
   Timeline,
   Alert,
   Progress,
+  Modal,
+  Textarea,
 } from "@mantine/core";
 import {
   IconArrowLeft,
@@ -25,12 +27,16 @@ import {
   IconClock,
   IconAlertCircle,
   IconArrowBack,
+  IconShieldCheck,
+  IconShieldX,
 } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import {
   getStockTransferApiRequest,
   shipStockTransferApiRequest,
   cancelStockTransferApiRequest,
+  getApprovalProgressApiRequest,
+  submitApprovalApiRequest,
 } from "../api/stockTransfers";
 import type { StockTransfer } from "../api/stockTransfers";
 import { handlePageError } from "../utils/pageError";
@@ -78,6 +84,13 @@ export default function StockTransferDetailPage() {
 
   const canWriteStock = useAuthStore((s) => s.hasPerm("stock:write"));
   const branchMemberships = useAuthStore((s) => s.branchMembershipsCurrentTenant);
+  const currentUserId = useAuthStore((s) => s.currentUserId);
+  const currentUserRoleId = useAuthStore((s) => {
+    const currentTenantSlug = s.currentTenant?.tenantSlug;
+    if (!currentTenantSlug) return undefined;
+    const membership = s.tenantMemberships.find((m) => m.tenantSlug === currentTenantSlug);
+    return membership?.role?.id;
+  });
 
   const [isLoading, setIsLoading] = useState(false);
   const [transfer, setTransfer] = useState<StockTransfer | null>(null);
@@ -91,6 +104,32 @@ export default function StockTransferDetailPage() {
   const [isShipping, setIsShipping] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
 
+  // Approval state
+  const [approvalProgress, setApprovalProgress] = useState<{
+    requiresApproval: boolean;
+    records: Array<{
+      id: string;
+      transferId: string;
+      level: number;
+      levelName: string;
+      status: "PENDING" | "APPROVED" | "REJECTED" | "SKIPPED";
+      requiredRoleId: string | null;
+      requiredUserId: string | null;
+      approvedByUserId: string | null;
+      approvedAt: string | null;
+      notes: string | null;
+      requiredRole?: { id: string; name: string } | null;
+      requiredUser?: { id: string; userEmailAddress: string } | null;
+      approvedByUser?: { id: string; userEmailAddress: string } | null;
+      createdAt: string;
+      updatedAt: string;
+    }>;
+  } | null>(null);
+  const [approvalModalOpen, setApprovalModalOpen] = useState(false);
+  const [approvalAction, setApprovalAction] = useState<{ level: number; approve: boolean } | null>(null);
+  const [approvalNotes, setApprovalNotes] = useState("");
+  const [isSubmittingApproval, setIsSubmittingApproval] = useState(false);
+
   async function fetchTransfer() {
     if (!transferId) return;
 
@@ -100,6 +139,11 @@ export default function StockTransferDetailPage() {
 
       if (response.success) {
         setTransfer(response.data);
+
+        // Fetch approval progress if it's a multi-level approval transfer
+        if (response.data.requiresMultiLevelApproval) {
+          void fetchApprovalProgress();
+        }
       } else {
         const e = Object.assign(new Error("Failed to load transfer"), {
           httpStatusCode: 500,
@@ -113,8 +157,24 @@ export default function StockTransferDetailPage() {
     }
   }
 
+  async function fetchApprovalProgress() {
+    if (!transferId) return;
+
+    try {
+      const response = await getApprovalProgressApiRequest(transferId);
+
+      if (response.success) {
+        setApprovalProgress(response.data);
+      }
+    } catch (error: any) {
+      // Silently fail - approval progress is supplementary
+      console.error("Failed to load approval progress:", error);
+    }
+  }
+
   useEffect(() => {
     setTransfer(null);
+    setApprovalProgress(null);
     setErrorForBoundary(null);
     void fetchTransfer();
   }, [tenantSlug, transferId]);
@@ -239,6 +299,47 @@ export default function StockTransferDetailPage() {
     void fetchTransfer();
   }
 
+  function openApprovalModal(level: number, approve: boolean) {
+    setApprovalAction({ level, approve });
+    setApprovalNotes("");
+    setApprovalModalOpen(true);
+  }
+
+  async function handleApprovalSubmit() {
+    if (!approvalAction || !transferId) return;
+
+    setIsSubmittingApproval(true);
+    try {
+      const idempotencyKey = `approve-transfer-${transferId}-level-${approvalAction.level}-${Date.now()}`;
+      const response = await submitApprovalApiRequest(
+        transferId,
+        approvalAction.level,
+        {
+          notes: approvalNotes.trim() || undefined,
+          idempotencyKeyOptional: idempotencyKey,
+        }
+      );
+
+      if (response.success) {
+        notifications.show({
+          color: "green",
+          message: `Level ${approvalAction.level} ${approvalAction.approve ? "approved" : "rejected"} successfully`,
+        });
+        setApprovalModalOpen(false);
+        setApprovalAction(null);
+        setApprovalNotes("");
+        void fetchTransfer();
+      }
+    } catch (error: any) {
+      notifications.show({
+        color: "red",
+        message: error?.message ?? "Failed to submit approval",
+      });
+    } finally {
+      setIsSubmittingApproval(false);
+    }
+  }
+
   if (transfer === null || isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -357,6 +458,131 @@ export default function StockTransferDetailPage() {
             </div>
           </Group>
         </Paper>
+
+        {/* Approval Progress Section */}
+        {transfer.requiresMultiLevelApproval && approvalProgress && (
+          <Paper withBorder p="md" radius="md">
+            <Title order={5} mb="md">
+              Approval Progress
+            </Title>
+
+            {approvalProgress.records.length === 0 ? (
+              <Alert color="blue">No approval levels defined for this transfer</Alert>
+            ) : (
+              <Stack gap="md">
+                {approvalProgress.records.map((record) => {
+                  const isApproved = record.status === "APPROVED";
+                  const isRejected = record.status === "REJECTED";
+                  const isPending = record.status === "PENDING";
+                  const isSkipped = record.status === "SKIPPED";
+
+                  // Check if current user can approve this level
+                  const canApproveLevel =
+                    canWriteStock &&
+                    isPending &&
+                    ((record.requiredRoleId && record.requiredRoleId === currentUserRoleId) ||
+                      (record.requiredUserId && record.requiredUserId === currentUserId));
+
+                  return (
+                    <Paper key={record.id} withBorder p="md" radius="sm">
+                      <Group justify="space-between" align="start">
+                        <div>
+                          <Group gap="xs" mb="xs">
+                            <Text fw={600}>Level {record.level}: {record.levelName}</Text>
+                            <Badge
+                              color={
+                                isApproved
+                                  ? "green"
+                                  : isRejected
+                                  ? "red"
+                                  : isSkipped
+                                  ? "gray"
+                                  : "yellow"
+                              }
+                              variant={isPending ? "light" : "filled"}
+                            >
+                              {record.status}
+                            </Badge>
+                          </Group>
+
+                          <Text size="sm" c="dimmed" mb="xs">
+                            Required:{" "}
+                            {record.requiredRole
+                              ? `${record.requiredRole.name} role`
+                              : record.requiredUser
+                              ? record.requiredUser.userEmailAddress
+                              : "Unknown"}
+                          </Text>
+
+                          {(isApproved || isRejected) && (
+                            <>
+                              <Text size="sm">
+                                {isApproved ? "Approved" : "Rejected"} by:{" "}
+                                {record.approvedByUser?.userEmailAddress ?? "Unknown"}
+                              </Text>
+                              {record.approvedAt && (
+                                <Text size="sm" c="dimmed">
+                                  {new Date(record.approvedAt).toLocaleString()}
+                                </Text>
+                              )}
+                              {record.notes && (
+                                <Alert icon={<IconAlertCircle size={16} />} color="blue" mt="xs">
+                                  {record.notes}
+                                </Alert>
+                              )}
+                            </>
+                          )}
+                        </div>
+
+                        {canApproveLevel && (
+                          <Group gap="xs">
+                            <Button
+                              size="xs"
+                              color="green"
+                              leftSection={<IconShieldCheck size={14} />}
+                              onClick={() => openApprovalModal(record.level, true)}
+                            >
+                              Approve
+                            </Button>
+                            <Button
+                              size="xs"
+                              color="red"
+                              variant="light"
+                              leftSection={<IconShieldX size={14} />}
+                              onClick={() => openApprovalModal(record.level, false)}
+                            >
+                              Reject
+                            </Button>
+                          </Group>
+                        )}
+                      </Group>
+                    </Paper>
+                  );
+                })}
+
+                {/* Progress Summary */}
+                <div>
+                  <Text size="sm" fw={500} mb="xs">
+                    Overall Progress
+                  </Text>
+                  <Progress
+                    value={
+                      (approvalProgress.records.filter((r) => r.status === "APPROVED").length /
+                        approvalProgress.records.length) *
+                      100
+                    }
+                    size="lg"
+                    color="green"
+                  />
+                  <Text size="xs" c="dimmed" mt="xs">
+                    {approvalProgress.records.filter((r) => r.status === "APPROVED").length} of{" "}
+                    {approvalProgress.records.length} levels approved
+                  </Text>
+                </div>
+              </Stack>
+            )}
+          </Paper>
+        )}
 
         {/* Timeline */}
         <Paper withBorder p="md" radius="md">
@@ -526,6 +752,65 @@ export default function StockTransferDetailPage() {
         transfer={transfer}
         onSuccess={handleReverseSuccess}
       />
+
+      {/* Approval Modal */}
+      <Modal
+        opened={approvalModalOpen}
+        onClose={() => {
+          if (!isSubmittingApproval) {
+            setApprovalModalOpen(false);
+            setApprovalAction(null);
+            setApprovalNotes("");
+          }
+        }}
+        title={
+          approvalAction
+            ? approvalAction.approve
+              ? `Approve Level ${approvalAction.level}`
+              : `Reject Level ${approvalAction.level}`
+            : "Approval"
+        }
+        centered
+      >
+        <Stack gap="md">
+          <Text>
+            Are you sure you want to {approvalAction?.approve ? "approve" : "reject"} this
+            approval level?
+          </Text>
+
+          <Textarea
+            label={`Notes (${approvalAction?.approve ? "Optional" : "Recommended"})`}
+            placeholder="Add any comments or reasons..."
+            value={approvalNotes}
+            onChange={(e) => setApprovalNotes(e.currentTarget.value)}
+            minRows={3}
+            maxRows={6}
+            maxLength={500}
+            disabled={isSubmittingApproval}
+          />
+
+          <Group justify="flex-end" gap="xs">
+            <Button
+              variant="light"
+              onClick={() => {
+                setApprovalModalOpen(false);
+                setApprovalAction(null);
+                setApprovalNotes("");
+              }}
+              disabled={isSubmittingApproval}
+            >
+              Cancel
+            </Button>
+            <Button
+              color={approvalAction?.approve ? "green" : "red"}
+              onClick={handleApprovalSubmit}
+              loading={isSubmittingApproval}
+            >
+              {approvalAction?.approve ? "Approve" : "Reject"}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </div>
   );
 }

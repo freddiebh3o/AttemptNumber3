@@ -10,6 +10,6 @@
     "strict": true,
     "skipLibCheck": true
   },
-  "include": ["e2e/**/*.ts", "e2e/**/*.tsx"],
+  "include": ["e2e/**/*.ts", "e2e/**/*.tsx", "playwright.config.ts"],
   "exclude": ["node_modules"]
 }

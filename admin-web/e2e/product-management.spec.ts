@@ -31,6 +31,50 @@ async function signIn(page: Page, user: typeof TEST_USERS.owner) {
   await expect(page).toHaveURL(`/${user.tenant}/products`);
 }
 
+// Helper: Create product via API (requires authenticated page context)
+async function createProductViaAPI(page: Page, params: {
+  productName: string;
+  productSku: string;
+  productPricePence: number;
+}): Promise<string> {
+  const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
+
+  // Get cookies from page context for authentication
+  const cookies = await page.context().cookies();
+  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+
+  const response = await page.request.post(`${apiUrl}/api/products`, {
+    data: params,
+    headers: {
+      'Cookie': cookieHeader,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok()) {
+    const errorText = await response.text();
+    throw new Error(`Failed to create product: ${response.status()} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data.data.id;
+}
+
+// Helper: Delete product via API (requires authenticated page context)
+async function deleteProductViaAPI(page: Page, productId: string): Promise<void> {
+  const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
+
+  // Get cookies from page context for authentication
+  const cookies = await page.context().cookies();
+  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+
+  await page.request.delete(`${apiUrl}/api/products/${productId}`, {
+    headers: {
+      'Cookie': cookieHeader,
+    },
+  });
+}
+
 // Check API server health before tests
 test.beforeAll(async () => {
   const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
@@ -179,25 +223,32 @@ test.describe('Product List Page', () => {
   test('should delete a product', async ({ page }) => {
     await signIn(page, TEST_USERS.editor);
 
-    // Wait for products to load
+    // Create a test product via API
+    const timestamp = Date.now();
+    const productName = `E2E Delete Test ${timestamp}`;
+
+    // Note: We don't use try/finally here because we're testing deletion
+    // Navigate to products page to see the new product
+    await page.goto(`/${TEST_USERS.editor.tenant}/products`);
+    await page.waitForLoadState('networkidle');
     await expect(page.getByRole('table')).toBeVisible();
 
-    // Get the first product name for verification
-    const firstProductName = await page.locator('table tbody tr:first-child td:first-child').textContent();
+    // Find our test product row by name
+    const productRow = page.locator('tr', { hasText: productName });
+    await expect(productRow).toBeVisible();
 
-    // Click delete button on first product (red ActionIcon in last cell)
-    const firstRow = page.locator('table tbody tr:first-child');
-    // Get the actions cell (last td) and find the red button (delete)
-    const actionsCell = firstRow.locator('td').last();
-    const deleteButton = actionsCell.locator('button').last(); // Second button is delete
+    // Click delete button (second button in actions cell)
+    const actionsCell = productRow.locator('td').last();
+    const deleteButton = actionsCell.locator('button').last();
     await deleteButton.click();
 
     // Should show success notification
-    await expect(page.getByRole('alert')).toBeVisible();
     await expect(page.getByText(/product deleted/i)).toBeVisible();
 
-    // Note: The product list refreshes automatically, but we can't guarantee
-    // the product is gone without knowing the seed data structure
+    // Product should be removed from list
+    await expect(productRow).not.toBeVisible();
+
+    // No cleanup needed - product was deleted by the test
   });
 });
 
@@ -267,50 +318,60 @@ test.describe('Create Product Flow', () => {
     await page.goto(`/${TEST_USERS.editor.tenant}/products/new`);
 
     // Fill in the form with unique SKU to avoid conflicts
-    const uniqueSku = `E2E-TEST-${Date.now()}`;
-    await page.getByLabel(/product name/i).fill('E2E Test Product');
+    const timestamp = Date.now();
+    const uniqueSku = `E2E-CREATE-${timestamp}`;
+    await page.getByLabel(/product name/i).fill(`E2E Create Test ${timestamp}`);
     await page.getByLabel(/sku/i).fill(uniqueSku);
     await page.getByLabel(/price \(gbp\)/i).fill('50.00');
 
     // Save
     await page.getByRole('button', { name: /^save$/i }).click();
 
-    // Should show success notification
-    await expect(page.getByRole('alert')).toBeVisible();
+    // Should show success notification (filter to notifications, not welcome banners)
     await expect(page.getByText(/product created/i)).toBeVisible();
 
     // Should redirect to FIFO tab with welcome banner
     await expect(page).toHaveURL(/\/products\/[a-z0-9]+\?tab=fifo&welcome=fifo/i);
     await expect(page.getByText(/set initial fifo stock/i)).toBeVisible();
+
+    // Extract product ID from URL for cleanup
+    const url = page.url();
+    const productId = url.match(/\/products\/([a-z0-9]+)/)?.[1];
+
+    // Cleanup: delete the test product
+    if (productId) {
+      await deleteProductViaAPI(page, productId);
+    }
   });
 
   test('should show error for duplicate SKU', async ({ page }) => {
     await signIn(page, TEST_USERS.editor);
 
-    // First, create a product with a unique SKU
-    const uniqueSku = `DUPLICATE-SKU-${Date.now()}`;
-    await page.goto(`/${TEST_USERS.editor.tenant}/products/new`);
-    await page.getByLabel(/product name/i).fill('First Product');
-    await page.getByLabel(/sku/i).fill(uniqueSku);
-    await page.getByLabel(/price \(gbp\)/i).fill('10.00');
-    await page.getByRole('button', { name: /^save$/i }).click();
+    // Create a product via API first
+    const timestamp = Date.now();
+    const uniqueSku = `DUPLICATE-SKU-${timestamp}`;
 
-    // Wait for success
-    await expect(page.getByText(/product created/i)).toBeVisible();
+    const productId = await createProductViaAPI(page, {
+      productName: 'First Product',
+      productSku: uniqueSku,
+      productPricePence: 1000,
+    });
 
-    // Now try to create another product with the same SKU
-    await page.goto(`/${TEST_USERS.editor.tenant}/products/new`);
-    await page.getByLabel(/product name/i).fill('Second Product');
-    await page.getByLabel(/sku/i).fill(uniqueSku);
-    await page.getByLabel(/price \(gbp\)/i).fill('20.00');
-    await page.getByRole('button', { name: /^save$/i }).click();
+    try {
+      // Now try to create another product with the same SKU via UI
+      await page.goto(`/${TEST_USERS.editor.tenant}/products/new`);
+      await page.getByLabel(/product name/i).fill('Second Product');
+      await page.getByLabel(/sku/i).fill(uniqueSku);
+      await page.getByLabel(/price \(gbp\)/i).fill('20.00');
+      await page.getByRole('button', { name: /^save$/i }).click();
 
-    // Should show duplicate SKU error (409 CONFLICT or validation error)
-    await expect(page.getByRole('alert')).toBeVisible();
-    // The error message could vary, so just check that an alert is shown
-    // Common patterns: "already exists", "duplicate", "Save failed", "SKU"
-    const alert = page.getByRole('alert');
-    await expect(alert).toBeVisible();
+      // Should show duplicate SKU error (409 CONFLICT or validation error)
+      // Just verify an error alert is shown - message may vary
+      await expect(page.locator('[role="alert"]').first()).toBeVisible();
+    } finally {
+      // Cleanup: delete the test product
+      await deleteProductViaAPI(page, productId);
+    }
   });
 });
 
@@ -347,26 +408,52 @@ test.describe('Edit Product Flow', () => {
   test('should update product successfully', async ({ page }) => {
     await signIn(page, TEST_USERS.editor);
 
-    // Navigate to first product edit page
-    await page.goto(`/${TEST_USERS.editor.tenant}/products`);
-    const firstRow = page.locator('table tbody tr:first-child');
-    const actionsCell = firstRow.locator('td').last();
-    const editButton = actionsCell.locator('button').first();
-    await editButton.click();
+    // Create a test product via API
+    const timestamp = Date.now();
+    const productName = `E2E Update Test ${timestamp}`;
+    const productSku = `UPD-${timestamp}`;
 
-    // Wait for data to load
-    await expect(page.getByLabel(/product name/i)).not.toHaveValue('');
+    const productId = await createProductViaAPI(page, {
+      productName: productName,
+      productSku: productSku,
+      productPricePence: 3000,
+    });
 
-    // Update the name
-    const originalName = await page.getByLabel(/product name/i).inputValue();
-    await page.getByLabel(/product name/i).fill(`${originalName} (Updated)`);
+    try {
+      // Navigate to products list first, then find and click edit on our product
+      await page.goto(`/${TEST_USERS.editor.tenant}/products`);
+      await page.waitForLoadState('networkidle');
 
-    // Save
-    await page.getByRole('button', { name: /^save$/i }).click();
+      // Find our test product row by name and click edit
+      const productRow = page.locator('tr', { hasText: productName });
+      await expect(productRow).toBeVisible();
 
-    // Should show success notification
-    await expect(page.getByRole('alert')).toBeVisible();
-    await expect(page.getByText(/product updated/i)).toBeVisible();
+      const actionsCell = productRow.locator('td').last();
+      const editButton = actionsCell.locator('button').first();
+      await editButton.click();
+
+      // Wait for edit page
+      await expect(page).toHaveURL(/\/products\/[a-z0-9]+$/i);
+      await page.waitForLoadState('networkidle');
+
+      // Wait for form to be populated
+      const nameInput = page.getByLabel(/product name/i);
+      await expect(nameInput).toBeVisible();
+      await expect(nameInput).toHaveValue(productName);
+
+      // Update the name
+      const updatedName = `${productName} (Updated)`;
+      await nameInput.fill(updatedName);
+
+      // Save
+      await page.getByRole('button', { name: /^save$/i }).click();
+
+      // Should show success notification
+      await expect(page.getByText(/product updated/i)).toBeVisible();
+    } finally {
+      // Cleanup: delete the test product
+      await deleteProductViaAPI(page, productId);
+    }
   });
 
   test('should show tabs for editing product', async ({ page }) => {

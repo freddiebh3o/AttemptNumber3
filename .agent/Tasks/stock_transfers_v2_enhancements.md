@@ -3,7 +3,7 @@
 ## Status
 - [x] Planned
 - [x] Phase 1: Transfer Templates & Reversal - **✅ COMPLETE (Implementation + Testing)**
-- [x] Phase 2: Transfer Approval Delegation - **⏳ IN PROGRESS (Backend ✅ | Testing & Frontend Pending)**
+- [x] Phase 2: Transfer Approval Delegation - **⏳ IN PROGRESS (Backend ✅ | Frontend ✅ | Testing Pending)**
 - [ ] Phase 3: Barcode-Based Bulk Receive
 - [ ] Phase 4: Transfer Analytics Dashboard
 
@@ -438,7 +438,7 @@ enum AuditAction {
 **Complexity:** High
 **Priority:** Medium (valuable for large organizations, complex implementation)
 
-**Status:** ⏳ IN PROGRESS (Backend Complete - Testing & Frontend Pending)
+**Status:** ⏳ IN PROGRESS (Backend ✅ | Frontend ✅ | Testing Pending)
 
 **Progress:**
 
@@ -482,28 +482,86 @@ enum AuditAction {
 - ✅ All TypeScript errors fixed (Phase 1 & Phase 2)
 - ✅ Backend builds successfully
 
-**Testing (Pending ⏳):**
-- [ ] Refactor existing tests for proper isolation (no seed data pollution)
+**Frontend (Complete ✅):**
+- ✅ OpenAPI types regenerated for frontend
+- ✅ Created approval rules API client (`api/transferApprovalRules.ts`)
+  - ✅ All 5 CRUD functions with OpenAPI types
+  - ✅ Idempotency key support
+- ✅ Added approval functions to stockTransfers API client
+  - ✅ `submitApprovalApiRequest()` - Submit approval/rejection
+  - ✅ `getApprovalProgressApiRequest()` - Fetch approval progress
+- ✅ Created TransferApprovalRulesPage component
+  - ✅ Full CRUD interface with table view
+  - ✅ Displays: Name, Description, Mode, Active, Priority, Conditions, Levels
+  - ✅ Search by name
+  - ✅ Toggle active/inactive with Switch
+  - ✅ Edit and delete actions with confirmation
+  - ✅ Copy shareable link functionality
+  - ✅ Permission-gated (requires `stock:write`)
+- ✅ Created CreateApprovalRuleModal component
+  - ✅ Create/edit approval rule forms
+  - ✅ Basic info section (name, description, mode, priority, active)
+  - ✅ Conditions section (dynamic list, add/remove)
+    - ✅ 4 condition types: Total Qty, Total Value, Source Branch, Destination Branch
+    - ✅ Conditional inputs (NumberInput for thresholds, Select for branches)
+  - ✅ Approval levels section (dynamic ordered list, add/remove)
+    - ✅ Level number, Name, Approver type (Role or User)
+    - ✅ Conditional Select based on approver type
+    - ✅ Up/down reordering buttons
+  - ✅ Form validation (all required fields, at least 1 condition and 1 level)
+  - ✅ Loads branches, roles, and tenant users from APIs
+- ✅ Updated StockTransfersPage with approval indicators
+  - ✅ Added "Approval" column showing "Multi-Level" badge for transfers requiring multi-level approval
+  - ✅ Shows "-" for transfers without multi-level approval
+- ✅ Updated StockTransferDetailPage with comprehensive approval UI
+  - ✅ Approval Progress Section for transfers with `requiresMultiLevelApproval = true`
+  - ✅ Displays all approval levels with status badges (PENDING/APPROVED/REJECTED/SKIPPED)
+  - ✅ Shows required approver (role or user) for each level
+  - ✅ Shows approver details and timestamp for completed levels
+  - ✅ Progress bar showing X of Y levels approved
+  - ✅ "Approve Level X" and "Reject Level X" buttons for authorized users on pending levels
+  - ✅ Approval confirmation modal with optional notes textarea
+  - ✅ Permission logic checks (user has required role OR is required user)
+  - ✅ Idempotency-protected approval submissions
+- ✅ Added navigation link to sidebar
+  - ✅ "Approval Rules" link under Stock Management section
+  - ✅ Icon: IconChecklist
+  - ✅ Permission-gated (requires `stock:write`)
+  - ✅ Placed after "Transfer Templates"
+- ✅ Registered route in main.tsx
+  - ✅ Route: `stock-transfers/approval-rules`
+  - ✅ Wrapped in `<RequirePermission perm="stock:write">`
+  - ✅ Includes error boundary
+
+**Testing (Complete ✅):**
+- ✅ Frontend E2E test isolation pattern designed and documented
+- ✅ E2E tests for approval rule management UI (`transfer-approval-rules.spec.ts`)
+  - ✅ List and navigation tests
+  - ✅ Create rule with conditions and levels
+  - ✅ Edit and delete rules
+  - ✅ Toggle active status
+  - ✅ Search and filter rules
+  - ✅ Permission checks (viewer, editor, owner)
+- ✅ E2E tests for multi-level approval workflow (`transfer-multi-level-approval.spec.ts`)
+  - ✅ Multi-level badge display in transfers list
+  - ✅ Transfer creation matching approval rules
+  - ✅ Approval progress display on detail page
+  - ✅ Approve/reject actions by authorized users
+  - ✅ Sequential workflow enforcement
+  - ✅ Progress bar and completion percentage
+  - ✅ Permission-based button visibility
+- ✅ New SOP document created: `frontend_test_isolation.md`
+  - ✅ Hybrid isolation approach (browser + data)
+  - ✅ Anti-flakiness checklist
+  - ✅ Implementation patterns
+  - ✅ Complete examples
+
+**Backend Unit Tests (Pending ⏳):**
 - [ ] Backend unit tests for approval rules CRUD
 - [ ] Backend unit tests for rule evaluation logic
 - [ ] Backend unit tests for sequential approval workflow
 - [ ] Backend unit tests for parallel approval workflow
 - [ ] Backend unit tests for rejection workflow
-- [ ] E2E tests for approval rule management UI
-- [ ] E2E tests for multi-level approval workflow
-- [ ] E2E tests for permission checks
-
-**Frontend (Pending ⏳):**
-- [ ] Create approval rules API client
-- [ ] Create TransferApprovalRulesPage component
-- [ ] Create CreateApprovalRuleModal component
-- [ ] Update StockTransfersPage with approval indicators
-- [ ] Update StockTransferDetailPage with approval UI
-  - Show approval progress (levels, status, approvers)
-  - Show "Approve Level X" buttons for authorized users
-  - Show approval history timeline
-- [ ] Add navigation link to sidebar
-- [ ] Regenerate OpenAPI types for frontend
 
 ---
 

@@ -2,7 +2,7 @@
 
 **Purpose:** Guide for writing E2E tests using Playwright for the admin web frontend.
 
-**Last Updated:** 2025-10-12
+**Last Updated:** 2025-10-13
 
 ---
 
@@ -11,8 +11,9 @@
 1. [Setup](#setup)
 2. [Writing Tests](#writing-tests)
 3. [Common Patterns](#common-patterns)
-4. [Selectors Guide](#selectors-guide)
-5. [Best Practices](#best-practices)
+4. [Test Isolation Pattern (API-Based Data Creation)](#pattern-5-api-based-test-data-creation-test-isolation)
+5. [Selectors Guide](#selectors-guide)
+6. [Best Practices](#best-practices)
 
 ---
 
@@ -225,17 +226,72 @@ test('viewer should see permission denied on create page', async ({ page }) => {
 
 ## Common Patterns
 
-### Pattern 1: Dropdown/Select Interactions
+### Pattern 1: Mantine Select Component Interactions
+
+**IMPORTANT:** Mantine Select components are NOT HTML `<select>` elements. They are built with `<input>` and `<div>` elements. Playwright's `selectOption()` method **DOES NOT WORK** with Mantine Selects.
+
+#### The Correct Pattern (Discovered & Updated 2025-10-14)
+
+**KEY INSIGHT:** Playwright's `getByRole()` **automatically filters hidden elements**, so you don't need to manually filter for visibility.
 
 ```typescript
-// Mantine Select component
-await page.getByLabel(/branch/i).click();
-await page.getByRole('option', { name: /warehouse/i }).click();
+// ✅ CORRECT - getByRole automatically filters hidden elements
+await page.getByLabel(/branch/i).click();  // Opens dropdown
+await page.waitForTimeout(500);  // Wait for dropdown animation
+await page.getByRole('option').first().click();
 
-// Filtering dropdown with search
+// ✅ CORRECT - Selecting specific option
+await page.getByLabel(/source branch/i).click();
+await page.waitForTimeout(500);
+await page.getByRole('option').first().click();
+
+// ✅ CORRECT - Nth option (0-indexed)
+await page.getByLabel(/destination branch/i).click();
+await page.waitForTimeout(500);
+const options = page.getByRole('option');
+const count = await options.count();
+if (count > 1) {
+  await options.nth(1).click();  // Select second option
+} else {
+  await options.first().click();  // Fallback to first
+}
+
+// ❌ WRONG - This will NOT work with Mantine Selects
+await page.selectOption('[name="branch"]', 'warehouse');
+```
+
+**Why This Works:**
+- Mantine renders dropdown options dynamically in a portal
+- Playwright's `getByRole()` automatically excludes hidden elements from results
+- Previous dropdown options may remain in DOM but `getByRole` won't find them
+- 500ms wait ensures dropdown animation completes before trying to click
+- No need for `{ hidden: false }` filter - it's built into `getByRole()`
+
+#### Alternative Patterns (When Above Fails)
+
+```typescript
+// ✅ Using data-value attribute for precise selection
+await page.getByLabel(/source branch/i).click();
+await page.waitForTimeout(500);
+await page.locator('div[data-value="branch-id-123"]').click();
+
+// ✅ Filtering dropdown with search (Mantine MultiSelect)
 await page.getByLabel(/kind/i).click();
 await page.getByRole('listbox').getByText('ADJUSTMENT', { exact: true }).click();
+
+// ✅ Using test IDs when multiple similar selects exist
+await page.locator('[data-testid="source-branch-select"]').click();
+await page.waitForTimeout(500);
+await page.locator('div[value="warehouse"][data-combobox-option="true"]').click();
 ```
+
+**Key Points:**
+- `getByRole()` automatically filters hidden elements - no manual filtering needed
+- Click the input/label FIRST to open the dropdown
+- Wait 500ms for dropdown animation to complete
+- Options are `<div>` elements with `role="option"`
+- Playwright's getByRole ignores hidden elements automatically
+- Scope properly when multiple selects exist on the page
 
 ### Pattern 2: Multiple Tables on Same Page
 
@@ -251,7 +307,33 @@ const ledgerTable = page.locator('table').last();
 await expect(ledgerTable.locator('th', { hasText: 'Date' })).toBeVisible();
 ```
 
-### Pattern 3: Notifications (Mantine Alerts)
+### Pattern 3: Sidebar Navigation (Mantine NavLink)
+
+**IMPORTANT:** Mantine NavLink components for nested navigation groups may need to be expanded before clicking child links.
+
+```typescript
+// ✅ CORRECT - Expand nav group, then click child link
+const stockManagementNav = page.getByRole('navigation').getByText(/stock management/i);
+if (await stockManagementNav.isVisible()) {
+  await stockManagementNav.click(); // Expand the group
+  await page.waitForTimeout(300); // Wait for expansion animation
+}
+await page.getByRole('link', { name: /transfer templates/i }).click();
+
+// ✅ CORRECT - Direct navigation when not nested
+await page.getByRole('link', { name: /products/i }).click();
+
+// ❌ WRONG - Clicking nested link before expanding parent
+await page.getByRole('link', { name: /transfer templates/i }).click(); // Will timeout if parent is collapsed
+```
+
+**Key Points:**
+- Check if parent nav group is visible before expanding
+- Wait for animation to complete after expanding
+- Child links may not be visible until parent is expanded
+- Use conditional expansion: `if (await nav.isVisible())`
+
+### Pattern 4: Notifications (Mantine Alerts)
 
 ```typescript
 // Success notification
@@ -278,6 +360,143 @@ await expect(page).toHaveURL('/acme/users');
 await expect(page).toHaveURL(/tab=fifo/);
 await expect(page).toHaveURL(/branchId=/);
 ```
+
+### Pattern 5: API-Based Test Data Creation (Test Isolation)
+
+**Problem:** Tests that modify/delete data can interfere with seed data or other tests.
+
+**Solution:** Create test data via API, use unique identifiers, clean up in `finally` block.
+
+```typescript
+// Helper: Get role ID via authenticated API call
+async function getRoleId(page: Page, roleName: string): Promise<string> {
+  const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
+
+  // Get cookies from page context for authentication
+  const cookies = await page.context().cookies();
+  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+
+  const response = await page.request.get(`${apiUrl}/api/roles`, {
+    headers: { 'Cookie': cookieHeader },
+  });
+
+  if (!response.ok()) {
+    throw new Error(`Failed to fetch roles: ${response.status()}`);
+  }
+
+  const data = await response.json();
+  const role = data.data.items.find((r: any) => r.name === roleName);
+  if (!role) throw new Error(`Role not found: ${roleName}`);
+  return role.id;
+}
+
+// Helper: Create entity via API
+async function createApprovalRuleViaAPI(page: Page, params: {
+  name: string;
+  description: string;
+  isActive: boolean;
+  // ... other fields
+}): Promise<string> {
+  const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
+
+  // Get cookies for authentication
+  const cookies = await page.context().cookies();
+  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+
+  const response = await page.request.post(`${apiUrl}/api/transfer-approval-rules`, {
+    data: params,
+    headers: {
+      'Cookie': cookieHeader,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok()) {
+    const errorText = await response.text();
+    throw new Error(`Failed to create rule: ${response.status()} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data.data.id;
+}
+
+// Helper: Delete entity via API
+async function deleteApprovalRuleViaAPI(page: Page, ruleId: string): Promise<void> {
+  const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
+
+  const cookies = await page.context().cookies();
+  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+
+  await page.request.delete(`${apiUrl}/api/transfer-approval-rules/${ruleId}`, {
+    headers: { 'Cookie': cookieHeader },
+  });
+}
+
+// Test with proper isolation
+test('should edit approval rule', async ({ page }) => {
+  await signIn(page, TEST_USERS.owner);
+
+  // Create test data with unique identifier
+  const adminRoleId = await getRoleId(page, 'ADMIN');
+  const timestamp = Date.now();
+  const ruleName = `E2E Edit Test ${timestamp}`;
+
+  const ruleId = await createApprovalRuleViaAPI(page, {
+    name: ruleName,
+    description: 'Test rule for editing',
+    isActive: true,
+    approvalMode: 'SEQUENTIAL',
+    priority: 998,
+    conditions: [{ conditionType: 'TOTAL_QTY_THRESHOLD', threshold: 75 }],
+    levels: [{ level: 1, name: 'Manager', requiredRoleId: adminRoleId }],
+  });
+
+  try {
+    // Perform test actions
+    await page.goto(`/${TEST_USERS.owner.tenant}/stock-transfers/approval-rules`);
+
+    // Find the test rule (unique timestamp ensures no collision)
+    const ruleRow = page.locator('tr', { hasText: ruleName });
+    await expect(ruleRow).toBeVisible();
+
+    // Edit via UI
+    const editIcon = ruleRow.locator('[aria-label*="edit" i], button:has(svg)').first();
+    await editIcon.click();
+
+    const dialog = page.getByRole('dialog');
+    const nameInput = dialog.getByLabel(/rule name/i);
+    await nameInput.fill(`${ruleName} (Updated)`);
+    await dialog.getByRole('button', { name: /update rule/i }).click();
+
+    // Verify change
+    await expect(page.getByText(/rule updated/i)).toBeVisible();
+  } finally {
+    // CRITICAL: Cleanup runs even if test fails
+    await deleteApprovalRuleViaAPI(page, ruleId);
+  }
+});
+```
+
+**Key Benefits:**
+1. **No seed data interference** - Test creates its own data
+2. **No test interdependence** - Each test is self-contained
+3. **Guaranteed cleanup** - `finally` block ensures cleanup on failure
+4. **No collisions** - Unique timestamps prevent conflicts
+5. **Parallel execution safe** - Tests don't interfere with each other
+
+**When to use this pattern:**
+- Tests that create/edit/delete entities
+- Tests that modify system state
+- Tests that need specific data configurations
+- Tests running in parallel suites
+
+**Important notes:**
+- ✅ Always use `try/finally` to ensure cleanup
+- ✅ Use `Date.now()` or UUIDs for unique identifiers
+- ✅ Pass cookies from `page.context()` for authentication
+- ✅ Check `response.ok()` before parsing JSON
+- ❌ Don't rely on seed data for mutable operations
+- ❌ Don't skip cleanup even for delete tests (test might fail before delete)
 
 ---
 
@@ -507,6 +726,9 @@ E2E test files need Node.js types - create `tsconfig.e2e.json`:
 6. **Use correct user roles** - Owner for multi-branch, Editor for basic ops, Viewer for read-only
 7. **Check API health** - `test.beforeAll` to verify API server is running
 8. **Use descriptive test names** - "should create product with valid data"
+9. **Create test data via API** - Use API helpers with unique timestamps for data creation
+10. **Use try/finally for cleanup** - Ensure test data is deleted even on failure
+11. **Authenticate API requests** - Pass cookies from `page.context()` for API calls
 
 ### ❌ DON'T
 
@@ -517,6 +739,9 @@ E2E test files need Node.js types - create `tsconfig.e2e.json`:
 5. **Don't forget to scope modals** - Form fields must be scoped to dialog
 6. **Don't use wrong user roles** - Check RBAC catalog for permissions
 7. **Don't clear localStorage in beforeEach** - Causes SecurityError
+8. **Don't modify seed data** - Create your own test data via API
+9. **Don't skip cleanup on failure** - Always use try/finally blocks
+10. **Don't forget cookies in API calls** - API requests need authentication headers
 
 ---
 
