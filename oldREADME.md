@@ -467,6 +467,10 @@ If you need initial data in the new environment:
 * [ ] Document URLs and secrets.
 
 ## Future fetures
+- Go through current list of e2e tests and make sure that clean up isn't producing errors. If it is, just remove the clean up. 
+
+- Look into RAG/tools model for chat bot on website. 
+
 ### Features to complete by Monday
 * Stock transfer - Whats left 
   1. **Multi-product FIFO optimization**: Batch consume across products in single transaction

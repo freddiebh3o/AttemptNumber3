@@ -14,6 +14,10 @@ import {
   IconUserCog,
   IconChecklist,
   IconChartLine,
+  IconSettings,
+  IconBoxMultiple,
+  IconBarcode,
+  IconPackageExport,
 } from "@tabler/icons-react";
 import { useThemeStore } from "../../stores/theme";
 import { useAuthStore } from "../../stores/auth";
@@ -49,8 +53,7 @@ export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) 
         {hasPerm("stock:read") && (
           <NavLink
             label="Stock Management"
-            leftSection={<IconBoxSeam size={16} />}
-            defaultOpened
+            leftSection={<IconPackageExport size={16} />}
             childrenOffset={28}
           >
             <NavLink
@@ -96,7 +99,6 @@ export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) 
           <NavLink
             label="User Management"
             leftSection={<IconUserCog size={16} />}
-            defaultOpened
             childrenOffset={28}
           >
             {hasPerm("users:manage") && (
@@ -133,32 +135,34 @@ export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) 
           />
         )}
 
-        {hasPerm("theme:manage") && (
+        {(hasPerm("theme:manage") || hasPerm("users:manage")) && (
           <NavLink
-            label="Theme"
-            component={Link}
-            to={`${base}/settings/theme?tab=settings`}
-            active={active(`${base}/settings/theme`)}
-            onClick={onNavigate}
-            leftSection={<IconPalette size={16} />}
-          />
+            label="System"
+            leftSection={<IconSettings size={16} />}
+            childrenOffset={28}
+          >
+            {hasPerm("theme:manage") && (
+              <NavLink
+                label="Theme"
+                component={Link}
+                to={`${base}/settings/theme?tab=settings`}
+                active={active(`${base}/settings/theme`)}
+                onClick={onNavigate}
+                leftSection={<IconPalette size={16} />}
+              />
+            )}
+            {hasPerm("users:manage") && (
+              <NavLink
+                label="Audit log"
+                component={Link}
+                to={`${base}/audit`}
+                active={active(`${base}/audit`)}
+                onClick={onNavigate}
+                leftSection={<IconHistory size={16} />}
+              />
+            )}
+          </NavLink>
         )}
-
-        {/* --- NEW: Audit log (admins) --- */}
-        {hasPerm("users:manage") && (
-          <NavLink
-            label="Audit log"
-            component={Link}
-            to={`${base}/audit`}
-            active={active(`${base}/audit`)}
-            onClick={onNavigate}
-            leftSection={<IconHistory size={16} />}
-          />
-        )}
-
-        <Text size="sm" c="dimmed" px="xs" mt="sm">
-          System
-        </Text>
       </Stack>
 
       <Divider />
