@@ -13,6 +13,8 @@ export const PERMISSION_KEYS = [
   'stock:read',
   'stock:write',
   'stock:allocate',
+  // Reports & Analytics
+  'reports:view',
 ] as const;
 
 export type PermissionKey = typeof PERMISSION_KEYS[number];

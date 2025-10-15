@@ -10,7 +10,7 @@ Permission design, RBAC catalog management, authorization middleware, frontend p
 <!-- Agents will update this section automatically -->
 <!-- Format: - [YYYY-MM-DD] [Task Name](./work/filename.md) - Brief description -->
 
-_No work completed yet_
+- [2025-10-14] [Phase 4: Reports Permission](./work/phase4-reports-permission-2025-10-14.md) - Added `reports:view` permission for Transfer Analytics Dashboard (OWNER/ADMIN only)
 
 ## Common Patterns
 

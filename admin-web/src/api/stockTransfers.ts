@@ -55,6 +55,14 @@ type SubmitApproval200Response =
 type GetApprovalProgress200Response =
   paths["/api/stock-transfers/{transferId}/approval-progress"]["get"]["responses"]["200"]["content"]["application/json"];
 
+// Unused for now - keeping for future implementation
+// type UpdatePriorityRequestBody = NonNullable<
+//   paths["/api/stock-transfers/{transferId}/priority"]["patch"]["requestBody"]
+// >["content"]["application/json"];
+
+type UpdatePriority200Response =
+  paths["/api/stock-transfers/{transferId}/priority"]["patch"]["responses"]["200"]["content"]["application/json"];
+
 // Export the StockTransfer type for use in components
 export type { StockTransfer };
 
@@ -63,8 +71,9 @@ export async function listStockTransfersApiRequest(params?: {
   branchId?: string;
   direction?: "inbound" | "outbound";
   status?: string; // Comma-separated
+  priority?: string; // Comma-separated
   q?: string; // Search transfer number
-  sortBy?: "requestedAt" | "updatedAt" | "transferNumber" | "status";
+  sortBy?: "requestedAt" | "updatedAt" | "transferNumber" | "status" | "priority";
   sortDir?: "asc" | "desc";
   requestedAtFrom?: string; // ISO date (YYYY-MM-DD)
   requestedAtTo?: string;
@@ -78,6 +87,7 @@ export async function listStockTransfersApiRequest(params?: {
   if (params?.branchId) search.set("branchId", params.branchId);
   if (params?.direction) search.set("direction", params.direction);
   if (params?.status) search.set("status", params.status);
+  if (params?.priority) search.set("priority", params.priority);
   if (params?.q) search.set("q", params.q);
   if (params?.sortBy) search.set("sortBy", params.sortBy);
   if (params?.sortDir) search.set("sortDir", params.sortDir);
@@ -138,12 +148,14 @@ export async function reviewStockTransferApiRequest(
 // Ship transfer (POST /api/stock-transfers/{transferId}/ship)
 export async function shipStockTransferApiRequest(
   transferId: string,
+  items?: Array<{ itemId: string; qtyToShip: number }>,
   idempotencyKeyOptional?: string
 ) {
   return httpRequestJson<ShipTransfer200Response>(
     `/api/stock-transfers/${transferId}/ship`,
     {
       method: "POST",
+      body: items ? JSON.stringify({ items }) : undefined,
       headers: idempotencyKeyOptional
         ? { "Idempotency-Key": idempotencyKeyOptional }
         : undefined,
@@ -226,5 +238,19 @@ export async function submitApprovalApiRequest(
 export async function getApprovalProgressApiRequest(transferId: string) {
   return httpRequestJson<GetApprovalProgress200Response>(
     `/api/stock-transfers/${transferId}/approval-progress`
+  );
+}
+
+// Update transfer priority (PATCH /api/stock-transfers/{transferId}/priority)
+export async function updateTransferPriorityApiRequest(
+  transferId: string,
+  priority: "LOW" | "NORMAL" | "HIGH" | "URGENT"
+) {
+  return httpRequestJson<UpdatePriority200Response>(
+    `/api/stock-transfers/${transferId}/priority`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ priority }),
+    }
   );
 }

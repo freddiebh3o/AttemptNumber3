@@ -60,6 +60,7 @@ import SelectTemplateModal from "../components/stockTransfers/SelectTemplateModa
 import type { StockTransferTemplate } from "../api/stockTransferTemplates";
 import { FilterBar } from "../components/common/FilterBar";
 import { buildCommonDatePresets } from "../utils/datePresets";
+import PriorityBadge from "../components/common/PriorityBadge";
 
 type TransferStatus =
   | "REQUESTED"
@@ -70,12 +71,13 @@ type TransferStatus =
   | "COMPLETED"
   | "CANCELLED";
 
-type SortField = "requestedAt" | "updatedAt" | "transferNumber" | "status";
+type SortField = "requestedAt" | "updatedAt" | "transferNumber" | "status" | "priority";
 type SortDir = "asc" | "desc";
 
 type TransferFilters = {
   q: string; // Transfer number search
   status: string; // Status filter
+  priority: string; // Priority filter
   requestedAtFrom: string | null;
   requestedAtTo: string | null;
   shippedAtFrom: string | null;
@@ -85,6 +87,7 @@ type TransferFilters = {
 const emptyTransferFilters: TransferFilters = {
   q: "",
   status: "all",
+  priority: "all",
   requestedAtFrom: null,
   requestedAtTo: null,
   shippedAtFrom: null,
@@ -100,6 +103,14 @@ const STATUS_OPTIONS = [
   { value: "COMPLETED", label: "Completed" },
   { value: "REJECTED", label: "Rejected" },
   { value: "CANCELLED", label: "Cancelled" },
+];
+
+const PRIORITY_OPTIONS = [
+  { value: "all", label: "All Priorities" },
+  { value: "URGENT", label: "Urgent" },
+  { value: "HIGH", label: "High" },
+  { value: "NORMAL", label: "Normal" },
+  { value: "LOW", label: "Low" },
 ];
 
 function getStatusColor(status: TransferStatus): string {
@@ -189,6 +200,7 @@ export default function StockTransfersPage() {
       cursorId: null,
       q: values.q.trim() || null,
       status: values.status === "all" ? null : values.status,
+      priority: values.priority === "all" ? null : values.priority,
       requestedAtFrom: values.requestedAtFrom ?? null,
       requestedAtTo: values.requestedAtTo ?? null,
       shippedAtFrom: values.shippedAtFrom ?? null,
@@ -197,6 +209,7 @@ export default function StockTransfersPage() {
     resetToFirstPageAndFetch({
       qOverride: values.q.trim() || null,
       statusOverride: values.status === "all" ? null : values.status,
+      priorityOverride: values.priority === "all" ? null : values.priority,
       requestedFromOverride: values.requestedAtFrom ?? null,
       requestedToOverride: values.requestedAtTo ?? null,
       shippedFromOverride: values.shippedAtFrom ?? null,
@@ -234,6 +247,7 @@ export default function StockTransfersPage() {
     direction?: "inbound" | "outbound";
     q?: string | null | undefined;
     status?: string | null | undefined;
+    priority?: string | null | undefined;
     requestedAtFrom?: string | null | undefined;
     requestedAtTo?: string | null | undefined;
     shippedAtFrom?: string | null | undefined;
@@ -258,6 +272,13 @@ export default function StockTransfersPage() {
           ? null
           : appliedFilters.status
         : overrides.status;
+
+    const priorityVal =
+      overrides?.priority === undefined
+        ? appliedFilters.priority === "all"
+          ? null
+          : appliedFilters.priority
+        : overrides.priority;
 
     const requestedFromVal =
       overrides && Object.prototype.hasOwnProperty.call(overrides, "requestedAtFrom")
@@ -285,6 +306,7 @@ export default function StockTransfersPage() {
     put("direction", overrides?.direction ?? direction);
     put("q", qVal);
     put("status", statusVal);
+    put("priority", priorityVal);
     put("requestedAtFrom", requestedFromVal);
     put("requestedAtTo", requestedToVal);
     put("shippedAtFrom", shippedFromVal);
@@ -311,6 +333,7 @@ export default function StockTransfersPage() {
     directionOverride?: "inbound" | "outbound";
     qOverride?: string | null | undefined;
     statusOverride?: string | null | undefined;
+    priorityOverride?: string | null | undefined;
     requestedFromOverride?: string | null | undefined;
     requestedToOverride?: string | null | undefined;
     shippedFromOverride?: string | null | undefined;
@@ -329,6 +352,13 @@ export default function StockTransfersPage() {
             ? undefined
             : appliedFilters.status
           : opts.statusOverride || undefined;
+
+      const priorityParam =
+        opts?.priorityOverride === undefined
+          ? appliedFilters.priority === "all"
+            ? undefined
+            : appliedFilters.priority
+          : opts.priorityOverride || undefined;
 
       const requestedFromParam =
         opts?.requestedFromOverride === undefined
@@ -356,6 +386,7 @@ export default function StockTransfersPage() {
         direction: opts?.directionOverride ?? direction,
         q: qParam,
         status: statusParam,
+        priority: priorityParam,
         sortBy: opts?.sortByOverride ?? sortBy,
         sortDir: opts?.sortDirOverride ?? sortDir,
         requestedAtFrom: requestedFromParam,
@@ -404,6 +435,7 @@ export default function StockTransfersPage() {
     directionOverride?: "inbound" | "outbound";
     qOverride?: string | null | undefined;
     statusOverride?: string | null | undefined;
+    priorityOverride?: string | null | undefined;
     requestedFromOverride?: string | null | undefined;
     requestedToOverride?: string | null | undefined;
     shippedFromOverride?: string | null | undefined;
@@ -420,6 +452,7 @@ export default function StockTransfersPage() {
       direction: opts?.directionOverride,
       q: opts?.qOverride,
       status: opts?.statusOverride,
+      priority: opts?.priorityOverride,
       requestedAtFrom: opts?.requestedFromOverride,
       requestedAtTo: opts?.requestedToOverride,
       shippedAtFrom: opts?.shippedFromOverride,
@@ -450,6 +483,7 @@ export default function StockTransfersPage() {
     const qpDirection = searchParams.get("direction") as "inbound" | "outbound" | null;
     const qpQ = searchParams.get("q");
     const qpStatus = searchParams.get("status");
+    const qpPriority = searchParams.get("priority");
     const qpRequestedFrom = searchParams.get("requestedAtFrom");
     const qpRequestedTo = searchParams.get("requestedAtTo");
     const qpShippedFrom = searchParams.get("shippedAtFrom");
@@ -465,6 +499,7 @@ export default function StockTransfersPage() {
     setAppliedFilters({
       q: qpQ ?? "",
       status: qpStatus ?? "all",
+      priority: qpPriority ?? "all",
       requestedAtFrom: qpRequestedFrom ?? null,
       requestedAtTo: qpRequestedTo ?? null,
       shippedAtFrom: qpShippedFrom ?? null,
@@ -486,6 +521,7 @@ export default function StockTransfersPage() {
       directionOverride: qpDirection ?? undefined,
       qOverride: qpQ ?? undefined,
       statusOverride: qpStatus ?? undefined,
+      priorityOverride: qpPriority ?? undefined,
       requestedFromOverride: qpRequestedFrom ?? undefined,
       requestedToOverride: qpRequestedTo ?? undefined,
       shippedFromOverride: qpShippedFrom ?? undefined,
@@ -505,6 +541,7 @@ export default function StockTransfersPage() {
     const qpDirection = sp.get("direction") as "inbound" | "outbound" | null;
     const qpQ = sp.get("q");
     const qpStatus = sp.get("status");
+    const qpPriority = sp.get("priority");
     const qpRequestedFrom = sp.get("requestedAtFrom");
     const qpRequestedTo = sp.get("requestedAtTo");
     const qpShippedFrom = sp.get("shippedAtFrom");
@@ -522,6 +559,7 @@ export default function StockTransfersPage() {
     setAppliedFilters({
       q: qpQ ?? "",
       status: qpStatus ?? "all",
+      priority: qpPriority ?? "all",
       requestedAtFrom: qpRequestedFrom ?? null,
       requestedAtTo: qpRequestedTo ?? null,
       shippedAtFrom: qpShippedFrom ?? null,
@@ -543,6 +581,7 @@ export default function StockTransfersPage() {
       directionOverride: qpDirection ?? undefined,
       qOverride: qpQ ?? undefined,
       statusOverride: qpStatus ?? undefined,
+      priorityOverride: qpPriority ?? undefined,
       requestedFromOverride: qpRequestedFrom ?? undefined,
       requestedToOverride: qpRequestedTo ?? undefined,
       shippedFromOverride: qpShippedFrom ?? undefined,
@@ -660,6 +699,8 @@ export default function StockTransfersPage() {
       chips.push({ key: "q", label: `search: "${appliedFilters.q.trim()}"` });
     if (appliedFilters.status !== "all")
       chips.push({ key: "status", label: `status: ${appliedFilters.status}` });
+    if (appliedFilters.priority !== "all")
+      chips.push({ key: "priority", label: `priority: ${appliedFilters.priority}` });
     if (appliedFilters.requestedAtFrom)
       chips.push({
         key: "requestedAtFrom",
@@ -688,6 +729,7 @@ export default function StockTransfersPage() {
       ...appliedFilters,
       q: key === "q" ? "" : appliedFilters.q,
       status: key === "status" ? "all" : appliedFilters.status,
+      priority: key === "priority" ? "all" : appliedFilters.priority,
       requestedAtFrom:
         key === "requestedAtFrom" ? null : appliedFilters.requestedAtFrom,
       requestedAtTo: key === "requestedAtTo" ? null : appliedFilters.requestedAtTo,
@@ -957,6 +999,30 @@ export default function StockTransfersPage() {
               </Grid.Col>
 
               <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+                <Text size="sm" fw={500} mb={4}>
+                  Priority
+                </Text>
+                <select
+                  value={values.priority}
+                  onChange={(e) =>
+                    setValues((prev) => ({ ...prev, priority: e.target.value }))
+                  }
+                  style={{
+                    width: "100%",
+                    padding: "8px",
+                    borderRadius: "4px",
+                    border: "1px solid #ced4da",
+                  }}
+                >
+                  {PRIORITY_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </Grid.Col>
+
+              <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
                 <DatePickerInput
                   label="Requested from"
                   placeholder="Start date"
@@ -1154,6 +1220,22 @@ export default function StockTransfersPage() {
 
                         <Table.Th scope="col">Branches</Table.Th>
 
+                        <Table.Th scope="col" aria-sort={colAriaSort("priority")}>
+                          <Group gap={4} wrap="nowrap">
+                            <span>Priority</span>
+                            <Tooltip label="Sort by priority" withArrow>
+                              <ActionIcon
+                                variant="subtle"
+                                size="sm"
+                                onClick={() => applySort("priority")}
+                                aria-label={sortButtonLabel("priority", "priority")}
+                              >
+                                <SortIcon active={sortBy === "priority"} dir={sortDir} />
+                              </ActionIcon>
+                            </Tooltip>
+                          </Group>
+                        </Table.Th>
+
                         <Table.Th scope="col" aria-sort={colAriaSort("status")}>
                           <Group gap={4} wrap="nowrap">
                             <span>Status</span>
@@ -1219,6 +1301,9 @@ export default function StockTransfersPage() {
                                   {transfer.destinationBranch?.branchName ?? "Unknown"}
                                 </Text>
                               </Group>
+                            </Table.Td>
+                            <Table.Td>
+                              <PriorityBadge priority={transfer.priority as "LOW" | "NORMAL" | "HIGH" | "URGENT"} />
                             </Table.Td>
                             <Table.Td>
                               <Badge color={getStatusColor(transfer.status)} variant="filled">

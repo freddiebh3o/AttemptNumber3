@@ -4532,8 +4532,12 @@ export interface paths {
                     branchId?: string;
                     direction?: "inbound" | "outbound";
                     status?: string;
+                    /** @description Comma-separated priority values (URGENT,HIGH,NORMAL,LOW) */
+                    priority?: string;
                     q?: string;
-                    sortBy?: "requestedAt" | "updatedAt" | "transferNumber" | "status";
+                    /** @description Default: priority */
+                    sortBy?: "requestedAt" | "updatedAt" | "transferNumber" | "status" | "priority";
+                    /** @description Default: desc */
                     sortDir?: "asc" | "desc";
                     requestedAtFrom?: string;
                     requestedAtTo?: string;
@@ -4567,6 +4571,8 @@ export interface paths {
                                     destinationBranchId: string;
                                     /** @enum {string} */
                                     status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
+                                    /** @enum {string} */
+                                    priority: "URGENT" | "HIGH" | "NORMAL" | "LOW";
                                     requestedByUserId: string;
                                     reviewedByUserId: string | null;
                                     shippedByUserId: string | null;
@@ -4593,6 +4599,17 @@ export interface paths {
                                             lotId: string;
                                             qty: number;
                                             unitCostPence: number | null;
+                                        }[] | null;
+                                        shipmentBatches?: {
+                                            batchNumber: number;
+                                            qty: number;
+                                            shippedAt: string;
+                                            shippedByUserId: string;
+                                            lotsConsumed: {
+                                                lotId: string;
+                                                qty: number;
+                                                unitCostPence: number | null;
+                                            }[];
                                         }[] | null;
                                         product?: {
                                             id: string;
@@ -4651,6 +4668,11 @@ export interface paths {
                         sourceBranchId: string;
                         destinationBranchId: string;
                         requestNotes?: string;
+                        /**
+                         * @description Transfer priority (default: NORMAL)
+                         * @enum {string}
+                         */
+                        priority?: "URGENT" | "HIGH" | "NORMAL" | "LOW";
                         items: {
                             productId: string;
                             qtyRequested: number;
@@ -4676,6 +4698,8 @@ export interface paths {
                                 destinationBranchId: string;
                                 /** @enum {string} */
                                 status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
+                                /** @enum {string} */
+                                priority: "URGENT" | "HIGH" | "NORMAL" | "LOW";
                                 requestedByUserId: string;
                                 reviewedByUserId: string | null;
                                 shippedByUserId: string | null;
@@ -4702,6 +4726,17 @@ export interface paths {
                                         lotId: string;
                                         qty: number;
                                         unitCostPence: number | null;
+                                    }[] | null;
+                                    shipmentBatches?: {
+                                        batchNumber: number;
+                                        qty: number;
+                                        shippedAt: string;
+                                        shippedByUserId: string;
+                                        lotsConsumed: {
+                                            lotId: string;
+                                            qty: number;
+                                            unitCostPence: number | null;
+                                        }[];
                                     }[] | null;
                                     product?: {
                                         id: string;
@@ -4781,6 +4816,8 @@ export interface paths {
                                 destinationBranchId: string;
                                 /** @enum {string} */
                                 status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
+                                /** @enum {string} */
+                                priority: "URGENT" | "HIGH" | "NORMAL" | "LOW";
                                 requestedByUserId: string;
                                 reviewedByUserId: string | null;
                                 shippedByUserId: string | null;
@@ -4807,6 +4844,17 @@ export interface paths {
                                         lotId: string;
                                         qty: number;
                                         unitCostPence: number | null;
+                                    }[] | null;
+                                    shipmentBatches?: {
+                                        batchNumber: number;
+                                        qty: number;
+                                        shippedAt: string;
+                                        shippedByUserId: string;
+                                        lotsConsumed: {
+                                            lotId: string;
+                                            qty: number;
+                                            unitCostPence: number | null;
+                                        }[];
                                     }[] | null;
                                     product?: {
                                         id: string;
@@ -4934,6 +4982,8 @@ export interface paths {
                                 destinationBranchId: string;
                                 /** @enum {string} */
                                 status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
+                                /** @enum {string} */
+                                priority: "URGENT" | "HIGH" | "NORMAL" | "LOW";
                                 requestedByUserId: string;
                                 reviewedByUserId: string | null;
                                 shippedByUserId: string | null;
@@ -4960,6 +5010,17 @@ export interface paths {
                                         lotId: string;
                                         qty: number;
                                         unitCostPence: number | null;
+                                    }[] | null;
+                                    shipmentBatches?: {
+                                        batchNumber: number;
+                                        qty: number;
+                                        shippedAt: string;
+                                        shippedByUserId: string;
+                                        lotsConsumed: {
+                                            lotId: string;
+                                            qty: number;
+                                            unitCostPence: number | null;
+                                        }[];
                                     }[] | null;
                                     product?: {
                                         id: string;
@@ -5008,7 +5069,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Ship approved transfer */
+        /** Ship approved transfer (supports partial shipments) */
         post: {
             parameters: {
                 query?: never;
@@ -5018,7 +5079,17 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** @description Optional: Partial shipment items. If not provided, ships all approved quantities. */
+                        items?: {
+                            itemId: string;
+                            qtyToShip: number;
+                        }[];
+                    };
+                };
+            };
             responses: {
                 /** @description Success */
                 200: {
@@ -5037,6 +5108,8 @@ export interface paths {
                                 destinationBranchId: string;
                                 /** @enum {string} */
                                 status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
+                                /** @enum {string} */
+                                priority: "URGENT" | "HIGH" | "NORMAL" | "LOW";
                                 requestedByUserId: string;
                                 reviewedByUserId: string | null;
                                 shippedByUserId: string | null;
@@ -5063,6 +5136,17 @@ export interface paths {
                                         lotId: string;
                                         qty: number;
                                         unitCostPence: number | null;
+                                    }[] | null;
+                                    shipmentBatches?: {
+                                        batchNumber: number;
+                                        qty: number;
+                                        shippedAt: string;
+                                        shippedByUserId: string;
+                                        lotsConsumed: {
+                                            lotId: string;
+                                            qty: number;
+                                            unitCostPence: number | null;
+                                        }[];
                                     }[] | null;
                                     product?: {
                                         id: string;
@@ -5153,6 +5237,8 @@ export interface paths {
                                 destinationBranchId: string;
                                 /** @enum {string} */
                                 status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
+                                /** @enum {string} */
+                                priority: "URGENT" | "HIGH" | "NORMAL" | "LOW";
                                 requestedByUserId: string;
                                 reviewedByUserId: string | null;
                                 shippedByUserId: string | null;
@@ -5179,6 +5265,17 @@ export interface paths {
                                         lotId: string;
                                         qty: number;
                                         unitCostPence: number | null;
+                                    }[] | null;
+                                    shipmentBatches?: {
+                                        batchNumber: number;
+                                        qty: number;
+                                        shippedAt: string;
+                                        shippedByUserId: string;
+                                        lotsConsumed: {
+                                            lotId: string;
+                                            qty: number;
+                                            unitCostPence: number | null;
+                                        }[];
                                     }[] | null;
                                     product?: {
                                         id: string;
@@ -5266,6 +5363,8 @@ export interface paths {
                                 destinationBranchId: string;
                                 /** @enum {string} */
                                 status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
+                                /** @enum {string} */
+                                priority: "URGENT" | "HIGH" | "NORMAL" | "LOW";
                                 requestedByUserId: string;
                                 reviewedByUserId: string | null;
                                 shippedByUserId: string | null;
@@ -5292,6 +5391,17 @@ export interface paths {
                                         lotId: string;
                                         qty: number;
                                         unitCostPence: number | null;
+                                    }[] | null;
+                                    shipmentBatches?: {
+                                        batchNumber: number;
+                                        qty: number;
+                                        shippedAt: string;
+                                        shippedByUserId: string;
+                                        lotsConsumed: {
+                                            lotId: string;
+                                            qty: number;
+                                            unitCostPence: number | null;
+                                        }[];
                                     }[] | null;
                                     product?: {
                                         id: string;
@@ -5333,6 +5443,133 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/stock-transfers/{transferId}/priority": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update transfer priority (REQUESTED or APPROVED only) */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    transferId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        priority: "URGENT" | "HIGH" | "NORMAL" | "LOW";
+                    };
+                };
+            };
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                id: string;
+                                tenantId: string;
+                                transferNumber: string;
+                                sourceBranchId: string;
+                                destinationBranchId: string;
+                                /** @enum {string} */
+                                status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
+                                /** @enum {string} */
+                                priority: "URGENT" | "HIGH" | "NORMAL" | "LOW";
+                                requestedByUserId: string;
+                                reviewedByUserId: string | null;
+                                shippedByUserId: string | null;
+                                requestedAt: string;
+                                reviewedAt: string | null;
+                                shippedAt: string | null;
+                                completedAt: string | null;
+                                requestNotes: string | null;
+                                reviewNotes: string | null;
+                                isReversal: boolean;
+                                reversalOfId: string | null;
+                                reversedById: string | null;
+                                reversalReason: string | null;
+                                requiresMultiLevelApproval: boolean;
+                                items: {
+                                    id: string;
+                                    productId: string;
+                                    qtyRequested: number;
+                                    qtyApproved: number | null;
+                                    qtyShipped: number;
+                                    qtyReceived: number;
+                                    avgUnitCostPence: number | null;
+                                    lotsConsumed: {
+                                        lotId: string;
+                                        qty: number;
+                                        unitCostPence: number | null;
+                                    }[] | null;
+                                    shipmentBatches?: {
+                                        batchNumber: number;
+                                        qty: number;
+                                        shippedAt: string;
+                                        shippedByUserId: string;
+                                        lotsConsumed: {
+                                            lotId: string;
+                                            qty: number;
+                                            unitCostPence: number | null;
+                                        }[];
+                                    }[] | null;
+                                    product?: {
+                                        id: string;
+                                        productName: string;
+                                        productSku: string;
+                                    };
+                                }[];
+                                sourceBranch?: {
+                                    id: string;
+                                    branchName: string;
+                                    branchSlug: string;
+                                };
+                                destinationBranch?: {
+                                    id: string;
+                                    branchName: string;
+                                    branchSlug: string;
+                                };
+                                requestedByUser?: {
+                                    id: string;
+                                    userEmailAddress: string;
+                                };
+                                reviewedByUser?: {
+                                    id: string;
+                                    userEmailAddress: string;
+                                } | null;
+                                shippedByUser?: {
+                                    id: string;
+                                    userEmailAddress: string;
+                                } | null;
+                                createdAt: string;
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/api/transfer-approval-rules": {
@@ -5813,6 +6050,375 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/stock-transfers/analytics/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get overview metrics for Transfer Analytics Dashboard */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Start date (ISO 8601 YYYY-MM-DD). Defaults to 30 days ago. */
+                    startDate?: string;
+                    /** @description End date (ISO 8601 YYYY-MM-DD). Defaults to today. */
+                    endDate?: string;
+                    /** @description Filter by specific branch (optional) */
+                    branchId?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                totalTransfers: number;
+                                activeTransfers: number;
+                                /** @description Average time in seconds for REQUESTED → APPROVED */
+                                avgApprovalTime: number;
+                                /** @description Average time in seconds for APPROVED → IN_TRANSIT */
+                                avgShipTime: number;
+                                /** @description Average time in seconds for IN_TRANSIT → COMPLETED */
+                                avgReceiveTime: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stock-transfers/analytics/volume-chart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get transfer volume chart data (time series) */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Start date (ISO 8601 YYYY-MM-DD). Defaults to 30 days ago. */
+                    startDate?: string;
+                    /** @description End date (ISO 8601 YYYY-MM-DD). Defaults to today. */
+                    endDate?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                /** @description Date (YYYY-MM-DD) */
+                                date: string;
+                                /** @description Transfers created on this date */
+                                created: number;
+                                /** @description Transfers approved on this date */
+                                approved: number;
+                                /** @description Transfers shipped on this date */
+                                shipped: number;
+                                /** @description Transfers completed on this date */
+                                completed: number;
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stock-transfers/analytics/branch-dependencies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get branch dependency data (transfer routes) */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Start date (ISO 8601 YYYY-MM-DD). Defaults to 30 days ago. */
+                    startDate?: string;
+                    /** @description End date (ISO 8601 YYYY-MM-DD). Defaults to today. */
+                    endDate?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                sourceBranch: string;
+                                destinationBranch: string;
+                                transferCount: number;
+                                totalUnits: number;
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stock-transfers/analytics/top-routes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get top transfer routes (sorted by volume) */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Start date (ISO 8601 YYYY-MM-DD). Defaults to 30 days ago. */
+                    startDate?: string;
+                    /** @description End date (ISO 8601 YYYY-MM-DD). Defaults to today. */
+                    endDate?: string;
+                    /** @description Max number of routes to return (default: 10) */
+                    limit?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                sourceBranch: string;
+                                destinationBranch: string;
+                                transferCount: number;
+                                totalUnits: number;
+                                /** @description Average time in seconds from REQUESTED → COMPLETED */
+                                avgCompletionTime: number | null;
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stock-transfers/analytics/status-distribution": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get transfer status distribution (pie chart data) */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Start date (ISO 8601 YYYY-MM-DD). Defaults to 30 days ago. */
+                    startDate?: string;
+                    /** @description End date (ISO 8601 YYYY-MM-DD). Defaults to today. */
+                    endDate?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            /** @description Status distribution keyed by status (e.g., { "REQUESTED": 10, "APPROVED": 5 }) */
+                            data: {
+                                [key: string]: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stock-transfers/analytics/bottlenecks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get bottleneck analysis (avg time per stage) */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Start date (ISO 8601 YYYY-MM-DD). Defaults to 30 days ago. */
+                    startDate?: string;
+                    /** @description End date (ISO 8601 YYYY-MM-DD). Defaults to today. */
+                    endDate?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                /** @description Average time in seconds for REQUESTED → APPROVED */
+                                approvalStage: number;
+                                /** @description Average time in seconds for APPROVED → IN_TRANSIT */
+                                shippingStage: number;
+                                /** @description Average time in seconds for IN_TRANSIT → COMPLETED */
+                                receiptStage: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stock-transfers/analytics/product-frequency": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get product transfer frequency (which products are transferred most) */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Start date (ISO 8601 YYYY-MM-DD). Defaults to 30 days ago. */
+                    startDate?: string;
+                    /** @description End date (ISO 8601 YYYY-MM-DD). Defaults to today. */
+                    endDate?: string;
+                    /** @description Max number of products to return (default: 10) */
+                    limit?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                productName: string;
+                                transferCount: number;
+                                totalQty: number;
+                                /** @description Top 3 routes for this product */
+                                topRoutes: string[];
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -5845,7 +6451,7 @@ export interface components {
             role: components["schemas"]["RoleBrief"];
         };
         /** @enum {string} */
-        PermissionKey: "products:read" | "products:write" | "users:manage" | "roles:manage" | "tenant:manage" | "theme:manage" | "uploads:write" | "branches:manage" | "stock:read" | "stock:write" | "stock:allocate";
+        PermissionKey: "products:read" | "products:write" | "users:manage" | "roles:manage" | "tenant:manage" | "theme:manage" | "uploads:write" | "branches:manage" | "stock:read" | "stock:write" | "stock:allocate" | "reports:view";
         BranchMembershipBrief: {
             branchId: string;
             branchName: string;

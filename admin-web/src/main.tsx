@@ -27,6 +27,7 @@ import StockTransfersPage from './pages/StockTransfersPage'
 import StockTransferDetailPage from './pages/StockTransferDetailPage'
 import TransferTemplatesPage from './pages/TransferTemplatesPage'
 import TransferApprovalRulesPage from './pages/TransferApprovalRulesPage'
+import TransferAnalyticsPage from './pages/TransferAnalyticsPage'
 
 const router = createBrowserRouter([
   {
@@ -191,6 +192,15 @@ const router = createBrowserRouter([
             element: (
               <RequirePermission perm="stock:write">
                 <TransferApprovalRulesPage />
+              </RequirePermission>
+            ),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
+            path: 'stock-transfers/analytics',
+            element: (
+              <RequirePermission perm="reports:view">
+                <TransferAnalyticsPage />
               </RequirePermission>
             ),
             errorElement: <RouteErrorBoundary />,

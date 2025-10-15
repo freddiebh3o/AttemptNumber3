@@ -38,7 +38,7 @@ model Role {
   memberships UserTenantMembership[]
 
   // approval levels
-  approvalLevels TransferApprovalLevel[] @relation("ApprovalLevelRequiredRole")
+  approvalLevels  TransferApprovalLevel[]  @relation("ApprovalLevelRequiredRole")
   approvalRecords TransferApprovalRecord[] @relation("ApprovalRecordRequiredRole")
 
   createdAt DateTime @default(now())
@@ -84,6 +84,8 @@ model Tenant {
   stockTransfers        StockTransfer[]
   transferTemplates     StockTransferTemplate[]
   transferApprovalRules TransferApprovalRule[]
+  transferMetrics       TransferMetrics[]
+  transferRouteMetrics  TransferRouteMetrics[]
 
   // Back-relation for AuditEvent. One tenant -> many audit events.
   auditEvents AuditEvent[]
@@ -109,25 +111,32 @@ enum StockTransferStatus {
   CANCELLED
 }
 
+enum TransferPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
 enum ApprovalRuleConditionType {
-  TOTAL_QTY_THRESHOLD       // Total quantity > X
-  TOTAL_VALUE_THRESHOLD     // Total value (pence) > X
-  SOURCE_BRANCH             // Specific source branch
-  DESTINATION_BRANCH        // Specific destination branch
-  PRODUCT_CATEGORY          // Product has category X (future)
+  TOTAL_QTY_THRESHOLD // Total quantity > X
+  TOTAL_VALUE_THRESHOLD // Total value (pence) > X
+  SOURCE_BRANCH // Specific source branch
+  DESTINATION_BRANCH // Specific destination branch
+  PRODUCT_CATEGORY // Product has category X (future)
 }
 
 enum ApprovalMode {
-  SEQUENTIAL  // Must approve in order
-  PARALLEL    // All can approve simultaneously
-  HYBRID      // Level 1 first, then 2+ parallel
+  SEQUENTIAL // Must approve in order
+  PARALLEL // All can approve simultaneously
+  HYBRID // Level 1 first, then 2+ parallel
 }
 
 enum ApprovalStatus {
-  PENDING     // Awaiting approval
-  APPROVED    // Approved
-  REJECTED    // Rejected
-  SKIPPED     // Not required (rule didn't match)
+  PENDING // Awaiting approval
+  APPROVED // Approved
+  REJECTED // Rejected
+  SKIPPED // Not required (rule didn't match)
 }
 
 model Branch {
@@ -144,11 +153,13 @@ model Branch {
   productStocks             ProductStock[]
   stockLots                 StockLot[]
   stockLedgers              StockLedger[]
-  transfersAsSource         StockTransfer[]        @relation("TransferSource")
-  transfersAsDestination    StockTransfer[]        @relation("TransferDestination")
-  templateAsSource          StockTransferTemplate[] @relation("TemplateSource")
-  templateAsDestination     StockTransferTemplate[] @relation("TemplateDestination")
+  transfersAsSource         StockTransfer[]             @relation("TransferSource")
+  transfersAsDestination    StockTransfer[]             @relation("TransferDestination")
+  templateAsSource          StockTransferTemplate[]     @relation("TemplateSource")
+  templateAsDestination     StockTransferTemplate[]     @relation("TemplateDestination")
   approvalConditions        TransferApprovalCondition[]
+  routeMetricsAsSource      TransferRouteMetrics[]      @relation("RouteMetricsSource")
+  routeMetricsAsDestination TransferRouteMetrics[]      @relation("RouteMetricsDestination")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -265,13 +276,13 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  branchMemberships     UserBranchMembership[]
-  stockLedgerEvents     StockLedger[]
-  transfersRequested    StockTransfer[]        @relation("TransferRequester")
-  transfersReviewed     StockTransfer[]        @relation("TransferReviewer")
-  transfersShipped      StockTransfer[]        @relation("TransferShipper")
-  transferTemplatesCreated StockTransferTemplate[]
-  approvalLevelsAsRequired TransferApprovalLevel[] @relation("ApprovalLevelRequiredUser")
+  branchMemberships         UserBranchMembership[]
+  stockLedgerEvents         StockLedger[]
+  transfersRequested        StockTransfer[]          @relation("TransferRequester")
+  transfersReviewed         StockTransfer[]          @relation("TransferReviewer")
+  transfersShipped          StockTransfer[]          @relation("TransferShipper")
+  transferTemplatesCreated  StockTransferTemplate[]
+  approvalLevelsAsRequired  TransferApprovalLevel[]  @relation("ApprovalLevelRequiredUser")
   approvalRecordsAsRequired TransferApprovalRecord[] @relation("ApprovalRecordRequiredUser")
   approvalRecordsAsApprover TransferApprovalRecord[] @relation("ApprovalRecordApprover")
 
@@ -322,10 +333,10 @@ model Product {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  stocks             ProductStock[]
-  stockLots          StockLot[]
-  stockLedgers       StockLedger[]
-  transferItems      StockTransferItem[]
+  stocks                ProductStock[]
+  stockLots             StockLot[]
+  stockLedgers          StockLedger[]
+  transferItems         StockTransferItem[]
   transferTemplateItems StockTransferTemplateItem[]
 
   @@unique([tenantId, productSku])
@@ -347,7 +358,8 @@ model StockTransfer {
   destinationBranchId String
 
   // Workflow
-  status StockTransferStatus @default(REQUESTED)
+  status   StockTransferStatus @default(REQUESTED)
+  priority TransferPriority    @default(NORMAL)
 
   // Actors
   requestedByUserId String // User who initiated request
@@ -374,15 +386,15 @@ model StockTransfer {
   requiresMultiLevelApproval Boolean @default(false)
 
   // Relations
-  tenant            Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  sourceBranch      Branch              @relation("TransferSource", fields: [sourceBranchId], references: [id], onDelete: Restrict)
-  destinationBranch Branch              @relation("TransferDestination", fields: [destinationBranchId], references: [id], onDelete: Restrict)
-  requestedByUser   User                @relation("TransferRequester", fields: [requestedByUserId], references: [id], onDelete: Restrict)
-  reviewedByUser    User?               @relation("TransferReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
-  shippedByUser     User?               @relation("TransferShipper", fields: [shippedByUserId], references: [id], onDelete: SetNull)
+  tenant            Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sourceBranch      Branch                   @relation("TransferSource", fields: [sourceBranchId], references: [id], onDelete: Restrict)
+  destinationBranch Branch                   @relation("TransferDestination", fields: [destinationBranchId], references: [id], onDelete: Restrict)
+  requestedByUser   User                     @relation("TransferRequester", fields: [requestedByUserId], references: [id], onDelete: Restrict)
+  reviewedByUser    User?                    @relation("TransferReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  shippedByUser     User?                    @relation("TransferShipper", fields: [shippedByUserId], references: [id], onDelete: SetNull)
   items             StockTransferItem[]
-  reversalOf        StockTransfer?      @relation("TransferReversal", fields: [reversalOfId], references: [id], onDelete: SetNull)
-  reversedBy        StockTransfer?      @relation("TransferReversal")
+  reversalOf        StockTransfer?           @relation("TransferReversal", fields: [reversalOfId], references: [id], onDelete: SetNull)
+  reversedBy        StockTransfer?           @relation("TransferReversal")
   approvalRecords   TransferApprovalRecord[]
 
   createdAt DateTime @default(now())
@@ -390,7 +402,7 @@ model StockTransfer {
 
   @@unique([tenantId, transferNumber])
   @@unique([reversalOfId])
-  @@index([tenantId, status, createdAt])
+  @@index([tenantId, status, priority, requestedAt])
   @@index([sourceBranchId, status])
   @@index([destinationBranchId, status])
   @@index([requestedByUserId])
@@ -404,7 +416,7 @@ model StockTransferItem {
   productId  String
 
   // Quantities
-  qtyRequested Int  // Initial quantity requested
+  qtyRequested Int // Initial quantity requested
   qtyApproved  Int? // May differ from requested (partial approval)
   qtyShipped   Int  @default(0) // Actual qty shipped (may be less than approved)
   qtyReceived  Int  @default(0) // Actual qty received (incremental)
@@ -412,6 +424,9 @@ model StockTransferItem {
   // Cost tracking (populated on ship)
   lotsConsumed     Json? // Array of {lotId, qty, unitCostPence}
   avgUnitCostPence Int? // Weighted average cost of shipped items
+
+  // Partial shipment tracking
+  shipmentBatches Json? // Array of {batchNumber, qty, shippedAt, shippedByUserId, lotsConsumed}
 
   // Relations
   transfer StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
@@ -426,7 +441,7 @@ model StockTransferItem {
 
 /// Stock transfer templates for saving common transfer configurations
 model StockTransferTemplate {
-  id          String @id @default(cuid())
+  id          String  @id @default(cuid())
   tenantId    String
   name        String // "Weekly Retail Restock"
   description String? @db.Text
@@ -437,10 +452,10 @@ model StockTransferTemplate {
   createdByUserId String
 
   // Relations
-  tenant            Tenant                        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  sourceBranch      Branch                        @relation("TemplateSource", fields: [sourceBranchId], references: [id], onDelete: Cascade)
-  destinationBranch Branch                        @relation("TemplateDestination", fields: [destinationBranchId], references: [id], onDelete: Cascade)
-  createdByUser     User                          @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
+  tenant            Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sourceBranch      Branch                      @relation("TemplateSource", fields: [sourceBranchId], references: [id], onDelete: Cascade)
+  destinationBranch Branch                      @relation("TemplateDestination", fields: [destinationBranchId], references: [id], onDelete: Cascade)
+  createdByUser     User                        @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
   items             StockTransferTemplateItem[]
 
   createdAt DateTime @default(now())
@@ -461,7 +476,7 @@ model StockTransferTemplateItem {
 
   // Relations
   template StockTransferTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  product  Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product  Product               @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -472,13 +487,13 @@ model StockTransferTemplateItem {
 
 /// Transfer approval rules for multi-level approval workflow
 model TransferApprovalRule {
-  id           String        @id @default(cuid())
+  id           String       @id @default(cuid())
   tenantId     String
-  name         String        // "High-Value Transfer Approval"
-  description  String?       @db.Text
-  isActive     Boolean       @default(true)
-  approvalMode ApprovalMode  @default(SEQUENTIAL)
-  priority     Int           @default(0) // Higher priority rules evaluated first
+  name         String // "High-Value Transfer Approval"
+  description  String?      @db.Text
+  isActive     Boolean      @default(true)
+  approvalMode ApprovalMode @default(SEQUENTIAL)
+  priority     Int          @default(0) // Higher priority rules evaluated first
 
   // Relations
   tenant     Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -494,11 +509,11 @@ model TransferApprovalRule {
 
 /// Conditions that trigger an approval rule
 model TransferApprovalCondition {
-  id            String                      @id @default(cuid())
+  id            String                    @id @default(cuid())
   ruleId        String
   conditionType ApprovalRuleConditionType
-  threshold     Int?                        // For QTY/VALUE thresholds
-  branchId      String?                     // For branch conditions (source or destination based on conditionType)
+  threshold     Int? // For QTY/VALUE thresholds
+  branchId      String? // For branch conditions (source or destination based on conditionType)
 
   // Relations
   rule   TransferApprovalRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
@@ -515,8 +530,8 @@ model TransferApprovalCondition {
 model TransferApprovalLevel {
   id             String  @id @default(cuid())
   ruleId         String
-  level          Int     // 1, 2, 3, etc.
-  name           String  // "Manager", "Director", "Finance"
+  level          Int // 1, 2, 3, etc.
+  name           String // "Manager", "Director", "Finance"
   requiredRoleId String? // Specific role required (e.g., OWNER)
   requiredUserId String? // Specific user required (e.g., Finance Director)
 
@@ -538,12 +553,12 @@ model TransferApprovalLevel {
 model TransferApprovalRecord {
   id               String         @id @default(cuid())
   transferId       String
-  level            Int            // Which approval level this is
-  levelName        String         // "Manager", "Director", etc.
+  level            Int // Which approval level this is
+  levelName        String // "Manager", "Director", etc.
   status           ApprovalStatus @default(PENDING)
-  requiredRoleId   String?        // Role required for this approval
-  requiredUserId   String?        // User required for this approval
-  approvedByUserId String?        // Who actually approved
+  requiredRoleId   String? // Role required for this approval
+  requiredUserId   String? // User required for this approval
+  approvedByUserId String? // Who actually approved
   approvedAt       DateTime?
   notes            String?        @db.Text
 
@@ -629,6 +644,61 @@ model ApiRequestLog {
   @@index([correlationId])
 }
 
+/// Pre-computed transfer metrics for analytics dashboard
+model TransferMetrics {
+  id         String   @id @default(cuid())
+  tenantId   String
+  metricDate DateTime @db.Date
+
+  // Volume metrics (count of transfers by status on this date)
+  transfersCreated   Int @default(0)
+  transfersApproved  Int @default(0)
+  transfersShipped   Int @default(0)
+  transfersCompleted Int @default(0)
+  transfersRejected  Int @default(0)
+  transfersCancelled Int @default(0)
+
+  // Timing metrics (average duration in seconds for each workflow stage)
+  avgApprovalTime Int? // REQUESTED → APPROVED
+  avgShipTime     Int? // APPROVED → IN_TRANSIT
+  avgReceiveTime  Int? // IN_TRANSIT → COMPLETED
+  avgTotalTime    Int? // REQUESTED → COMPLETED
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, metricDate])
+  @@index([tenantId, metricDate])
+}
+
+/// Pre-computed route metrics for branch dependency analysis
+model TransferRouteMetrics {
+  id                  String   @id @default(cuid())
+  tenantId            String
+  sourceBranchId      String
+  destinationBranchId String
+  metricDate          DateTime @db.Date
+
+  // Volume metrics per route
+  transferCount     Int  @default(0)
+  totalUnits        Int  @default(0)
+  avgCompletionTime Int? // Average seconds from REQUESTED → COMPLETED
+
+  // Relations
+  tenant            Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sourceBranch      Branch @relation("RouteMetricsSource", fields: [sourceBranchId], references: [id], onDelete: Cascade)
+  destinationBranch Branch @relation("RouteMetricsDestination", fields: [destinationBranchId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, sourceBranchId, destinationBranchId, metricDate])
+  @@index([tenantId, metricDate])
+}
+
 // --- Enums ---
 enum AuditEntityType {
   PRODUCT
@@ -665,6 +735,8 @@ enum AuditAction {
   TRANSFER_CANCEL
   TRANSFER_REVERSE
   TRANSFER_APPROVE_LEVEL // Multi-level approval submission
+  TRANSFER_PRIORITY_CHANGE // Priority updated
+  TRANSFER_SHIP_PARTIAL // Partial shipment
   APPROVAL_RULE_CREATE
   APPROVAL_RULE_UPDATE
   APPROVAL_RULE_DELETE

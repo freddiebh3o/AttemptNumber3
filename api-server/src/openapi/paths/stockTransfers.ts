@@ -20,6 +20,24 @@ const StockTransferItemSchema = z.object({
       })
     )
     .nullable(),
+  shipmentBatches: z
+    .array(
+      z.object({
+        batchNumber: z.number().int(),
+        qty: z.number().int(),
+        shippedAt: z.string(),
+        shippedByUserId: z.string(),
+        lotsConsumed: z.array(
+          z.object({
+            lotId: z.string(),
+            qty: z.number().int(),
+            unitCostPence: z.number().int().nullable(),
+          })
+        ),
+      })
+    )
+    .nullable()
+    .optional(),
   product: z
     .object({
       id: z.string(),
@@ -44,6 +62,7 @@ const StockTransferSchema = z.object({
     'COMPLETED',
     'CANCELLED',
   ]),
+  priority: z.enum(['URGENT', 'HIGH', 'NORMAL', 'LOW']),
   requestedByUserId: z.string(),
   reviewedByUserId: z.string().nullable(),
   shippedByUserId: z.string().nullable(),
@@ -101,6 +120,7 @@ const CreateTransferBodySchema = z.object({
   sourceBranchId: z.string(),
   destinationBranchId: z.string(),
   requestNotes: z.string().max(1000).optional(),
+  priority: z.enum(['URGENT', 'HIGH', 'NORMAL', 'LOW']).optional().describe('Transfer priority (default: NORMAL)'),
   items: z
     .array(
       z.object({
@@ -124,6 +144,18 @@ const ReviewTransferBodySchema = z.object({
     .optional(), // Only for approve
 });
 
+const ShipTransferBodySchema = z.object({
+  items: z
+    .array(
+      z.object({
+        itemId: z.string(),
+        qtyToShip: z.number().int().min(1),
+      })
+    )
+    .optional()
+    .describe('Optional: Partial shipment items. If not provided, ships all approved quantities.'),
+});
+
 const ReceiveTransferBodySchema = z.object({
   items: z
     .array(
@@ -133,6 +165,10 @@ const ReceiveTransferBodySchema = z.object({
       })
     )
     .min(1),
+});
+
+const UpdatePriorityBodySchema = z.object({
+  priority: z.enum(['URGENT', 'HIGH', 'NORMAL', 'LOW']),
 });
 
 // Register paths
@@ -174,9 +210,10 @@ export function registerStockTransferPaths(registry: OpenAPIRegistry) {
         branchId: z.string().optional(),
         direction: z.enum(['inbound', 'outbound']).optional(),
         status: z.string().optional(), // Comma-separated
+        priority: z.string().optional().describe('Comma-separated priority values (URGENT,HIGH,NORMAL,LOW)'),
         q: z.string().optional(), // Search transfer number
-        sortBy: z.enum(['requestedAt', 'updatedAt', 'transferNumber', 'status']).optional(),
-        sortDir: z.enum(['asc', 'desc']).optional(),
+        sortBy: z.enum(['requestedAt', 'updatedAt', 'transferNumber', 'status', 'priority']).optional().describe('Default: priority'),
+        sortDir: z.enum(['asc', 'desc']).optional().describe('Default: desc'),
         requestedAtFrom: z.string().optional(), // ISO date (YYYY-MM-DD)
         requestedAtTo: z.string().optional(),
         shippedAtFrom: z.string().optional(),
@@ -259,14 +296,17 @@ export function registerStockTransferPaths(registry: OpenAPIRegistry) {
     },
   });
 
-  // POST /api/stock-transfers/:transferId/ship - Ship transfer
+  // POST /api/stock-transfers/:transferId/ship - Ship transfer (supports partial shipments)
   registry.registerPath({
     method: 'post',
     path: '/api/stock-transfers/{transferId}/ship',
     tags: ['Stock Transfers'],
-    summary: 'Ship approved transfer',
+    summary: 'Ship approved transfer (supports partial shipments)',
     request: {
       params: z.object({ transferId: z.string() }),
+      body: {
+        content: { 'application/json': { schema: ShipTransferBodySchema } },
+      },
     },
     responses: {
       200: {
@@ -355,6 +395,33 @@ export function registerStockTransferPaths(registry: OpenAPIRegistry) {
     responses: {
       200: {
         description: 'Success - Returns the newly created reversal transfer',
+        content: {
+          'application/json': {
+            schema: z.object({
+              success: z.literal(true),
+              data: StockTransferSchema,
+            }),
+          },
+        },
+      },
+    },
+  });
+
+  // PATCH /api/stock-transfers/:transferId/priority - Update transfer priority
+  registry.registerPath({
+    method: 'patch',
+    path: '/api/stock-transfers/{transferId}/priority',
+    tags: ['Stock Transfers'],
+    summary: 'Update transfer priority (REQUESTED or APPROVED only)',
+    request: {
+      params: z.object({ transferId: z.string() }),
+      body: {
+        content: { 'application/json': { schema: UpdatePriorityBodySchema } },
+      },
+    },
+    responses: {
+      200: {
+        description: 'Success',
         content: {
           'application/json': {
             schema: z.object({

@@ -52,6 +52,7 @@ export default function CreateTransferModal({
   const [sourceBranchId, setSourceBranchId] = useState<string>("");
   const [destinationBranchId, setDestinationBranchId] = useState<string>("");
   const [requestNotes, setRequestNotes] = useState("");
+  const [priority, setPriority] = useState<"LOW" | "NORMAL" | "HIGH" | "URGENT">("NORMAL");
   const [items, setItems] = useState<TransferItem[]>([]);
 
   const [branches, setBranches] = useState<
@@ -128,6 +129,7 @@ export default function CreateTransferModal({
       setSourceBranchId("");
       setDestinationBranchId("");
       setRequestNotes("");
+      setPriority("NORMAL");
       setItems([]);
     }
   }, [opened]);
@@ -214,6 +216,7 @@ export default function CreateTransferModal({
         sourceBranchId,
         destinationBranchId,
         requestNotes: requestNotes.trim() || undefined,
+        priority: priority,
         items: items.map((item) => ({
           productId: item.productId,
           qtyRequested: item.qtyRequested,
@@ -343,6 +346,20 @@ export default function CreateTransferModal({
             </Table>
           )}
         </div>
+
+        <Select
+          label="Priority"
+          placeholder="Select priority"
+          data={[
+            { value: "URGENT", label: "🔥 Urgent (stock-out)" },
+            { value: "HIGH", label: "⬆️ High (promotional)" },
+            { value: "NORMAL", label: "➖ Normal" },
+            { value: "LOW", label: "⬇️ Low (overstock)" },
+          ]}
+          value={priority}
+          onChange={(v) => setPriority(v as "LOW" | "NORMAL" | "HIGH" | "URGENT")}
+          required
+        />
 
         <Textarea
           label="Request Notes (Optional)"

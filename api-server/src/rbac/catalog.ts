@@ -19,6 +19,9 @@ export const PERMISSIONS = [
   { key: 'stock:read',      description: 'View branch stock, lots, and movements' },
   { key: 'stock:write',     description: 'Receive and adjust stock' },
   { key: 'stock:allocate',  description: 'Allocate/consume stock for orders' },
+
+  // Reports & Analytics
+  { key: 'reports:view',    description: 'View analytics reports and dashboards' },
 ] as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[number]['key'];
@@ -33,12 +36,14 @@ export const ROLE_DEFS: Record<
     'users:manage','roles:manage','tenant:manage',
     'theme:manage','uploads:write',
     'branches:manage','stock:read','stock:write','stock:allocate',
+    'reports:view',
   ],
   ADMIN: [
     'products:read','products:write',
     'users:manage',
     'theme:manage','uploads:write',
     'branches:manage','stock:read','stock:write','stock:allocate',
+    'reports:view',
   ],
   EDITOR: [
     'products:read','products:write','uploads:write',

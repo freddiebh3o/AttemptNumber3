@@ -16,6 +16,7 @@ const CreateTransferBodySchema = z.object({
   sourceBranchId: z.string(),
   destinationBranchId: z.string(),
   requestNotes: z.string().max(1000).optional(),
+  priority: z.enum(['URGENT', 'HIGH', 'NORMAL', 'LOW']).optional(),
   items: z
     .array(
       z.object({
@@ -59,7 +60,7 @@ stockTransfersRouter.post(
   async (req, res, next) => {
     try {
       assertAuthed(req);
-      const { sourceBranchId, destinationBranchId, items, requestNotes } =
+      const { sourceBranchId, destinationBranchId, items, requestNotes, priority } =
         req.validatedBody as z.infer<typeof CreateTransferBodySchema>;
 
       const transfer = await transferService.createStockTransfer({
@@ -70,6 +71,7 @@ stockTransfersRouter.post(
           destinationBranchId,
           items,
           ...(requestNotes ? { requestNotes } : {}),
+          ...(priority ? { priority } : {}),
         },
         auditContext: getAuditContext(req),
       });
@@ -93,8 +95,9 @@ stockTransfersRouter.get(
       const branchId = req.query.branchId as string | undefined;
       const direction = req.query.direction as 'inbound' | 'outbound' | undefined;
       const status = req.query.status as string | undefined;
+      const priority = req.query.priority as string | undefined;
       const q = req.query.q as string | undefined;
-      const sortBy = req.query.sortBy as 'requestedAt' | 'updatedAt' | 'transferNumber' | 'status' | undefined;
+      const sortBy = req.query.sortBy as 'requestedAt' | 'updatedAt' | 'transferNumber' | 'status' | 'priority' | undefined;
       const sortDir = req.query.sortDir as 'asc' | 'desc' | undefined;
       const requestedAtFrom = req.query.requestedAtFrom as string | undefined;
       const requestedAtTo = req.query.requestedAtTo as string | undefined;
@@ -111,6 +114,7 @@ stockTransfersRouter.get(
           ...(branchId ? { branchId } : {}),
           ...(direction ? { direction } : {}),
           ...(status ? { status } : {}),
+          ...(priority ? { priority } : {}),
           ...(q ? { q } : {}),
           ...(sortBy ? { sortBy } : {}),
           ...(sortDir ? { sortDir } : {}),
@@ -192,15 +196,29 @@ stockTransfersRouter.patch(
   }
 );
 
-// POST /api/stock-transfers/:transferId/ship - Ship transfer
+// Ship validation schema
+const ShipTransferBodySchema = z.object({
+  items: z
+    .array(
+      z.object({
+        itemId: z.string(),
+        qtyToShip: z.number().int().min(1),
+      })
+    )
+    .optional(), // If not provided, ships all approved quantities
+});
+
+// POST /api/stock-transfers/:transferId/ship - Ship transfer (supports partial shipments)
 stockTransfersRouter.post(
   '/:transferId/ship',
   requireAuthenticatedUserMiddleware,
   requirePermission('stock:write'),
+  validateRequestBodyWithZod(ShipTransferBodySchema),
   async (req, res, next) => {
     try {
       assertAuthed(req);
       const { transferId } = req.params;
+      const { items } = req.validatedBody as z.infer<typeof ShipTransferBodySchema>;
 
       if (!transferId) {
         throw new Error('Transfer ID is required');
@@ -210,6 +228,7 @@ stockTransfersRouter.post(
         tenantId: req.currentTenantId,
         userId: req.currentUserId,
         transferId,
+        ...(items ? { items } : {}),
         auditContext: getAuditContext(req),
       });
 
@@ -377,6 +396,42 @@ stockTransfersRouter.get(
       });
 
       return res.status(200).json(createStandardSuccessResponse(progress));
+    } catch (e) {
+      return next(e);
+    }
+  }
+);
+
+// Priority validation schema
+const UpdatePriorityBodySchema = z.object({
+  priority: z.enum(['URGENT', 'HIGH', 'NORMAL', 'LOW']),
+});
+
+// PATCH /api/stock-transfers/:transferId/priority - Update transfer priority
+stockTransfersRouter.patch(
+  '/:transferId/priority',
+  requireAuthenticatedUserMiddleware,
+  requirePermission('stock:write'),
+  validateRequestBodyWithZod(UpdatePriorityBodySchema),
+  async (req, res, next) => {
+    try {
+      assertAuthed(req);
+      const { transferId } = req.params;
+      const { priority } = req.validatedBody as z.infer<typeof UpdatePriorityBodySchema>;
+
+      if (!transferId) {
+        throw new Error('Transfer ID is required');
+      }
+
+      const transfer = await transferService.updateTransferPriority({
+        tenantId: req.currentTenantId,
+        userId: req.currentUserId,
+        transferId,
+        priority,
+        auditContext: getAuditContext(req),
+      });
+
+      return res.status(200).json(createStandardSuccessResponse(transfer));
     } catch (e) {
       return next(e);
     }

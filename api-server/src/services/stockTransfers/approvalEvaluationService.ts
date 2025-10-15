@@ -282,8 +282,24 @@ export async function submitApproval(params: {
 
     const allApproved = allRecords.every(r => r.status === ApprovalStatus.APPROVED);
 
-    // If all approved, update transfer status to APPROVED
+    // If all approved, update transfer status to APPROVED and set qtyApproved on items
     if (allApproved) {
+      // Get transfer items to set qtyApproved = qtyRequested
+      const transferItems = await tx.stockTransferItem.findMany({
+        where: { transferId },
+        select: { id: true, qtyRequested: true },
+      });
+
+      // Update each item's qtyApproved to qtyRequested (multi-level approval approves full qty)
+      await Promise.all(
+        transferItems.map((item) =>
+          tx.stockTransferItem.update({
+            where: { id: item.id },
+            data: { qtyApproved: item.qtyRequested },
+          })
+        )
+      );
+
       const updated = await tx.stockTransfer.update({
         where: { id: transferId },
         data: {

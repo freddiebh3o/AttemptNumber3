@@ -81,6 +81,7 @@ export async function createStockTransfer(params: {
     sourceBranchId: string;
     destinationBranchId: string;
     requestNotes?: string;
+    priority?: 'URGENT' | 'HIGH' | 'NORMAL' | 'LOW';
     items: Array<{
       productId: string;
       qtyRequested: number;
@@ -159,6 +160,7 @@ export async function createStockTransfer(params: {
         status: StockTransferStatus.REQUESTED,
         requestedByUserId: userId,
         requestNotes: data.requestNotes ?? null,
+        priority: data.priority ?? 'NORMAL',
         items: {
           create: data.items.map((item) => ({
             productId: item.productId,
@@ -455,6 +457,7 @@ export async function reviewStockTransfer(params: {
 
 /**
  * Ship approved transfer (consume stock at source using FIFO)
+ * Supports partial shipments via optional items parameter
  * NOTE: consumeStock creates its own serializable transaction, so we process
  * items first, then update the transfer in a separate transaction.
  */
@@ -462,9 +465,13 @@ export async function shipStockTransfer(params: {
   tenantId: string;
   userId: string;
   transferId: string;
+  items?: Array<{
+    itemId: string;
+    qtyToShip: number;
+  }>;
   auditContext?: AuditCtx;
 }) {
-  const { tenantId, userId, transferId, auditContext } = params;
+  const { tenantId, userId, transferId, items: partialItems, auditContext } = params;
 
   // Get transfer and validate
   const transfer = await prismaClientInstance.stockTransfer.findFirst({
@@ -495,16 +502,59 @@ export async function shipStockTransfer(params: {
     throw Errors.conflict('Transfer must be APPROVED before shipping');
   }
 
-  // Process stock consumption for each item (each consumeStock call creates its own serializable transaction)
+  // Determine quantities to ship for each item
+  const itemsToShip = new Map<string, number>();
+
+  if (partialItems && partialItems.length > 0) {
+    // Partial shipment mode: validate each item
+    for (const partialItem of partialItems) {
+      const transferItem = transfer.items.find((i) => i.id === partialItem.itemId);
+      if (!transferItem) {
+        throw Errors.validation(`Item ${partialItem.itemId} not found in transfer`);
+      }
+
+      // Validate qty > 0
+      if (partialItem.qtyToShip <= 0) {
+        throw Errors.validation('Quantity to ship must be greater than 0');
+      }
+
+      // Validate: qtyToShip + current qtyShipped <= qtyApproved
+      const currentlyShipped = transferItem.qtyShipped;
+      const remainingToShip = (transferItem.qtyApproved ?? 0) - currentlyShipped;
+
+      if (partialItem.qtyToShip > remainingToShip) {
+        throw Errors.validation(
+          `Cannot ship ${partialItem.qtyToShip} units of ${transferItem.product.productName} - only ${remainingToShip} remaining to ship`
+        );
+      }
+
+      itemsToShip.set(partialItem.itemId, partialItem.qtyToShip);
+    }
+  } else {
+    // Full shipment mode: ship all approved quantities (backward compatible)
+    for (const item of transfer.items) {
+      if (item.qtyApproved && item.qtyApproved > 0) {
+        const remainingToShip = item.qtyApproved - item.qtyShipped;
+        if (remainingToShip > 0) {
+          itemsToShip.set(item.id, remainingToShip);
+        }
+      }
+    }
+  }
+
+  // Process stock consumption for each item
   const itemUpdates: Array<{
     itemId: string;
-    qtyShipped: number;
+    qtyToShip: number;
     lotsConsumed: Array<{ lotId: string; qty: number; unitCostPence: number | null }>;
     avgUnitCostPence: number;
+    currentQtyShipped: number;
+    currentShipmentBatches: any[];
   }> = [];
 
-  for (const item of transfer.items) {
-    if (!item.qtyApproved || item.qtyApproved <= 0) continue;
+  for (const [itemId, qtyToShip] of itemsToShip.entries()) {
+    const item = transfer.items.find((i) => i.id === itemId);
+    if (!item) continue;
 
     // Get lots for cost tracking BEFORE consuming
     const lots = await prismaClientInstance.stockLot.findMany({
@@ -524,7 +574,7 @@ export async function shipStockTransfer(params: {
       {
         branchId: transfer.sourceBranchId,
         productId: item.productId,
-        qty: item.qtyApproved,
+        qty: qtyToShip,
         reason: `Transfer ${transfer.transferNumber}`,
         ...(auditContext ? { auditContextOptional: auditContext } : {}),
       }
@@ -536,37 +586,82 @@ export async function shipStockTransfer(params: {
     // Calculate weighted average cost
     const avgUnitCostPence = calculateWeightedAvgCost(lotsConsumed);
 
+    // Get current shipment batches (if any)
+    const currentShipmentBatches = (item.shipmentBatches as any[]) ?? [];
+    const batchNumber = currentShipmentBatches.length + 1;
+
+    // Create new batch
+    const newBatch = {
+      batchNumber,
+      qty: qtyToShip,
+      shippedAt: new Date().toISOString(),
+      shippedByUserId: userId,
+      lotsConsumed: lotsConsumed.map((lot) => ({
+        lotId: lot.lotId,
+        qty: lot.qty,
+        unitCostPence: lot.unitCostPence,
+      })),
+    };
+
     itemUpdates.push({
       itemId: item.id,
-      qtyShipped: item.qtyApproved,
+      qtyToShip,
       lotsConsumed,
       avgUnitCostPence,
+      currentQtyShipped: item.qtyShipped,
+      currentShipmentBatches: [...currentShipmentBatches, newBatch],
     });
   }
 
   // Now update the transfer and items in a single transaction
   const result = await prismaClientInstance.$transaction(async (tx) => {
     // Update all items with shipping details
-    await Promise.all(
-      itemUpdates.map((update) =>
-        tx.stockTransferItem.update({
-          where: { id: update.itemId },
-          data: {
-            qtyShipped: update.qtyShipped,
-            lotsConsumed: update.lotsConsumed as any, // JSON field
-            avgUnitCostPence: update.avgUnitCostPence,
-          },
-        })
-      )
-    );
+    for (const update of itemUpdates) {
+      const item = transfer.items.find((i) => i.id === update.itemId);
+      if (!item) continue;
 
-    // Update transfer status
+      const newQtyShipped = update.currentQtyShipped + update.qtyToShip;
+
+      // Recalculate weighted avg cost if multiple batches
+      let combinedAvgCost = update.avgUnitCostPence;
+      if (update.currentQtyShipped > 0 && item.avgUnitCostPence) {
+        // Weighted average: (old_cost * old_qty + new_cost * new_qty) / total_qty
+        const oldTotal = item.avgUnitCostPence * update.currentQtyShipped;
+        const newTotal = update.avgUnitCostPence * update.qtyToShip;
+        combinedAvgCost = Math.floor((oldTotal + newTotal) / newQtyShipped);
+      }
+
+      await tx.stockTransferItem.update({
+        where: { id: update.itemId },
+        data: {
+          qtyShipped: newQtyShipped,
+          shipmentBatches: update.currentShipmentBatches as any, // JSON field
+          avgUnitCostPence: combinedAvgCost,
+        },
+      });
+    }
+
+    // Check if ALL items fully shipped
+    const updatedItems = await tx.stockTransferItem.findMany({
+      where: { transferId },
+      select: { qtyApproved: true, qtyShipped: true },
+    });
+
+    const allFullyShipped = updatedItems.every((item) => item.qtyShipped >= (item.qtyApproved ?? 0));
+
+    // Update transfer status (only IN_TRANSIT if all items fully shipped)
+    const newStatus = allFullyShipped ? StockTransferStatus.IN_TRANSIT : StockTransferStatus.APPROVED;
+
     const updated = await tx.stockTransfer.update({
       where: { id: transferId },
       data: {
-        status: StockTransferStatus.IN_TRANSIT,
-        shippedByUserId: userId,
-        shippedAt: new Date(),
+        status: newStatus,
+        ...(newStatus === StockTransferStatus.IN_TRANSIT
+          ? {
+              shippedByUserId: userId,
+              shippedAt: new Date(),
+            }
+          : {}),
       },
       include: {
         items: {
@@ -583,13 +678,14 @@ export async function shipStockTransfer(params: {
     });
 
     // Audit
+    const isPartial = !allFullyShipped;
     try {
       await writeAuditEvent(tx, {
         tenantId,
         actorUserId: userId,
         entityType: AuditEntityType.STOCK_TRANSFER,
         entityId: updated.id,
-        action: AuditAction.TRANSFER_SHIP,
+        action: isPartial ? AuditAction.TRANSFER_SHIP_PARTIAL : AuditAction.TRANSFER_SHIP,
         entityName: updated.transferNumber,
         before: { status: StockTransferStatus.APPROVED },
         after: {
@@ -599,8 +695,10 @@ export async function shipStockTransfer(params: {
           items: updated.items.map((i) => ({
             itemId: i.id,
             qtyShipped: i.qtyShipped,
+            qtyApproved: i.qtyApproved,
             avgUnitCostPence: i.avgUnitCostPence,
           })),
+          isPartial,
         },
         correlationId: auditContext?.correlationId ?? null,
         ip: auditContext?.ip ?? null,
@@ -876,8 +974,9 @@ export async function listStockTransfers(params: {
     branchId?: string;
     direction?: 'inbound' | 'outbound';
     status?: string; // comma-separated
+    priority?: string; // comma-separated
     q?: string; // Search transfer number
-    sortBy?: 'requestedAt' | 'updatedAt' | 'transferNumber' | 'status';
+    sortBy?: 'requestedAt' | 'updatedAt' | 'transferNumber' | 'status' | 'priority';
     sortDir?: 'asc' | 'desc';
     requestedAtFrom?: string; // ISO date
     requestedAtTo?: string;
@@ -936,6 +1035,18 @@ export async function listStockTransfers(params: {
     }
   }
 
+  // Filter by priority
+  if (filters?.priority) {
+    const priorities = filters.priority
+      .split(',')
+      .map((p) => p.trim())
+      .filter((p) => p) as Array<'URGENT' | 'HIGH' | 'NORMAL' | 'LOW'>;
+
+    if (priorities.length > 0) {
+      where.priority = { in: priorities };
+    }
+  }
+
   // Filter by transfer number (search)
   if (filters?.q) {
     where.transferNumber = { contains: filters.q, mode: 'insensitive' };
@@ -968,12 +1079,15 @@ export async function listStockTransfers(params: {
   }
 
   // Sorting
-  const sortBy = filters?.sortBy ?? 'requestedAt';
+  const sortBy = filters?.sortBy ?? 'priority';
   const sortDir = filters?.sortDir ?? 'desc';
 
   const orderBy: Prisma.StockTransferOrderByWithRelationInput[] = [];
 
-  if (sortBy === 'requestedAt') {
+  if (sortBy === 'priority') {
+    // When explicitly sorting by priority, use sort direction
+    orderBy.push({ priority: sortDir }, { requestedAt: 'desc' }, { id: 'desc' });
+  } else if (sortBy === 'requestedAt') {
     orderBy.push({ requestedAt: sortDir }, { id: sortDir });
   } else if (sortBy === 'updatedAt') {
     orderBy.push({ updatedAt: sortDir }, { id: sortDir });
@@ -982,8 +1096,8 @@ export async function listStockTransfers(params: {
   } else if (sortBy === 'status') {
     orderBy.push({ status: sortDir }, { id: sortDir });
   } else {
-    // Default fallback
-    orderBy.push({ requestedAt: sortDir }, { id: sortDir });
+    // Default fallback: sort by priority (desc), then requestedAt (desc)
+    orderBy.push({ priority: 'desc' }, { requestedAt: 'desc' }, { id: 'desc' });
   }
 
   // Pagination
@@ -1033,6 +1147,97 @@ export async function listStockTransfers(params: {
       ...(totalCount !== undefined ? { totalCount } : {}),
     },
   };
+}
+
+/**
+ * Update transfer priority (only REQUESTED or APPROVED transfers)
+ */
+export async function updateTransferPriority(params: {
+  tenantId: string;
+  userId: string;
+  transferId: string;
+  priority: 'URGENT' | 'HIGH' | 'NORMAL' | 'LOW';
+  auditContext?: AuditCtx;
+}) {
+  const { tenantId, userId, transferId, priority, auditContext } = params;
+
+  // Get transfer and validate
+  const transfer = await prismaClientInstance.stockTransfer.findFirst({
+    where: { id: transferId, tenantId },
+    select: {
+      id: true,
+      transferNumber: true,
+      status: true,
+      priority: true,
+      sourceBranchId: true,
+      destinationBranchId: true,
+    },
+  });
+
+  if (!transfer) throw Errors.notFound('Transfer not found');
+
+  // Validate: only REQUESTED or APPROVED status can change priority
+  if (
+    transfer.status !== StockTransferStatus.REQUESTED &&
+    transfer.status !== StockTransferStatus.APPROVED
+  ) {
+    throw Errors.conflict('Priority can only be changed for REQUESTED or APPROVED transfers');
+  }
+
+  // Validate: user is member of destination branch (requester) or source branch (reviewer)
+  const memberships = await prismaClientInstance.userBranchMembership.findMany({
+    where: {
+      userId,
+      tenantId,
+      branchId: { in: [transfer.sourceBranchId, transfer.destinationBranchId] },
+    },
+  });
+
+  if (memberships.length === 0) {
+    throw Errors.permissionDenied();
+  }
+
+  // Update priority
+  const result = await prismaClientInstance.$transaction(async (tx) => {
+    const updated = await tx.stockTransfer.update({
+      where: { id: transferId },
+      data: { priority },
+      include: {
+        items: {
+          include: {
+            product: { select: { id: true, productName: true, productSku: true } },
+          },
+        },
+        sourceBranch: { select: { id: true, branchName: true, branchSlug: true } },
+        destinationBranch: { select: { id: true, branchName: true, branchSlug: true } },
+        requestedByUser: { select: { id: true, userEmailAddress: true } },
+        reviewedByUser: { select: { id: true, userEmailAddress: true } },
+      },
+    });
+
+    // Audit: priority change
+    try {
+      await writeAuditEvent(tx, {
+        tenantId,
+        actorUserId: userId,
+        entityType: AuditEntityType.STOCK_TRANSFER,
+        entityId: updated.id,
+        action: AuditAction.TRANSFER_PRIORITY_CHANGE,
+        entityName: updated.transferNumber,
+        before: { priority: transfer.priority },
+        after: { priority: updated.priority },
+        correlationId: auditContext?.correlationId ?? null,
+        ip: auditContext?.ip ?? null,
+        userAgent: auditContext?.userAgent ?? null,
+      });
+    } catch {
+      // Swallow audit errors
+    }
+
+    return updated;
+  });
+
+  return result;
 }
 
 /**

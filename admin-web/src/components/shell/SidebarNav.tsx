@@ -13,6 +13,7 @@ import {
   IconBoxSeam,
   IconUserCog,
   IconChecklist,
+  IconChartLine,
 } from "@tabler/icons-react";
 import { useThemeStore } from "../../stores/theme";
 import { useAuthStore } from "../../stores/auth";
@@ -76,6 +77,16 @@ export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) 
                 active={active(`${base}/stock-transfers/approval-rules`)}
                 onClick={onNavigate}
                 leftSection={<IconChecklist size={16} />}
+              />
+            )}
+            {hasPerm("reports:view") && (
+              <NavLink
+                label="Analytics"
+                component={Link}
+                to={`${base}/stock-transfers/analytics`}
+                active={active(`${base}/stock-transfers/analytics`)}
+                onClick={onNavigate}
+                leftSection={<IconChartLine size={16} />}
               />
             )}
           </NavLink>

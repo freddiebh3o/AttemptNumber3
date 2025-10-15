@@ -10,7 +10,13 @@
       "Bash(npm run dev)",
       "Bash(curl:*)",
       "Bash(npm run openapi:gen:*)",
-      "Bash(npm run build)"
+      "Bash(npm run build)",
+      "Bash(npm run db:seed:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(cat:*)",
+      "Bash(timeout 180 npm run test:accept -- partialShipment.test.ts)",
+      "Bash(npm run lint)"
     ],
     "deny": [],
     "ask": []

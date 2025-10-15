@@ -13,6 +13,7 @@ import { auditLoggerRouter } from './auditLoggerRouter.js';
 import { stockTransfersRouter } from './stockTransfersRouter.js';
 import { stockTransferTemplatesRouter } from './stockTransferTemplatesRouter.js';
 import { transferApprovalRulesRouter } from './transferApprovalRulesRouter.js';
+import { transferAnalyticsRouter } from './transferAnalyticsRouter.js';
 
 export const apiRouter = Router()
 apiRouter.use('/', healthRouter)
@@ -28,3 +29,4 @@ apiRouter.use('/audit', auditLoggerRouter)
 apiRouter.use('/stock-transfers', stockTransfersRouter)
 apiRouter.use('/stock-transfer-templates', stockTransferTemplatesRouter)
 apiRouter.use('/transfer-approval-rules', transferApprovalRulesRouter)
+apiRouter.use('/stock-transfers/analytics', transferAnalyticsRouter)

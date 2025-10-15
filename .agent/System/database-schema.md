@@ -848,5 +848,143 @@ await prisma.$transaction([
 
 ---
 
+## Phase 4 Additions (2025-10-14)
+
+### TransferMetrics (Analytics)
+
+**Purpose:** Pre-computed daily metrics for transfer analytics dashboard.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | String (CUID) | PK | Unique metric record identifier |
+| `tenantId` | String | FK → Tenant, NOT NULL | Tenant ownership |
+| `metricDate` | Date | NOT NULL | Date for this metric snapshot |
+| `transfersCreated` | Int | DEFAULT 0 | Transfers created on this date |
+| `transfersApproved` | Int | DEFAULT 0 | Transfers approved on this date |
+| `transfersShipped` | Int | DEFAULT 0 | Transfers shipped on this date |
+| `transfersCompleted` | Int | DEFAULT 0 | Transfers completed on this date |
+| `transfersRejected` | Int | DEFAULT 0 | Transfers rejected on this date |
+| `transfersCancelled` | Int | DEFAULT 0 | Transfers cancelled on this date |
+| `avgApprovalTime` | Int | NULLABLE | Average time (seconds) REQUESTED → APPROVED |
+| `avgShipTime` | Int | NULLABLE | Average time (seconds) APPROVED → IN_TRANSIT |
+| `avgReceiveTime` | Int | NULLABLE | Average time (seconds) IN_TRANSIT → COMPLETED |
+| `avgTotalTime` | Int | NULLABLE | Average time (seconds) REQUESTED → COMPLETED |
+| `createdAt` | DateTime | DEFAULT now() | Record creation timestamp |
+| `updatedAt` | DateTime | AUTO UPDATE | Last modification timestamp |
+
+**Unique Constraints:**
+- `@@unique([tenantId, metricDate])` - One metric record per tenant per day
+
+**Indexes:**
+- `@@index([tenantId, metricDate])`
+
+**Relations:**
+- `tenant` → Tenant (onDelete: Cascade)
+
+**Notes:**
+- Populated by nightly aggregation job
+- Enables fast dashboard queries without real-time aggregation
+- Daily granularity balances detail vs. storage
+
+---
+
+### TransferRouteMetrics (Branch Dependencies)
+
+**Purpose:** Track transfer volume and completion times between specific branches.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | String (CUID) | PK | Unique metric record identifier |
+| `tenantId` | String | FK → Tenant, NOT NULL | Tenant ownership |
+| `sourceBranchId` | String | FK → Branch, NOT NULL | Source branch reference |
+| `destinationBranchId` | String | FK → Branch, NOT NULL | Destination branch reference |
+| `metricDate` | Date | NOT NULL | Date for this metric snapshot |
+| `transferCount` | Int | DEFAULT 0 | Number of transfers on this route |
+| `totalUnits` | Int | DEFAULT 0 | Total units transferred on this route |
+| `avgCompletionTime` | Int | NULLABLE | Average completion time (seconds) |
+| `createdAt` | DateTime | DEFAULT now() | Record creation timestamp |
+| `updatedAt` | DateTime | AUTO UPDATE | Last modification timestamp |
+
+**Unique Constraints:**
+- `@@unique([tenantId, sourceBranchId, destinationBranchId, metricDate])` - One metric per route per day
+
+**Indexes:**
+- `@@index([tenantId, metricDate])`
+
+**Relations:**
+- `tenant` → Tenant (onDelete: Cascade)
+- `sourceBranch` → Branch (onDelete: Cascade)
+- `destinationBranch` → Branch (onDelete: Cascade)
+
+**Notes:**
+- Enables branch dependency visualization
+- Shows high-volume routes and bottlenecks
+- Supports network graph or Sankey diagram rendering
+
+---
+
+### StockTransfer Updates (Phase 4)
+
+**New Field:**
+- `priority` - TransferPriority enum (LOW, NORMAL, HIGH, URGENT), DEFAULT NORMAL
+
+**Updated Index:**
+- Old: `@@index([tenantId, status, createdAt])`
+- New: `@@index([tenantId, status, priority, requestedAt])`
+- Reason: Supports queries sorted by priority then date
+
+**New Enum:**
+```typescript
+enum TransferPriority {
+  LOW      // Seasonal overstock, can wait
+  NORMAL   // Standard priority (default)
+  HIGH     // Promotional event, expedited
+  URGENT   // Stock-out situation, immediate
+}
+```
+
+---
+
+### StockTransferItem Updates (Phase 4)
+
+**New Field:**
+- `shipmentBatches` - JSON (nullable)
+- Stores array of partial shipment records:
+  ```json
+  [
+    {
+      "batchNumber": 1,
+      "qty": 70,
+      "shippedAt": "2025-01-15T14:00:00Z",
+      "shippedByUserId": "cuid123",
+      "lotsConsumed": [
+        { "lotId": "lot1", "qty": 50, "unitCostPence": 1200 },
+        { "lotId": "lot2", "qty": 20, "unitCostPence": 1150 }
+      ]
+    },
+    {
+      "batchNumber": 2,
+      "qty": 30,
+      "shippedAt": "2025-01-18T10:00:00Z",
+      "shippedByUserId": "cuid456",
+      "lotsConsumed": [
+        { "lotId": "lot3", "qty": 30, "unitCostPence": 1180 }
+      ]
+    }
+  ]
+  ```
+
+**Purpose:** Track multiple shipment batches when source ships less than approved quantity.
+
+---
+
+### AuditAction Enum Updates (Phase 4)
+
+**New Actions:**
+- `TRANSFER_PRIORITY_CHANGE` - Transfer priority updated
+- `TRANSFER_SHIP_PARTIAL` - Partial shipment created
+
+---
+
 **Last Updated:** 2025-10-14
-**Document Version:** 1.1 (Added barcode support to Product model)
+**Document Version:** 1.2 (Added Phase 4: Analytics tables, priority field, partial shipment tracking)

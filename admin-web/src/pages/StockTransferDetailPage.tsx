@@ -16,6 +16,7 @@ import {
   Progress,
   Modal,
   Textarea,
+  Select,
 } from "@mantine/core";
 import {
   IconArrowLeft,
@@ -34,10 +35,10 @@ import {
 import { notifications } from "@mantine/notifications";
 import {
   getStockTransferApiRequest,
-  shipStockTransferApiRequest,
   cancelStockTransferApiRequest,
   getApprovalProgressApiRequest,
   submitApprovalApiRequest,
+  updateTransferPriorityApiRequest,
 } from "../api/stockTransfers";
 import type { StockTransfer } from "../api/stockTransfers";
 import { handlePageError } from "../utils/pageError";
@@ -46,7 +47,9 @@ import ReviewTransferModal from "../components/stockTransfers/ReviewTransferModa
 import ReceiveTransferModal from "../components/stockTransfers/ReceiveTransferModal";
 import ReverseTransferModal from "../components/stockTransfers/ReverseTransferModal";
 import BarcodeScannerModal from "../components/stockTransfers/BarcodeScannerModal";
+import ShipTransferModal from "../components/stockTransfers/ShipTransferModal";
 import { useFeatureFlag } from "../hooks/useFeatureFlag";
+import PriorityBadge from "../components/common/PriorityBadge";
 
 type TransferStatus =
   | "REQUESTED"
@@ -108,7 +111,7 @@ export default function StockTransferDetailPage() {
   const [receiveModalOpen, setReceiveModalOpen] = useState(false);
   const [scannerModalOpen, setScannerModalOpen] = useState(false);
   const [reverseModalOpen, setReverseModalOpen] = useState(false);
-  const [isShipping, setIsShipping] = useState(false);
+  const [shipModalOpen, setShipModalOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
 
   // Approval state
@@ -136,6 +139,11 @@ export default function StockTransferDetailPage() {
   const [approvalAction, setApprovalAction] = useState<{ level: number; approve: boolean } | null>(null);
   const [approvalNotes, setApprovalNotes] = useState("");
   const [isSubmittingApproval, setIsSubmittingApproval] = useState(false);
+
+  // Priority edit state
+  const [editPriorityModalOpen, setEditPriorityModalOpen] = useState(false);
+  const [newPriority, setNewPriority] = useState<"LOW" | "NORMAL" | "HIGH" | "URGENT">("NORMAL");
+  const [isUpdatingPriority, setIsUpdatingPriority] = useState(false);
 
   async function fetchTransfer() {
     if (!transferId) return;
@@ -223,33 +231,15 @@ export default function StockTransferDetailPage() {
     transfer?.status === "COMPLETED" &&
     !transfer?.reversedById;
 
-  async function handleShip() {
-    if (!transfer) return;
+  const canEditPriority =
+    canWriteStock &&
+    (isMemberOfSource || isMemberOfDestination) &&
+    (transfer?.status === "REQUESTED" || transfer?.status === "APPROVED");
 
-    setIsShipping(true);
-    try {
-      const idempotencyKey = `ship-${transfer.id}-${Date.now()}`;
-      const response = await shipStockTransferApiRequest(
-        transfer.id,
-        idempotencyKey
-      );
-
-      if (response.success) {
-        notifications.show({
-          color: "green",
-          message: "Transfer shipped successfully",
-        });
-        void fetchTransfer();
-      }
-    } catch (error: any) {
-      notifications.show({
-        color: "red",
-        message: error?.message ?? "Failed to ship transfer",
-      });
-    } finally {
-      setIsShipping(false);
-    }
-  }
+  // Check if transfer has partially shipped items
+  const hasPartialShipment = transfer?.items.some(
+    (item) => item.qtyShipped > 0 && item.qtyShipped < (item.qtyApproved ?? 0)
+  );
 
   async function handleCancel() {
     if (!transfer) return;
@@ -284,6 +274,15 @@ export default function StockTransferDetailPage() {
     notifications.show({
       color: "green",
       message: "Transfer reviewed successfully",
+    });
+    void fetchTransfer();
+  }
+
+  function handleShipSuccess() {
+    setShipModalOpen(false);
+    notifications.show({
+      color: "green",
+      message: "Transfer shipped successfully",
     });
     void fetchTransfer();
   }
@@ -356,6 +355,38 @@ export default function StockTransferDetailPage() {
     }
   }
 
+  async function handlePriorityUpdate() {
+    if (!transferId) return;
+
+    setIsUpdatingPriority(true);
+    try {
+      const response = await updateTransferPriorityApiRequest(transferId, newPriority);
+
+      if (response.success) {
+        notifications.show({
+          color: "green",
+          message: "Transfer priority updated successfully",
+        });
+        setEditPriorityModalOpen(false);
+        void fetchTransfer();
+      }
+    } catch (error: any) {
+      notifications.show({
+        color: "red",
+        message: error?.message ?? "Failed to update priority",
+      });
+    } finally {
+      setIsUpdatingPriority(false);
+    }
+  }
+
+  function openEditPriorityModal() {
+    if (transfer) {
+      setNewPriority(transfer.priority as "LOW" | "NORMAL" | "HIGH" | "URGENT");
+      setEditPriorityModalOpen(true);
+    }
+  }
+
   if (transfer === null || isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -386,6 +417,7 @@ export default function StockTransferDetailPage() {
                 <Badge color={getStatusColor(transfer.status)} variant="filled" size="lg">
                   {transfer.status.replace(/_/g, " ")}
                 </Badge>
+                <PriorityBadge priority={transfer.priority as "LOW" | "NORMAL" | "HIGH" | "URGENT"} size="lg" />
               </Group>
 
               {/* Reversal Info Badges */}
@@ -403,6 +435,14 @@ export default function StockTransferDetailPage() {
             </Stack>
           </div>
           <Group gap="xs">
+            {canEditPriority && (
+              <Button
+                variant="light"
+                onClick={openEditPriorityModal}
+              >
+                Edit Priority
+              </Button>
+            )}
             {canApprove && (
               <Button
                 leftSection={<IconCheck size={16} />}
@@ -414,10 +454,9 @@ export default function StockTransferDetailPage() {
             {canShip && (
               <Button
                 leftSection={<IconTruck size={16} />}
-                onClick={handleShip}
-                loading={isShipping}
+                onClick={() => setShipModalOpen(true)}
               >
-                Ship Transfer
+                {hasPartialShipment ? "Ship Remaining Items" : "Ship Transfer"}
               </Button>
             )}
             {canReceive && (
@@ -682,47 +721,123 @@ export default function StockTransferDetailPage() {
           <Title order={5} mb="md">
             Transfer Items
           </Title>
-          <Table striped withTableBorder withColumnBorders>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Product</Table.Th>
-                <Table.Th>SKU</Table.Th>
-                <Table.Th>Requested</Table.Th>
-                <Table.Th>Approved</Table.Th>
-                <Table.Th>Shipped</Table.Th>
-                <Table.Th>Received</Table.Th>
-                <Table.Th>Progress</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {transfer.items.map((item) => {
-                const progressPercent =
-                  item.qtyShipped > 0
-                    ? (item.qtyReceived / item.qtyShipped) * 100
-                    : 0;
+          <Stack gap="md">
+            <Table striped withTableBorder withColumnBorders>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Product</Table.Th>
+                  <Table.Th>SKU</Table.Th>
+                  <Table.Th>Requested</Table.Th>
+                  <Table.Th>Approved</Table.Th>
+                  <Table.Th>Shipped</Table.Th>
+                  <Table.Th>Received</Table.Th>
+                  <Table.Th>Progress</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {transfer.items.map((item) => {
+                  const progressPercent =
+                    item.qtyShipped > 0
+                      ? (item.qtyReceived / item.qtyShipped) * 100
+                      : 0;
 
-                return (
-                  <Table.Tr key={item.id}>
-                    <Table.Td>{item.product?.productName ?? "Unknown"}</Table.Td>
-                    <Table.Td>{item.product?.productSku ?? "-"}</Table.Td>
-                    <Table.Td>{item.qtyRequested}</Table.Td>
-                    <Table.Td>{item.qtyApproved ?? "-"}</Table.Td>
-                    <Table.Td>{item.qtyShipped}</Table.Td>
-                    <Table.Td>{item.qtyReceived}</Table.Td>
-                    <Table.Td>
-                      {item.qtyShipped > 0 ? (
-                        <Progress value={progressPercent} size="sm" />
-                      ) : (
-                        <Text size="sm" c="dimmed">
-                          Not shipped
+                  const hasShipmentBatches = item.shipmentBatches && item.shipmentBatches.length > 0;
+
+                  return (
+                    <Table.Tr key={item.id}>
+                      <Table.Td>
+                        <Stack gap="xs">
+                          <Text size="sm">{item.product?.productName ?? "Unknown"}</Text>
+                          {hasShipmentBatches && (
+                            <Text size="xs" c="dimmed">
+                              {item.shipmentBatches!.length} shipment batch(es)
+                            </Text>
+                          )}
+                        </Stack>
+                      </Table.Td>
+                      <Table.Td>{item.product?.productSku ?? "-"}</Table.Td>
+                      <Table.Td>{item.qtyRequested}</Table.Td>
+                      <Table.Td>{item.qtyApproved ?? "-"}</Table.Td>
+                      <Table.Td>
+                        <Stack gap="xs">
+                          <Text size="sm">{item.qtyShipped}</Text>
+                          {hasShipmentBatches && (
+                            <Progress
+                              value={(item.qtyShipped / (item.qtyApproved ?? 1)) * 100}
+                              size="xs"
+                              color={item.qtyShipped >= (item.qtyApproved ?? 0) ? "green" : "yellow"}
+                            />
+                          )}
+                        </Stack>
+                      </Table.Td>
+                      <Table.Td>{item.qtyReceived}</Table.Td>
+                      <Table.Td>
+                        {item.qtyShipped > 0 ? (
+                          <Progress value={progressPercent} size="sm" />
+                        ) : (
+                          <Text size="sm" c="dimmed">
+                            Not shipped
+                          </Text>
+                        )}
+                      </Table.Td>
+                    </Table.Tr>
+                  );
+                })}
+              </Table.Tbody>
+            </Table>
+
+            {/* Shipment Batches Details */}
+            {transfer.items.some((item) => item.shipmentBatches && item.shipmentBatches.length > 0) && (
+              <Paper withBorder p="sm" radius="sm">
+                <Title order={6} mb="sm">
+                  Shipment History
+                </Title>
+                <Stack gap="md">
+                  {transfer.items.map((item) => {
+                    if (!item.shipmentBatches || item.shipmentBatches.length === 0) return null;
+
+                    return (
+                      <div key={item.id}>
+                        <Text size="sm" fw={500} mb="xs">
+                          {item.product?.productName ?? "Unknown"}
                         </Text>
-                      )}
-                    </Table.Td>
-                  </Table.Tr>
-                );
-              })}
-            </Table.Tbody>
-          </Table>
+                        <Table withTableBorder>
+                          <Table.Thead>
+                            <Table.Tr>
+                              <Table.Th>Batch</Table.Th>
+                              <Table.Th>Qty Shipped</Table.Th>
+                              <Table.Th>Shipped At</Table.Th>
+                              <Table.Th>Shipped By</Table.Th>
+                            </Table.Tr>
+                          </Table.Thead>
+                          <Table.Tbody>
+                            {item.shipmentBatches.map((batch, idx) => (
+                              <Table.Tr key={idx}>
+                                <Table.Td>
+                                  <Text size="xs">Batch #{batch.batchNumber}</Text>
+                                </Table.Td>
+                                <Table.Td>
+                                  <Text size="xs">{batch.qty} units</Text>
+                                </Table.Td>
+                                <Table.Td>
+                                  <Text size="xs">
+                                    {new Date(batch.shippedAt).toLocaleString()}
+                                  </Text>
+                                </Table.Td>
+                                <Table.Td>
+                                  <Text size="xs">{batch.shippedByUserId}</Text>
+                                </Table.Td>
+                              </Table.Tr>
+                            ))}
+                          </Table.Tbody>
+                        </Table>
+                      </div>
+                    );
+                  })}
+                </Stack>
+              </Paper>
+            )}
+          </Stack>
         </Paper>
 
         {/* Notes */}
@@ -768,6 +883,13 @@ export default function StockTransferDetailPage() {
         onSuccess={handleReviewSuccess}
       />
 
+      <ShipTransferModal
+        opened={shipModalOpen}
+        onClose={() => setShipModalOpen(false)}
+        transfer={transfer}
+        onSuccess={handleShipSuccess}
+      />
+
       <ReceiveTransferModal
         opened={receiveModalOpen}
         onClose={() => setReceiveModalOpen(false)}
@@ -789,6 +911,50 @@ export default function StockTransferDetailPage() {
         transfer={transfer}
         onSuccess={handleReverseSuccess}
       />
+
+      {/* Priority Edit Modal */}
+      <Modal
+        opened={editPriorityModalOpen}
+        onClose={() => {
+          if (!isUpdatingPriority) {
+            setEditPriorityModalOpen(false);
+          }
+        }}
+        title="Update Transfer Priority"
+        centered
+      >
+        <Stack gap="md">
+          <Select
+            label="New Priority"
+            placeholder="Select priority"
+            data={[
+              { value: "URGENT", label: "🔥 Urgent (stock-out)" },
+              { value: "HIGH", label: "⬆️ High (promotional)" },
+              { value: "NORMAL", label: "➖ Normal" },
+              { value: "LOW", label: "⬇️ Low (overstock)" },
+            ]}
+            value={newPriority}
+            onChange={(v) => setNewPriority(v as "LOW" | "NORMAL" | "HIGH" | "URGENT")}
+            disabled={isUpdatingPriority}
+          />
+
+          <Group justify="flex-end" gap="xs">
+            <Button
+              variant="light"
+              onClick={() => setEditPriorityModalOpen(false)}
+              disabled={isUpdatingPriority}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handlePriorityUpdate}
+              loading={isUpdatingPriority}
+            >
+              Update Priority
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
 
       {/* Approval Modal */}
       <Modal

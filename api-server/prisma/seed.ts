@@ -294,7 +294,15 @@ async function seedStockTransfers(
   const product1 = products.find(p => p.productSku === 'ACME-SKU-001')!;
   const product2 = products.find(p => p.productSku === 'ACME-SKU-002')!;
 
-  // Create a COMPLETED transfer (for demo/testing)
+  // Use dynamic dates (last 10 days)
+  const now = new Date();
+  const daysAgo = (days: number) => {
+    const d = new Date(now);
+    d.setDate(d.getDate() - days);
+    return d;
+  };
+
+  // Create a COMPLETED transfer (NORMAL priority)
   await prisma.stockTransfer.upsert({
     where: {
       tenantId_transferNumber: {
@@ -309,13 +317,14 @@ async function seedStockTransfers(
       sourceBranchId: acmeWarehouse.id,
       destinationBranchId: acmeRetail1.id,
       status: 'COMPLETED',
+      priority: 'NORMAL',
       requestedByUserId: users.viewer.id, // viewer at retail-1
       reviewedByUserId: users.admin.id, // admin at warehouse
       shippedByUserId: users.admin.id,
-      requestedAt: new Date('2025-01-15T09:00:00Z'),
-      reviewedAt: new Date('2025-01-15T10:30:00Z'),
-      shippedAt: new Date('2025-01-15T14:00:00Z'),
-      completedAt: new Date('2025-01-16T09:00:00Z'),
+      requestedAt: daysAgo(8),
+      reviewedAt: new Date(daysAgo(8).getTime() + 1.5 * 3600000),
+      shippedAt: new Date(daysAgo(8).getTime() + 5 * 3600000),
+      completedAt: new Date(daysAgo(7).getTime()),
       requestNotes: 'Stock running low at retail store',
       items: {
         create: [
@@ -332,7 +341,7 @@ async function seedStockTransfers(
     },
   });
 
-  // Create an IN_TRANSIT transfer
+  // Create an IN_TRANSIT transfer (HIGH priority)
   await prisma.stockTransfer.upsert({
     where: {
       tenantId_transferNumber: {
@@ -347,12 +356,13 @@ async function seedStockTransfers(
       sourceBranchId: acmeWarehouse.id,
       destinationBranchId: acmeRetail1.id,
       status: 'IN_TRANSIT',
+      priority: 'HIGH',
       requestedByUserId: users.viewer.id,
       reviewedByUserId: users.admin.id,
       shippedByUserId: users.admin.id,
-      requestedAt: new Date('2025-01-20T09:00:00Z'),
-      reviewedAt: new Date('2025-01-20T11:00:00Z'),
-      shippedAt: new Date('2025-01-20T15:00:00Z'),
+      requestedAt: daysAgo(3),
+      reviewedAt: new Date(daysAgo(3).getTime() + 2 * 3600000),
+      shippedAt: new Date(daysAgo(3).getTime() + 6 * 3600000),
       requestNotes: 'Restock for weekend rush',
       items: {
         create: [
@@ -369,7 +379,7 @@ async function seedStockTransfers(
     },
   });
 
-  // Create a REQUESTED transfer
+  // Create a REQUESTED transfer (URGENT priority)
   await prisma.stockTransfer.upsert({
     where: {
       tenantId_transferNumber: {
@@ -384,9 +394,10 @@ async function seedStockTransfers(
       sourceBranchId: acmeWarehouse.id,
       destinationBranchId: acmeRetail1.id,
       status: 'REQUESTED',
+      priority: 'URGENT',
       requestedByUserId: users.viewer.id,
-      requestedAt: new Date('2025-01-22T09:00:00Z'),
-      requestNotes: 'Monthly restock request',
+      requestedAt: daysAgo(1),
+      requestNotes: 'URGENT: Stock-out situation at retail store',
       items: {
         create: [
           {
@@ -402,10 +413,245 @@ async function seedStockTransfers(
     },
   });
 
+  // Create a COMPLETED transfer (LOW priority)
+  await prisma.stockTransfer.upsert({
+    where: {
+      tenantId_transferNumber: {
+        tenantId: acmeId,
+        transferNumber: 'TRF-2025-004',
+      },
+    },
+    update: {},
+    create: {
+      tenantId: acmeId,
+      transferNumber: 'TRF-2025-004',
+      sourceBranchId: acmeWarehouse.id,
+      destinationBranchId: acmeRetail1.id,
+      status: 'COMPLETED',
+      priority: 'LOW',
+      requestedByUserId: users.editor.id,
+      reviewedByUserId: users.admin.id,
+      shippedByUserId: users.admin.id,
+      requestedAt: daysAgo(5),
+      reviewedAt: new Date(daysAgo(5).getTime() + 5 * 3600000),
+      shippedAt: new Date(daysAgo(4).getTime() + 1 * 3600000),
+      completedAt: new Date(daysAgo(3).getTime() + 2 * 3600000),
+      requestNotes: 'Seasonal overstock redistribution',
+      items: {
+        create: [
+          {
+            productId: product2.id,
+            qtyRequested: 25,
+            qtyApproved: 25,
+            qtyShipped: 25,
+            qtyReceived: 25,
+            avgUnitCostPence: 3500,
+          },
+        ],
+      },
+    },
+  });
+
   console.log('--- Stock transfers seeded ---');
-  console.log('TRF-2025-001: COMPLETED (Warehouse → Retail #1)');
-  console.log('TRF-2025-002: IN_TRANSIT (Warehouse → Retail #1)');
-  console.log('TRF-2025-003: REQUESTED (Warehouse → Retail #1)');
+  console.log('TRF-2025-001: COMPLETED (NORMAL priority) - Warehouse → Retail #1');
+  console.log('TRF-2025-002: IN_TRANSIT (HIGH priority) - Warehouse → Retail #1');
+  console.log('TRF-2025-003: REQUESTED (URGENT priority) - Warehouse → Retail #1');
+  console.log('TRF-2025-004: COMPLETED (LOW priority) - Warehouse → Retail #1');
+}
+
+async function seedHistoricalTransfers(
+  acmeId: string,
+  users: SeededUsers,
+  acmeBranches: SlimBranch[]
+) {
+  const mustFind = (list: SlimBranch[], slug: string) => {
+    const b = list.find(x => x.branchSlug === slug);
+    if (!b) throw new Error(`Branch not found: ${slug}`);
+    return b;
+  };
+
+  const acmeWarehouse = mustFind(acmeBranches, 'acme-warehouse');
+  const acmeRetail1 = mustFind(acmeBranches, 'acme-retail-1');
+  const acmeHQ = mustFind(acmeBranches, 'acme-hq');
+
+  // Get ALL products (not just first 2)
+  const products = await prisma.product.findMany({
+    where: { tenantId: acmeId },
+    select: { id: true, productSku: true, productPricePence: true },
+    take: 20, // Use up to 20 products for variety
+  });
+
+  if (products.length < 2) {
+    console.log('Skipping historical transfers: not enough products');
+    return;
+  }
+
+  // Define routes with varying traffic patterns
+  const routes = [
+    { from: acmeWarehouse, to: acmeRetail1, frequency: 0.6 }, // High traffic (main route)
+    { from: acmeWarehouse, to: acmeHQ, frequency: 0.3 }, // Medium traffic
+    { from: acmeHQ, to: acmeRetail1, frequency: 0.1 }, // Low traffic (redistribution)
+  ];
+
+  const priorities: Array<{ priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'; weight: number }> = [
+    { priority: 'NORMAL', weight: 0.6 }, // 60% normal
+    { priority: 'HIGH', weight: 0.25 },   // 25% high
+    { priority: 'LOW', weight: 0.1 },     // 10% low
+    { priority: 'URGENT', weight: 0.05 }, // 5% urgent
+  ];
+
+  const statuses: Array<{ status: 'REQUESTED' | 'APPROVED' | 'REJECTED' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELLED'; weight: number }> = [
+    { status: 'COMPLETED', weight: 0.65 }, // 65% completed
+    { status: 'IN_TRANSIT', weight: 0.15 }, // 15% in transit
+    { status: 'APPROVED', weight: 0.1 },    // 10% approved
+    { status: 'REQUESTED', weight: 0.08 },  // 8% requested
+    { status: 'REJECTED', weight: 0.02 },   // 2% rejected
+  ];
+
+  let transferCount = 0;
+  const today = new Date(); // Use actual current date
+
+  // Generate 60 days of historical transfers (going backwards for better trend visualization)
+  for (let dayOffset = 0; dayOffset < 60; dayOffset++) {
+    const date = new Date(today);
+    date.setDate(date.getDate() - dayOffset);
+
+    // Weekday vs weekend pattern (more transfers on weekdays)
+    const dayOfWeek = date.getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const baseTransfersPerDay = isWeekend ? 2 : 6;
+
+    // Add some randomness and weekly seasonality
+    const weekNumber = Math.floor(dayOffset / 7);
+    const seasonalMultiplier = 1 + (Math.sin(weekNumber * 0.5) * 0.3); // ±30% variation
+    const transfersPerDay = Math.max(1, Math.floor(baseTransfersPerDay * seasonalMultiplier + (Math.random() * 2 - 1)));
+
+    for (let i = 0; i < transfersPerDay; i++) {
+      // Select route based on weighted frequency
+      const routeRand = Math.random();
+      let cumulativeFreq = 0;
+      let selectedRoute = routes[0];
+      for (const route of routes) {
+        cumulativeFreq += route.frequency;
+        if (routeRand <= cumulativeFreq) {
+          selectedRoute = route;
+          break;
+        }
+      }
+
+      // Weighted priority selection
+      const priorityRand = Math.random();
+      let priorityCumulative = 0;
+      let selectedPriority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' = 'NORMAL';
+      for (const p of priorities) {
+        priorityCumulative += p.weight;
+        if (priorityRand <= priorityCumulative) {
+          selectedPriority = p.priority;
+          break;
+        }
+      }
+
+      // Weighted status selection
+      const statusRand = Math.random();
+      let statusCumulative = 0;
+      let selectedStatus: 'REQUESTED' | 'APPROVED' | 'REJECTED' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELLED' = 'COMPLETED';
+      for (const s of statuses) {
+        statusCumulative += s.weight;
+        if (statusRand <= statusCumulative) {
+          selectedStatus = s.status;
+          break;
+        }
+      }
+
+      const transferNumber = `TRF-2025-${String(5000 + transferCount).padStart(4, '0')}`;
+
+      // Calculate realistic timestamps based on status
+      const requestedAt = new Date(date);
+      requestedAt.setHours(9 + Math.floor(Math.random() * 7)); // 9am-4pm
+      requestedAt.setMinutes(Math.floor(Math.random() * 60));
+
+      const reviewedAt = selectedStatus !== 'REQUESTED' && selectedStatus !== 'CANCELLED'
+        ? new Date(requestedAt.getTime() + (0.5 + Math.random() * 4) * 3600000) // 30min-4.5 hours later
+        : null;
+
+      const shippedAt = ['IN_TRANSIT', 'COMPLETED'].includes(selectedStatus) && reviewedAt
+        ? new Date(reviewedAt.getTime() + (1 + Math.random() * 8) * 3600000) // 1-9 hours later
+        : null;
+
+      const completedAt = selectedStatus === 'COMPLETED' && shippedAt
+        ? new Date(shippedAt.getTime() + (6 + Math.random() * 30) * 3600000) // 6-36 hours later
+        : null;
+
+      // Multi-item transfers (20% chance of multiple products)
+      const numItems = Math.random() > 0.8 ? 2 : 1;
+      const selectedProducts: Array<{ id: string; productSku: string; productPricePence: number }> = [];
+      for (let j = 0; j < numItems; j++) {
+        const product = products[Math.floor(Math.random() * products.length)];
+        if (!selectedProducts.find(p => p.id === product.id)) {
+          selectedProducts.push(product);
+        }
+      }
+
+      const items = selectedProducts.map(product => {
+        const qtyRequested = Math.floor(Math.random() * 120) + 10; // 10-130 units
+        const qtyApproved = selectedStatus !== 'REQUESTED' && selectedStatus !== 'REJECTED' && selectedStatus !== 'CANCELLED'
+          ? qtyRequested
+          : null;
+        const qtyShipped = ['IN_TRANSIT', 'COMPLETED'].includes(selectedStatus) && qtyApproved
+          ? qtyApproved
+          : 0;
+        const qtyReceived = selectedStatus === 'COMPLETED' ? qtyShipped : 0;
+
+        return {
+          productId: product.id,
+          qtyRequested,
+          qtyApproved,
+          qtyShipped,
+          qtyReceived,
+          avgUnitCostPence: qtyShipped > 0 ? Math.floor(product.productPricePence * 0.6) : null, // Cost ~60% of price
+        };
+      });
+
+      try {
+        await prisma.stockTransfer.create({
+          data: {
+            tenantId: acmeId,
+            transferNumber,
+            sourceBranchId: selectedRoute.from.id,
+            destinationBranchId: selectedRoute.to.id,
+            status: selectedStatus,
+            priority: selectedPriority,
+            requestedByUserId: users.editor.id,
+            reviewedByUserId: reviewedAt ? users.admin.id : null,
+            shippedByUserId: shippedAt ? users.admin.id : null,
+            requestedAt,
+            reviewedAt,
+            shippedAt,
+            completedAt,
+            requestNotes: `${selectedPriority} priority transfer - ${selectedRoute.from.branchSlug} to ${selectedRoute.to.branchSlug}`,
+            reviewNotes: selectedStatus === 'REJECTED' ? 'Insufficient stock available' : null,
+            items: {
+              create: items,
+            },
+          },
+        });
+
+        transferCount++;
+      } catch (error: any) {
+        // Skip if transfer number already exists (from previous seed runs)
+        if (!error.message?.includes('Unique constraint')) {
+          console.error(`Failed to create transfer ${transferNumber}:`, error.message);
+        }
+      }
+    }
+  }
+
+  console.log('--- Historical transfers seeded ---');
+  console.log(`Created ${transferCount} historical transfers over 60 days`);
+  console.log(`Routes: Warehouse→Retail #1 (60%), Warehouse→HQ (30%), HQ→Retail #1 (10%)`);
+  console.log(`Status distribution: COMPLETED (65%), IN_TRANSIT (15%), APPROVED (10%), REQUESTED (8%), REJECTED (2%)`);
+  console.log(`Priority distribution: NORMAL (60%), HIGH (25%), LOW (10%), URGENT (5%)`);
+  console.log(`Volume pattern: Weekdays (6 avg), Weekends (2 avg), with seasonal variation`);
 }
 
 async function seedTransferTemplates(
@@ -630,6 +876,96 @@ async function seedApprovalRules(
   console.log('Rule 3: Warehouse Outbound - INACTIVE (demo rule)');
 }
 
+async function seedAnalyticsMetrics(
+  acmeId: string,
+  acmeBranches: SlimBranch[]
+) {
+  // Helper to find branch by slug
+  const mustFind = (list: SlimBranch[], slug: string) => {
+    const b = list.find(x => x.branchSlug === slug);
+    if (!b) throw new Error(`Branch not found: ${slug}`);
+    return b;
+  };
+
+  const acmeWarehouse = mustFind(acmeBranches, 'acme-warehouse');
+  const acmeRetail1 = mustFind(acmeBranches, 'acme-retail-1');
+  const acmeHQ = mustFind(acmeBranches, 'acme-hq');
+
+  // Seed TransferMetrics for the last 7 days
+  const today = new Date(); // Use actual current date
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(today);
+    date.setDate(date.getDate() - i);
+
+    await prisma.transferMetrics.upsert({
+      where: {
+        tenantId_metricDate: {
+          tenantId: acmeId,
+          metricDate: date,
+        },
+      },
+      update: {},
+      create: {
+        tenantId: acmeId,
+        metricDate: date,
+        transfersCreated: Math.floor(Math.random() * 5) + 1, // 1-5 transfers
+        transfersApproved: Math.floor(Math.random() * 4) + 1, // 1-4 transfers
+        transfersShipped: Math.floor(Math.random() * 3) + 1, // 1-3 transfers
+        transfersCompleted: Math.floor(Math.random() * 3), // 0-2 transfers
+        transfersRejected: Math.random() > 0.8 ? 1 : 0, // 20% chance of rejection
+        transfersCancelled: 0,
+        // Average times in seconds
+        avgApprovalTime: 5400 + Math.floor(Math.random() * 3600), // ~1.5-2.5 hours
+        avgShipTime: 14400 + Math.floor(Math.random() * 7200), // ~4-6 hours
+        avgReceiveTime: 43200 + Math.floor(Math.random() * 21600), // ~12-18 hours
+        avgTotalTime: 86400 + Math.floor(Math.random() * 43200), // ~24-36 hours
+      },
+    });
+  }
+
+  // Seed TransferRouteMetrics for common routes
+  const routes = [
+    { source: acmeWarehouse, dest: acmeRetail1, transferCount: 15, totalUnits: 450 },
+    { source: acmeWarehouse, dest: acmeHQ, transferCount: 8, totalUnits: 200 },
+    { source: acmeHQ, dest: acmeRetail1, transferCount: 5, totalUnits: 120 },
+  ];
+
+  for (const route of routes) {
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+
+      // Only seed metrics for some days (simulate varying activity)
+      if (Math.random() > 0.3) {
+        await prisma.transferRouteMetrics.upsert({
+          where: {
+            tenantId_sourceBranchId_destinationBranchId_metricDate: {
+              tenantId: acmeId,
+              sourceBranchId: route.source.id,
+              destinationBranchId: route.dest.id,
+              metricDate: date,
+            },
+          },
+          update: {},
+          create: {
+            tenantId: acmeId,
+            sourceBranchId: route.source.id,
+            destinationBranchId: route.dest.id,
+            metricDate: date,
+            transferCount: Math.floor(Math.random() * 3) + 1, // 1-3 transfers
+            totalUnits: Math.floor(Math.random() * 100) + 20, // 20-120 units
+            avgCompletionTime: 72000 + Math.floor(Math.random() * 36000), // ~20-30 hours
+          },
+        });
+      }
+    }
+  }
+
+  console.log('--- Analytics metrics seeded ---');
+  console.log('TransferMetrics: 7 days of data');
+  console.log('TransferRouteMetrics: 3 routes × ~5 days each');
+}
+
 async function main() {
   // Tenants + RBAC
   const { acmeId, globexId } = await seedTenantsAndRBAC();
@@ -665,11 +1001,17 @@ async function main() {
   // Stock transfers
   await seedStockTransfers(acmeId, users, acmeBranches);
 
+  // Historical transfers for analytics
+  await seedHistoricalTransfers(acmeId, users, acmeBranches);
+
   // Transfer templates
   await seedTransferTemplates(acmeId, users, acmeBranches);
 
   // Approval rules
   await seedApprovalRules(acmeId, users, acmeBranches);
+
+  // Analytics metrics
+  await seedAnalyticsMetrics(acmeId, acmeBranches);
 
   console.log('Seed complete. Tenants: acme, globex');
 }

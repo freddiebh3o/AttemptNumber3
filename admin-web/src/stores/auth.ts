@@ -75,7 +75,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           ? {
               tenantId: d.currentTenant.tenantId,
               tenantSlug: d.currentTenant.tenantSlug,
-              featureFlags: d.currentTenant.featureFlags ?? {},
+              featureFlags: (d.currentTenant as any).featureFlags ?? {},
               role: d.currentTenant.role ?? null,
             }
           : null,
