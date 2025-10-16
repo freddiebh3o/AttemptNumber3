@@ -10,14 +10,13 @@ export function ChatInterface() {
   const [input, setInput] = useState('');
   const viewport = useRef<HTMLDivElement>(null);
 
-  const transport = useMemo(
-    () =>
-      new DefaultChatTransport({
-        api: '/api/chat',
-        credentials: 'include',
-      }),
-    []
-  );
+  const transport = useMemo(() => {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL as string;
+    return new DefaultChatTransport({
+      api: `${apiBaseUrl}/api/chat`,
+      credentials: 'include',
+    });
+  }, []);
 
   const { messages, sendMessage, status } = useChat({
     transport,
