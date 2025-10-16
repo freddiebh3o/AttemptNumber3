@@ -6,11 +6,13 @@ import HeaderBar from './HeaderBar';
 import SidebarNav from './SidebarNav';
 import TenantThemeProvider from '../theme/TenantThemeProvider';
 import DirtyNavigationGuard from '../nav/DirtyNavigationGuard';
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuthStore } from "../../stores/auth";
+import { ChatModal } from '../Chat/ChatModal';
 
 export default function AdminLayout() {
   const [opened, { toggle, close }] = useDisclosure(false);
+  const [chatOpened, setChatOpened] = useState(false);
   const hydrated = useAuthStore((s) => s.hydrated);
   const refreshFromServer = useAuthStore((s) => s.refreshFromServer);
 
@@ -29,7 +31,11 @@ export default function AdminLayout() {
         padding="md"
       >
         <AppShell.Header>
-          <HeaderBar opened={opened} onBurgerClick={toggle} />
+          <HeaderBar
+            opened={opened}
+            onBurgerClick={toggle}
+            onChatClick={() => setChatOpened(true)}
+          />
         </AppShell.Header>
 
         <AppShell.Navbar>
@@ -40,6 +46,9 @@ export default function AdminLayout() {
           <Outlet />
         </AppShell.Main>
       </AppShell>
+
+      {/* AI Chat Assistant Modal */}
+      <ChatModal opened={chatOpened} onClose={() => setChatOpened(false)} />
     </TenantThemeProvider>
   );
 }

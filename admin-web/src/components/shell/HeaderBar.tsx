@@ -9,21 +9,21 @@ import {
   useComputedColorScheme,
   useMantineColorScheme,
 } from '@mantine/core';
-import { IconSun, IconMoon, IconPalette } from '@tabler/icons-react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { IconSun, IconMoon, IconMessageCircle } from '@tabler/icons-react';
+import { useNavigate } from 'react-router-dom';
 import { signOutApiRequest } from '../../api/auth';
 import { useAuthStore } from '../../stores/auth';
 
 export default function HeaderBar({
   opened,
   onBurgerClick,
+  onChatClick,
 }: {
   opened: boolean;
   onBurgerClick: () => void;
+  onChatClick: () => void;
 }) {
   const navigate = useNavigate();
-  const { tenantSlug } = useParams();
-
   const clearAuth = useAuthStore((s) => s.clear);
 
   const { setColorScheme } = useMantineColorScheme();
@@ -55,19 +55,6 @@ export default function HeaderBar({
       </Group>
 
       <Group gap="sm">
-        {/* Theme settings quick link */}
-        <Tooltip label="Theme settings" withArrow>
-          <ActionIcon
-            variant="default"
-            size="lg"
-            radius="md"
-            onClick={() => tenantSlug && navigate(`/${tenantSlug}/settings/theme`)}
-            aria-label="Open theme settings"
-          >
-            <IconPalette size={18} />
-          </ActionIcon>
-        </Tooltip>
-
         {/* Light/Dark toggle */}
         <Tooltip label={isLight ? 'Switch to dark' : 'Switch to light'} withArrow>
           <ActionIcon
@@ -78,6 +65,20 @@ export default function HeaderBar({
             aria-label="Toggle color scheme"
           >
             {isLight ? <IconMoon size={18} /> : <IconSun size={18} />}
+          </ActionIcon>
+        </Tooltip>
+
+        {/* AI Chat Assistant */}
+        <Tooltip label="AI Assistant" withArrow>
+          <ActionIcon
+            variant="default"
+            size="lg"
+            radius="md"
+            onClick={onChatClick}
+            aria-label="Open AI chat assistant"
+            data-testid="chat-trigger-button"
+          >
+            <IconMessageCircle size={18} />
           </ActionIcon>
         </Tooltip>
 

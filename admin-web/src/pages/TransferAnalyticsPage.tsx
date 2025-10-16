@@ -245,7 +245,7 @@ export default function TransferAnalyticsPage() {
   }
 
   return (
-    <Container size="xl">
+    <div>
       <Stack gap="md">
         {/* Header */}
         <Group justify="space-between" align="flex-start">
@@ -471,6 +471,6 @@ export default function TransferAnalyticsPage() {
           </Stack>
         )}
       </Stack>
-    </Container>
+    </div>
   );
 }

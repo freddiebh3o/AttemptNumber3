@@ -1,0 +1,51 @@
+.userMessageContainer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.assistantMessageContainer {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.userMessage {
+  background-color: var(--mantine-color-blue-6);
+  color: white;
+  max-width: 70%;
+}
+
+.assistantMessage {
+  background-color: light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-6));
+  max-width: 80%;
+}
+
+.markdown {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.markdown p {
+  margin: 0 0 8px 0;
+}
+
+.markdown p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown ul,
+.markdown ol {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+
+.markdown code {
+  background-color: light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-7));
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 13px;
+}
+
+.markdown strong {
+  font-weight: 600;
+}

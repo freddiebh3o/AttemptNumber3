@@ -10,13 +10,10 @@ import {
   IconBuilding,
   IconHistory,
   IconTemplate,
-  IconBoxSeam,
   IconUserCog,
   IconChecklist,
   IconChartLine,
   IconSettings,
-  IconBoxMultiple,
-  IconBarcode,
   IconPackageExport,
 } from "@tabler/icons-react";
 import { useThemeStore } from "../../stores/theme";

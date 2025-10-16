@@ -16,16 +16,19 @@
     "openapi:gen": "openapi-typescript http://localhost:4000/openapi.json -o src/types/openapi.d.ts"
   },
   "dependencies": {
+    "@ai-sdk/react": "^2.0.72",
     "@emotion/react": "^11.14.0",
     "@mantine/core": "^8.3.2",
     "@mantine/dates": "^8.3.2",
     "@mantine/hooks": "^8.3.2",
     "@mantine/notifications": "^8.3.2",
     "@tabler/icons-react": "^3.35.0",
+    "ai": "^5.0.72",
     "dayjs": "^1.11.18",
     "html5-qrcode": "^2.3.8",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^7.9.2",
     "recharts": "^3.2.1",
     "zustand": "^5.0.8"
