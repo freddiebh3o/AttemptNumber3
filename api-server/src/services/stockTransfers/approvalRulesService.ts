@@ -211,6 +211,7 @@ export async function listApprovalRules(params: {
     sortDir?: 'asc' | 'desc';
     limit?: number;
     cursor?: string;
+    includeTotal?: boolean;
   };
 }) {
   const { tenantId, filters } = params;
@@ -281,11 +282,18 @@ export async function listApprovalRules(params: {
   const items = hasNextPage ? rows.slice(0, limit) : rows;
   const nextCursor = hasNextPage ? items[items.length - 1]?.id ?? null : null;
 
+  // Optionally include total count
+  let totalCount: number | undefined = undefined;
+  if (filters?.includeTotal) {
+    totalCount = await prismaClientInstance.transferApprovalRule.count({ where });
+  }
+
   return {
     items,
     pageInfo: {
       hasNextPage,
       nextCursor,
+      ...(totalCount !== undefined ? { totalCount } : {}),
     },
   };
 }

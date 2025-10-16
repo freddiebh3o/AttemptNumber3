@@ -125,6 +125,7 @@ export async function listTransferTemplates(params: {
     destinationBranchId?: string;
     limit?: number;
     cursor?: string;
+    includeTotal?: boolean;
   };
 }) {
   const { tenantId, filters } = params;
@@ -196,11 +197,18 @@ export async function listTransferTemplates(params: {
   const items = hasNextPage ? rows.slice(0, limit) : rows;
   const nextCursor = hasNextPage ? items[items.length - 1]?.id ?? null : null;
 
+  // Optionally include total count
+  let totalCount: number | undefined = undefined;
+  if (filters?.includeTotal) {
+    totalCount = await prismaClientInstance.stockTransferTemplate.count({ where });
+  }
+
   return {
     items,
     pageInfo: {
       hasNextPage,
       nextCursor,
+      ...(totalCount !== undefined ? { totalCount } : {}),
     },
   };
 }

@@ -32,12 +32,14 @@ interface CreateProductOptions {
   sku?: string;
   tenantId: string;
   pricePence?: number;
+  barcode?: string;
 }
 
 interface CreateBranchOptions {
   name?: string;
   slug?: string;
   tenantId: string;
+  isActive?: boolean;
 }
 
 /**
@@ -141,13 +143,14 @@ export async function createTestProduct(
   const timestamp = Date.now();
   const name = options.name || `Test Product ${timestamp}`;
   const sku = options.sku || `TEST-SKU-${timestamp}`;
-  const { tenantId } = options;
+  const { tenantId, barcode } = options;
 
   return await prisma.product.create({
     data: {
       productName: name,
       productSku: sku,
       productPricePence: options.pricePence || 1000, // Default £10.00
+      barcode: barcode || null,
       tenantId,
       entityVersion: 1,
     },
@@ -163,14 +166,14 @@ export async function createTestBranch(
   const timestamp = Date.now();
   const name = options.name || `Test Branch ${timestamp}`;
   const slug = options.slug || `test-branch-${timestamp}`;
-  const { tenantId } = options;
+  const { tenantId, isActive = true } = options;
 
   return await prisma.branch.create({
     data: {
       branchName: name,
       branchSlug: slug,
       tenantId,
-      isActive: true,
+      isActive,
     },
   });
 }

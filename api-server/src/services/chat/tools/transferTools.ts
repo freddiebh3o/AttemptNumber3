@@ -15,8 +15,51 @@ import * as transferService from '../../stockTransfers/stockTransferService.js';
  */
 export function transferTools({ userId, tenantId }: { userId: string; tenantId: string }) {
   return {
+    countAllTransfers: tool({
+      description: 'Get the total count of ALL stock transfers (or filtered by status/priority). Use when user asks "how many transfers do we have?" or "how many total transfers?" Returns just the count, not the transfer list. Automatically filters to user\'s accessible branches.',
+      inputSchema: z.object({
+        status: z.enum(['REQUESTED', 'APPROVED', 'IN_TRANSIT', 'COMPLETED', 'REJECTED', 'CANCELLED']).optional()
+          .describe('Filter by transfer status'),
+        priority: z.enum(['URGENT', 'HIGH', 'NORMAL', 'LOW']).optional()
+          .describe('Filter by priority'),
+      }),
+      execute: async ({ status, priority }) => {
+        try {
+          const result = await transferService.listStockTransfers({
+            tenantId,
+            userId,
+            filters: {
+              ...(status ? { status } : {}),
+              ...(priority ? { priority } : {}),
+              limit: 1, // We only need totalCount, not the items
+              includeTotal: true, // REQUIRED to get totalCount in pageInfo
+            },
+          });
+
+          let filterDesc = '';
+          if (status && priority) {
+            filterDesc = ` (${status.toLowerCase()}, ${priority.toLowerCase()})`;
+          } else if (status) {
+            filterDesc = ` (${status.toLowerCase()})`;
+          } else if (priority) {
+            filterDesc = ` (${priority.toLowerCase()})`;
+          }
+
+          return {
+            totalCount: result.pageInfo.totalCount,
+            message: `You have ${result.pageInfo.totalCount} total transfer${result.pageInfo.totalCount === 1 ? '' : 's'}${filterDesc}`,
+          };
+        } catch (error: any) {
+          return {
+            error: 'Unable to count transfers',
+            message: error.message || 'An error occurred',
+          };
+        }
+      },
+    }),
+
     searchTransfers: tool({
-      description: 'Search and list stock transfers. Use this when user asks about their transfers, pending transfers, or wants to find a specific transfer. Results are automatically filtered to branches the user is a member of.',
+      description: 'Search and list stock transfers. Use this when user asks about their transfers, pending transfers, or wants to find a specific transfer. Results are automatically filtered to branches the user is a member of. Returns totalCount showing the complete number of matching transfers (not just the limited results shown).',
       inputSchema: z.object({
         status: z.enum(['REQUESTED', 'APPROVED', 'IN_TRANSIT', 'COMPLETED', 'REJECTED', 'CANCELLED']).optional()
           .describe('Filter by transfer status'),
@@ -41,6 +84,7 @@ export function transferTools({ userId, tenantId }: { userId: string; tenantId: 
             ...(direction ? { direction } : {}),
             ...(branchId ? { branchId } : {}),
             limit: Math.min(limit || 5, 10),
+            includeTotal: true, // REQUIRED to get totalCount in pageInfo
           },
         });
 
@@ -64,7 +108,8 @@ export function transferTools({ userId, tenantId }: { userId: string; tenantId: 
               requestedAt: transfer.requestedAt.toISOString(),
             };
           }),
-          count: result.items.length,
+          showing: result.items.length,
+          totalCount: result.pageInfo.totalCount,
           hasMore: result.pageInfo.hasNextPage,
         };
       },

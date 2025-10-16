@@ -15,6 +15,33 @@ export function ChatInterface() {
     return new DefaultChatTransport({
       api: `${apiBaseUrl}/api/chat`,
       credentials: 'include',
+      // Override fetch to handle 401 errors (session expiration)
+      fetch: async (url, options) => {
+        const response = await fetch(url, options);
+
+        // Handle 401 Unauthorized (session expired)
+        if (response.status === 401) {
+          // Try to read error body to check for AUTH_REQUIRED
+          const text = await response.clone().text();
+          let errorCode;
+          try {
+            const json = JSON.parse(text);
+            errorCode = json?.error?.errorCode;
+          } catch {
+            // Not JSON, ignore
+          }
+
+          if (errorCode === 'AUTH_REQUIRED' || response.status === 401) {
+            // Clear auth state and redirect to sign-in
+            import('../../stores/auth.js').then(({ useAuthStore }) => {
+              useAuthStore.getState().clear();
+            });
+            window.location.href = '/sign-in?reason=session_expired';
+          }
+        }
+
+        return response;
+      },
     });
   }, []);
 
@@ -49,19 +76,38 @@ export function ChatInterface() {
       {/* Messages Area */}
       <ScrollArea viewportRef={viewport} style={{ flex: 1 }} p="md">
         {messages.length === 0 ? (
-          <Stack gap="xs" align="center" justify="center" style={{ minHeight: 300 }}>
+          <Stack gap="md" align="center" justify="center" style={{ minHeight: 300, maxWidth: 600, margin: '0 auto' }}>
             <Text size="lg" fw={500}>
-              👋 Hi! I can help you with:
+              👋 Hi! I can help you manage your inventory:
             </Text>
-            <Text size="sm" c="dimmed">
-              • Finding your stock transfers
-            </Text>
-            <Text size="sm" c="dimmed">
-              • Checking transfer status and details
-            </Text>
-            <Text size="sm" c="dimmed">
-              • Understanding approval workflows
-            </Text>
+
+            <Stack gap="xs" style={{ width: '100%' }}>
+              <Text size="sm" fw={500}>📦 Products & Stock</Text>
+              <Text size="xs" c="dimmed" pl="lg">
+                "What products are low on stock?" • "Show me stock at Main Warehouse"
+              </Text>
+            </Stack>
+
+            <Stack gap="xs" style={{ width: '100%' }}>
+              <Text size="sm" fw={500}>🚚 Transfers & Approvals</Text>
+              <Text size="xs" c="dimmed" pl="lg">
+                "Find my pending transfers" • "Why does TRF-001 need approval?"
+              </Text>
+            </Stack>
+
+            <Stack gap="xs" style={{ width: '100%' }}>
+              <Text size="sm" fw={500}>📊 Analytics & Insights</Text>
+              <Text size="xs" c="dimmed" pl="lg">
+                "What's our transfer completion rate?" • "Total stock value by branch"
+              </Text>
+            </Stack>
+
+            <Stack gap="xs" style={{ width: '100%' }}>
+              <Text size="sm" fw={500}>👥 Team & Branches</Text>
+              <Text size="xs" c="dimmed" pl="lg">
+                "Who are the warehouse managers?" • "List all active branches"
+              </Text>
+            </Stack>
           </Stack>
         ) : (
           <Stack gap="md">
@@ -86,7 +132,7 @@ export function ChatInterface() {
           <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask me anything about stock transfers..."
+            placeholder="Ask about products, stock, transfers, analytics, or users..."
             disabled={isLoading}
             minRows={1}
             maxRows={4}

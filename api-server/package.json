@@ -17,7 +17,8 @@
     "db:seed": "prisma db seed",
     "db:reset:dev": "prisma migrate reset --force --skip-generate --skip-seed && npm run db:deploy && npm run db:seed",
     "seed:rbac": "tsx ./scripts/seedPermissionsAndRoles.ts",
-    "seed:test-users": "tsx ./scripts/seedTestUsers.ts"
+    "seed:test-users": "tsx ./scripts/seedTestUsers.ts",
+    "ingest-docs": "tsx ./scripts/ingestDocs.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -32,9 +33,11 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "glob": "^11.0.3",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
+    "pgvector": "^0.2.1",
     "pino": "^9.11.0",
     "pino-http": "^10.5.0",
     "swagger-ui-express": "^5.0.1",

@@ -777,3 +777,25 @@ model AuditEvent {
   @@index([action, createdAt])
   @@index([correlationId])
 }
+
+/// Document chunks for RAG (Retrieval-Augmented Generation)
+/// Stores embedded documentation sections for semantic search
+model DocumentChunk {
+  id         String   @id @default(cuid())
+  documentId String   // File path: "docs/stock-transfers/overview.md"
+  sectionId  String   // Heading anchor: "## Step 1: Navigate to Transfers"
+  title      String   // "Creating Transfers - Step 1: Navigate"
+  content    String   @db.Text // Actual markdown content chunk
+
+  /// Vector embedding (1536 dimensions for text-embedding-3-small)
+  embedding Unsupported("vector(1536)")
+
+  /// Metadata: { category: "stock-transfers", tags: ["transfer", "create"], relatedDocs: [...] }
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([documentId])
+  @@map("document_chunks")
+}

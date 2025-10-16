@@ -16,7 +16,10 @@
       "Bash(findstr:*)",
       "Bash(cat:*)",
       "Bash(timeout 180 npm run test:accept -- partialShipment.test.ts)",
-      "Bash(npm run lint)"
+      "Bash(npm run lint)",
+      "Bash(npm run db:migrate:*)",
+      "Bash(npm run ingest-docs:*)",
+      "Bash(npx prisma migrate dev:*)"
     ],
     "deny": [],
     "ask": []
