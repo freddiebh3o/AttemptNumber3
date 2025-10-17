@@ -80,7 +80,12 @@ The `.agent/` directory is the **central knowledge base** for this project. It s
 
 **Start here:**
 1. Create feature folder: `.agent/Features/InProgress/{feature-name}/`
-2. Write PRD: `.agent/Features/InProgress/{feature-name}/prd.md`
+2. **Write PRD using the [PRD Template](./Meta/prd-template.md)** → `.agent/Features/InProgress/{feature-name}/prd.md`
+   - Use simple checklist format (`- [ ]`)
+   - Break into phases with clear goals
+   - Include file references, NOT code snippets
+   - Follow backend-first workflow
+   - See [PRD Guidelines](./Meta/documentation-guidelines.md#prd-product-requirements-document-guidelines) for details
 3. Follow [SOP/adding-new-feature.md](./SOP/adding-new-feature.md) step-by-step
 4. Spawn agents using [Agents/_index.md](./Agents/_index.md) as guide
 5. Reference [Meta/agent-handoff-protocol.md](./Meta/agent-handoff-protocol.md) for agent coordination
@@ -90,6 +95,11 @@ The `.agent/` directory is the **central knowledge base** for this project. It s
 database-expert → rbac-security-expert → backend-api-expert →
 frontend-expert → test-engineer → integration-orchestrator
 ```
+
+**PRD Template Quick Reference:**
+- **Template Location:** [Meta/prd-template.md](./Meta/prd-template.md)
+- **Guidelines:** [PRD section in documentation-guidelines.md](./Meta/documentation-guidelines.md#prd-product-requirements-document-guidelines)
+- **Key Principle:** Simple checklists, file references, backend-first, no code snippets
 
 ### I'm Debugging an Issue
 

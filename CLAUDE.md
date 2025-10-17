@@ -7,16 +7,50 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 We keep all important docs in .agent folder and keep updating them, structure like below
 
 .agent
-- /Tasks: PRD & implementation plan for each feature
-- /System: Document the current state of the system (project structure/architecture, tech stack, integration points, 
+- /Features: PRD & implementation plan for each feature (use [PRD Template](.agent/Meta/prd-template.md))
+- /System: Document the current state of the system (project structure/architecture, tech stack, integration points,
   database schema, and core functionalities such as agent architecture, LLM layer, etc.)
-- /SOP: Best practices of execute certain tasks (e.g. how to add a schema migration, how to add a new 
+- /SOP: Best practices of execute certain tasks (e.g. how to add a schema migration, how to add a new
   page route, etc.)
+- /Meta: Templates and guidelines (PRD template, documentation standards, agent protocols)
 - README.md: an index of all the documentations we have so people know what & where to look for things
 
 We should always update .agent docs after we implement a certain feature, to make sure it fully reflects the up to date information
 
-Before you plan any implementation, always red the .agent/README first to get context
+Before you plan any implementation, always read the .agent/README first to get context
+
+### Planning New Features (IMPORTANT: Always Use PRD Template)
+
+**CRITICAL: When asked to create a PRD for a new feature, ALWAYS use the standardized template at [.agent/Meta/prd-template.md](.agent/Meta/prd-template.md)**
+
+**PRD Creation Workflow:**
+1. Read [.agent/README.md](.agent/README.md) for system context
+2. **Read the [PRD Template](.agent/Meta/prd-template.md) to understand the required structure**
+3. Create the PRD file at `.agent/Features/InProgress/{feature-name}/prd.md`
+4. **Use the EXACT template structure** with:
+   - Feature overview (2-3 sentences)
+   - Phase-based breakdown with clear goals
+   - Checklists using `- [ ]` format (NOT narrative text)
+   - File references (links, NOT code snippets)
+   - Backend implementation section (always first)
+   - Frontend implementation section (always after backend tests pass)
+   - Documentation update checkboxes
+   - Testing strategy section
+5. **What NOT to include in PRDs:**
+   - ❌ Code snippets (reference files instead)
+   - ❌ Full database schemas (link to System docs)
+   - ❌ API request/response formats (use OpenAPI)
+   - ❌ Implementation details (those belong in code)
+
+**PRD Principles:**
+- **Backend-First Workflow:** Backend → Tests Pass → Frontend → Tests Pass
+- **Simple Checklists:** Track progress with `- [ ]` → `- [x]`, NOT detailed narratives
+- **data-testid Attributes:** Always remind to add these in frontend implementation
+- **Documentation Updates:** Include checkbox for updating /docs when new concepts are introduced
+- **File References:** Link to files that will be modified, don't include their code
+- **Phase-Based:** Break work into 1-3 day phases with clear goals
+
+See [PRD Guidelines](.agent/Meta/documentation-guidelines.md#prd-product-requirements-document-guidelines) for detailed instructions and common mistakes to avoid.
 
 ## Repository Structure
 

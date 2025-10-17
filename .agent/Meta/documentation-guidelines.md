@@ -1023,6 +1023,204 @@ wip
 
 ---
 
+## PRD (Product Requirements Document) Guidelines
+
+### Purpose of PRDs
+
+PRDs are planning documents created **before** implementing a feature. They serve as a roadmap for development and track progress during implementation.
+
+**Purpose:**
+- Plan feature implementation in phases
+- Track progress with checkboxes
+- Reference relevant files without including code
+- Ensure testing and documentation are not forgotten
+
+**Location:** `.agent/Features/{status}/{feature-name}/prd.md`
+
+**Template:** See [PRD Template](./prd-template.md) for standardized structure
+
+### What to INCLUDE in PRDs
+
+✅ **Include:**
+- Feature overview (2-3 sentences)
+- Phase-based breakdown with clear goals
+- Checklist items for tracking progress (`- [ ]` format)
+- File references (links to files that will be modified)
+- Testing requirements per phase
+- Documentation update reminders
+- Backend-first workflow (backend → tests → frontend → tests)
+- data-testid reminder for frontend components
+
+**Example:**
+```markdown
+## Phase 1: Core CRUD Operations
+
+**Goal:** Implement basic supplier management with full CRUD operations
+
+**Relevant Files:**
+- [api-server/src/services/supplierService.ts](../../api-server/src/services/supplierService.ts)
+- [admin-web/src/pages/SuppliersPage.tsx](../../admin-web/src/pages/SuppliersPage.tsx)
+
+### Backend Implementation
+- [ ] Database schema changes (create migration: `add_suppliers`)
+- [ ] Service layer functions created
+- [ ] Backend tests passing
+
+### Frontend Implementation
+- [ ] UI components with data-testid attributes
+- [ ] E2E tests passing
+
+### Documentation
+- [ ] Update /docs for AI assistant (if new workflows)
+```
+
+### What to EXCLUDE from PRDs
+
+❌ **Exclude:**
+- Code snippets (reference files instead)
+- Full database schemas (link to System docs)
+- Detailed API request/response formats (use OpenAPI)
+- Implementation algorithms (belong in code comments)
+- Step-by-step instructions (use SOPs instead)
+- Excessive detail that slows down planning
+
+**Why exclude these?**
+- **Faster planning** - Focus on WHAT, not HOW
+- **Less maintenance** - Code details belong in code, not docs
+- **Better focus** - PRD tracks tasks, not implementation
+- **Reduce duplication** - Don't repeat what's in other docs
+
+### PRD Workflow
+
+**1. Planning Phase:**
+- Create feature folder: `.agent/Features/InProgress/{feature-name}/`
+- Copy PRD template to folder
+- Fill in overview and phases
+- Break work into manageable phases (1-3 days each)
+- Review and refine
+
+**2. Implementation Phase:**
+- Work through phases sequentially
+- Check off items as you complete them: `- [x]`
+- Update **Last Updated** date when making changes
+- Follow backend-first principle (backend → tests → frontend → tests)
+
+**3. Completion Phase:**
+- Verify all checkboxes are complete
+- Update status to "✅ Complete"
+- Create feature README summarizing work
+- Move to `.agent/Features/Completed/{feature-name}/`
+
+### PRD Best Practices
+
+**Keep it Simple:**
+- Focus on task tracking, not detailed specifications
+- Use checkboxes for progress tracking
+- Reference files instead of including code
+- Break large phases into sub-phases if needed
+
+**Backend-First Workflow:**
+- Always complete backend + tests before frontend
+- Confirm all backend tests pass before moving to frontend
+- This prevents rework and ensures API stability
+
+**Testing Integration:**
+- Include test checkboxes in each phase
+- Don't forget data-testid attributes in frontend
+- Test early, test often
+
+**Documentation Updates:**
+- Include checkbox for updating /docs (AI assistant documentation)
+- Update when introducing new concepts or workflows
+- Update system docs when architecture changes
+
+**Progress Tracking:**
+- Use `- [ ]` for pending tasks
+- Use `- [x]` for completed tasks
+- Update status field as you progress
+- Update Last Updated date regularly
+
+### Common PRD Mistakes
+
+❌ **Mistake 1: Too Much Detail**
+```markdown
+Bad:
+### Backend Implementation
+- [ ] Create service with functions:
+      - createSupplier(params) { ... 20 lines of code ... }
+      - updateSupplier(params) { ... 15 lines of code ... }
+```
+
+✅ **Fix:**
+```markdown
+Good:
+### Backend Implementation
+- [ ] Service layer functions (see [supplierService.ts](../../path/to/file.ts))
+- [ ] Backend tests passing
+```
+
+❌ **Mistake 2: No File References**
+```markdown
+Bad:
+### Backend Implementation
+- [ ] Create supplier service
+- [ ] Add API routes
+```
+
+✅ **Fix:**
+```markdown
+Good:
+**Relevant Files:**
+- [api-server/src/services/supplierService.ts](../../api-server/src/services/supplierService.ts)
+- [api-server/src/routes/suppliersRouter.ts](../../api-server/src/routes/suppliersRouter.ts)
+
+### Backend Implementation
+- [ ] Service layer functions created
+- [ ] API routes with OpenAPI schemas
+```
+
+❌ **Mistake 3: Frontend Before Backend**
+```markdown
+Bad:
+## Phase 1: Build UI
+- [ ] Create forms
+- [ ] Add page routes
+
+## Phase 2: Backend API
+- [ ] Create service
+```
+
+✅ **Fix:**
+```markdown
+Good:
+## Phase 1: Core Functionality
+
+### Backend Implementation
+- [ ] Service layer and API
+- [ ] Backend tests passing
+
+### Frontend Implementation
+- [ ] UI components with data-testid
+- [ ] E2E tests passing
+```
+
+❌ **Mistake 4: Forgetting data-testid**
+```markdown
+Bad:
+### Frontend Implementation
+- [ ] Create supplier form component
+```
+
+✅ **Fix:**
+```markdown
+Good:
+### Frontend Implementation
+- [ ] Create supplier form with data-testid attributes
+- [ ] E2E tests using data-testid selectors
+```
+
+---
+
 ## Documentation Types
 
 ### System Documentation (Current State)
