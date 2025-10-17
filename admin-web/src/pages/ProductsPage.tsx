@@ -17,17 +17,16 @@ import {
   ActionIcon,
   Tooltip,
   CloseButton,
-  Stack
+  Stack,
+  Select
 } from "@mantine/core";
 import { DatePickerInput } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
 import {
   listProductsApiRequest,
-  deleteProductApiRequest,
 } from "../api/products";
 import type { ProductRecord } from "../api/apiTypes";
 import {
-  IconTrash,
   IconRefresh,
   IconArrowsSort,
   IconArrowUp,
@@ -63,6 +62,7 @@ type ProductFilters = {
   createdAtTo: string | null;
   updatedAtFrom: string | null;
   updatedAtTo: string | null;
+  archivedFilter: "no-archived" | "only-archived" | "both";
 };
 
 const emptyProductFilters: ProductFilters = {
@@ -73,6 +73,7 @@ const emptyProductFilters: ProductFilters = {
   createdAtTo: null,
   updatedAtFrom: null,
   updatedAtTo: null,
+  archivedFilter: "no-archived",
 };
 
 export default function ProductsPage() {
@@ -129,6 +130,7 @@ export default function ProductsPage() {
       createdAtTo: values.createdAtTo ?? null,
       updatedAtFrom: values.updatedAtFrom ?? null,
       updatedAtTo: values.updatedAtTo ?? null,
+      archivedFilter: values.archivedFilter,
     });
     resetToFirstPageAndFetch({
       qOverride: values.q.trim() || null,
@@ -138,6 +140,7 @@ export default function ProductsPage() {
       createdToOverride: values.createdAtTo ?? null,
       updatedFromOverride: values.updatedAtFrom ?? null,
       updatedToOverride: values.updatedAtTo ?? null,
+      archivedFilterOverride: values.archivedFilter,
     });
   }
 
@@ -171,6 +174,7 @@ export default function ProductsPage() {
     createdAtTo?: string | null | undefined;
     updatedAtFrom?: string | null | undefined;
     updatedAtTo?: string | null | undefined;
+    archivedFilter?: "no-archived" | "only-archived" | "both";
     page?: number;
   }) {
     const params = new URLSearchParams();
@@ -224,6 +228,9 @@ export default function ProductsPage() {
         ? overrides.updatedAtTo
         : appliedFilters.updatedAtTo;
 
+    const archivedFilterVal =
+      overrides?.archivedFilter ?? appliedFilters.archivedFilter;
+
     put("limit", overrides?.limit ?? limit);
     put("sortBy", overrides?.sortBy ?? sortBy);
     put("sortDir", overrides?.sortDir ?? sortDir);
@@ -234,6 +241,7 @@ export default function ProductsPage() {
     put("createdAtTo", createdToVal);
     put("updatedAtFrom", updatedFromVal);
     put("updatedAtTo", updatedToVal);
+    put("archivedFilter", archivedFilterVal);
 
     const cursor =
       overrides?.cursorId === undefined
@@ -261,6 +269,7 @@ export default function ProductsPage() {
     createdToOverride?: string | null | undefined;
     updatedFromOverride?: string | null | undefined;
     updatedToOverride?: string | null | undefined;
+    archivedFilterOverride?: "no-archived" | "only-archived" | "both";
   }) {
     setIsLoadingProductsList(true);
     try {
@@ -307,6 +316,9 @@ export default function ProductsPage() {
           ? appliedFilters.updatedAtTo || undefined
           : opts.updatedToOverride || undefined;
 
+      const archivedFilterParam =
+        opts?.archivedFilterOverride ?? appliedFilters.archivedFilter;
+
       const response = await listProductsApiRequest({
         limit: opts?.limitOverride ?? limit,
         cursorId: opts?.cursorId ?? cursorStack[pageIndex] ?? undefined,
@@ -317,6 +329,7 @@ export default function ProductsPage() {
         createdAtTo: createdToParam,
         updatedAtFrom: updatedFromParam,
         updatedAtTo: updatedToParam,
+        archivedFilter: archivedFilterParam,
         sortBy: opts?.sortByOverride ?? sortBy,
         sortDir: opts?.sortDirOverride ?? sortDir,
         includeTotal: opts?.includeTotal === true,
@@ -368,6 +381,7 @@ export default function ProductsPage() {
     createdToOverride?: string | null | undefined;
     updatedFromOverride?: string | null | undefined;
     updatedToOverride?: string | null | undefined;
+    archivedFilterOverride?: "no-archived" | "only-archived" | "both";
   }) {
     setCursorStack([null]);
     setPageIndex(0);
@@ -384,6 +398,7 @@ export default function ProductsPage() {
       createdAtTo: opts?.createdToOverride,
       updatedAtFrom: opts?.updatedFromOverride,
       updatedAtTo: opts?.updatedToOverride,
+      archivedFilter: opts?.archivedFilterOverride,
     });
     void fetchPageWith({
       includeTotal: true,
@@ -414,6 +429,7 @@ export default function ProductsPage() {
     const qpCreatedTo = searchParams.get("createdAtTo");
     const qpUpdatedFrom = searchParams.get("updatedAtFrom");
     const qpUpdatedTo = searchParams.get("updatedAtTo");
+    const qpArchivedFilter = searchParams.get("archivedFilter") as "no-archived" | "only-archived" | "both" | null;
     const qpCursor = searchParams.get("cursorId");
 
     if (!Number.isNaN(qpLimit) && qpLimit)
@@ -429,6 +445,7 @@ export default function ProductsPage() {
       createdAtTo: qpCreatedTo ?? null,
       updatedAtFrom: qpUpdatedFrom ?? null,
       updatedAtTo: qpUpdatedTo ?? null,
+      archivedFilter: qpArchivedFilter ?? "no-archived",
     });
 
     // Use the cursor from URL as the starting point
@@ -471,6 +488,7 @@ export default function ProductsPage() {
     const qpCreatedTo = sp.get("createdAtTo");
     const qpUpdatedFrom = sp.get("updatedAtFrom");
     const qpUpdatedTo = sp.get("updatedAtTo");
+    const qpArchivedFilter = sp.get("archivedFilter") as "no-archived" | "only-archived" | "both" | null;
     const qpCursor = sp.get("cursorId");
     const qpPage = Number(sp.get("page") ?? "1");
     const newPageIndex = Number.isFinite(qpPage) && qpPage > 0 ? qpPage - 1 : 0;
@@ -487,6 +505,7 @@ export default function ProductsPage() {
       createdAtTo: qpCreatedTo ?? null,
       updatedAtFrom: qpUpdatedFrom ?? null,
       updatedAtTo: qpUpdatedTo ?? null,
+      archivedFilter: qpArchivedFilter ?? "no-archived",
     });
 
     // seed stack minimally; we may not know earlier cursors
@@ -564,25 +583,6 @@ export default function ProductsPage() {
         }`;
 
   // ---- UI handlers ----
-  async function handleDeleteProduct(productId: string) {
-    try {
-      const idempotencyKeyValue = `delete-${productId}-${Date.now()}`;
-      const response = await deleteProductApiRequest({
-        productId,
-        idempotencyKeyOptional: idempotencyKeyValue,
-      });
-      if (response.success) {
-        notifications.show({ color: "green", message: "Product deleted." });
-        resetToFirstPageAndFetch();
-      }
-    } catch (error: any) {
-      notifications.show({
-        color: "red",
-        message: error?.message ?? "Delete failed",
-      });
-    }
-  }
-
   // Small helpers for header sort icon
   function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
     if (!active) return <IconArrowsSort size={16} />;
@@ -643,7 +643,7 @@ export default function ProductsPage() {
       {/* Header Banner */}
       <div className="flex justify-between items-start w-full">
         <Group justify="space-between" align="start" className="w-full">
-          <Stack gap="1">
+          <Stack gap="xs">
             <Title order={3}>All Products</Title>
             <Text size="sm" c="dimmed">
               {rangeText}
@@ -715,6 +715,26 @@ export default function ProductsPage() {
                   const val = e.currentTarget.value;   // buffer first
                   setValues((prev) => ({ ...prev, q: val }));
                 }}
+              />
+            </Grid.Col>
+
+            <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+              <Select
+                label="Archived Status"
+                placeholder="Select status"
+                value={values.archivedFilter}
+                onChange={(value) =>
+                  setValues((prev) => ({
+                    ...prev,
+                    archivedFilter: (value as "no-archived" | "only-archived" | "both") || "no-archived",
+                  }))
+                }
+                data={[
+                  { value: "no-archived", label: "Active products only" },
+                  { value: "only-archived", label: "Archived products only" },
+                  { value: "both", label: "All products (active + archived)" },
+                ]}
+                data-testid="archived-filter-select"
               />
             </Grid.Col>
 
@@ -1004,7 +1024,16 @@ export default function ProductsPage() {
                     <Table.Tbody>
                       {productsListRecords.map((p) => (
                         <Table.Tr key={p.id}>
-                          <Table.Td>{p.productName}</Table.Td>
+                          <Table.Td>
+                            <Group gap="xs">
+                              {p.productName}
+                              {p.isArchived && (
+                                <Badge color="gray" size="sm" data-testid="archived-badge">
+                                  Archived
+                                </Badge>
+                              )}
+                            </Group>
+                          </Table.Td>
                           <Table.Td>{p.productSku}</Table.Td>
                           <Table.Td>{formatPenceAsGBP(p.productPricePence)}</Table.Td>
                           <Table.Td>
@@ -1021,26 +1050,14 @@ export default function ProductsPage() {
                             <Badge>{p.entityVersion}</Badge>
                           </Table.Td>
                           <Table.Td className="flex justify-end">
-                            <Group gap="xs">
-                              <ActionIcon
-                                variant="light"
-                                size="md"
-                                onClick={() => navigate(`/${tenantSlug}/products/${p.id}`)}
-                                // disabled={!canWriteProducts}
-                                title="Edit product"
-                              >
-                                <IconEye size={16} />
-                              </ActionIcon>
-                              <ActionIcon
-                                variant="light"
-                                color="red"
-                                size="md"
-                                onClick={() => handleDeleteProduct(p.id)}
-                                disabled={!canWriteProducts}
-                              >
-                                <IconTrash size={16} />
-                              </ActionIcon>
-                            </Group>
+                            <ActionIcon
+                              variant="light"
+                              size="md"
+                              onClick={() => navigate(`/${tenantSlug}/products/${p.id}`)}
+                              title="View product details"
+                            >
+                              <IconEye size={16} />
+                            </ActionIcon>
                           </Table.Td>
                         </Table.Tr>
                       ))}

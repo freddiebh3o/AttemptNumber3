@@ -25,6 +25,9 @@ type ListProducts200Response =
 type DeleteProduct200Response =
   paths["/api/products/{productId}"]["delete"]["responses"]["200"]["content"]["application/json"];
 
+type RestoreProduct200Response =
+  paths["/api/products/{productId}/restore"]["post"]["responses"]["200"]["content"]["application/json"];
+
 type GetProductActivity200Response =
   paths["/api/products/{productId}/activity"]["get"]["responses"]["200"]["content"]["application/json"];
 
@@ -45,6 +48,8 @@ export async function listProductsApiRequest(params?: {
   createdAtTo?: string;             // YYYY-MM-DD
   updatedAtFrom?: string;           // YYYY-MM-DD
   updatedAtTo?: string;             // YYYY-MM-DD
+  includeArchived?: boolean;        // DEPRECATED: include archived products
+  archivedFilter?: "no-archived" | "only-archived" | "both"; // NEW: archived filter
   sortBy?: "createdAt" | "updatedAt" | "productName" | "productPricePence";
   sortDir?: "asc" | "desc";
   includeTotal?: boolean;
@@ -59,6 +64,8 @@ export async function listProductsApiRequest(params?: {
   if (params?.createdAtTo) search.set("createdAtTo", params.createdAtTo);
   if (params?.updatedAtFrom) search.set("updatedAtFrom", params.updatedAtFrom);
   if (params?.updatedAtTo) search.set("updatedAtTo", params.updatedAtTo);
+  if (params?.includeArchived) search.set("includeArchived", "1"); // backward compat
+  if (params?.archivedFilter) search.set("archivedFilter", params.archivedFilter);
   if (params?.sortBy) search.set("sortBy", params.sortBy);
   if (params?.sortDir) search.set("sortDir", params.sortDir);
   if (params?.includeTotal) search.set("includeTotal", "1");
@@ -122,6 +129,21 @@ export async function deleteProductApiRequest(params: {
     `/api/products/${params.productId}`,
     {
       method: "DELETE",
+      headers: params.idempotencyKeyOptional
+        ? { "Idempotency-Key": params.idempotencyKeyOptional }
+        : undefined,
+    }
+  );
+}
+
+export async function restoreProductApiRequest(params: {
+  productId: string;
+  idempotencyKeyOptional?: string;
+}) {
+  return httpRequestJson<RestoreProduct200Response>(
+    `/api/products/${params.productId}/restore`,
+    {
+      method: "POST",
       headers: params.idempotencyKeyOptional
         ? { "Idempotency-Key": params.idempotencyKeyOptional }
         : undefined,

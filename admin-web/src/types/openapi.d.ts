@@ -929,7 +929,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Deleted */
+                /** @description Archived (soft deleted) */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -1020,6 +1020,8 @@ export interface paths {
                     createdAtTo?: string;
                     updatedAtFrom?: string;
                     updatedAtTo?: string;
+                    includeArchived?: boolean;
+                    archivedFilter?: "no-archived" | "only-archived" | "both";
                     sortBy?: "createdAt" | "updatedAt" | "productName" | "productPricePence";
                     sortDir?: "asc" | "desc";
                     includeTotal?: boolean;
@@ -1125,6 +1127,101 @@ export interface paths {
                 };
                 /** @description Conflict */
                 409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        "X-RateLimit-Limit": string;
+                        "X-RateLimit-Remaining": string;
+                        "X-RateLimit-Reset": string;
+                        "Retry-After": string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Internal Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/products/{productId}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: {
+                    "Idempotency-Key"?: string;
+                };
+                path: {
+                    productId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Restored from archive */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                product: components["schemas"]["ProductRecord"];
+                            };
+                            error: unknown;
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -6485,6 +6582,10 @@ export interface components {
             productPricePence: number;
             barcode?: string | null;
             barcodeType?: string | null;
+            isArchived: boolean;
+            /** Format: date-time */
+            archivedAt?: string | null;
+            archivedByUserId?: string | null;
             entityVersion: number;
             /** Format: date-time */
             createdAt: string;
@@ -6606,6 +6707,10 @@ export interface components {
             productPricePence: number;
             barcode?: string | null;
             barcodeType?: string | null;
+            isArchived: boolean;
+            /** Format: date-time */
+            archivedAt?: string | null;
+            archivedByUserId?: string | null;
             entityVersion: number;
             /** Format: date-time */
             createdAt: string;

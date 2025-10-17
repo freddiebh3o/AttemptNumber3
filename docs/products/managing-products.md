@@ -75,25 +75,69 @@ The system prevents conflicting edits by multiple users:
 - If someone else saved changes first, you'll see: **"The product was modified by someone else. Please reload and try again."**
 - Simply reload the page to see the latest version and re-apply your changes
 
-## Deleting Products
+## Archiving Products
 
-### How to Delete
+### What is Archiving?
 
-From the Products page, click the **red trash icon** on any product row.
+**Archive** (soft delete) removes products from your active product list while preserving all historical data. Archived products can be restored at any time.
 
-**Important:**
-- Deletion is permanent (no undo)
-- All related audit logs are preserved
-- **No confirmation dialog** - be sure before clicking
+**Why Archive Instead of Delete?**
+- Preserves complete audit trail and stock history
+- Allows restoration if needed
+- Keeps historical reporting accurate
+- Protects data integrity
 
-### When to Delete
+### How to Archive a Product
 
-Delete products that are:
+1. Open the product you want to archive (click the eye icon)
+2. Click the **"Archive Product"** button (red button in the header)
+3. Review the confirmation dialog
+4. Click **"Archive"** to confirm
+
+**What Happens:**
+- Product is hidden from the active products list
+- "Archived" badge appears on the product
+- All stock history and data is preserved
+- Product can be restored at any time
+
+### Viewing Archived Products
+
+To see archived products:
+
+1. Open the **Products** page
+2. Click the **"Filters"** button
+3. In the **"Archived Status"** dropdown, select:
+   - **"Active products only"** (default) - Shows only active products
+   - **"Archived products only"** - Shows only archived products
+   - **"All products (active + archived)"** - Shows everything
+4. Click **"Apply filters"**
+
+Archived products display an **"Archived"** badge next to their name.
+
+### Restoring Archived Products
+
+To restore an archived product:
+
+1. Filter to view archived products (see above)
+2. Open the archived product (click the eye icon)
+3. Click the **"Restore"** button (blue button in the header)
+4. Product returns to active status immediately
+
+**What Happens:**
+- Product reappears in your active products list
+- "Archived" badge is removed
+- All previous data remains intact
+- Product can be edited and used normally
+
+### When to Archive
+
+Archive products that are:
 - No longer sold or stocked
-- Created by mistake
+- Discontinued or obsolete
+- Seasonal items out of season
 - Being replaced by a different product
 
-**Note:** Consider keeping old products for historical reporting even if you no longer use them.
+**Best Practice:** Archive products instead of deleting them to maintain data integrity and historical accuracy.
 
 ## Searching and Filtering Products
 
@@ -108,17 +152,23 @@ Click the **"Filters"** button on the Products page.
 - Case-insensitive matching
 - Example: Search "anvil" finds "Acme Anvil Product"
 
-**2. Price Range**
+**2. Archived Status**
+- **Active products only** (default) - Shows only products in active use
+- **Archived products only** - Shows only archived products
+- **All products (active + archived)** - Shows everything
+- Archived products display an "Archived" badge
+
+**3. Price Range**
 - **Min price** - Minimum price in pounds (e.g., £50.00)
 - **Max price** - Maximum price in pounds (e.g., £200.00)
 - Finds products within this range (inclusive)
 
-**3. Created Date Range**
+**4. Created Date Range**
 - **Created from** - Start date
 - **Created to** - End date
 - Find products added within this timeframe
 
-**4. Updated Date Range**
+**5. Updated Date Range**
 - **Updated from** - Start date
 - **Updated to** - End date
 - Find products modified within this timeframe
@@ -224,21 +274,26 @@ Click **"Filters"** in the Activity tab:
 
 To manage products, you need:
 
-- **`products:read`** - View products and details
-- **`products:write`** - Create, edit, and delete products
+- **`products:read`** - View products and details (including archived products)
+- **`products:write`** - Create, edit, archive, and restore products
 
 **Default Role Access:**
 - **OWNER, ADMIN, EDITOR** - Full access (read + write)
-- **VIEWER** - Read-only (cannot create/edit/delete)
+- **VIEWER** - Read-only (cannot create/edit/archive/restore)
 
-If you can't see the "New product" button or edit fields, contact your admin to request `products:write` permission.
+**Archive/Restore Permissions:**
+- Archive and Restore buttons only appear if you have `products:write` permission
+- Viewers can see archived products but cannot archive or restore them
+
+If you can't see the "New product" or "Archive Product" buttons, contact your admin to request `products:write` permission.
 
 ## Best Practices
 
 ✅ **Use clear SKU naming** - Make SKUs meaningful (e.g., "ANVIL-50KG" not "PRD001")
 ✅ **Set accurate prices** - Price in the system should match your actual selling price
 ✅ **Add barcodes** - Speeds up receiving and transfers if barcode scanning is available
-✅ **Review before deleting** - Deletion is permanent
+✅ **Archive instead of delete** - Preserves historical data and allows restoration if needed
+✅ **Use the archived filter** - Review archived products periodically to ensure they should stay archived
 ✅ **Use filters** - Quickly find products instead of scrolling through pages
 ✅ **Check activity logs** - Investigate unexpected price changes or modifications
 
@@ -274,14 +329,43 @@ When creating a product, if you enter a duplicate SKU:
 4. Look for "Price changed" entries
 5. Actor column shows who made the change
 
+### Task: Archive Seasonal Products at End of Season
+
+1. Use the search filter to find seasonal products (e.g., "summer")
+2. Open each product one by one
+3. Click "Archive Product" button
+4. Confirm the archive action
+5. Products are hidden from active list but data is preserved
+
+### Task: Review and Restore Archived Products
+
+1. Click "Filters" button
+2. Select **"Archived products only"** from Archived Status dropdown
+3. Click "Apply filters"
+4. Review the list of archived products
+5. Open any product you want to restore
+6. Click the "Restore" button
+7. Product returns to active status immediately
+
 ## Troubleshooting
 
 **"Product not found" error**
-- Product may have been deleted
+- Product may have been archived
+- Use the archived filter to check: Filters → "Archived products only"
 - Check with your admin or review audit logs
 
-**"Permission denied" (403 error)**
+**Can't see "Archive Product" button**
 - You need `products:write` permission
+- Contact your admin to request access
+- Viewers can see products but cannot archive/restore them
+
+**Can't find an archived product in the list**
+- By default, only active products are shown
+- Click "Filters" and select "Archived products only" or "All products"
+- Archived products display an "Archived" badge
+
+**"Permission denied" (403 error)**
+- You need `products:write` permission for archive/restore actions
 - Contact your admin
 
 **"The product was modified by someone else"**
@@ -291,11 +375,16 @@ When creating a product, if you enter a duplicate SKU:
 
 **Can't change SKU**
 - SKU is locked after creation to protect data integrity
-- If you must change it, create a new product and delete the old one
+- If you must change it, archive the old product and create a new one
 
 **Barcode fields not visible**
 - Barcode feature may be disabled
 - Check with your admin about enabling the `barcodeScanningEnabled` feature flag
+
+**Accidentally archived a product**
+- Use the archived filter to find it
+- Open the product and click "Restore"
+- Product returns to active status immediately
 
 **Related Guides:**
 - [Product Barcodes](./product-barcodes.md) - Barcode scanning and lookup

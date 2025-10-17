@@ -1,7 +1,7 @@
 // admin-web/src/pages/ProductPage.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Badge, Button, Group, Loader, Stack, Tabs, Text, Title, Alert, Paper } from "@mantine/core";
+import { Badge, Button, Group, Loader, Stack, Tabs, Text, Title, Alert, Paper, Modal } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { useAuthStore } from "../stores/auth";
 import { handlePageError } from "../utils/pageError";
@@ -9,7 +9,10 @@ import {
   createProductApiRequest,
   getProductApiRequest,
   updateProductApiRequest,
+  restoreProductApiRequest,
+  deleteProductApiRequest,
 } from "../api/products";
+import { IconArchive } from "@tabler/icons-react";
 
 import { ProductOverviewTab } from "../components/products/ProductOverviewTab";
 import { ProductStockLevelsTab } from "../components/products/ProductStockLevelsTab";
@@ -58,10 +61,12 @@ export default function ProductPage() {
   const [barcode, setBarcode] = useState("");
   const [barcodeType, setBarcodeType] = useState<string>("");
   const [entityVersion, setEntityVersion] = useState<number | null>(null);
+  const [isArchived, setIsArchived] = useState(false);
 
   const [loadingProduct, setLoadingProduct] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
 
   // A simple tick to trigger a refetch of the product after updates
   const [refreshTick, setRefreshTick] = useState(0);
@@ -83,6 +88,7 @@ export default function ProductPage() {
           setBarcode(p.barcode || "");
           setBarcodeType(p.barcodeType || "");
           setEntityVersion(p.entityVersion);
+          setIsArchived(p.isArchived);
         }
       } catch (e: any) {
         // Gracefully show a not found view for 404s
@@ -161,6 +167,47 @@ export default function ProductPage() {
     }
   }
 
+  async function handleRestoreProduct() {
+    if (!productId) return;
+    setSaving(true);
+    try {
+      const key = (crypto as any)?.randomUUID?.() ?? String(Date.now());
+      const res = await restoreProductApiRequest({
+        productId,
+        idempotencyKeyOptional: key,
+      });
+      if (res.success) {
+        notifications.show({ color: "green", message: "Product restored." });
+        setRefreshTick((t) => t + 1);
+      }
+    } catch (e) {
+      handlePageError(e, { title: "Restore failed" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleArchiveProduct() {
+    if (!productId) return;
+    setSaving(true);
+    setShowArchiveModal(false);
+    try {
+      const key = (crypto as any)?.randomUUID?.() ?? String(Date.now());
+      const res = await deleteProductApiRequest({
+        productId,
+        idempotencyKeyOptional: key,
+      });
+      if (res.success) {
+        notifications.show({ color: "green", message: "Product archived successfully." });
+        setRefreshTick((t) => t + 1);
+      }
+    } catch (e) {
+      handlePageError(e, { title: "Archive failed" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const busy = saving || loadingProduct;
 
   // --- Product not found view (edit mode only) ---
@@ -201,14 +248,44 @@ export default function ProductPage() {
     <Stack gap="lg">
       {/* Header */}
       <Group justify="space-between" align="start">
-        <Title order={2}>{isEdit ? "Edit product" : "New product"}</Title>
+        <Group gap="sm">
+          <Title order={2}>{isEdit ? "Edit product" : "New product"}</Title>
+          {isEdit && isArchived && (
+            <Badge color="gray" size="lg" data-testid="archived-badge">
+              Archived
+            </Badge>
+          )}
+        </Group>
         <Group>
           <Button variant="default" onClick={() => navigate(-1)}>
             Cancel
           </Button>
-          <Button onClick={handleSave} loading={busy} disabled={!canWriteProducts}>
-            Save
-          </Button>
+          {isEdit && isArchived && canWriteProducts && (
+            <Button
+              onClick={handleRestoreProduct}
+              loading={busy}
+              color="blue"
+              data-testid="restore-btn"
+            >
+              Restore
+            </Button>
+          )}
+          {isEdit && !isArchived && canWriteProducts && (
+            <Button
+              onClick={() => setShowArchiveModal(true)}
+              variant="light"
+              color="red"
+              leftSection={<IconArchive size={16} />}
+              data-testid="archive-product-btn"
+            >
+              Archive Product
+            </Button>
+          )}
+          {!isArchived && (
+            <Button onClick={handleSave} loading={busy} disabled={!canWriteProducts}>
+              Save
+            </Button>
+          )}
         </Group>
       </Group>
 
@@ -298,6 +375,36 @@ export default function ProductPage() {
           </Tabs>
         </>
       )}
+
+      {/* Archive confirmation modal */}
+      <Modal
+        opened={showArchiveModal}
+        onClose={() => setShowArchiveModal(false)}
+        title="Archive Product?"
+        centered
+      >
+        <Stack gap="md">
+          <Text>
+            This product will be hidden from your active product list but can be restored at any time.
+            All stock history and related data will be preserved.
+          </Text>
+          <Group justify="flex-end" gap="sm">
+            <Button
+              variant="default"
+              onClick={() => setShowArchiveModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              color="red"
+              onClick={handleArchiveProduct}
+              loading={busy}
+            >
+              Archive
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Stack>
   );
 }

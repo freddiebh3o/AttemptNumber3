@@ -105,7 +105,7 @@ export function registerProductPaths(registry: OpenAPIRegistry) {
     },
   });
 
-  // DELETE /api/products/{productId}
+  // DELETE /api/products/{productId} (Archive)
   registry.registerPath({
     tags: ['Products'],
     method: 'delete',
@@ -117,10 +117,33 @@ export function registerProductPaths(registry: OpenAPIRegistry) {
     },
     responses: {
       200: {
-        description: 'Deleted',
+        description: 'Archived (soft deleted)',
         content: { 'application/json': { schema: successEnvelope(
           z.object({ hasDeletedProduct: z.boolean() })
         ) } },
+      },
+      401: RESPONSES[401],
+      403: RESPONSES[403],
+      404: RESPONSES[404],
+      429: RESPONSES[429],
+      500: RESPONSES[500],
+    },
+  });
+
+  // POST /api/products/{productId}/restore
+  registry.registerPath({
+    tags: ['Products'],
+    method: 'post',
+    path: '/api/products/{productId}/restore',
+    security: [{ cookieAuth: [] }],
+    request: {
+      headers: ZodIdempotencyHeaders,
+      params: ZodUpdateProductParams,
+    },
+    responses: {
+      200: {
+        description: 'Restored from archive',
+        content: { 'application/json': { schema: successEnvelope(z.object({ product: ZodProductRecord })) } },
       },
       401: RESPONSES[401],
       403: RESPONSES[403],

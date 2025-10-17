@@ -5,6 +5,7 @@ import {
   createProductForCurrentTenantService,
   updateProductForCurrentTenantService,
   deleteProductForCurrentTenantService,
+  restoreProductForCurrentTenantService,
 } from '../../src/services/products/productService.js';
 import {
   createTestUser,
@@ -143,6 +144,32 @@ describe('[ST-007] Product Service', () => {
           productIdPathParam: otherProduct.id,
         })
       ).rejects.toThrow('not found');
+    });
+
+    it('should allow access to archived products', async () => {
+      const created = await createTestProduct({
+        name: 'Archived Product',
+        sku: 'ARCHIVED-001',
+        tenantId: testTenant.id,
+      });
+
+      // Archive the product
+      await deleteProductForCurrentTenantService({
+        currentTenantId: testTenant.id,
+        productIdPathParam: created.id,
+        currentUserIdOptional: testUser.id,
+      });
+
+      // Should still be able to get archived product
+      const result = await getProductForCurrentTenantService({
+        currentTenantId: testTenant.id,
+        productIdPathParam: created.id,
+      });
+
+      expect(result).toBeDefined();
+      expect(result.id).toBe(created.id);
+      expect(result.isArchived).toBe(true);
+      expect(result.productName).toBe('Archived Product');
     });
   });
 
@@ -305,27 +332,31 @@ describe('[ST-007] Product Service', () => {
     });
   });
 
-  describe('[AC-007-4] deleteProductForCurrentTenantService - Delete Product', () => {
-    it('should delete product', async () => {
+  describe('[AC-007-4] deleteProductForCurrentTenantService - Archive Product (Soft Delete)', () => {
+    it('should archive product (not hard delete)', async () => {
       const created = await createTestProduct({
-        name: 'To Delete',
-        sku: 'DELETE-001',
+        name: 'To Archive',
+        sku: 'ARCHIVE-001',
         tenantId: testTenant.id,
       });
 
       const result = await deleteProductForCurrentTenantService({
         currentTenantId: testTenant.id,
         productIdPathParam: created.id,
+        currentUserIdOptional: testUser.id,
         auditContextOptional: { actorUserId: testUser.id },
       });
 
       expect(result.hasDeletedProduct).toBe(true);
 
-      // Verify product is gone
+      // Verify product still exists but is archived
       const found = await prisma.product.findFirst({
         where: { id: created.id },
       });
-      expect(found).toBeNull();
+      expect(found).not.toBeNull();
+      expect(found?.isArchived).toBe(true);
+      expect(found?.archivedAt).toBeDefined();
+      expect(found?.archivedByUserId).toBe(testUser.id);
     });
 
     it('should create audit log entry on delete', async () => {
@@ -375,9 +406,131 @@ describe('[ST-007] Product Service', () => {
         })
       ).rejects.toThrow('not found');
     });
+
+    it('should allow archiving product with stock history', async () => {
+      // Create product with stock ledger entries
+      const product = await createTestProduct({
+        name: 'Product with Stock',
+        sku: 'STOCK-001',
+        tenantId: testTenant.id,
+      });
+
+      // Archive should succeed (previously would fail with foreign key constraint)
+      const result = await deleteProductForCurrentTenantService({
+        currentTenantId: testTenant.id,
+        productIdPathParam: product.id,
+        currentUserIdOptional: testUser.id,
+      });
+
+      expect(result.hasDeletedProduct).toBe(true);
+
+      const archived = await prisma.product.findFirst({
+        where: { id: product.id },
+      });
+      expect(archived?.isArchived).toBe(true);
+    });
   });
 
-  describe('[AC-007-5] listProductsForCurrentTenantService - List Products', () => {
+  describe('[AC-007-5] restoreProductForCurrentTenantService - Restore Archived Product', () => {
+    it('should restore archived product', async () => {
+      const created = await createTestProduct({
+        name: 'To Restore',
+        sku: 'RESTORE-001',
+        tenantId: testTenant.id,
+      });
+
+      // First archive it
+      await deleteProductForCurrentTenantService({
+        currentTenantId: testTenant.id,
+        productIdPathParam: created.id,
+        currentUserIdOptional: testUser.id,
+      });
+
+      // Then restore it
+      const restored = await restoreProductForCurrentTenantService({
+        currentTenantId: testTenant.id,
+        productIdPathParam: created.id,
+        auditContextOptional: { actorUserId: testUser.id },
+      });
+
+      expect(restored.isArchived).toBe(false);
+      expect(restored.archivedAt).toBeNull();
+      expect(restored.archivedByUserId).toBeNull();
+      expect(restored.productName).toBe('To Restore');
+    });
+
+    it('should throw error when restoring non-archived product', async () => {
+      const created = await createTestProduct({
+        name: 'Active Product',
+        sku: 'ACTIVE-001',
+        tenantId: testTenant.id,
+      });
+
+      await expect(
+        restoreProductForCurrentTenantService({
+          currentTenantId: testTenant.id,
+          productIdPathParam: created.id,
+        })
+      ).rejects.toThrow('not found');
+    });
+
+    it('should not allow restore of product from different tenant', async () => {
+      const tenant2 = await createTestTenant();
+      const otherProduct = await createTestProduct({
+        tenantId: tenant2.id,
+      });
+
+      // Archive it first
+      await deleteProductForCurrentTenantService({
+        currentTenantId: tenant2.id,
+        productIdPathParam: otherProduct.id,
+      });
+
+      // Try to restore from wrong tenant
+      await expect(
+        restoreProductForCurrentTenantService({
+          currentTenantId: testTenant.id,
+          productIdPathParam: otherProduct.id,
+        })
+      ).rejects.toThrow('not found');
+    });
+
+    it('should create audit log entry on restore', async () => {
+      const created = await createTestProduct({
+        name: 'Audit Restore Test',
+        sku: 'AUDIT-RESTORE-001',
+        tenantId: testTenant.id,
+      });
+
+      // Archive
+      await deleteProductForCurrentTenantService({
+        currentTenantId: testTenant.id,
+        productIdPathParam: created.id,
+        currentUserIdOptional: testUser.id,
+      });
+
+      // Restore
+      await restoreProductForCurrentTenantService({
+        currentTenantId: testTenant.id,
+        productIdPathParam: created.id,
+        auditContextOptional: { actorUserId: testUser.id },
+      });
+
+      // Check for UPDATE audit entry (restore)
+      const auditEntries = await prisma.auditEvent.findMany({
+        where: {
+          entityId: created.id,
+          action: 'UPDATE',
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      expect(auditEntries.length).toBeGreaterThan(0);
+      expect(auditEntries[0]?.actorUserId).toBe(testUser.id);
+    });
+  });
+
+  describe('[AC-007-6] listProductsForCurrentTenantService - List Products', () => {
     beforeEach(async () => {
       // Create test products
       await createTestProduct({
@@ -506,9 +659,124 @@ describe('[ST-007] Product Service', () => {
       expect(result.items).toHaveLength(3);
       expect(result.items.every((p) => p.tenantId === testTenant.id)).toBe(true);
     });
+
+    it('should exclude archived products by default', async () => {
+      // Archive one product
+      const products = await listProductsForCurrentTenantService({
+        currentTenantId: testTenant.id,
+      });
+      const toArchive = products.items[0];
+
+      await deleteProductForCurrentTenantService({
+        currentTenantId: testTenant.id,
+        productIdPathParam: toArchive!.id,
+      });
+
+      // List should only show non-archived products
+      const result = await listProductsForCurrentTenantService({
+        currentTenantId: testTenant.id,
+      });
+
+      expect(result.items).toHaveLength(2);
+      expect(result.items.every((p) => !p.isArchived)).toBe(true);
+    });
+
+    it('should include archived products when requested', async () => {
+      // Archive one product
+      const products = await listProductsForCurrentTenantService({
+        currentTenantId: testTenant.id,
+      });
+      const toArchive = products.items[0];
+
+      await deleteProductForCurrentTenantService({
+        currentTenantId: testTenant.id,
+        productIdPathParam: toArchive!.id,
+      });
+
+      // List with includeArchived should show all products
+      const result = await listProductsForCurrentTenantService({
+        currentTenantId: testTenant.id,
+        includeArchivedOptional: true,
+      });
+
+      expect(result.items).toHaveLength(3);
+      const archived = result.items.find((p) => p.id === toArchive!.id);
+      expect(archived?.isArchived).toBe(true);
+    });
+
+    it('should filter to only archived products when archivedFilter=only-archived', async () => {
+      // Archive two products
+      const products = await listProductsForCurrentTenantService({
+        currentTenantId: testTenant.id,
+      });
+
+      await deleteProductForCurrentTenantService({
+        currentTenantId: testTenant.id,
+        productIdPathParam: products.items[0]!.id,
+      });
+
+      await deleteProductForCurrentTenantService({
+        currentTenantId: testTenant.id,
+        productIdPathParam: products.items[1]!.id,
+      });
+
+      // List only archived
+      const result = await listProductsForCurrentTenantService({
+        currentTenantId: testTenant.id,
+        archivedFilterOptional: 'only-archived',
+      });
+
+      expect(result.items).toHaveLength(2);
+      expect(result.items.every((p) => p.isArchived === true)).toBe(true);
+    });
+
+    it('should show all products when archivedFilter=both', async () => {
+      // Archive one product
+      const products = await listProductsForCurrentTenantService({
+        currentTenantId: testTenant.id,
+      });
+
+      await deleteProductForCurrentTenantService({
+        currentTenantId: testTenant.id,
+        productIdPathParam: products.items[0]!.id,
+      });
+
+      // List with both
+      const result = await listProductsForCurrentTenantService({
+        currentTenantId: testTenant.id,
+        archivedFilterOptional: 'both',
+      });
+
+      expect(result.items).toHaveLength(3);
+      const archivedCount = result.items.filter((p) => p.isArchived).length;
+      const activeCount = result.items.filter((p) => !p.isArchived).length;
+      expect(archivedCount).toBe(1);
+      expect(activeCount).toBe(2);
+    });
+
+    it('should exclude archived products when archivedFilter=no-archived', async () => {
+      // Archive one product
+      const products = await listProductsForCurrentTenantService({
+        currentTenantId: testTenant.id,
+      });
+
+      await deleteProductForCurrentTenantService({
+        currentTenantId: testTenant.id,
+        productIdPathParam: products.items[0]!.id,
+      });
+
+      // List with no-archived (explicit)
+      const result = await listProductsForCurrentTenantService({
+        currentTenantId: testTenant.id,
+        archivedFilterOptional: 'no-archived',
+      });
+
+      expect(result.items).toHaveLength(2);
+      expect(result.items.every((p) => !p.isArchived)).toBe(true);
+    });
   });
 
-  describe('[AC-007-6] Multi-Tenant Isolation', () => {
+  describe('[AC-007-7] Multi-Tenant Isolation', () => {
     it('should completely isolate products between tenants', async () => {
       const tenant1 = await createTestTenant();
       const tenant2 = await createTestTenant();

@@ -20,6 +20,8 @@ type ListProductsArgs = {
   createdAtToOptional?: string;   // YYYY-MM-DD
   updatedAtFromOptional?: string; // YYYY-MM-DD
   updatedAtToOptional?: string;   // YYYY-MM-DD
+  includeArchivedOptional?: boolean; // DEPRECATED: kept for backward compatibility
+  archivedFilterOptional?: "no-archived" | "only-archived" | "both"; // NEW: archived filter
   // sort
   sortByOptional?: SortField;
   sortDirOptional?: SortDir;
@@ -45,7 +47,11 @@ export async function getProductForCurrentTenantService(params: {
   const { currentTenantId, productIdPathParam } = params;
 
   const product = await prismaClientInstance.product.findFirst({
-    where: { id: productIdPathParam, tenantId: currentTenantId },
+    where: {
+      id: productIdPathParam,
+      tenantId: currentTenantId,
+      // Allow access to both active and archived products on detail pages
+    },
     select: {
       id: true,
       productName: true,
@@ -53,6 +59,9 @@ export async function getProductForCurrentTenantService(params: {
       productPricePence: true,
       barcode: true,
       barcodeType: true,
+      isArchived: true,
+      archivedAt: true,
+      archivedByUserId: true,
       entityVersion: true,
       updatedAt: true,
       createdAt: true,
@@ -77,6 +86,8 @@ export async function listProductsForCurrentTenantService(args: ListProductsArgs
     createdAtToOptional,
     updatedAtFromOptional,
     updatedAtToOptional,
+    includeArchivedOptional,
+    archivedFilterOptional,
     sortByOptional,
     sortDirOptional,
     includeTotalOptional,
@@ -134,12 +145,34 @@ export async function listProductsForCurrentTenantService(args: ListProductsArgs
         }
       : {};
 
+  // Filter archived products
+  // Priority: archivedFilterOptional > includeArchivedOptional (backward compat) > default (no-archived)
+  let archivedFilter: Prisma.ProductWhereInput;
+
+  if (archivedFilterOptional) {
+    // New parameter takes precedence
+    if (archivedFilterOptional === "only-archived") {
+      archivedFilter = { isArchived: true }; // Show only archived
+    } else if (archivedFilterOptional === "both") {
+      archivedFilter = {}; // Show all (both archived and non-archived)
+    } else {
+      archivedFilter = { isArchived: false }; // Show only non-archived (default)
+    }
+  } else if (includeArchivedOptional === true) {
+    // Backward compatibility: includeArchived=true means "both"
+    archivedFilter = {};
+  } else {
+    // Default: hide archived products
+    archivedFilter = { isArchived: false };
+  }
+
   const where: Prisma.ProductWhereInput = {
     tenantId: currentTenantId,
     ...priceFilter,
     ...createdAtFilter,
     ...updatedAtFilter,
     ...searchFilter,
+    ...archivedFilter,
   };
 
   const orderBy: Prisma.ProductOrderByWithRelationInput[] = [
@@ -161,6 +194,9 @@ export async function listProductsForCurrentTenantService(args: ListProductsArgs
       productPricePence: true,
       barcode: true,
       barcodeType: true,
+      isArchived: true,
+      archivedAt: true,
+      archivedByUserId: true,
       entityVersion: true,
       updatedAt: true,
       createdAt: true,
@@ -244,6 +280,9 @@ export async function createProductForCurrentTenantService(params: {
           productPricePence: true,
           barcode: true,
           barcodeType: true,
+          isArchived: true,
+          archivedAt: true,
+          archivedByUserId: true,
           entityVersion: true,
           updatedAt: true,
           createdAt: true,
@@ -315,6 +354,9 @@ export async function updateProductForCurrentTenantService(params: {
         productPricePence: true,
         barcode: true,
         barcodeType: true,
+        isArchived: true,
+        archivedAt: true,
+        archivedByUserId: true,
         entityVersion: true,
         updatedAt: true,
         createdAt: true,
@@ -363,6 +405,9 @@ export async function updateProductForCurrentTenantService(params: {
         productPricePence: true,
         barcode: true,
         barcodeType: true,
+        isArchived: true,
+        archivedAt: true,
+        archivedByUserId: true,
         entityVersion: true,
         updatedAt: true,
         createdAt: true,
@@ -389,12 +434,16 @@ export async function updateProductForCurrentTenantService(params: {
   });
 }
 
+/**
+ * Archive product (soft delete) - preserves historical data and relationships
+ */
 export async function deleteProductForCurrentTenantService(params: {
   currentTenantId: string;
   productIdPathParam: string;
+  currentUserIdOptional?: string;
   auditContextOptional?: AuditCtx;
 }) {
-  const { currentTenantId, productIdPathParam, auditContextOptional } = params;
+  const { currentTenantId, productIdPathParam, currentUserIdOptional, auditContextOptional } = params;
 
   return await prismaClientInstance.$transaction(async (tx) => {
     // Snapshot "before"
@@ -408,6 +457,9 @@ export async function deleteProductForCurrentTenantService(params: {
         productPricePence: true,
         barcode: true,
         barcodeType: true,
+        isArchived: true,
+        archivedAt: true,
+        archivedByUserId: true,
         entityVersion: true,
         updatedAt: true,
         createdAt: true,
@@ -415,12 +467,37 @@ export async function deleteProductForCurrentTenantService(params: {
     });
     if (!before) throw Errors.notFound('Product not found.');
 
-    const res = await tx.product.deleteMany({
+    // Archive instead of delete (soft delete)
+    const res = await tx.product.updateMany({
       where: { id: productIdPathParam, tenantId: currentTenantId },
+      data: {
+        isArchived: true,
+        archivedAt: new Date(),
+        archivedByUserId: currentUserIdOptional ?? null,
+      },
     });
     if (res.count === 0) throw Errors.notFound('Product not found.');
 
-    // AUDIT: DELETE
+    const after = await tx.product.findFirst({
+      where: { id: productIdPathParam, tenantId: currentTenantId },
+      select: {
+        id: true,
+        tenantId: true,
+        productName: true,
+        productSku: true,
+        productPricePence: true,
+        barcode: true,
+        barcodeType: true,
+        isArchived: true,
+        archivedAt: true,
+        archivedByUserId: true,
+        entityVersion: true,
+        updatedAt: true,
+        createdAt: true,
+      },
+    });
+
+    // AUDIT: DELETE (archival)
     await writeAuditEvent(tx, {
       tenantId: currentTenantId,
       actorUserId: auditContextOptional?.actorUserId ?? null,
@@ -429,13 +506,94 @@ export async function deleteProductForCurrentTenantService(params: {
       action: AuditAction.DELETE,
       entityName: before.productName,
       before,
-      after: null,
+      after,
       correlationId: auditContextOptional?.correlationId ?? null,
       ip: auditContextOptional?.ip ?? null,
       userAgent: auditContextOptional?.userAgent ?? null,
     });
 
     return { hasDeletedProduct: true };
+  });
+}
+
+/**
+ * Restore archived product
+ */
+export async function restoreProductForCurrentTenantService(params: {
+  currentTenantId: string;
+  productIdPathParam: string;
+  auditContextOptional?: AuditCtx;
+}) {
+  const { currentTenantId, productIdPathParam, auditContextOptional } = params;
+
+  return await prismaClientInstance.$transaction(async (tx) => {
+    // Snapshot "before"
+    const before = await tx.product.findFirst({
+      where: { id: productIdPathParam, tenantId: currentTenantId, isArchived: true },
+      select: {
+        id: true,
+        tenantId: true,
+        productName: true,
+        productSku: true,
+        productPricePence: true,
+        barcode: true,
+        barcodeType: true,
+        isArchived: true,
+        archivedAt: true,
+        archivedByUserId: true,
+        entityVersion: true,
+        updatedAt: true,
+        createdAt: true,
+      },
+    });
+    if (!before) throw Errors.notFound('Archived product not found.');
+
+    // Restore: clear archive fields
+    const res = await tx.product.updateMany({
+      where: { id: productIdPathParam, tenantId: currentTenantId },
+      data: {
+        isArchived: false,
+        archivedAt: null,
+        archivedByUserId: null,
+      },
+    });
+    if (res.count === 0) throw Errors.notFound('Product not found.');
+
+    const after = await tx.product.findFirst({
+      where: { id: productIdPathParam, tenantId: currentTenantId },
+      select: {
+        id: true,
+        tenantId: true,
+        productName: true,
+        productSku: true,
+        productPricePence: true,
+        barcode: true,
+        barcodeType: true,
+        isArchived: true,
+        archivedAt: true,
+        archivedByUserId: true,
+        entityVersion: true,
+        updatedAt: true,
+        createdAt: true,
+      },
+    });
+
+    // AUDIT: UPDATE (restore)
+    await writeAuditEvent(tx, {
+      tenantId: currentTenantId,
+      actorUserId: auditContextOptional?.actorUserId ?? null,
+      entityType: AuditEntityType.PRODUCT,
+      entityId: before.id,
+      action: AuditAction.UPDATE,
+      entityName: before.productName,
+      before,
+      after,
+      correlationId: auditContextOptional?.correlationId ?? null,
+      ip: auditContextOptional?.ip ?? null,
+      userAgent: auditContextOptional?.userAgent ?? null,
+    });
+
+    return after;
   });
 }
 
@@ -455,11 +613,12 @@ export async function getProductByBarcodeForCurrentTenantService(params: {
     throw Errors.validation('Barcode parameter is required and cannot be empty.');
   }
 
-  // Query product by barcode and tenant
+  // Query product by barcode and tenant (exclude archived)
   const product = await prismaClientInstance.product.findFirst({
     where: {
       tenantId: currentTenantId,
       barcode: barcodePathParam,
+      isArchived: false, // Exclude archived products from barcode lookup
     },
     select: {
       id: true,
@@ -469,6 +628,9 @@ export async function getProductByBarcodeForCurrentTenantService(params: {
       productPricePence: true,
       barcode: true,
       barcodeType: true,
+      isArchived: true,
+      archivedAt: true,
+      archivedByUserId: true,
       entityVersion: true,
       updatedAt: true,
       createdAt: true,

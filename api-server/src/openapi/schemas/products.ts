@@ -13,6 +13,9 @@ export const ZodProductRecord = z
     productPricePence: z.number().int(),
     barcode: z.string().nullable().optional(),
     barcodeType: z.string().nullable().optional(),
+    isArchived: z.boolean(),
+    archivedAt: z.string().datetime().nullable().optional(),
+    archivedByUserId: z.string().nullable().optional(),
     entityVersion: z.number().int(),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
@@ -57,6 +60,8 @@ export const ZodListProductsQuery = z
     createdAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     updatedAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     updatedAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    includeArchived: z.boolean().optional(), // DEPRECATED: kept for backward compatibility
+    archivedFilter: z.enum(["no-archived", "only-archived", "both"]).optional(), // NEW: archived filter
     // sort
     sortBy: z
       .enum(["createdAt", "updatedAt", "productName", "productPricePence"])
@@ -244,6 +249,9 @@ export const ZodProductWithStock = z
     productPricePence: z.number().int(),
     barcode: z.string().nullable().optional(),
     barcodeType: z.string().nullable().optional(),
+    isArchived: z.boolean(),
+    archivedAt: z.string().datetime().nullable().optional(),
+    archivedByUserId: z.string().nullable().optional(),
     entityVersion: z.number().int(),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),

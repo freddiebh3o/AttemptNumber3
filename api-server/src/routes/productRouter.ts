@@ -16,6 +16,7 @@ import {
   deleteProductForCurrentTenantService,
   getProductForCurrentTenantService,
   getProductByBarcodeForCurrentTenantService,
+  restoreProductForCurrentTenantService,
 } from "../services/products/productService.js";
 import { assertAuthed } from "../types/assertions.js";
 import { requirePermission } from "../middleware/permissionMiddleware.js";
@@ -39,6 +40,8 @@ const listQuerySchema = z.object({
   createdAtTo: z.string().regex(dateRegex, "Use YYYY-MM-DD").optional(),
   updatedAtFrom: z.string().regex(dateRegex, "Use YYYY-MM-DD").optional(),
   updatedAtTo: z.string().regex(dateRegex, "Use YYYY-MM-DD").optional(),
+  includeArchived: z.coerce.boolean().optional(), // DEPRECATED: kept for backward compatibility
+  archivedFilter: z.enum(["no-archived", "only-archived", "both"]).optional(), // NEW: archived filter
   // sort
   sortBy: z
     .enum(["createdAt", "updatedAt", "productName", "productPricePence"])
@@ -142,6 +145,8 @@ productRouter.get(
         createdAtTo,
         updatedAtFrom,
         updatedAtTo,
+        includeArchived,
+        archivedFilter,
         sortBy,
         sortDir,
         includeTotal,
@@ -169,6 +174,8 @@ productRouter.get(
           updatedAtFromOptional: updatedAtFrom,
         }),
         ...(updatedAtTo !== undefined && { updatedAtToOptional: updatedAtTo }),
+        ...(includeArchived !== undefined && { includeArchivedOptional: includeArchived }),
+        ...(archivedFilter !== undefined && { archivedFilterOptional: archivedFilter }),
 
         ...(sortBy !== undefined && { sortByOptional: sortBy }),
         ...(sortDir !== undefined && { sortDirOptional: sortDir }),
@@ -289,11 +296,43 @@ productRouter.put(
   }
 );
 
-// DELETE /api/products/:productId  (ADMIN+)
+// DELETE /api/products/:productId  (ADMIN+ - Archive product)
 productRouter.delete(
   "/:productId",
   requireAuthenticatedUserMiddleware,
   requirePermission("products:write"),
+  idempotencyMiddleware(60),
+  validateRequestParamsWithZod(updateParamsSchema),
+  async (request, response, next) => {
+    try {
+      assertAuthed(request);
+      const currentTenantId: string = request.currentTenantId;
+      const currentUserId: string = request.currentUserId;
+      const { productId } = request.validatedParams as z.infer<
+        typeof updateParamsSchema
+      >;
+
+      const result = await deleteProductForCurrentTenantService({
+        currentTenantId,
+        productIdPathParam: productId,
+        currentUserIdOptional: currentUserId,
+        auditContextOptional: getAuditContext(request),
+      });
+      return response
+        .status(200)
+        .json(createStandardSuccessResponse(result));
+    } catch (error) {
+      return next(error);
+    }
+  }
+);
+
+// POST /api/products/:productId/restore  (ADMIN+ - Restore archived product)
+productRouter.post(
+  "/:productId/restore",
+  requireAuthenticatedUserMiddleware,
+  requirePermission("products:write"),
+  idempotencyMiddleware(60),
   validateRequestParamsWithZod(updateParamsSchema),
   async (request, response, next) => {
     try {
@@ -303,14 +342,14 @@ productRouter.delete(
         typeof updateParamsSchema
       >;
 
-      const result = await deleteProductForCurrentTenantService({
+      const result = await restoreProductForCurrentTenantService({
         currentTenantId,
         productIdPathParam: productId,
         auditContextOptional: getAuditContext(request),
       });
       return response
         .status(200)
-        .json(createStandardSuccessResponse(result));
+        .json(createStandardSuccessResponse({ product: result }));
     } catch (error) {
       return next(error);
     }

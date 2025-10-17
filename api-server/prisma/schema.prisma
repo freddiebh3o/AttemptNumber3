@@ -337,6 +337,11 @@ model Product {
   /// Barcode format type (EAN13, UPCA, CODE128, QR)
   barcodeType String?
 
+  /// Soft delete fields
+  isArchived       Boolean   @default(false)
+  archivedAt       DateTime?
+  archivedByUserId String?
+
   entityVersion Int @default(1)
 
   createdAt DateTime @default(now())

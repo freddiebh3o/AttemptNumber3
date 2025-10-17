@@ -73,6 +73,7 @@ export function productTools({ userId, tenantId }: { userId: string; tenantId: s
               barcode: p.barcode || 'None',
             })),
             showing: result.items.length,
+            count: result.pageInfo.totalCount, // Alias for backward compatibility
             totalCount: result.pageInfo.totalCount,
             hasMore: result.pageInfo.hasNextPage,
           };
