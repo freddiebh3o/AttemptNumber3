@@ -12,7 +12,7 @@ export function ChatModal({ opened, onClose }: ChatModalProps) {
       opened={opened}
       onClose={onClose}
       title="AI Assistant"
-      size="lg"
+      size="70%"
       centered
       styles={{
         body: { padding: 0, display: 'flex', flexDirection: 'column', height: '80vh' },
