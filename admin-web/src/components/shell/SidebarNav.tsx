@@ -15,6 +15,7 @@ import {
   IconChartLine,
   IconSettings,
   IconPackageExport,
+  IconMessageCircle,
 } from "@tabler/icons-react";
 import { useThemeStore } from "../../stores/theme";
 import { useAuthStore } from "../../stores/auth";
@@ -132,11 +133,12 @@ export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) 
           />
         )}
 
-        {(hasPerm("theme:manage") || hasPerm("users:manage")) && (
+        {(hasPerm("theme:manage") || hasPerm("users:manage") || hasPerm("reports:view")) && (
           <NavLink
             label="System"
             leftSection={<IconSettings size={16} />}
             childrenOffset={28}
+            data-testid="nav-system"
           >
             {hasPerm("theme:manage") && (
               <NavLink
@@ -156,6 +158,17 @@ export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) 
                 active={active(`${base}/audit`)}
                 onClick={onNavigate}
                 leftSection={<IconHistory size={16} />}
+              />
+            )}
+            {hasPerm("reports:view") && (
+              <NavLink
+                label="Chat Analytics"
+                component={Link}
+                to={`${base}/chat-analytics`}
+                active={active(`${base}/chat-analytics`)}
+                onClick={onNavigate}
+                leftSection={<IconMessageCircle size={16} />}
+                data-testid="nav-chat-analytics"
               />
             )}
           </NavLink>

@@ -1,10 +1,10 @@
 # AI Chatbot Assistant - Implementation Plan
 
-**Status:** PHASE 4 COMPLETE ✅ (Conversation History Implemented & Tested)
+**Status:** PHASE 4.1 & 4.2 COMPLETE ✅ (Conversation History & Analytics Dashboard Implemented & Tested)
 **Priority:** Medium
 **Estimated Total Effort:** 8.5 weeks (across all phases)
 **Created:** 2025-10-15
-**Last Updated:** 2025-10-17 (Phase 4: Conversation History Complete)
+**Last Updated:** 2025-10-17 (Phase 4.1 & 4.2: Conversation History & Analytics Dashboard Complete)
 **Agent:** vercel-ai-sdk-v5-expert
 
 ---
@@ -2586,29 +2586,132 @@ To understand the approval process in detail: docs/stock-transfers/approving-tra
   - `admin-web/src/api/conversations.ts` - New
   - `admin-web/src/components/Chat/ChatInterface.tsx` - Modified (added sidebar)
 
-### 4.2 Analytics Dashboard
+### ✅ 4.2 Analytics Dashboard - COMPLETE (2025-10-17)
 
-Track chatbot usage:
+**Database Schema:**
+- ✅ Added `ChatAnalytics` model with daily aggregation by tenant
+  - `totalConversations` - Count of conversations started
+  - `totalMessages` - Count of all messages (user + assistant)
+  - `uniqueUsers` - Unique users who chatted (requires batch update)
+  - `toolCalls` - JSON object tracking tool usage by name
+  - `avgMessagesPerConversation` - Calculated average (optional batch update)
+  - `avgResponseTimeMs` - Response time tracking (future)
+- ✅ Unique constraint on `tenantId + date` for daily aggregation
+- ✅ Optimized indexes for date range queries
 
-```prisma
-model ChatAnalytics {
-  id            String   @id @default(cuid())
-  tenantId      String
-  date          DateTime @db.Date
-  totalChats    Int      @default(0)
-  totalMessages Int      @default(0)
-  uniqueUsers   Int      @default(0)
-  toolCalls     Json     // { "searchProducts": 45, "searchTransfers": 32 }
+**Backend Services:**
+- ✅ Analytics tracking service ([analyticsService.ts](api-server/src/services/chat/analyticsService.ts))
+  - `recordConversationStarted()` - Track new conversations
+  - `recordMessages()` - Track message count
+  - `recordToolUsage()` - Track individual tool calls with JSON aggregation
+  - `updateUniqueUsersCount()` - Batch function for unique users
+  - `updateAverageMetrics()` - Batch function for averages
+  - `getAnalytics()` - Get analytics for date range
+  - `getAnalyticsSummary()` - Aggregated summary with top 5 tools
+- ✅ Integration with chatService `onFinish` callback
+  - Extracts tool calls from AI SDK v5 `steps` array
+  - Tracks conversations, messages, and tool usage in real-time
+  - Fixed to handle multi-step tool execution properly
 
-  @@unique([tenantId, date])
-}
-```
+**Backend API Endpoints:**
+- ✅ `GET /api/chat/analytics` - Get analytics summary with query params
+  - `?startDate` - Start date (ISO format)
+  - `?endDate` - End date (ISO format)
+  - Returns: totals, top 5 tools, daily breakdown
 
-Dashboard showing:
-- Daily active users
-- Most used tools
-- Common questions
-- Average conversation length
+**Backend Tests:**
+- ✅ 14/14 analytics service tests passing
+  - Conversation tracking
+  - Message tracking
+  - Tool usage tracking with JSON aggregation
+  - Unique users batch update
+  - Average metrics calculation
+  - Date range queries
+  - Multi-tenant isolation
+- ✅ 3/3 analytics API endpoint tests passing
+  - Date range filtering
+  - Summary aggregation
+  - Permission checks
+
+**Frontend UI:**
+- ✅ API client ([chatAnalytics.ts](admin-web/src/api/chatAnalytics.ts))
+- ✅ Analytics dashboard page ([ChatAnalyticsPage.tsx](admin-web/src/pages/ChatAnalyticsPage.tsx))
+- ✅ Navigation link in System section (requires `reports:view` permission)
+- ✅ Collapsible help section listing all 23 available AI tools
+- ✅ Refresh button in header
+- ✅ Date range selector (7/30/90 days)
+
+**Dashboard Features:**
+- ✅ **Key Metrics Cards** (4 cards with ring progress indicators):
+  - Total Conversations
+  - Total Messages (user + assistant)
+  - Active Users
+  - Avg Messages/Conv (calculated on-the-fly from totals)
+- ✅ **Most Used Tools** table:
+  - Top 5 ranked tools with badges
+  - Usage count and percentage
+  - Total tool calls badge
+  - Empty state when no tools used
+- ✅ **Daily Breakdown** table:
+  - Date, Conversations, Messages, Users, Avg Msgs/Conv
+  - Sorted by date (most recent last)
+  - Avg calculated on-the-fly if batch job not run
+- ✅ **Available Tools Help Section**:
+  - Collapsible panel with show/hide
+  - Lists all 23 tools organized by category:
+    - Product Tools (4)
+    - Stock Management Tools (4)
+    - Transfer Tools (4)
+    - Analytics Tools (3)
+    - Branch Tools (2)
+    - User Tools (4)
+    - Template Tools (2)
+    - Approval Tools (2)
+  - Brief description for each tool
+  - Total count summary
+
+**E2E Tests:**
+- ✅ 13 Playwright tests (11 passing, 2 intentionally skipped)
+  - Permission-based access (shows/hides link)
+  - Navigation and page rendering
+  - Key metrics display
+  - Top Tools table structure
+  - Daily breakdown table
+  - Date range selector functionality
+  - Authentication requirements
+  - UI components (ring progress, badges, formatting)
+- ⏭️ 2 tests skipped (mutually exclusive data states):
+  - "No tool usage data yet" - requires empty state
+  - "Rank tools correctly" - requires populated state
+
+**Security:**
+- ✅ Tenant-wide analytics (not user-specific)
+- ✅ Requires `reports:view` permission
+- ✅ All queries filtered by currentTenantId
+- ✅ Multi-tenant data isolation
+
+**Files Created/Modified:**
+- Backend:
+  - `api-server/src/services/chat/analyticsService.ts` - New
+  - `api-server/src/services/chat/chatService.ts` - Modified (analytics tracking)
+  - `api-server/src/routes/chatRouter.ts` - Modified (analytics endpoint)
+  - `api-server/prisma/schema.prisma` - Modified (ChatAnalytics model)
+  - `api-server/__tests__/services/chat/analyticsService.test.ts` - New
+  - `api-server/__tests__/routes/chatRouter.test.ts` - Modified (analytics tests)
+- Frontend:
+  - `admin-web/src/api/chatAnalytics.ts` - New
+  - `admin-web/src/pages/ChatAnalyticsPage.tsx` - New
+  - `admin-web/src/main.tsx` - Modified (added route)
+  - `admin-web/src/components/shell/SidebarNav.tsx` - Modified (added nav link)
+  - `admin-web/e2e/chat-analytics.spec.ts` - New
+
+**Notable Implementation Details:**
+- Tool usage tracking extracts from AI SDK v5 `steps` array (not top-level `toolCalls`)
+- Daily data aggregated using upsert for idempotency
+- Frontend calculates avg messages/conv on-the-fly (no dependency on batch jobs)
+- Empty state handling for tables when no data available
+- Consistent UI design matching other analytics pages (Stock Transfers, Approval Rules)
+- Real-time tracking during chat interactions (no batch jobs required for basic metrics)
 
 ### 4.3 Smart Suggestions
 

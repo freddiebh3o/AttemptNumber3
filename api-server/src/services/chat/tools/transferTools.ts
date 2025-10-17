@@ -59,7 +59,7 @@ export function transferTools({ userId, tenantId }: { userId: string; tenantId: 
     }),
 
     searchTransfers: tool({
-      description: 'Search and list stock transfers. Use this when user asks about their transfers, pending transfers, or wants to find a specific transfer. Results are automatically filtered to branches the user is a member of. Returns totalCount showing the complete number of matching transfers (not just the limited results shown).',
+      description: 'Search and list stock transfers. Use this when user asks about their transfers, pending transfers, or wants to find a specific transfer. Results are automatically filtered to branches the user is a member of. Returns totalCount showing the complete number of matching transfers (not just the limited results shown). IMPORTANT: Choose the limit intelligently - use 5-10 for "show me pending transfers", 20-30 for "list all transfers", 50+ for analysis requests. Always inform the user if there are more results available (hasMore=true).',
       inputSchema: z.object({
         status: z.enum(['REQUESTED', 'APPROVED', 'IN_TRANSIT', 'COMPLETED', 'REJECTED', 'CANCELLED']).optional()
           .describe('Filter by transfer status'),
@@ -69,8 +69,8 @@ export function transferTools({ userId, tenantId }: { userId: string; tenantId: 
           .describe('inbound = transfers coming TO user branches, outbound = transfers going FROM user branches'),
         branchId: z.string().optional()
           .describe('Filter to specific branch (user must be member)'),
-        limit: z.number().optional().default(5)
-          .describe('Number of results (max 10 for chat)'),
+        limit: z.number().optional().default(10)
+          .describe('Number of results to return. Choose intelligently: 5-10 for quick lists, 20-30 for standard requests, 50-100 for comprehensive analysis. Max 100.'),
       }),
       execute: async ({ status, priority, direction, branchId, limit }) => {
         // Call existing service function which enforces branch membership
@@ -83,7 +83,7 @@ export function transferTools({ userId, tenantId }: { userId: string; tenantId: 
             ...(priority ? { priority } : {}),
             ...(direction ? { direction } : {}),
             ...(branchId ? { branchId } : {}),
-            limit: Math.min(limit || 5, 10),
+            limit: Math.min(limit || 10, 100),
             includeTotal: true, // REQUIRED to get totalCount in pageInfo
           },
         });

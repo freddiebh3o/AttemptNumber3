@@ -28,6 +28,7 @@ import StockTransferDetailPage from './pages/StockTransferDetailPage'
 import TransferTemplatesPage from './pages/TransferTemplatesPage'
 import TransferApprovalRulesPage from './pages/TransferApprovalRulesPage'
 import TransferAnalyticsPage from './pages/TransferAnalyticsPage'
+import { ChatAnalyticsPage } from './pages/ChatAnalyticsPage'
 
 const router = createBrowserRouter([
   {
@@ -79,7 +80,16 @@ const router = createBrowserRouter([
             ),
             errorElement: <RouteErrorBoundary />
           },
-          { 
+          {
+            path: 'chat-analytics',
+            element: (
+              <RequirePermission perm="reports:view">
+                <ChatAnalyticsPage />
+              </RequirePermission>
+            ),
+            errorElement: <RouteErrorBoundary />
+          },
+          {
             path: 'users', 
             element: (
               <RequirePermission perm="users:manage">

@@ -382,4 +382,44 @@ describe('Chat Router - Conversation Endpoints', () => {
       expect(response.status).toBe(401);
     });
   });
+
+  describe('GET /api/chat/analytics', () => {
+    it('should return analytics summary for authenticated user', async () => {
+      const tenant = await createTestTenant({ name: 'Test Corp' });
+      const user = await createTestUser();
+      const sessionCookie = createSessionCookie(user.id, tenant.id);
+
+      const response = await request(app)
+        .get('/api/chat/analytics')
+        .set('Cookie', sessionCookie);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data).toHaveProperty('totalConversations');
+      expect(response.body.data).toHaveProperty('totalMessages');
+      expect(response.body.data).toHaveProperty('uniqueUsers');
+      expect(response.body.data).toHaveProperty('topTools');
+      expect(response.body.data).toHaveProperty('dailyData');
+    });
+
+    it('should require authentication', async () => {
+      const response = await request(app)
+        .get('/api/chat/analytics');
+
+      expect(response.status).toBe(401);
+    });
+
+    it('should accept startDate and endDate query parameters', async () => {
+      const tenant = await createTestTenant({ name: 'Test Corp' });
+      const user = await createTestUser();
+      const sessionCookie = createSessionCookie(user.id, tenant.id);
+
+      const response = await request(app)
+        .get('/api/chat/analytics?startDate=2025-01-01&endDate=2025-01-31')
+        .set('Cookie', sessionCookie);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+    });
+  });
 });

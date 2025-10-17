@@ -20,6 +20,7 @@ import {
   addMessageToConversation,
   type ConversationWithMessages,
 } from './conversationService.js';
+import { recordConversationStarted, recordMessages, recordToolUsage } from './analyticsService.js';
 
 /**
  * Stream chat response to client
@@ -150,6 +151,17 @@ export async function streamChatResponse({
         },
       });
       currentConversationId = conversation.id;
+
+      // ANALYTICS: Track new conversation started
+      try {
+        await recordConversationStarted({
+          tenantId,
+          userId,
+          date: new Date(),
+        });
+      } catch (error) {
+        console.error('Failed to record conversation analytics:', error);
+      }
     }
   }
 
@@ -189,12 +201,26 @@ export async function streamChatResponse({
     // v5: Use stopWhen instead of maxSteps for multi-step control
     stopWhen: stepCountIs(10),
     // Save assistant response after streaming completes
-    onFinish: async ({ text, toolCalls, toolResults }) => {
+    onFinish: async ({ text, toolCalls, toolResults, steps, ...rest }) => {
       // Only save if we have a conversation ID
       if (!currentConversationId) return;
 
       try {
-        // Build content from response parts
+        // Extract all tool calls from steps
+        const allToolCalls: any[] = [];
+        if (steps && steps.length > 0) {
+          for (const step of steps) {
+            if (step.content) {
+              for (const contentItem of step.content) {
+                if (contentItem.type === 'tool-call') {
+                  allToolCalls.push(contentItem);
+                }
+              }
+            }
+          }
+        }
+
+        // Build content from response parts (aggregate all steps)
         const contentParts: any[] = [];
 
         // Add text part if present
@@ -202,27 +228,14 @@ export async function streamChatResponse({
           contentParts.push({ type: 'text', text });
         }
 
-        // Add tool call parts if present
-        if (toolCalls && toolCalls.length > 0) {
-          for (const toolCall of toolCalls) {
-            contentParts.push({
-              type: 'tool-call',
-              toolCallId: toolCall.toolCallId,
-              toolName: toolCall.toolName,
-              args: toolCall.args,
-            });
-          }
-        }
-
-        // Add tool result parts if present
-        if (toolResults && toolResults.length > 0) {
-          for (const toolResult of toolResults) {
-            contentParts.push({
-              type: 'tool-result',
-              toolCallId: toolResult.toolCallId,
-              toolName: toolResult.toolName,
-              result: toolResult.result,
-            });
+        // Add all content from steps (tool-calls and tool-results)
+        if (steps && steps.length > 0) {
+          for (const step of steps) {
+            if (step.content) {
+              for (const contentItem of step.content) {
+                contentParts.push(contentItem);
+              }
+            }
           }
         }
 
@@ -236,6 +249,32 @@ export async function streamChatResponse({
             content: contentParts,
           },
         });
+
+        // ANALYTICS: Track messages (user + assistant = 2 messages)
+        try {
+          await recordMessages({
+            tenantId,
+            date: new Date(),
+            count: 2, // User message + assistant message
+          });
+        } catch (error) {
+          console.error('Failed to record message analytics:', error);
+        }
+
+        // ANALYTICS: Track tool usage from steps
+        if (allToolCalls.length > 0) {
+          try {
+            for (const toolCall of allToolCalls) {
+              await recordToolUsage({
+                tenantId,
+                date: new Date(),
+                toolName: toolCall.toolName,
+              });
+            }
+          } catch (error) {
+            console.error('Failed to record tool usage analytics:', error);
+          }
+        }
       } catch (error) {
         // Log but don't throw - don't break the response if saving fails
         console.error('Failed to save assistant message:', error);

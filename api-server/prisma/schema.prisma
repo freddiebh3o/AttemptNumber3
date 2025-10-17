@@ -93,6 +93,9 @@ model Tenant {
   // Chat conversations for this tenant
   chatConversations ChatConversation[]
 
+  // Chat analytics for this tenant
+  chatAnalytics ChatAnalytics[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -839,4 +842,33 @@ model ChatMessage {
 
   @@index([conversationId])
   @@index([conversationId, createdAt])
+}
+
+/// Chat analytics for tracking chatbot usage
+/// Aggregated daily metrics per tenant
+model ChatAnalytics {
+  id       String   @id @default(cuid())
+  tenantId String
+  date     DateTime @db.Date
+
+  // Volume metrics
+  totalConversations Int @default(0) // New conversations started
+  totalMessages      Int @default(0) // Total messages sent (user + assistant)
+  uniqueUsers        Int @default(0) // Distinct users who chatted
+
+  // Tool usage tracking
+  toolCalls Json? // { "searchProducts": 45, "searchTransfers": 32, ... }
+
+  // Average metrics
+  avgMessagesPerConversation Float? // Average conversation length
+  avgResponseTimeMs          Int? // Average assistant response time
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, date])
+  @@index([tenantId, date])
 }

@@ -16,11 +16,11 @@ import { StockMovementKind } from '@prisma/client';
 export function stockTools({ userId, tenantId }: { userId: string; tenantId: string }) {
   return {
     getStockAtBranch: tool({
-      description: 'Get current stock levels for all products at a specific branch. Use when user asks "what inventory do we have at X branch?" or "show me all stock at warehouse".',
+      description: 'Get current stock levels for all products at a specific branch. Use when user asks "what inventory do we have at X branch?" or "show me all stock at warehouse". IMPORTANT: Choose the limit intelligently - use 10-20 for quick overviews, 50-100 for comprehensive inventory lists.',
       inputSchema: z.object({
         branchId: z.string().optional().describe('Branch ID (if known)'),
         branchName: z.string().optional().describe('Branch name to search for'),
-        limit: z.number().optional().default(10).describe('Number of products to return (max 20)'),
+        limit: z.number().optional().default(20).describe('Number of products to return. Choose intelligently: 10-20 for quick lists, 50-100 for comprehensive inventory. Max 200.'),
       }),
       execute: async ({ branchId, branchName, limit }) => {
         try {
@@ -96,7 +96,7 @@ export function stockTools({ userId, tenantId }: { userId: string; tenantId: str
               },
             },
             orderBy: { qtyOnHand: 'desc' },
-            take: Math.min(limit || 10, 20),
+            take: Math.min(limit || 20, 200),
           });
 
           return {
@@ -122,14 +122,14 @@ export function stockTools({ userId, tenantId }: { userId: string; tenantId: str
     }),
 
     viewStockMovements: tool({
-      description: 'View recent stock movements (receipts, adjustments, consumption) from the ledger. Use when user asks about stock history, recent changes, or "what happened to our inventory?"',
+      description: 'View recent stock movements (receipts, adjustments, consumption) from the ledger. Use when user asks about stock history, recent changes, or "what happened to our inventory?" IMPORTANT: Choose limit intelligently - use 10-20 for recent activity, 50-100 for detailed history.',
       inputSchema: z.object({
         productId: z.string().optional().describe('Filter to specific product ID'),
         sku: z.string().optional().describe('Filter to specific product SKU'),
         branchId: z.string().optional().describe('Filter to specific branch'),
         movementType: z.enum(['RECEIPT', 'ADJUSTMENT', 'CONSUMPTION', 'REVERSAL']).optional()
           .describe('Type of movement to filter'),
-        limit: z.number().optional().default(10).describe('Number of movements to return (max 20)'),
+        limit: z.number().optional().default(20).describe('Number of movements to return. Choose intelligently: 10-20 for recent activity, 50-100 for detailed history. Max 100.'),
       }),
       execute: async ({ productId, sku, branchId, movementType, limit }) => {
         try {
@@ -168,7 +168,7 @@ export function stockTools({ userId, tenantId }: { userId: string; tenantId: str
             productId: resolvedProductId,
             ...(branchId ? { branchIdOptional: branchId } : {}),
             ...(movementType ? { kindsOptional: [movementType] } : {}),
-            limitOptional: Math.min(limit || 10, 20),
+            limitOptional: Math.min(limit || 20, 100),
             sortDirOptional: 'desc', // Most recent first
           });
 
@@ -204,11 +204,11 @@ export function stockTools({ userId, tenantId }: { userId: string; tenantId: str
     }),
 
     checkLowStock: tool({
-      description: 'Find products with low stock across branches. Use when user asks "what products are low?" or "do we need to reorder anything?"',
+      description: 'Find products with low stock across branches. Use when user asks "what products are low?" or "do we need to reorder anything?" IMPORTANT: Choose limit intelligently - use 10-20 for quick alerts, 50+ for comprehensive low stock reports.',
       inputSchema: z.object({
         threshold: z.number().optional().default(10).describe('Stock level threshold (default: 10)'),
         branchId: z.string().optional().describe('Filter to specific branch'),
-        limit: z.number().optional().default(10).describe('Number of results (max 20)'),
+        limit: z.number().optional().default(20).describe('Number of results to return. Choose intelligently: 10-20 for quick alerts, 50-100 for comprehensive reports. Max 100.'),
       }),
       execute: async ({ threshold, branchId, limit }) => {
         try {
@@ -266,7 +266,7 @@ export function stockTools({ userId, tenantId }: { userId: string; tenantId: str
               },
             },
             orderBy: { qtyOnHand: 'asc' }, // Lowest first
-            take: Math.min(limit || 10, 20),
+            take: Math.min(limit || 20, 100),
           });
 
           if (lowStock.length === 0) {

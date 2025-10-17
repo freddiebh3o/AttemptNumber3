@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { requireAuthenticatedUserMiddleware } from '../middleware/sessionMiddleware.js';
 import * as chatService from '../services/chat/chatService.js';
 import * as conversationService from '../services/chat/conversationService.js';
+import * as analyticsService from '../services/chat/analyticsService.js';
 
 export const chatRouter = Router();
 
@@ -169,6 +170,42 @@ chatRouter.patch(
       return res.json({
         success: true,
         data: updated,
+      });
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+/**
+ * GET /api/chat/analytics - Get analytics summary for current tenant
+ *
+ * Query params:
+ * - startDate: ISO date string (default: 30 days ago)
+ * - endDate: ISO date string (default: today)
+ */
+chatRouter.get(
+  '/analytics',
+  requireAuthenticatedUserMiddleware,
+  async (req, res, next) => {
+    try {
+      const { startDate, endDate } = req.query;
+
+      // Default to last 30 days
+      const end = endDate ? new Date(endDate as string) : new Date();
+      const start = startDate
+        ? new Date(startDate as string)
+        : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+      const summary = await analyticsService.getAnalyticsSummary({
+        tenantId: req.currentTenantId!,
+        startDate: start,
+        endDate: end,
+      });
+
+      return res.json({
+        success: true,
+        data: summary,
       });
     } catch (e) {
       next(e);

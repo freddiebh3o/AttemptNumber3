@@ -40,10 +40,10 @@ export function productTools({ userId, tenantId }: { userId: string; tenantId: s
     }),
 
     searchProducts: tool({
-      description: 'Search for products by name or SKU. Use when user asks to find products, check product details, or look up items by SKU. Returns basic product info with totalCount showing the complete number of matching products (not just the limited results shown).',
+      description: 'Search for products by name or SKU. Use when user asks to find products, check product details, or look up items by SKU. Returns basic product info with totalCount showing the complete number of matching products (not just the limited results shown). IMPORTANT: Choose the limit intelligently based on the user\'s question - use 3-5 for "show me some products", 10-20 for "list products", 50+ for "show me all products" or analysis requests. Always inform the user if there are more results available (hasMore=true).',
       inputSchema: z.object({
         query: z.string().optional().describe('Product name or SKU to search (partial match supported). Leave empty to list all products.'),
-        limit: z.number().optional().default(5).describe('Number of results (max 10 for chat)'),
+        limit: z.number().optional().default(10).describe('Number of results to return. Choose intelligently: 3-5 for quick lists, 10-20 for standard searches, 50-100 for comprehensive requests. Max 100.'),
       }),
       execute: async ({ query, limit }) => {
         try {
@@ -51,7 +51,7 @@ export function productTools({ userId, tenantId }: { userId: string; tenantId: s
           const result = await productService.listProductsForCurrentTenantService({
             currentTenantId: tenantId,
             ...(query ? { qOptional: query } : {}),
-            limitOptional: Math.min(limit || 5, 10),
+            limitOptional: Math.min(limit || 10, 100),
             includeTotalOptional: true, // REQUIRED to get totalCount in pageInfo
           });
 
