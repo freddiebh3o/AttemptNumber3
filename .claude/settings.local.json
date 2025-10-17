@@ -19,7 +19,8 @@
       "Bash(npm run lint)",
       "Bash(npm run db:migrate:*)",
       "Bash(npm run ingest-docs:*)",
-      "Bash(npx prisma migrate dev:*)"
+      "Bash(npx prisma migrate dev:*)",
+      "Bash(timeout 120 npm run test:accept:*)"
     ],
     "deny": [],
     "ask": []

@@ -90,6 +90,9 @@ model Tenant {
   // Back-relation for AuditEvent. One tenant -> many audit events.
   auditEvents AuditEvent[]
 
+  // Chat conversations for this tenant
+  chatConversations ChatConversation[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -288,6 +291,9 @@ model User {
 
   // Back-relation for AuditEvent where this user is the actor.
   auditEvents AuditEvent[]
+
+  // Chat conversations created by this user
+  chatConversations ChatConversation[]
 
   @@index([createdAt])
   @@index([updatedAt])
@@ -798,4 +804,39 @@ model DocumentChunk {
 
   @@index([documentId])
   @@map("document_chunks")
+}
+
+/// Chat conversations for AI chatbot
+/// Stores conversation history per user per tenant
+model ChatConversation {
+  id       String @id @default(cuid())
+  userId   String
+  tenantId String
+  title    String? // Auto-generated from first message
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  messages ChatMessage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, tenantId])
+  @@index([userId, createdAt])
+}
+
+/// Chat messages within a conversation
+/// Stores individual messages (user and assistant)
+model ChatMessage {
+  id             String @id @default(cuid())
+  conversationId String
+  role           String // 'user' | 'assistant' | 'system'
+  content        Json   // UIMessage parts array from Vercel AI SDK
+  createdAt      DateTime @default(now())
+
+  conversation ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([conversationId, createdAt])
 }
