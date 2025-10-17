@@ -34,6 +34,7 @@ import {
   updateConversationTitleApiRequest,
   type ChatConversation,
 } from '../../api/conversations';
+import { getSuggestionsForUser, type ChatSuggestion } from '../../api/chatSuggestions';
 import { notifications } from '@mantine/notifications';
 
 export function ChatInterface() {
@@ -43,6 +44,8 @@ export function ChatInterface() {
   const [loadingConversations, setLoadingConversations] = useState(true);
   const [editingConversationId, setEditingConversationId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
+  const [suggestions, setSuggestions] = useState<ChatSuggestion[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(true);
   const viewport = useRef<HTMLDivElement>(null);
 
   const transport = useMemo(() => {
@@ -99,9 +102,10 @@ export function ChatInterface() {
     },
   });
 
-  // Load conversations on mount
+  // Load conversations and suggestions on mount
   useEffect(() => {
     loadConversations();
+    loadSuggestions();
   }, []);
 
   // Load conversation history when switching conversations
@@ -137,6 +141,19 @@ export function ChatInterface() {
       });
     } finally {
       setLoadingConversations(false);
+    }
+  };
+
+  const loadSuggestions = async () => {
+    try {
+      setLoadingSuggestions(true);
+      const fetchedSuggestions = await getSuggestionsForUser({ limit: 6 });
+      setSuggestions(fetchedSuggestions);
+    } catch (error) {
+      console.error('Failed to load suggestions:', error);
+      // Don't show error notification - it's not critical
+    } finally {
+      setLoadingSuggestions(false);
     }
   };
 
@@ -252,6 +269,11 @@ export function ChatInterface() {
 
     sendMessage({ text: input });
     setInput('');
+  };
+
+  const handleSuggestionClick = (suggestion: ChatSuggestion) => {
+    if (status === 'streaming') return;
+    sendMessage({ text: suggestion.text });
   };
 
   const isLoading = status === 'streaming';
@@ -370,38 +392,48 @@ export function ChatInterface() {
         {/* Messages Area */}
         <ScrollArea viewportRef={viewport} style={{ flex: 1 }} p="md">
           {messages.length === 0 ? (
-            <Stack gap="md" align="center" justify="center" style={{ minHeight: 300, maxWidth: 600, margin: '0 auto' }}>
-              <Text size="lg" fw={500}>
-                👋 Hi! I can help you manage your inventory:
+            <Stack gap="lg" align="center" justify="center" style={{ minHeight: 300, maxWidth: 700, margin: '0 auto', paddingTop: 40 }}>
+              <Text size="xl" fw={500} ta="center">
+                Hi! I'm your inventory assistant
+              </Text>
+              <Text size="sm" c="dimmed" ta="center">
+                I can help you with products, stock, transfers, analytics, and more.
               </Text>
 
-              <Stack gap="xs" style={{ width: '100%' }}>
-                <Text size="sm" fw={500}>📦 Products & Stock</Text>
-                <Text size="xs" c="dimmed" pl="lg">
-                  "What products are low on stock?" • "Show me stock at Main Warehouse"
-                </Text>
-              </Stack>
+              {loadingSuggestions ? (
+                <Group justify="center" p="md">
+                  <Loader size="sm" />
+                  <Text size="sm" c="dimmed">Loading suggestions...</Text>
+                </Group>
+              ) : suggestions.length > 0 ? (
+                <Stack gap="xs" style={{ width: '100%' }} mt="md">
+                  <Text size="sm" fw={500} c="dimmed">Suggested questions:</Text>
+                  <Stack gap="xs">
+                    {suggestions.map((suggestion) => (
+                      <Button
+                        key={suggestion.id}
+                        variant="light"
+                        size="md"
+                        onClick={() => handleSuggestionClick(suggestion)}
+                        disabled={isLoading}
+                        style={{
+                          height: 'auto',
+                          padding: '12px 16px',
+                          textAlign: 'left',
+                          whiteSpace: 'normal',
+                        }}
+                        data-testid={`suggestion-${suggestion.id}`}
+                      >
+                        {suggestion.text}
+                      </Button>
+                    ))}
+                  </Stack>
+                </Stack>
+              ) : null}
 
-              <Stack gap="xs" style={{ width: '100%' }}>
-                <Text size="sm" fw={500}>🚚 Transfers & Approvals</Text>
-                <Text size="xs" c="dimmed" pl="lg">
-                  "Find my pending transfers" • "Why does TRF-001 need approval?"
-                </Text>
-              </Stack>
-
-              <Stack gap="xs" style={{ width: '100%' }}>
-                <Text size="sm" fw={500}>📊 Analytics & Insights</Text>
-                <Text size="xs" c="dimmed" pl="lg">
-                  "What's our transfer completion rate?" • "Total stock value by branch"
-                </Text>
-              </Stack>
-
-              <Stack gap="xs" style={{ width: '100%' }}>
-                <Text size="sm" fw={500}>👥 Team & Branches</Text>
-                <Text size="xs" c="dimmed" pl="lg">
-                  "Who are the warehouse managers?" • "List all active branches"
-                </Text>
-              </Stack>
+              <Text size="xs" c="dimmed" ta="center" mt="lg">
+                Or type your own question below
+              </Text>
             </Stack>
           ) : (
             <Stack gap="md">

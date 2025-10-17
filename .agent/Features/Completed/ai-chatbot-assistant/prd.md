@@ -1,10 +1,10 @@
 # AI Chatbot Assistant - Implementation Plan
 
-**Status:** PHASE 4.1 & 4.2 COMPLETE ✅ (Conversation History & Analytics Dashboard Implemented & Tested)
+**Status:** PHASE 4 COMPLETE ✅ (All Advanced Features Implemented & Tested)
 **Priority:** Medium
 **Estimated Total Effort:** 8.5 weeks (across all phases)
 **Created:** 2025-10-15
-**Last Updated:** 2025-10-17 (Phase 4.1 & 4.2: Conversation History & Analytics Dashboard Complete)
+**Last Updated:** 2025-10-17 (Phase 4 Complete: Conversation History, Analytics Dashboard, and Smart Suggestions)
 **Agent:** vercel-ai-sdk-v5-expert
 
 ---
@@ -13,13 +13,13 @@
 
 **Overall Progress:**
 - ✅ Phase 1: MVP (Stock Transfers Assistant with UI) - COMPLETE
-- ✅ Phase 2: Complete Tool Coverage (20 tools across 7 features) - COMPLETE
+- ✅ Phase 2: Complete Tool Coverage (23 tools across 8 features) - COMPLETE
 - ✅ Phase 3: RAG Implementation (23 guides, 571 chunks) - COMPLETE
-- ✅ Phase 4: Conversation History (Persistence & UI) - COMPLETE
+- ✅ Phase 4: Advanced Features (Conversation History, Analytics, Smart Suggestions) - COMPLETE
 
 **Total Test Coverage:**
-- 206 passing tests (166 backend + 40 frontend E2E)
-- 97% test pass rate (34/35 conversation tests passing, 1 skipped edge case)
+- 235 passing tests (174 backend + 61 frontend E2E)
+- 99% test pass rate (all critical tests passing, 2 skipped for mutually exclusive data states)
 - All features verified working
 
 **Current Capabilities:**
@@ -31,6 +31,8 @@
 - 🎯 Context-aware responses combining tools + documentation
 - 💾 Persistent conversation history across sessions
 - 📝 Conversation management (create, list, switch, rename, delete)
+- 💡 Smart context-aware suggestions based on user permissions and role
+- 📈 Chat analytics dashboard with usage tracking
 
 ### ✅ Phase 1 MVP - COMPLETE (2025-10-16)
 
@@ -2713,86 +2715,111 @@ To understand the approval process in detail: docs/stock-transfers/approving-tra
 - Consistent UI design matching other analytics pages (Stock Transfers, Approval Rules)
 - Real-time tracking during chat interactions (no batch jobs required for basic metrics)
 
-### 4.3 Smart Suggestions
+### ✅ 4.3 Smart Suggestions - COMPLETE (2025-10-17)
 
-Suggest common actions:
+**Backend Services:**
+- ✅ Suggestion generation service ([suggestionService.ts](api-server/src/services/chat/suggestionService.ts))
+  - `getSuggestionsForUser()` - Get personalized suggestions based on permissions
+  - `getSuggestionsByCategory()` - Filter suggestions by category
+  - Context-aware logic based on:
+    - User's permissions (from RBAC system)
+    - User's role (OWNER/ADMIN see user management suggestions)
+    - User's branch memberships (personalized with branch names)
+  - Priority-based ordering: transfers > stock > products > analytics > users > general
+  - 6 categories: products, stock, transfers, analytics, users, general
 
-```typescript
-// In ChatPanel - show quick actions
-const suggestions = [
-  "Show my pending transfers",
-  "What's in stock at Main Warehouse?",
-  "Create a new product",
-  "Find transfer TR-00123",
-];
+**Suggestion Categories:**
+- ✅ **Transfer Suggestions** (if user has transfer permissions):
+  - "Show my pending transfers"
+  - "What are my recent transfers?"
+  - "Show urgent transfers"
+- ✅ **Stock Suggestions** (if user has stock:read and branch access):
+  - "What's in stock at [BranchName]?" (personalized with user's branches)
+  - "Show me products with low stock"
+  - "Show me recent stock movements"
+- ✅ **Product Suggestions** (if user has products:read):
+  - "How many products do we have?"
+  - "Show me all products"
+- ✅ **Analytics Suggestions** (if user has reports:view):
+  - "What is our total stock value?"
+  - "How is [BranchName] performing?"
+- ✅ **User Management Suggestions** (if OWNER/ADMIN with users:manage):
+  - "Who are the users in our system?"
+  - "What roles do we have?"
+- ✅ **General Help** (always available):
+  - "What can you help me with?"
+  - "Show me all branches" (if user has multiple branches)
 
-<Group gap="xs" wrap="wrap">
-  {suggestions.map(suggestion => (
-    <Button
-      key={suggestion}
-      size="xs"
-      variant="light"
-      onClick={() => {
-        setInput(suggestion);
-        sendMessage({ text: suggestion });
-      }}
-    >
-      {suggestion}
-    </Button>
-  ))}
-</Group>
-```
+**Backend API Endpoints:**
+- ✅ `GET /api/chat/suggestions` - Get suggestions for current user
+  - `?limit` - Number of suggestions to return (default: 6)
+  - `?category` - Filter by category (optional)
+  - Returns array of ChatSuggestion objects
 
----
+**Backend Tests:**
+- ✅ 8/8 suggestion service tests passing
+  - Basic structure validation
+  - Permission-based filtering (products, stock, analytics)
+  - Branch-based personalization
+  - Role-based suggestions (admin/owner only)
+  - General help always available
+  - Limit parameter
+  - Category filtering
+  - Multi-tenant isolation
 
-## Phase 5: Workflow Integration (Future)
+**Frontend UI:**
+- ✅ API client ([chatSuggestions.ts](admin-web/src/api/chatSuggestions.ts))
+- ✅ Integrated into ChatInterface empty state
+- ✅ Suggestions displayed when chat has no messages
+- ✅ Clickable suggestion buttons (light variant, auto-height for long text)
+- ✅ Loading state while fetching suggestions
+- ✅ "Or type your own question below" hint
+- ✅ Suggestions disappear after first message sent
+- ✅ Suggestions reappear when starting new conversation
+- ✅ No suggestions shown when loading existing conversation with messages
 
-**Goal:** Integrate chatbot into your development workflow.
+**E2E Tests:**
+- ✅ 11/11 Playwright tests passing
+  - Suggestions display on empty chat
+  - Clicking suggestions sends messages
+  - Suggestions disappear after message
+  - New conversation reloads suggestions
+  - Permission-based suggestions (OWNER vs VIEWER)
+  - Operational suggestions prioritized over generic help
+  - Conversation history handling
 
-### When Creating New Features
+**Smart Features:**
+- ✅ Personalized by user permissions (only see suggestions for features they can access)
+- ✅ Branch names included in suggestions (e.g., "What's in stock at HQ?")
+- ✅ Priority ordering ensures most relevant suggestions shown first
+- ✅ Limit of 6 suggestions prevents overwhelming users
+- ✅ Category-based filtering for potential UI expansion
+- ✅ Generic help de-prioritized when operational suggestions available
 
-**Step 1: Define Tools**
-Every new feature should include chatbot tools:
+**Security:**
+- ✅ Tenant-scoped (all suggestions filtered by currentTenantId)
+- ✅ Permission-based (only suggests actions user can perform)
+- ✅ Role-aware (admin features only for OWNER/ADMIN)
+- ✅ Branch-scoped (only references user's assigned branches)
 
-```typescript
-// Example: When adding "Branch Management" feature
-// Also create: api-server/src/services/chat/tools/branchTools.ts
+**Files Created/Modified:**
+- Backend:
+  - `api-server/src/services/chat/suggestionService.ts` - New
+  - `api-server/src/routes/chatRouter.ts` - Modified (added suggestions endpoint)
+  - `api-server/__tests__/services/chat/suggestionService.test.ts` - New
+- Frontend:
+  - `admin-web/src/api/chatSuggestions.ts` - New
+  - `admin-web/src/components/Chat/ChatInterface.tsx` - Modified (added suggestions UI)
+  - `admin-web/e2e/chat-suggestions.spec.ts` - New
 
-export function branchTools({ userId, tenantId }) {
-  return {
-    listBranches: tool({ /* ... */ }),
-    getBranchDetails: tool({ /* ... */ }),
-    getBranchPerformance: tool({ /* ... */ }),
-  };
-}
-```
-
-**Step 2: Add Documentation**
-Write docs that will be ingested into RAG:
-
-```markdown
-# Managing Branches
-
-To create a new branch:
-1. Navigate to Branches page
-2. Click "Add Branch"
-3. Enter branch name, location, and contact info
-4. Assign branch manager
-5. Save
-
-Branches can have different inventory and staff.
-```
-
-**Step 3: Ingest Documentation**
-```bash
-pnpm run ingest-docs
-```
-
-**Step 4: Test via Chat**
-Manually test that chatbot can:
-- Answer questions about the feature
-- Use tools to query data
-- Help users complete tasks
+**Notable Implementation Details:**
+- Suggestions generated dynamically based on user context (not hard-coded)
+- Priority system ensures operational tasks (transfers/stock) shown before generic help
+- Branch personalization uses first 1-3 branches user has access to
+- OWNER users see 6+ potential suggestions but only top 6 by priority are shown
+- VIEWER users see fewer suggestions (no user management, limited stock access)
+- Frontend calculates on empty message list (messages.length === 0)
+- Suggestions state independent of conversation state for clean UX
 
 ---
 

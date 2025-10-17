@@ -4,6 +4,7 @@ import { requireAuthenticatedUserMiddleware } from '../middleware/sessionMiddlew
 import * as chatService from '../services/chat/chatService.js';
 import * as conversationService from '../services/chat/conversationService.js';
 import * as analyticsService from '../services/chat/analyticsService.js';
+import * as suggestionService from '../services/chat/suggestionService.js';
 
 export const chatRouter = Router();
 
@@ -206,6 +207,47 @@ chatRouter.get(
       return res.json({
         success: true,
         data: summary,
+      });
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+/**
+ * GET /api/chat/suggestions - Get smart suggestions for current user
+ *
+ * Query params:
+ * - limit: number of suggestions to return (default: 6)
+ * - category: filter by category (optional)
+ *
+ * SECURITY:
+ * - Suggestions are personalized based on user's permissions and branch memberships
+ * - No specific permission required (everyone can get suggestions)
+ */
+chatRouter.get(
+  '/suggestions',
+  requireAuthenticatedUserMiddleware,
+  async (req, res, next) => {
+    try {
+      const { limit, category } = req.query;
+
+      const suggestions = category
+        ? await suggestionService.getSuggestionsByCategory({
+            userId: req.currentUserId!,
+            tenantId: req.currentTenantId!,
+            category: category as any,
+            limit: limit ? parseInt(limit as string, 10) : 4,
+          })
+        : await suggestionService.getSuggestionsForUser({
+            userId: req.currentUserId!,
+            tenantId: req.currentTenantId!,
+            limit: limit ? parseInt(limit as string, 10) : 6,
+          });
+
+      return res.json({
+        success: true,
+        data: suggestions,
       });
     } catch (e) {
       next(e);

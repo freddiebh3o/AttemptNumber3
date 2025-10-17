@@ -78,7 +78,7 @@ export function ChatInterface() {
         {messages.length === 0 ? (
           <Stack gap="md" align="center" justify="center" style={{ minHeight: 300, maxWidth: 600, margin: '0 auto' }}>
             <Text size="lg" fw={500}>
-              👋 Hi! I can help you manage your inventory:
+              I can help you manage your inventory:
             </Text>
 
             <Stack gap="xs" style={{ width: '100%' }}>
