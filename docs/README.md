@@ -45,13 +45,14 @@ Welcome to the platform documentation! This guide will help you learn how to use
 
 - **[Stock Transfers Overview](stock-transfers/overview.md)** - What transfers are and when to use them
 - **[Creating Transfers](stock-transfers/creating-transfers.md)** - Request stock from another branch
+- **[Managing Approval Rules](stock-transfers/approval-rules.md)** - Configure automated approval workflows
 - **[Approving Transfers](stock-transfers/approving-transfers.md)** - Review and approve requests
 - **[Shipping Transfers](stock-transfers/shipping-transfers.md)** - Fulfill and ship approved transfers
 - **[Receiving Transfers](stock-transfers/receiving-transfers.md)** - Accept deliveries and handle discrepancies
 - **[Transfer Templates](stock-transfers/transfer-templates.md)** - Use templates for recurring patterns
 - **[Reversing Transfers](stock-transfers/reversing-transfers.md)** - Undo completed transfers
 
-**Learn:** Transfer lifecycle, approval workflows, FIFO lot allocation, partial shipments, reversal process
+**Learn:** Transfer lifecycle, approval rules, approval workflows, FIFO lot allocation, partial shipments, reversal process, archive/restore workflows
 
 ---
 

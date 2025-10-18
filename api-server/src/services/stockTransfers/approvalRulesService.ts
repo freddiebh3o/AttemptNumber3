@@ -207,6 +207,7 @@ export async function listApprovalRules(params: {
   tenantId: string;
   filters?: {
     isActive?: boolean;
+    archivedFilter?: 'active-only' | 'archived-only' | 'all';
     sortBy?: 'priority' | 'name' | 'createdAt';
     sortDir?: 'asc' | 'desc';
     limit?: number;
@@ -220,6 +221,15 @@ export async function listApprovalRules(params: {
   const where: Prisma.TransferApprovalRuleWhereInput = {
     tenantId,
   };
+
+  // Handle archive filtering (default to active-only)
+  const archivedFilter = filters?.archivedFilter ?? 'active-only';
+  if (archivedFilter === 'active-only') {
+    where.isArchived = false;
+  } else if (archivedFilter === 'archived-only') {
+    where.isArchived = true;
+  }
+  // If 'all', don't filter by isArchived
 
   if (filters?.isActive !== undefined) {
     where.isActive = filters.isActive;
@@ -427,7 +437,7 @@ export async function updateApprovalRule(params: {
 }
 
 /**
- * Delete approval rule
+ * Archive approval rule (soft delete)
  */
 export async function deleteApprovalRule(params: {
   tenantId: string;
@@ -440,15 +450,41 @@ export async function deleteApprovalRule(params: {
   // Get existing rule
   const existing = await prismaClientInstance.transferApprovalRule.findFirst({
     where: { id: ruleId, tenantId },
-    select: { id: true, name: true },
+    select: { id: true, name: true, isActive: true, isArchived: true },
   });
 
   if (!existing) throw Errors.notFound('Approval rule not found');
+  if (existing.isArchived) throw Errors.validation('Approval rule is already archived');
 
-  // Delete rule in transaction (cascades conditions and levels)
-  await prismaClientInstance.$transaction(async (tx) => {
-    await tx.transferApprovalRule.delete({
+  // Archive rule in transaction (preserves conditions and levels)
+  const result = await prismaClientInstance.$transaction(async (tx) => {
+    const archived = await tx.transferApprovalRule.update({
       where: { id: ruleId },
+      data: {
+        isArchived: true,
+        archivedAt: new Date(),
+        archivedByUserId: userId,
+      },
+      include: {
+        conditions: {
+          include: {
+            branch: {
+              select: { id: true, branchName: true, branchSlug: true },
+            },
+          },
+        },
+        levels: {
+          include: {
+            role: {
+              select: { id: true, name: true },
+            },
+            user: {
+              select: { id: true, userEmailAddress: true },
+            },
+          },
+          orderBy: { level: 'asc' },
+        },
+      },
     });
 
     // Audit
@@ -457,11 +493,11 @@ export async function deleteApprovalRule(params: {
         tenantId,
         actorUserId: userId,
         entityType: AuditEntityType.STOCK_TRANSFER,
-        entityId: existing.id,
+        entityId: archived.id,
         action: AuditAction.APPROVAL_RULE_DELETE,
-        entityName: existing.name,
-        before: { id: existing.id, name: existing.name },
-        after: null,
+        entityName: archived.name,
+        before: { id: existing.id, name: existing.name, isActive: existing.isActive, isArchived: false },
+        after: { id: archived.id, name: archived.name, isActive: archived.isActive, isArchived: true, archivedAt: archived.archivedAt },
         correlationId: auditContext?.correlationId ?? null,
         ip: auditContext?.ip ?? null,
         userAgent: auditContext?.userAgent ?? null,
@@ -469,7 +505,85 @@ export async function deleteApprovalRule(params: {
     } catch {
       // Swallow audit errors
     }
+
+    return archived;
   });
 
-  return { success: true };
+  return result;
+}
+
+/**
+ * Restore archived approval rule
+ */
+export async function restoreApprovalRule(params: {
+  tenantId: string;
+  userId: string;
+  ruleId: string;
+  auditContext?: AuditCtx;
+}) {
+  const { tenantId, userId, ruleId, auditContext } = params;
+
+  // Get existing rule
+  const existing = await prismaClientInstance.transferApprovalRule.findFirst({
+    where: { id: ruleId, tenantId },
+    select: { id: true, name: true, isActive: true, isArchived: true },
+  });
+
+  if (!existing) throw Errors.notFound('Approval rule not found');
+  if (!existing.isArchived) throw Errors.validation('Approval rule is not archived');
+
+  // Restore rule in transaction
+  const result = await prismaClientInstance.$transaction(async (tx) => {
+    const restored = await tx.transferApprovalRule.update({
+      where: { id: ruleId },
+      data: {
+        isArchived: false,
+        archivedAt: null,
+        archivedByUserId: null,
+      },
+      include: {
+        conditions: {
+          include: {
+            branch: {
+              select: { id: true, branchName: true, branchSlug: true },
+            },
+          },
+        },
+        levels: {
+          include: {
+            role: {
+              select: { id: true, name: true },
+            },
+            user: {
+              select: { id: true, userEmailAddress: true },
+            },
+          },
+          orderBy: { level: 'asc' },
+        },
+      },
+    });
+
+    // Audit
+    try {
+      await writeAuditEvent(tx, {
+        tenantId,
+        actorUserId: userId,
+        entityType: AuditEntityType.STOCK_TRANSFER,
+        entityId: restored.id,
+        action: AuditAction.UPDATE,
+        entityName: restored.name,
+        before: { id: existing.id, name: existing.name, isActive: existing.isActive, isArchived: true },
+        after: { id: restored.id, name: restored.name, isActive: restored.isActive, isArchived: false },
+        correlationId: auditContext?.correlationId ?? null,
+        ip: auditContext?.ip ?? null,
+        userAgent: auditContext?.userAgent ?? null,
+      });
+    } catch {
+      // Swallow audit errors
+    }
+
+    return restored;
+  });
+
+  return result;
 }

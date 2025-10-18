@@ -524,6 +524,11 @@ model TransferApprovalRule {
   approvalMode ApprovalMode @default(SEQUENTIAL)
   priority     Int          @default(0) // Higher priority rules evaluated first
 
+  /// Soft delete fields
+  isArchived       Boolean   @default(false)
+  archivedAt       DateTime?
+  archivedByUserId String?
+
   // Relations
   tenant     Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   conditions TransferApprovalCondition[]
@@ -534,6 +539,7 @@ model TransferApprovalRule {
 
   @@index([tenantId, isActive])
   @@index([tenantId, priority])
+  @@index([tenantId, isArchived])
 }
 
 /// Conditions that trigger an approval rule

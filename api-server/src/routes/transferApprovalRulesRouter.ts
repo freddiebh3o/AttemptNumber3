@@ -106,6 +106,7 @@ transferApprovalRulesRouter.get(
       assertAuthed(req);
 
       const isActiveStr = req.query.isActive as string | undefined;
+      const archivedFilter = req.query.archivedFilter as 'active-only' | 'archived-only' | 'all' | undefined;
       const sortBy = req.query.sortBy as 'priority' | 'name' | 'createdAt' | undefined;
       const sortDir = req.query.sortDir as 'asc' | 'desc' | undefined;
       const limitStr = req.query.limit as string | undefined;
@@ -115,6 +116,7 @@ transferApprovalRulesRouter.get(
         tenantId: req.currentTenantId,
         filters: {
           ...(isActiveStr !== undefined ? { isActive: isActiveStr === 'true' } : {}),
+          ...(archivedFilter !== undefined ? { archivedFilter } : {}),
           ...(sortBy !== undefined ? { sortBy } : {}),
           ...(sortDir !== undefined ? { sortDir } : {}),
           ...(limitStr !== undefined ? { limit: parseInt(limitStr) } : {}),
@@ -193,7 +195,7 @@ transferApprovalRulesRouter.patch(
   }
 );
 
-// DELETE /api/transfer-approval-rules/:ruleId - Delete approval rule
+// DELETE /api/transfer-approval-rules/:ruleId - Archive approval rule (soft delete)
 transferApprovalRulesRouter.delete(
   '/:ruleId',
   requireAuthenticatedUserMiddleware,
@@ -208,6 +210,34 @@ transferApprovalRulesRouter.delete(
       }
 
       const result = await approvalRulesService.deleteApprovalRule({
+        tenantId: req.currentTenantId,
+        userId: req.currentUserId,
+        ruleId,
+        auditContext: getAuditContext(req),
+      });
+
+      return res.status(200).json(createStandardSuccessResponse(result));
+    } catch (e) {
+      return next(e);
+    }
+  }
+);
+
+// POST /api/transfer-approval-rules/:ruleId/restore - Restore archived approval rule
+transferApprovalRulesRouter.post(
+  '/:ruleId/restore',
+  requireAuthenticatedUserMiddleware,
+  requirePermission('stock:write'),
+  async (req, res, next) => {
+    try {
+      assertAuthed(req);
+      const { ruleId } = req.params;
+
+      if (!ruleId) {
+        throw new Error('Rule ID is required');
+      }
+
+      const result = await approvalRulesService.restoreApprovalRule({
         tenantId: req.currentTenantId,
         userId: req.currentUserId,
         ruleId,

@@ -101,10 +101,14 @@ If you can't fulfill the request at all:
 
 ## Multi-Level Approval
 
-Some transfers require approval from multiple people before proceeding. This happens when:
+Some transfers require approval from multiple people before proceeding. This happens when an **Approval Rule** matches the transfer conditions.
+
+Approval rules are configured by admins and can trigger based on:
 - Transfer value exceeds a threshold (e.g., over £1000)
 - Transfer quantity exceeds a limit (e.g., over 100 units)
 - Transfer involves specific branches with special rules
+
+**Learn more:** See [Managing Approval Rules](approval-rules.md) for complete guide on creating and configuring rules.
 
 ### How It Works
 
@@ -176,6 +180,7 @@ See [Shipping Transfers](shipping-transfers.md) for next steps.
 ## Related Guides
 
 - [Overview](overview.md) - Understanding the transfer workflow
+- [Managing Approval Rules](approval-rules.md) - Configure automated approval workflows
 - [Shipping Transfers](shipping-transfers.md) - How to ship after approving
 - [Creating Transfers](creating-transfers.md) - How transfers are created
 

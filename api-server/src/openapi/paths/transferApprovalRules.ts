@@ -47,6 +47,9 @@ const ApprovalRuleSchema = z.object({
   isActive: z.boolean(),
   approvalMode: z.enum(['SEQUENTIAL', 'PARALLEL', 'HYBRID']),
   priority: z.number().int(),
+  isArchived: z.boolean(),
+  archivedAt: z.string().nullable(),
+  archivedByUserId: z.string().nullable(),
   conditions: z.array(ApprovalRuleConditionSchema),
   levels: z.array(ApprovalLevelSchema),
   createdAt: z.string(),
@@ -165,6 +168,7 @@ export function registerTransferApprovalRulePaths(registry: OpenAPIRegistry) {
     request: {
       query: z.object({
         isActive: z.enum(['true', 'false']).optional(),
+        archivedFilter: z.enum(['active-only', 'archived-only', 'all']).optional(),
         sortBy: z.enum(['priority', 'name', 'createdAt']).optional(),
         sortDir: z.enum(['asc', 'desc']).optional(),
         limit: z.string().optional(),
@@ -243,12 +247,12 @@ export function registerTransferApprovalRulePaths(registry: OpenAPIRegistry) {
     },
   });
 
-  // DELETE /api/transfer-approval-rules/:ruleId - Delete approval rule
+  // DELETE /api/transfer-approval-rules/:ruleId - Archive approval rule (soft delete)
   registry.registerPath({
     method: 'delete',
     path: '/api/transfer-approval-rules/{ruleId}',
     tags: ['Transfer Approval'],
-    summary: 'Delete approval rule',
+    summary: 'Archive approval rule (soft delete)',
     request: {
       params: z.object({ ruleId: z.string() }),
     },
@@ -259,7 +263,31 @@ export function registerTransferApprovalRulePaths(registry: OpenAPIRegistry) {
           'application/json': {
             schema: z.object({
               success: z.literal(true),
-              data: z.object({ success: z.boolean() }),
+              data: ApprovalRuleSchema,
+            }),
+          },
+        },
+      },
+    },
+  });
+
+  // POST /api/transfer-approval-rules/:ruleId/restore - Restore archived approval rule
+  registry.registerPath({
+    method: 'post',
+    path: '/api/transfer-approval-rules/{ruleId}/restore',
+    tags: ['Transfer Approval'],
+    summary: 'Restore archived approval rule',
+    request: {
+      params: z.object({ ruleId: z.string() }),
+    },
+    responses: {
+      200: {
+        description: 'Success',
+        content: {
+          'application/json': {
+            schema: z.object({
+              success: z.literal(true),
+              data: ApprovalRuleSchema,
             }),
           },
         },

@@ -57,11 +57,12 @@ export async function evaluateApprovalRules(params: {
   const { transfer, tx } = params;
   const db = tx ?? prismaClientInstance;
 
-  // Get all active rules for tenant, ordered by priority (highest first)
+  // Get all active, non-archived rules for tenant, ordered by priority (highest first)
   const rules = await db.transferApprovalRule.findMany({
     where: {
       tenantId: transfer.tenantId,
       isActive: true,
+      isArchived: false,
     },
     include: {
       conditions: {

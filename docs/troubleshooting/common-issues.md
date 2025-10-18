@@ -290,6 +290,81 @@
 
 ## Stock Transfers
 
+### Issue: Approval Rule Not Triggering
+
+**Symptoms:**
+- Created approval rule but transfers not requiring approval
+- Expected multi-level approval but getting auto-approved
+
+**Common Causes:**
+1. Rule is inactive (toggle OFF)
+2. Rule is archived
+3. Transfer doesn't match rule conditions
+4. Higher priority rule is overriding
+5. Wrong branch or threshold configured
+
+**Solutions:**
+
+✅ **Check rule status:**
+- Go to Stock Transfers → Approval Rules
+- Find your rule in the list
+- Verify toggle switch is ON (Active)
+- Check it's not showing "Archived" badge
+
+✅ **Review rule conditions:**
+- Edit the rule
+- Verify quantity threshold matches your test
+- Verify value threshold is correct (in pence, not pounds)
+- Check source/destination branch filters
+- Test with transfer that clearly exceeds thresholds
+
+✅ **Check rule priority:**
+- If multiple rules exist, lowest number = highest priority
+- Your rule might be overridden by another
+- Review all active rules
+- Adjust priority numbers if needed
+
+✅ **Test incrementally:**
+- Create simple rule with one condition
+- Verify it works
+- Add complexity gradually
+
+✅ **View rule in archived filter:**
+- Change filter to "All Rules"
+- Confirm rule wasn't accidentally archived
+- Restore if needed
+
+**See:** [Managing Approval Rules](../stock-transfers/approval-rules.md) for detailed troubleshooting
+
+---
+
+### Issue: Can't Find Archived Approval Rule
+
+**Symptoms:**
+- Archived a rule and now can't find it
+- Need to restore rule but it's disappeared
+
+**Common Causes:**
+1. Looking at wrong filter view
+2. Confused with inactive vs archived
+
+**Solutions:**
+
+✅ **Change filter view:**
+- Go to Stock Transfers → Approval Rules
+- Find "Show Rules" dropdown
+- Select "Archived rules only" or "All rules (active + archived)"
+- Look for gray "Archived" badge
+
+✅ **Understand archive vs inactive:**
+- Inactive = paused, still visible
+- Archived = completely hidden from default view
+- Both prevent rule from evaluating
+
+**See:** [Managing Approval Rules](../stock-transfers/approval-rules.md#archiving-and-restoring-rules)
+
+---
+
 ### Issue: Transfer Stuck in REQUESTED Status
 
 **Symptoms:**
@@ -300,17 +375,24 @@
 1. Awaiting approval (if multi-level approval required)
 2. No one with approval permission at branches
 3. Approver hasn't seen the request
+4. Approval rule is misconfigured
 
 **Solutions:**
 
 ✅ **Check approval requirements:**
 - Navigate to transfer
 - Check if "Requires Multi-Level Approval" is true
-- Review approval rules for source/destination branches
+- Review which approval rule matched
 - Ask AI: "Why does transfer [ID] need approval?"
 
+✅ **Review approval rule:**
+- Go to Stock Transfers → Approval Rules
+- Find the rule that triggered
+- Verify approval levels have correct roles assigned
+- Check if users with those roles exist at the branch
+
 ✅ **Notify approver:**
-- Identify who can approve (users with `stock:write` at source branch)
+- Identify who can approve (check approval rule levels)
 - Send them notification
 - Provide transfer number for quick lookup
 
@@ -322,6 +404,8 @@
 - Ensure quantities are reasonable
 - Large requests might need manager approval
 - Correct any errors and resubmit
+
+**See:** [Approving Transfers](../stock-transfers/approving-transfers.md)
 
 ### Issue: Can't Ship Transfer
 

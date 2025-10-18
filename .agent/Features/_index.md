@@ -20,6 +20,9 @@ This directory tracks all features throughout their lifecycle: from planning to 
 Features/
 ├── _index.md                    # This file
 ├── Completed/                   # Shipped features (flat, alphabetical)
+│   ├── approval-rule-archival/
+│   ├── e2e-test-refactoring/
+│   ├── product-archival/
 │   ├── session-expiration/
 │   ├── stock-transfers-v1/
 │   ├── stock-transfers-v2/
@@ -42,6 +45,45 @@ Features/
 ## Completed Features
 
 Organized alphabetically by feature name in Completed/ folder. Listed here by completion date for temporal context.
+
+### October 2025
+
+#### Approval Rule Archival
+**Path:** `Completed/approval-rule-archival/`
+**Status:** ✅ Completed
+**Completion Date:** 2025-10-18
+
+**Overview:**
+Soft delete enhancement for transfer approval rules, allowing rules to be archived (hidden from UI) and restored while preserving all historical data and original state.
+
+**Key Features:**
+- Archive approval rules (soft delete with audit trail)
+- Restore archived rules with original isActive state preserved
+- Three-way archive filter (active-only, archived-only, all)
+- Archived and inactive badges in UI
+- Archive/restore confirmation modals with user-friendly messaging
+- Permission-based UI controls (stock:write required)
+- Idempotent archive/restore operations in test factories
+
+**Documentation:**
+- [prd.md](./Completed/approval-rule-archival/prd.md) - Full PRD with implementation details
+
+**Database Changes:**
+- Added `isArchived` boolean field to `TransferApprovalRule`
+- Added `archivedAt` timestamp field
+- Added `archivedByUserId` foreign key field
+- Updated unique constraint to allow duplicate priorities for archived rules
+
+**API Changes:**
+- Added `archivedFilter` query parameter to list endpoint (active-only | archived-only | all)
+- Added `POST /api/transfer-approval-rules/{ruleId}/restore` endpoint
+- Updated `DELETE` endpoint behavior (now archives instead of hard deletes)
+
+**Testing:**
+- 14 backend tests (Jest) - Archive/restore service tests
+- 19 frontend tests (Playwright) - Archive flow, restore flow, filters, permissions, UI state
+
+---
 
 ### January 2025
 

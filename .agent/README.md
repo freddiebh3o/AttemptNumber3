@@ -449,6 +449,12 @@ Planned/ → InProgress/ → Completed/YYYY-MM/
 - **Docs:** [README](./Features/Completed/e2e-test-refactoring/README.md) | [PRD](./Features/Completed/e2e-test-refactoring/prd.md)
 - **Key Features:** Domain folders (auth, products, stock, transfers, chat, features), 7 reusable factories, ~600+ lines removed, comprehensive documentation (README.md, GUIDELINES.md)
 
+#### 6. Approval Rule Archival
+- **Status:** ✅ Completed 2025-10-18
+- **What:** Soft delete enhancement for transfer approval rules with archive/restore functionality
+- **Docs:** [PRD](./Features/Completed/approval-rule-archival/prd.md)
+- **Key Features:** Archive filter dropdown (active-only, archived-only, all), archived/inactive badges, isActive state preservation on restore, confirmation modals, 19 E2E tests
+
 ### In Progress Features (0)
 
 **Location:** [Features/InProgress/](./Features/InProgress/)
@@ -1058,7 +1064,8 @@ Each feature now has a README.md summarizing the work with completion date metad
 
 ### Feature Metrics
 
-**Completed Features:** 5
+**Completed Features:** 6
+- Approval Rule Archival
 - E2E Test Refactoring & Organization
 - Product Archival
 - Stock Transfers v1
@@ -1070,8 +1077,9 @@ Each feature now has a README.md summarizing the work with completion date metad
 **Planned:** 0
 
 **Database Tables Added:** 2 (StockTransfer, TransferTemplate)
+**Database Enhancements:** Approval rule archival (3 new fields: isArchived, archivedAt, archivedByUserId)
 **New Permissions:** 1 (stock:transfer)
-**Tests Added:** 299 (227 backend + 72 frontend)
+**Tests Added:** 318 (241 backend + 77 frontend) - includes 14 backend archival tests + 19 frontend archival E2E tests
 
 ---
 
