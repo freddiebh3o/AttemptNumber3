@@ -107,3 +107,86 @@ export async function assertBranchMembership(params: {
     throw Errors.permissionDenied();
   }
 }
+
+/**
+ * Reverse lots at a branch by extracting lotsConsumed from transfer items
+ * and restoring those specific lots
+ */
+export async function reverseLotsAtBranch(params: {
+  tenantId: string;
+  userId: string;
+  branchId: string;
+  transferItems: Array<{
+    productId: string;
+    shipmentBatches?: any; // JSON field containing lotsConsumed
+  }>;
+  transferNumber: string;
+  auditContext?: {
+    correlationId?: string | null;
+    ip?: string | null;
+    userAgent?: string | null;
+  };
+}): Promise<{
+  restoredLots: Array<{
+    lotId: string;
+    qty: number;
+    productId: string;
+  }>;
+}> {
+  const { tenantId, userId, branchId, transferItems, transferNumber, auditContext } = params;
+
+  // Import restoreLotQuantities (must be done dynamically to avoid circular dependency)
+  const { restoreLotQuantities } = await import('../stockService.js');
+
+  // Extract all lotsConsumed from shipmentBatches across all items
+  const lotsToRestoreMap = new Map<string, number>(); // lotId -> total qty
+
+  for (const item of transferItems) {
+    if (!item.shipmentBatches) continue;
+
+    const batches = Array.isArray(item.shipmentBatches) ? item.shipmentBatches : [];
+
+    for (const batch of batches) {
+      if (!batch.lotsConsumed) continue;
+
+      const lotsConsumed = Array.isArray(batch.lotsConsumed) ? batch.lotsConsumed : [];
+
+      for (const lot of lotsConsumed) {
+        if (lot.lotId && lot.qty > 0) {
+          const currentQty = lotsToRestoreMap.get(lot.lotId) ?? 0;
+          lotsToRestoreMap.set(lot.lotId, currentQty + lot.qty);
+        }
+      }
+    }
+  }
+
+  // Convert map to array
+  const lotsToRestore = Array.from(lotsToRestoreMap.entries()).map(([lotId, qty]) => ({
+    lotId,
+    qty,
+  }));
+
+  if (lotsToRestore.length === 0) {
+    // No lots to restore (e.g., old transfers before lot tracking)
+    return { restoredLots: [] };
+  }
+
+  // Call restoreLotQuantities to increment lots and create REVERSAL ledger entries
+  const result = await restoreLotQuantities(
+    { currentTenantId: tenantId, currentUserId: userId },
+    {
+      branchId,
+      lotsToRestore,
+      reason: `Reversal of transfer ${transferNumber}`,
+      ...(auditContext ? { auditContextOptional: auditContext } : {}),
+    }
+  );
+
+  return {
+    restoredLots: result.restoredLots.map((lot) => ({
+      lotId: lot.lotId,
+      qty: lot.qty,
+      productId: lot.productId,
+    })),
+  };
+}

@@ -1,11 +1,13 @@
 // Prisma uses this connection string from your .env
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 model Permission {
@@ -741,6 +743,7 @@ enum AuditAction {
   STOCK_RECEIVE
   STOCK_ADJUST
   STOCK_CONSUME
+  STOCK_REVERSE // Lot restoration (reversal ledger entry)
   ROLE_ASSIGN
   ROLE_REVOKE
   LOGIN
@@ -801,11 +804,11 @@ model AuditEvent {
 /// Document chunks for RAG (Retrieval-Augmented Generation)
 /// Stores embedded documentation sections for semantic search
 model DocumentChunk {
-  id         String   @id @default(cuid())
-  documentId String   // File path: "docs/stock-transfers/overview.md"
-  sectionId  String   // Heading anchor: "## Step 1: Navigate to Transfers"
-  title      String   // "Creating Transfers - Step 1: Navigate"
-  content    String   @db.Text // Actual markdown content chunk
+  id         String @id @default(cuid())
+  documentId String // File path: "docs/stock-transfers/overview.md"
+  sectionId  String // Heading anchor: "## Step 1: Navigate to Transfers"
+  title      String // "Creating Transfers - Step 1: Navigate"
+  content    String @db.Text // Actual markdown content chunk
 
   /// Vector embedding (1536 dimensions for text-embedding-3-small)
   embedding Unsupported("vector(1536)")
@@ -823,7 +826,7 @@ model DocumentChunk {
 /// Chat conversations for AI chatbot
 /// Stores conversation history per user per tenant
 model ChatConversation {
-  id       String @id @default(cuid())
+  id       String  @id @default(cuid())
   userId   String
   tenantId String
   title    String? // Auto-generated from first message
@@ -843,10 +846,10 @@ model ChatConversation {
 /// Chat messages within a conversation
 /// Stores individual messages (user and assistant)
 model ChatMessage {
-  id             String @id @default(cuid())
+  id             String   @id @default(cuid())
   conversationId String
   role           String // 'user' | 'assistant' | 'system'
-  content        Json   // UIMessage parts array from Vercel AI SDK
+  content        Json // UIMessage parts array from Vercel AI SDK
   createdAt      DateTime @default(now())
 
   conversation ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)

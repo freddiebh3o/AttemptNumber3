@@ -116,30 +116,81 @@ You can navigate between linked transfers:
 **Original Destination Branch:**
 - Stock is deducted for all reversed items
 - Example: Had 100 widgets → now has 0 widgets
+- Stock is removed using FIFO (oldest lots first)
 
 **Original Source Branch:**
-- Stock is added back for all reversed items
+- Stock is **restored to the exact same lots** it came from
 - Example: Had 50 widgets → now has 150 widgets
+- **Important:** Items return to their original lots, NOT as new inventory
 
-**Cost Basis:**
-- Items return with their original cost
-- FIFO lots are recreated with original received dates
-- Maintains accurate cost accounting
+**Lot Restoration (FIFO Preservation):**
+
+When a transfer is reversed, the system intelligently restores stock to maintain FIFO accuracy:
+
+- **Original lot IDs are preserved** - stock returns to the same lots it came from
+- **Received dates stay the same** - FIFO age is unchanged (older stock remains older)
+- **Unit costs are preserved** - maintains accurate cost accounting
+- **FIFO order is maintained** - reversal doesn't disrupt the FIFO queue
+
+**Example:**
+
+Original Transfer (Jan 10):
+- Warehouse had 3 lots:
+  - Lot A: 100 units @ £10.00 (received Dec 1)
+  - Lot B: 50 units @ £12.00 (received Dec 15)
+  - Lot C: 75 units @ £11.00 (received Dec 20)
+- Transfer ships 120 units → consumes all of Lot A + 20 from Lot B via FIFO
+- Warehouse now has:
+  - Lot B: 30 units remaining (Dec 15)
+  - Lot C: 75 units (Dec 20)
+
+Reversal (Jan 20):
+- Stock returns to Warehouse and **restores original lots**:
+  - Lot A: **100 units @ £10.00 (Dec 1)** ← Fully restored with original date!
+  - Lot B: **50 units @ £12.00 (Dec 15)** ← Restored to full quantity
+  - Lot C: 75 units @ £11.00 (Dec 20) ← Unchanged
+- FIFO order preserved: Lot A is still oldest, will be used first in future transfers
+- **No new lots created** - stock returns to its original location in the FIFO queue
+
+This ensures:
+- ✅ Accurate cost tracking (costs don't get artificially re-averaged)
+- ✅ True FIFO age (older inventory stays older)
+- ✅ Audit trail accuracy (can trace stock back to original receipt)
+- ✅ Reversible operations (reversing a reversal restores to previous state)
 
 ---
 
 ## Audit Trail
 
-All reversals are tracked:
+All reversals are comprehensively tracked:
+
+**Transfer Level:**
 - Both transfers show who initiated the reversal
 - Both transfers show when reversal occurred
 - Reversal reason is stored in notes
-- Stock ledger shows movements for both directions
+- Bidirectional links between original and reversal transfers
+
+**Stock Ledger:**
+- Destination branch: Shows deductions with kind **"REVERSAL"** (not "CONSUMPTION")
+- Source branch: Shows additions with kind **"REVERSAL"** (not "RECEIPT")
+- Ledger entries include reference to transfer number
+- Reversal reason appears in ledger for traceability
+
+**Key Difference:**
+- Normal transfers create **RECEIPT** entries at destination
+- Reversals create **REVERSAL** entries at source (where stock returns)
+- This distinction helps identify reversed stock in reports and audits
 
 **Example audit trail:**
 ```
 Jan 15: Transfer TRF-001 completed (Warehouse → Store #5)
+        - Warehouse: CONSUMPTION ledger entry (-120 units)
+        - Store #5: RECEIPT ledger entry (+120 units)
+
 Jan 20: Transfer TRF-001 reversed by Alice
+        - Store #5: REVERSAL ledger entry (-120 units, "Reversal of TRF-001")
+        - Warehouse: REVERSAL ledger entry (+120 units, "Reversal of TRF-001")
+
 Jan 20: Transfer TRF-042 created as reversal (Store #5 → Warehouse)
 ```
 
@@ -168,6 +219,15 @@ A: Create a new manual transfer for just those items. Reversal always returns ev
 **Q: Can I reverse a reversal?**
 A: Yes. The reversal transfer is a normal completed transfer, so you can reverse it again if needed. This effectively re-does the original transfer.
 
+**Q: Does reversed stock create new lots?**
+A: No! This is a key feature. Reversed stock returns to the **exact same lots** it came from, preserving FIFO age and cost. You won't see new lots created - the original lots simply get their quantities restored.
+
+**Q: What happens to FIFO order when I reverse a transfer?**
+A: FIFO order is perfectly preserved. Stock returns to its original position in the FIFO queue with the same received dates. Older stock remains older, maintaining accurate cost tracking and aging.
+
+**Q: How can I tell if stock came from a reversal?**
+A: Check the stock ledger - you'll see "REVERSAL" entries (not "RECEIPT"). The ledger entry will reference the original transfer number (e.g., "Reversal of transfer TRF-001").
+
 **Q: What happens if the original source branch doesn't have space for returned items?**
 A: Stock is added regardless of capacity. Branch managers should monitor inventory levels.
 
@@ -179,6 +239,9 @@ A: Either the transfer isn't in COMPLETED status, or you're not a member of the 
 
 **Q: Does reversing a transfer notify anyone?**
 A: Both branches see the new reversal transfer in their transfers list. Check if your organization has notifications configured.
+
+**Q: What if I reversed stock but then received new stock at the same cost?**
+A: The reversed stock and new stock will be in separate lots with different received dates. The reversed stock will have its original (older) received date, so it will still be used first via FIFO.
 
 ---
 

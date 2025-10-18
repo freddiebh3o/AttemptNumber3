@@ -88,6 +88,46 @@ When you manually adjust stock:
 - Uses FIFO to remove from oldest lots first
 - Preserves accurate cost tracking even for adjustments
 
+## FIFO and Transfer Reversals
+
+**What Makes Reversals Special:**
+
+When you reverse a completed transfer, the system doesn't just add stock back - it **restores stock to the exact same lots** it came from. This is crucial for maintaining FIFO accuracy.
+
+**How It Works:**
+
+1. **Original Transfer** consumes stock via FIFO (oldest first)
+   - The system tracks which specific lots were used
+   - Records lot IDs, quantities consumed, and original received dates
+
+2. **Reversal** restores stock to those exact lots
+   - Same lot IDs (not new lots)
+   - Same received dates (FIFO age preserved)
+   - Same unit costs (accurate cost tracking)
+
+**Example:**
+
+You have Coffee Beans:
+- Lot A: 100 units @ £12.00 (Dec 1)
+- Lot B: 50 units @ £13.00 (Dec 15)
+
+Transfer 120 units to Store (Dec 20):
+- Consumes all 100 from Lot A (oldest)
+- Consumes 20 from Lot B (next oldest)
+- You now have: Lot B with 30 units remaining
+
+Reverse the transfer (Jan 5):
+- Stock returns to Lot A: **100 units @ £12.00 (Dec 1)** ← Original date preserved!
+- Stock returns to Lot B: 50 units @ £13.00 (Dec 15) ← Fully restored
+- FIFO order maintained: Lot A is still oldest, will be used first
+
+**Why This Matters:**
+
+✅ **Accurate Aging**: Reversed stock maintains its true age - 2-month-old stock stays 2 months old
+✅ **Cost Integrity**: No artificial cost averaging - costs stay exactly as they were
+✅ **True FIFO**: Oldest stock remains oldest, preventing FIFO queue disruption
+✅ **Audit Trail**: Can trace stock back to original receipt date and cost
+
 ## Cost Calculations
 
 The system tracks costs automatically:
@@ -105,5 +145,7 @@ The system tracks costs automatically:
 ✅ You can view lot details on product pages
 ✅ FIFO happens automatically during transfers and consumption
 ✅ Manual adjustments also follow FIFO rules
+✅ Transfer reversals restore stock to original lots (preserving FIFO age)
+✅ Reversed stock maintains its original received date and cost
 
-FIFO ensures your inventory and financial reports are accurate and compliant with standard accounting practices.
+FIFO ensures your inventory and financial reports are accurate and compliant with standard accounting practices. The lot restoration feature on reversals maintains this accuracy even when operations are undone.

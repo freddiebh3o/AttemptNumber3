@@ -324,6 +324,113 @@ export const StockFactory = {
       throw new Error(`Failed to add stock: ${response.status()} - ${errorText}`);
     }
   },
+
+  /**
+   * Get stock lots for a product at a branch via API
+   *
+   * @param page - Playwright page object (must be authenticated)
+   * @param params - Query parameters
+   * @returns Stock lots data including productStock and lots array
+   *
+   * @example
+   * ```typescript
+   * const stockData = await StockFactory.getLots(page, {
+   *   productId: 'prod-123',
+   *   branchId: 'branch-456',
+   * });
+   *
+   * console.log(stockData.productStock.qtyOnHand); // Total quantity
+   * console.log(stockData.lots); // Array of lots with receivedAt, qtyRemaining, etc.
+   * ```
+   */
+  async getLots(
+    page: Page,
+    params: {
+      productId: string;
+      branchId: string;
+    }
+  ): Promise<{
+    productStock: {
+      qtyOnHand: number;
+      qtyAllocated: number;
+    };
+    lots: Array<{
+      id: string;
+      receivedAt: string;
+      qtyRemaining: number;
+      unitCostPence: number;
+    }>;
+  }> {
+    const response = await makeAuthenticatedRequest(
+      page,
+      'GET',
+      `/api/stock/levels?productId=${params.productId}&branchId=${params.branchId}`
+    );
+
+    if (!response.ok()) {
+      const errorText = await response.text();
+      throw new Error(`Failed to get stock lots: ${response.status()} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    return data.data;
+  },
+
+  /**
+   * Get stock ledger entries for a product at a branch via API
+   *
+   * @param page - Playwright page object (must be authenticated)
+   * @param params - Query parameters
+   * @returns Stock ledger entries
+   *
+   * @example
+   * ```typescript
+   * const ledger = await StockFactory.getLedger(page, {
+   *   productId: 'prod-123',
+   *   branchId: 'branch-456',
+   *   kinds: 'REVERSAL',
+   * });
+   * ```
+   */
+  async getLedger(
+    page: Page,
+    params: {
+      productId: string;
+      branchId?: string;
+      kinds?: string;
+      limit?: number;
+    }
+  ): Promise<{
+    items: Array<{
+      id: string;
+      kind: string;
+      qtyDelta: number;
+      occurredAt: string;
+      reason?: string;
+    }>;
+  }> {
+    const queryParams = new URLSearchParams({
+      productId: params.productId,
+    });
+
+    if (params.branchId) queryParams.set('branchId', params.branchId);
+    if (params.kinds) queryParams.set('kinds', params.kinds);
+    if (params.limit) queryParams.set('limit', params.limit.toString());
+
+    const response = await makeAuthenticatedRequest(
+      page,
+      'GET',
+      `/api/stock/ledger?${queryParams.toString()}`
+    );
+
+    if (!response.ok()) {
+      const errorText = await response.text();
+      throw new Error(`Failed to get stock ledger: ${response.status()} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    return data.data;
+  },
 };
 
 /**
@@ -532,7 +639,45 @@ export const TransferFactory = {
   },
 
   /**
-   * Create a transfer, add stock, approve, and ship it (convenience method for testing)
+   * Receive a transfer via API
+   *
+   * @param page - Playwright page object (must be authenticated)
+   * @param params - Receive parameters
+   *
+   * @example
+   * ```typescript
+   * await TransferFactory.receive(page, {
+   *   transferId: 'transfer-1',
+   *   items: [{ itemId: 'item-1', qtyReceived: 10 }],
+   * });
+   * ```
+   */
+  async receive(
+    page: Page,
+    params: {
+      transferId: string;
+      receivedAt?: string;
+      items: Array<{ itemId: string; qtyReceived: number }>;
+    }
+  ): Promise<void> {
+    const response = await makeAuthenticatedRequest(
+      page,
+      'POST',
+      `/api/stock-transfers/${params.transferId}/receive`,
+      {
+        receivedAt: params.receivedAt,
+        items: params.items,
+      }
+    );
+
+    if (!response.ok()) {
+      const errorText = await response.text();
+      throw new Error(`Failed to receive transfer: ${response.status()} - ${errorText}`);
+    }
+  },
+
+  /**
+   * Create a transfer, add stock, approve, ship, and receive it (convenience method for testing)
    *
    * @param page - Playwright page object (must be authenticated)
    * @param params - Transfer setup parameters
@@ -587,6 +732,16 @@ export const TransferFactory = {
       items: transfer.items.map((item: any) => ({
         itemId: item.id,
         qtyToShip: item.qtyRequested,
+      })),
+    });
+
+    // Receive transfer at destination (completes the transfer)
+    const transferAfterShip = await this.getById(page, transferId);
+    await this.receive(page, {
+      transferId,
+      items: transferAfterShip.items.map((item: any) => ({
+        itemId: item.id,
+        qtyReceived: item.qtyShipped,
       })),
     });
 

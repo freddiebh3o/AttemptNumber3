@@ -513,6 +513,206 @@ export async function consumeStock(
   return result;
 }
 
+/** Restore: increments qtyRemaining on existing lots (+qty), ledger (REVERSAL), increments aggregate */
+export async function restoreLotQuantities(
+  ids: Ids,
+  input: {
+    branchId: string;
+    lotsToRestore: Array<{ lotId: string; qty: number }>;
+    reason?: string | null | undefined;
+    occurredAt?: string | undefined; // ISO
+    auditContextOptional?: AuditCtx;
+  }
+) {
+  const { currentTenantId, currentUserId } = ids;
+  const { branchId, lotsToRestore, reason, occurredAt, auditContextOptional } = input;
+
+  if (!lotsToRestore || lotsToRestore.length === 0) {
+    throw Errors.validation('lotsToRestore must not be empty');
+  }
+
+  // Validate quantities
+  for (const lotRestore of lotsToRestore) {
+    if (lotRestore.qty <= 0) {
+      throw Errors.validation('qty must be > 0 for each lot');
+    }
+  }
+
+  await assertBranchAccess({ currentTenantId, currentUserId, branchId, requireMembership: true });
+
+  const result = await prismaClientInstance.$transaction(async (tx) => {
+    const lotIds = lotsToRestore.map((lr) => lr.lotId);
+
+    // Fetch all lots to validate they exist and belong to correct branch/tenant
+    const lots = await tx.stockLot.findMany({
+      where: {
+        id: { in: lotIds },
+        tenantId: currentTenantId,
+        branchId,
+      },
+      select: { id: true, productId: true, qtyRemaining: true, qtyReceived: true },
+    });
+
+    if (lots.length !== lotIds.length) {
+      const foundIds = lots.map((l) => l.id);
+      const missingIds = lotIds.filter((id) => !foundIds.includes(id));
+      throw Errors.validation(`One or more lots not found or do not belong to the specified branch/tenant. Missing: ${missingIds.join(', ')}`);
+    }
+
+    // Group lots by product for aggregate updates
+    const productUpdates = new Map<string, number>();
+
+    const restoredLots: Array<{
+      lotId: string;
+      qty: number;
+      productId: string;
+      ledgerId: string;
+    }> = [];
+
+    // Restore each lot
+    for (const lotRestore of lotsToRestore) {
+      const lot = lots.find((l) => l.id === lotRestore.lotId);
+      if (!lot) continue; // Should not happen due to validation above
+
+      // Increment qtyRemaining on the lot
+      try {
+        await tx.stockLot.update({
+          where: { id: lot.id },
+          data: { qtyRemaining: { increment: lotRestore.qty } },
+        });
+      } catch (error) {
+        console.error(`Failed to update lot ${lot.id}:`, error);
+        throw error;
+      }
+
+      // Create REVERSAL ledger entry
+      const ledger = await tx.stockLedger.create({
+        data: {
+          tenantId: currentTenantId,
+          branchId,
+          productId: lot.productId,
+          lotId: lot.id,
+          kind: StockMovementKind.REVERSAL,
+          qtyDelta: lotRestore.qty,
+          reason: reason ?? null,
+          actorUserId: currentUserId,
+          occurredAt: toDateMaybe(occurredAt),
+        },
+        select: {
+          id: true,
+          tenantId: true,
+          branchId: true,
+          productId: true,
+          lotId: true,
+          kind: true,
+          qtyDelta: true,
+          reason: true,
+          actorUserId: true,
+          occurredAt: true,
+          createdAt: true,
+        },
+      });
+
+      // AUDIT: per-lot ledger entry (domain)
+      try {
+        const meta = auditCtxOrNull(auditContextOptional);
+        await writeAuditEvent(tx, {
+          tenantId: currentTenantId,
+          actorUserId: meta.actorUserId ?? currentUserId,
+          entityType: AuditEntityType.STOCK_LEDGER,
+          entityId: ledger.id,
+          action: AuditAction.STOCK_REVERSE,
+          entityName: null,
+          before: null,
+          after: ledger,
+          correlationId: meta.correlationId,
+          ip: meta.ip,
+          userAgent: meta.userAgent,
+        });
+      } catch (auditError) {
+        // swallow audit errors - don't break the transaction
+        console.error('Failed to write audit event for STOCK_REVERSE:', auditError);
+      }
+
+      restoredLots.push({
+        lotId: lot.id,
+        qty: lotRestore.qty,
+        productId: lot.productId,
+        ledgerId: ledger.id,
+      });
+
+      // Accumulate qty per product for aggregate updates
+      const currentQty = productUpdates.get(lot.productId) ?? 0;
+      productUpdates.set(lot.productId, currentQty + lotRestore.qty);
+    }
+
+    // Update ProductStock aggregates for each affected product
+    const productStockUpdates: Array<{
+      productId: string;
+      qtyOnHand: number;
+      qtyAllocated: number;
+    }> = [];
+
+    for (const [productId, totalQty] of productUpdates.entries()) {
+      // Ensure aggregate row exists and capture "before"
+      const aggBefore = await ensureProductStockRow(tx, {
+        tenantId: currentTenantId,
+        branchId,
+        productId,
+      });
+
+      // Update aggregate with incremented qty
+      const productStock = await tx.productStock.update({
+        where: {
+          tenantId_branchId_productId: { tenantId: currentTenantId, branchId, productId },
+        },
+        data: { qtyOnHand: { increment: totalQty } },
+        select: { qtyOnHand: true, qtyAllocated: true },
+      });
+
+      productStockUpdates.push({
+        productId,
+        qtyOnHand: productStock.qtyOnHand,
+        qtyAllocated: productStock.qtyAllocated,
+      });
+
+      // AUDIT: aggregate update
+      try {
+        const meta = auditCtxOrNull(auditContextOptional);
+        await writeAuditEvent(tx, {
+          tenantId: currentTenantId,
+          actorUserId: meta.actorUserId ?? currentUserId,
+          entityType: AuditEntityType.PRODUCT_STOCK,
+          entityId: `${currentTenantId}:${branchId}:${productId}`,
+          action: AuditAction.UPDATE,
+          entityName: null,
+          before: {
+            branchId,
+            productId,
+            qtyOnHand: aggBefore.qtyOnHand,
+            qtyAllocated: aggBefore.qtyAllocated,
+          },
+          after: {
+            branchId,
+            productId,
+            qtyOnHand: productStock.qtyOnHand,
+            qtyAllocated: productStock.qtyAllocated,
+          },
+          correlationId: meta.correlationId,
+          ip: meta.ip,
+          userAgent: meta.userAgent,
+        });
+      } catch {
+        // swallow audit errors
+      }
+    }
+
+    return { restoredLots, productStockUpdates };
+  }, { isolationLevel: 'Serializable' });
+
+  return result;
+}
+
 /** Levels: aggregate row + open lots (qtyRemaining > 0) */
 export async function getStockLevelsForProductService(params: {
   currentTenantId: string;

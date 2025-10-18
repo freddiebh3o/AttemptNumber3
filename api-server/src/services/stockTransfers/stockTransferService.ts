@@ -1284,7 +1284,7 @@ export async function getStockTransfer(params: {
 
 /**
  * Reverse a completed stock transfer
- * Creates a new transfer in reverse direction (automatic approval and shipment)
+ * Restores stock to original lots instead of creating new lots
  */
 export async function reverseStockTransfer(params: {
   tenantId: string;
@@ -1335,7 +1335,11 @@ export async function reverseStockTransfer(params: {
     errorMessage: 'You must be a member of the destination branch to reverse transfers',
   });
 
-  // Process stock movements for reversal items (consume at original destination, receive at original source)
+  // Import reverseLotsAtBranch helper
+  const { reverseLotsAtBranch } = await import('./transferHelpers.js');
+
+  // Step 1: Consume stock at original destination (to remove from there)
+  // This creates new CONSUMPTION ledger entries
   const reversalItemUpdates: Array<{
     productId: string;
     qtyReceived: number;
@@ -1346,11 +1350,11 @@ export async function reverseStockTransfer(params: {
   for (const item of original.items) {
     if (item.qtyReceived <= 0) continue;
 
-    // Get lots at original destination (now source for reversal)
+    // Get lots at original destination for cost tracking
     const lots = await prismaClientInstance.stockLot.findMany({
       where: {
         tenantId,
-        branchId: original.destinationBranchId, // Original destination
+        branchId: original.destinationBranchId,
         productId: item.productId,
         qtyRemaining: { gt: 0 },
       },
@@ -1386,7 +1390,18 @@ export async function reverseStockTransfer(params: {
     });
   }
 
-  // Now create reversal transfer and receive stock in transaction
+  // Step 2: Restore lots at original source (the lots that were consumed during the original transfer)
+  // This is the NEW BEHAVIOR - instead of receiveStock, we restore the original lots
+  await reverseLotsAtBranch({
+    tenantId,
+    userId,
+    branchId: original.sourceBranchId, // Original source branch
+    transferItems: original.items, // Contains shipmentBatches with lotsConsumed
+    transferNumber: original.transferNumber,
+    ...(auditContext ? { auditContext } : {}),
+  });
+
+  // Step 3: Create reversal transfer record in transaction
   const result = await prismaClientInstance.$transaction(async (tx) => {
     // Generate transfer number for reversal
     const reversalTransferNumber = await generateTransferNumber(tenantId, tx);
@@ -1497,22 +1512,6 @@ export async function reverseStockTransfer(params: {
 
     return reversal;
   });
-
-  // Receive stock at original source (now destination for reversal)
-  for (const update of reversalItemUpdates) {
-    await receiveStock(
-      { currentTenantId: tenantId, currentUserId: userId },
-      {
-        branchId: original.sourceBranchId, // Original source, now receiving
-        productId: update.productId,
-        qty: update.qtyReceived,
-        unitCostPence: update.avgUnitCostPence,
-        sourceRef: `Reversal ${result.transferNumber}`,
-        reason: `Reversal of transfer ${original.transferNumber}`,
-        ...(auditContext ? { auditContextOptional: auditContext } : {}),
-      }
-    );
-  }
 
   return result;
 }
