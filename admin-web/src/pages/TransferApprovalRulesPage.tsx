@@ -21,6 +21,7 @@ import {
   useMantineTheme,
   useComputedColorScheme,
   List,
+  Select,
 } from "@mantine/core";
 import {
   IconRefresh,
@@ -30,12 +31,15 @@ import {
   IconEdit,
   IconChevronDown,
   IconChevronUp,
+  IconArchive,
+  IconArchiveOff,
 } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import {
   listApprovalRulesApiRequest,
   deleteApprovalRuleApiRequest,
   updateApprovalRuleApiRequest,
+  restoreApprovalRuleApiRequest,
 } from "../api/transferApprovalRules";
 import type { TransferApprovalRule } from "../api/transferApprovalRules";
 import { handlePageError } from "../utils/pageError";
@@ -57,6 +61,7 @@ export default function TransferApprovalRulesPage() {
 
   // Filter state
   const [searchQuery, setSearchQuery] = useState("");
+  const [archivedFilter, setArchivedFilter] = useState<"active-only" | "archived-only" | "all">("active-only");
 
   // Modals
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -66,6 +71,9 @@ export default function TransferApprovalRulesPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [togglingActiveRuleId, setTogglingActiveRuleId] = useState<string | null>(null);
   const [showInfo, setShowInfo] = useState(true);
+  const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
+  const [ruleToRestore, setRuleToRestore] = useState<TransferApprovalRule | null>(null);
+  const [isRestoring, setIsRestoring] = useState(false);
 
   const theme = useMantineTheme();
   const colorScheme = useComputedColorScheme('light');
@@ -76,6 +84,7 @@ export default function TransferApprovalRulesPage() {
     setIsLoading(true);
     try {
       const response = await listApprovalRulesApiRequest({
+        archivedFilter,
         sortBy: "priority",
         sortDir: "desc",
         limit: 100,
@@ -101,9 +110,14 @@ export default function TransferApprovalRulesPage() {
     setRules(null);
     setErrorForBoundary(null);
 
-    // Read search from URL
+    // Read search and archived filter from URL
     const qpSearch = searchParams.get("q");
     if (qpSearch) setSearchQuery(qpSearch);
+
+    const qpArchived = searchParams.get("archived") as "active-only" | "archived-only" | "all";
+    if (qpArchived && ["active-only", "archived-only", "all"].includes(qpArchived)) {
+      setArchivedFilter(qpArchived);
+    }
 
     void fetchRules();
   }, [tenantSlug]);
@@ -112,6 +126,7 @@ export default function TransferApprovalRulesPage() {
     // Update URL params
     const params = new URLSearchParams();
     if (searchQuery.trim()) params.set("q", searchQuery.trim());
+    if (archivedFilter !== "active-only") params.set("archived", archivedFilter);
     setSearchParams(params, { replace: false });
 
     void fetchRules();
@@ -119,6 +134,7 @@ export default function TransferApprovalRulesPage() {
 
   function clearFilters() {
     setSearchQuery("");
+    setArchivedFilter("active-only");
     setSearchParams(new URLSearchParams(), { replace: false });
     void fetchRules();
   }
@@ -157,7 +173,7 @@ export default function TransferApprovalRulesPage() {
       if (response.success) {
         notifications.show({
           color: "green",
-          message: "Approval rule deleted successfully",
+          message: "Approval rule archived successfully",
         });
         setDeleteConfirmOpen(false);
         setRuleToDelete(null);
@@ -166,10 +182,45 @@ export default function TransferApprovalRulesPage() {
     } catch (error: any) {
       notifications.show({
         color: "red",
-        message: error?.message ?? "Failed to delete approval rule",
+        message: error?.message ?? "Failed to archive approval rule",
       });
     } finally {
       setIsDeleting(false);
+    }
+  }
+
+  function openRestoreConfirm(rule: TransferApprovalRule) {
+    setRuleToRestore(rule);
+    setRestoreConfirmOpen(true);
+  }
+
+  async function handleRestoreConfirm() {
+    if (!ruleToRestore) return;
+
+    setIsRestoring(true);
+    try {
+      const idempotencyKey = `restore-approval-rule-${ruleToRestore.id}-${Date.now()}`;
+      const response = await restoreApprovalRuleApiRequest(
+        ruleToRestore.id,
+        idempotencyKey
+      );
+
+      if (response.success) {
+        notifications.show({
+          color: "green",
+          message: "Approval rule restored successfully",
+        });
+        setRestoreConfirmOpen(false);
+        setRuleToRestore(null);
+        void fetchRules();
+      }
+    } catch (error: any) {
+      notifications.show({
+        color: "red",
+        message: error?.message ?? "Failed to restore approval rule",
+      });
+    } finally {
+      setIsRestoring(false);
     }
   }
 
@@ -411,7 +462,7 @@ export default function TransferApprovalRulesPage() {
           </Stack>
         </Paper>
 
-        {/* Search */}
+        {/* Search and Filter */}
         <Paper withBorder p="md" radius="md">
           <Group align="end">
             <TextInput
@@ -420,6 +471,19 @@ export default function TransferApprovalRulesPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.currentTarget.value)}
               style={{ flex: 1 }}
+            />
+
+            <Select
+              label="Show Rules"
+              data={[
+                { value: "active-only", label: "Active rules only" },
+                { value: "archived-only", label: "Archived rules only" },
+                { value: "all", label: "All rules (active + archived)" },
+              ]}
+              value={archivedFilter}
+              onChange={(value) => setArchivedFilter(value as "active-only" | "archived-only" | "all")}
+              style={{ minWidth: 220 }}
+              data-testid="approval-rule-archived-filter-select"
             />
 
             <Button onClick={applyFilters}>Apply</Button>
@@ -482,7 +546,19 @@ export default function TransferApprovalRulesPage() {
                   return (
                     <Table.Tr key={rule.id}>
                       <Table.Td>
-                        <Text fw={500}>{rule.name}</Text>
+                        <Group gap="xs">
+                          <Text fw={500}>{rule.name}</Text>
+                          {rule.isArchived && (
+                            <Badge color="gray" variant="light" data-testid="approval-rule-archived-badge">
+                              Archived
+                            </Badge>
+                          )}
+                          {!rule.isActive && !rule.isArchived && (
+                            <Badge color="yellow" variant="light" data-testid="approval-rule-inactive-badge">
+                              Inactive
+                            </Badge>
+                          )}
+                        </Group>
                       </Table.Td>
                       <Table.Td>
                         <Text size="sm" c="dimmed">
@@ -498,7 +574,8 @@ export default function TransferApprovalRulesPage() {
                         <Switch
                           checked={rule.isActive}
                           onChange={() => handleToggleActive(rule)}
-                          disabled={!canWriteStock || togglingActiveRuleId === rule.id}
+                          disabled={!canWriteStock || togglingActiveRuleId === rule.id || rule.isArchived}
+                          data-testid="approval-rule-active-switch"
                         />
                       </Table.Td>
                       <Table.Td>
@@ -520,27 +597,44 @@ export default function TransferApprovalRulesPage() {
                       </Table.Td>
                       <Table.Td>
                         <Group gap="xs" wrap="nowrap">
-                          <Tooltip label="Edit rule">
-                            <ActionIcon
-                              variant="light"
-                              color="blue"
-                              onClick={() => handleEditClick(rule.id)}
-                              disabled={!canWriteStock}
-                            >
-                              <IconEdit size={16} />
-                            </ActionIcon>
-                          </Tooltip>
+                          {!rule.isArchived ? (
+                            <>
+                              <Tooltip label="Edit rule">
+                                <ActionIcon
+                                  variant="light"
+                                  color="blue"
+                                  onClick={() => handleEditClick(rule.id)}
+                                  disabled={!canWriteStock}
+                                >
+                                  <IconEdit size={16} />
+                                </ActionIcon>
+                              </Tooltip>
 
-                          <Tooltip label="Delete rule">
-                            <ActionIcon
-                              variant="light"
-                              color="red"
-                              onClick={() => openDeleteConfirm(rule)}
-                              disabled={!canWriteStock}
-                            >
-                              <IconTrash size={16} />
-                            </ActionIcon>
-                          </Tooltip>
+                              <Tooltip label="Archive rule">
+                                <ActionIcon
+                                  variant="light"
+                                  color="red"
+                                  onClick={() => openDeleteConfirm(rule)}
+                                  disabled={!canWriteStock}
+                                  data-testid="archive-approval-rule-btn"
+                                >
+                                  <IconArchive size={16} />
+                                </ActionIcon>
+                              </Tooltip>
+                            </>
+                          ) : (
+                            <Tooltip label="Restore rule">
+                              <ActionIcon
+                                variant="light"
+                                color="green"
+                                onClick={() => openRestoreConfirm(rule)}
+                                disabled={!canWriteStock}
+                                data-testid="restore-approval-rule-btn"
+                              >
+                                <IconArchiveOff size={16} />
+                              </ActionIcon>
+                            </Tooltip>
+                          )}
                         </Group>
                       </Table.Td>
                     </Table.Tr>
@@ -563,7 +657,7 @@ export default function TransferApprovalRulesPage() {
         editRuleId={editRuleId}
       />
 
-      {/* Delete Confirmation Modal */}
+      {/* Archive Confirmation Modal */}
       <Modal
         opened={deleteConfirmOpen}
         onClose={() => {
@@ -572,16 +666,17 @@ export default function TransferApprovalRulesPage() {
             setRuleToDelete(null);
           }
         }}
-        title="Delete Approval Rule"
+        title="Archive Approval Rule"
         centered
       >
         <Stack gap="md">
           <Text>
-            Are you sure you want to delete the approval rule{" "}
+            Are you sure you want to archive the approval rule{" "}
             <strong>{ruleToDelete?.name}</strong>?
           </Text>
           <Text size="sm" c="dimmed">
-            This action cannot be undone. Existing transfers will not be affected.
+            This approval rule will be completely hidden from the UI and will not be evaluated in the approval workflow.
+            All historical data will be preserved and the rule can be restored at any time.
           </Text>
 
           <Group justify="flex-end" gap="xs">
@@ -589,7 +684,39 @@ export default function TransferApprovalRulesPage() {
               Cancel
             </Button>
             <Button color="red" onClick={handleDeleteConfirm} loading={isDeleting}>
-              Delete Rule
+              Archive Rule
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* Restore Confirmation Modal */}
+      <Modal
+        opened={restoreConfirmOpen}
+        onClose={() => {
+          if (!isRestoring) {
+            setRestoreConfirmOpen(false);
+            setRuleToRestore(null);
+          }
+        }}
+        title="Restore Approval Rule"
+        centered
+      >
+        <Stack gap="md">
+          <Text>
+            Are you sure you want to restore the approval rule{" "}
+            <strong>{ruleToRestore?.name}</strong>?
+          </Text>
+          <Text size="sm" c="dimmed">
+            The rule will be restored with its original active/inactive state and will be visible in the active rules list.
+          </Text>
+
+          <Group justify="flex-end" gap="xs">
+            <Button variant="light" onClick={() => setRestoreConfirmOpen(false)} disabled={isRestoring}>
+              Cancel
+            </Button>
+            <Button color="green" onClick={handleRestoreConfirm} loading={isRestoring}>
+              Restore Rule
             </Button>
           </Group>
         </Stack>

@@ -930,7 +930,59 @@ export const ApprovalRuleFactory = {
   },
 
   /**
-   * Delete an approval rule via API
+   * Archive an approval rule via API (soft delete)
+   *
+   * @param page - Playwright page object (must be authenticated)
+   * @param ruleId - Approval rule ID to archive
+   *
+   * @example
+   * ```typescript
+   * await ApprovalRuleFactory.archive(page, ruleId);
+   * ```
+   */
+  async archive(page: Page, ruleId: string): Promise<void> {
+    const response = await makeAuthenticatedRequest(page, 'DELETE', `/api/transfer-approval-rules/${ruleId}`);
+
+    if (!response.ok()) {
+      const errorText = await response.text();
+
+      // Ignore "already archived" errors (idempotent operation)
+      if (errorText.includes('already archived')) {
+        return;
+      }
+
+      throw new Error(`Failed to archive approval rule: ${response.status()} - ${errorText}`);
+    }
+  },
+
+  /**
+   * Restore an archived approval rule via API
+   *
+   * @param page - Playwright page object (must be authenticated)
+   * @param ruleId - Approval rule ID to restore
+   *
+   * @example
+   * ```typescript
+   * await ApprovalRuleFactory.restore(page, ruleId);
+   * ```
+   */
+  async restore(page: Page, ruleId: string): Promise<void> {
+    const response = await makeAuthenticatedRequest(page, 'POST', `/api/transfer-approval-rules/${ruleId}/restore`);
+
+    if (!response.ok()) {
+      const errorText = await response.text();
+
+      // Ignore "not archived" errors (idempotent operation)
+      if (errorText.includes('not archived') || errorText.includes('already active')) {
+        return;
+      }
+
+      throw new Error(`Failed to restore approval rule: ${response.status()} - ${errorText}`);
+    }
+  },
+
+  /**
+   * Delete an approval rule via API (alias for archive for backward compatibility)
    *
    * @param page - Playwright page object (must be authenticated)
    * @param ruleId - Approval rule ID to delete
@@ -941,12 +993,50 @@ export const ApprovalRuleFactory = {
    * ```
    */
   async delete(page: Page, ruleId: string): Promise<void> {
-    const response = await makeAuthenticatedRequest(page, 'DELETE', `/api/transfer-approval-rules/${ruleId}`);
+    return this.archive(page, ruleId);
+  },
+
+  /**
+   * Get all approval rules via API
+   *
+   * @param page - Playwright page object (must be authenticated)
+   * @param params - Optional filter parameters
+   * @returns Array of approval rule objects
+   *
+   * @example
+   * ```typescript
+   * const rules = await ApprovalRuleFactory.getAll(page);
+   * const archivedRules = await ApprovalRuleFactory.getAll(page, { archivedFilter: 'archived-only' });
+   * ```
+   */
+  async getAll(
+    page: Page,
+    params?: {
+      archivedFilter?: 'active-only' | 'archived-only' | 'all';
+    }
+  ): Promise<Array<{ id: string; name: string; isArchived?: boolean; isActive?: boolean }>> {
+    const apiUrl = getApiUrl();
+    const cookieHeader = await getCookieHeader(page);
+
+    const search = new URLSearchParams();
+    if (params?.archivedFilter) {
+      search.set('archivedFilter', params.archivedFilter);
+    }
+
+    const qs = search.toString();
+    const response = await page.request.get(
+      `${apiUrl}/api/transfer-approval-rules${qs ? `?${qs}` : ''}`,
+      {
+        headers: { 'Cookie': cookieHeader },
+      }
+    );
 
     if (!response.ok()) {
-      const errorText = await response.text();
-      throw new Error(`Failed to delete approval rule: ${response.status()} - ${errorText}`);
+      throw new Error(`Failed to fetch approval rules: ${response.status()}`);
     }
+
+    const data = await response.json();
+    return data.data.items;
   },
 };
 

@@ -155,6 +155,21 @@ export const SELECTORS = {
   },
 
   /**
+   * Approval rule management selectors
+   */
+  APPROVAL_RULE: {
+    // Actions
+    ARCHIVE_BUTTON: 'archive-approval-rule-btn',
+    RESTORE_BUTTON: 'restore-approval-rule-btn',
+    TOGGLE_ACTIVE_SWITCH: 'approval-rule-active-switch',
+
+    // Display elements
+    ARCHIVED_BADGE: 'approval-rule-archived-badge',
+    INACTIVE_BADGE: 'approval-rule-inactive-badge',
+    ARCHIVED_FILTER_SELECT: 'approval-rule-archived-filter-select',
+  },
+
+  /**
    * Common UI element selectors
    */
   COMMON: {

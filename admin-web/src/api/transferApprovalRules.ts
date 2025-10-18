@@ -34,6 +34,7 @@ export type { TransferApprovalRule };
 // List approval rules (GET /api/transfer-approval-rules)
 export async function listApprovalRulesApiRequest(params?: {
   isActive?: boolean;
+  archivedFilter?: "active-only" | "archived-only" | "all";
   sortBy?: "priority" | "name" | "createdAt";
   sortDir?: "asc" | "desc";
   limit?: number;
@@ -41,6 +42,7 @@ export async function listApprovalRulesApiRequest(params?: {
 }) {
   const search = new URLSearchParams();
   if (params?.isActive !== undefined) search.set("isActive", String(params.isActive));
+  if (params?.archivedFilter) search.set("archivedFilter", params.archivedFilter);
   if (params?.sortBy) search.set("sortBy", params.sortBy);
   if (params?.sortDir) search.set("sortDir", params.sortDir);
   if (params?.limit !== undefined) search.set("limit", String(params.limit));
@@ -93,6 +95,7 @@ export async function updateApprovalRuleApiRequest(
 }
 
 // Delete approval rule (DELETE /api/transfer-approval-rules/{ruleId})
+// Note: This actually archives the rule (soft delete)
 export async function deleteApprovalRuleApiRequest(
   ruleId: string,
   idempotencyKeyOptional?: string
@@ -101,6 +104,25 @@ export async function deleteApprovalRuleApiRequest(
     `/api/transfer-approval-rules/${ruleId}`,
     {
       method: "DELETE",
+      headers: idempotencyKeyOptional
+        ? { "Idempotency-Key": idempotencyKeyOptional }
+        : undefined,
+    }
+  );
+}
+
+type RestoreRule200Response =
+  paths["/api/transfer-approval-rules/{ruleId}/restore"]["post"]["responses"]["200"]["content"]["application/json"];
+
+// Restore archived approval rule (POST /api/transfer-approval-rules/{ruleId}/restore)
+export async function restoreApprovalRuleApiRequest(
+  ruleId: string,
+  idempotencyKeyOptional?: string
+) {
+  return httpRequestJson<RestoreRule200Response>(
+    `/api/transfer-approval-rules/${ruleId}/restore`,
+    {
+      method: "POST",
       headers: idempotencyKeyOptional
         ? { "Idempotency-Key": idempotencyKeyOptional }
         : undefined,
