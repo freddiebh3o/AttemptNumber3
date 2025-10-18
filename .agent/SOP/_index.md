@@ -8,7 +8,7 @@ This directory contains step-by-step guides for common development tasks, testin
 
 | Category | SOPs |
 |----------|------|
-| **Development** | [adding-new-feature.md](#adding-new-feature) |
+| **Development** | [adding-new-feature.md](#adding-new-feature), [database-migrations.md](#database-migrations) |
 | **Testing** | [testing-overview.md](#testing-overview), [backend-testing.md](#backend-testing), [frontend-testing.md](#frontend-testing), [testing-guide.md](#testing-guide) |
 | **Test Quality** | [test-flakiness.md](#test-flakiness), [test-isolation-pattern.md](#test-isolation-pattern), [frontend-test-isolation.md](#frontend-test-isolation), [troubleshooting-tests.md](#troubleshooting-tests) |
 | **Debugging** | [debugging-guide.md](#debugging-guide) |
@@ -52,6 +52,53 @@ Complete step-by-step workflow for adding a new feature to the system (using "Su
 3. Create service → OpenAPI schemas → router → register
 4. Regenerate types → API client → page component → routing
 5. Write tests → verify functionality
+```
+
+---
+
+### database-migrations.md
+
+**Full Path:** `.agent/SOP/database-migrations.md`
+
+**What it covers:**
+Complete guide to working with Prisma migrations, including shadow database setup for PostgreSQL extensions.
+
+**Steps covered:**
+1. **Migration basics** - What migrations are, how they work
+2. **Shadow database setup** - Configure shadow database for pgvector extension
+3. **Common commands** - Development and production migration commands
+4. **Creating migrations** - Standard workflow and custom SQL
+5. **Troubleshooting** - Common migration issues and solutions
+6. **Best practices** - Naming conventions, when to reset, production checklist
+
+**When to use:**
+- ✅ Creating new database migrations
+- ✅ Setting up shadow database for first time
+- ✅ Fixing migration errors (drift, pgvector issues)
+- ✅ Understanding migration workflow
+- ✅ Deploying migrations to production
+- ✅ Troubleshooting "shadow database" errors
+
+**Key sections:**
+- Shadow database setup for pgvector (one-time, ~5 minutes)
+- Migration command reference
+- Troubleshooting common issues
+- Production deployment checklist
+- Best practices and naming conventions
+
+**Common scenarios:**
+- **"Migration failed to apply to shadow database"** → Setup shadow database with pgvector
+- **"Drift detected"** → Create baseline or reset database
+- **"The relation already exists"** → Resolve migration as applied
+- **"pgvector extension not found"** → Enable vector extension in shadow database
+
+**Quick setup:**
+```bash
+# 1. Create shadow database on Supabase
+# 2. Enable vector extension
+# 3. Add SHADOW_DATABASE_URL to .env
+# 4. Update schema.prisma with shadowDatabaseUrl
+# 5. Test: npm run db:migrate -- --name test
 ```
 
 ---
@@ -554,7 +601,10 @@ function MyComponent() {
 
 | Task | Primary SOP | Supporting SOPs |
 |------|-------------|-----------------|
-| **Add new feature** | adding-new-feature.md | - |
+| **Add new feature** | adding-new-feature.md | database-migrations.md |
+| **Create database migration** | database-migrations.md | - |
+| **Fix shadow database error** | database-migrations.md | - |
+| **Setup shadow database** | database-migrations.md | - |
 | **Write backend test** | backend-testing.md | testing-overview.md, test-isolation-pattern.md |
 | **Write E2E test** | frontend-testing.md | testing-overview.md, frontend-test-isolation.md |
 | **Fix flaky test** | test-flakiness.md | troubleshooting-tests.md |
@@ -684,14 +734,14 @@ function MyComponent() {
 
 ## Statistics
 
-**Total SOPs:** 11
+**Total SOPs:** 12
 
 **By Category:**
-- Development: 1
+- Development: 2 (adding features, database migrations)
 - Testing: 4 (overview, backend, frontend, comprehensive)
 - Test Quality: 4 (flakiness, isolation patterns)
 - Debugging: 1
-- Feature Guides: 1
+- Feature Guides: 2 (stock transfers, feature flags)
 
 **Most Referenced SOPs:**
 1. testing-overview.md
@@ -707,7 +757,7 @@ function MyComponent() {
 
 ---
 
-**Last Updated:** 2025-01-15
-**Total SOPs:** 11
-**Total Pages:** ~300 pages of documentation
+**Last Updated:** 2025-10-18
+**Total SOPs:** 12
+**Total Pages:** ~350 pages of documentation
 **Code Examples:** 100+ across all SOPs
