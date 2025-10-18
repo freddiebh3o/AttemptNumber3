@@ -34,8 +34,8 @@ Each branch has:
 - Example: "London Warehouse", "Paris Retail Store"
 
 **Status**
-- **Active** - Branch is operational, users can access it
-- **Inactive** - Branch is archived, hidden from most operations but retained for history
+- **Active** - Branch is operational and available for use
+- **Inactive** - Branch is temporarily disabled but still accessible
 
 ## Creating a Branch
 
@@ -93,11 +93,11 @@ Click **"Save"** to create the branch.
 - Choose a different slug
 - Example: If `warehouse-1` exists, use `warehouse-2`
 
-## Editing a Branch
+## Viewing and Editing Branches
 
 ### Opening a Branch
 
-From the Branches page, click the branch name or edit icon.
+From the Branches page, click the **View** button (eye icon) next to any branch to open the branch detail page.
 
 ### What You Can Edit
 
@@ -142,7 +142,13 @@ Click **"Filters"** to access:
 
 **Status**
 - Filter by Active or Inactive
-- Default: Shows active branches only
+- Shows both active and inactive branches
+
+**Archive Filter**
+- **Active branches only** (default) - Shows only branches that haven't been archived
+- **Archived branches only** - Shows only archived branches
+- **All branches (active + archived)** - Shows everything
+- Default: Active branches only
 
 **Created Date Range**
 - From/To dates
@@ -166,35 +172,70 @@ Click column headers to sort by:
 - **Navigation:** Prev/Next buttons
 - **Current position:** "Showing 1-20 of 45"
 
-## Deactivating a Branch
+## Archiving a Branch
 
-### When to Deactivate
+### When to Archive
 
-Deactivate a branch when:
+Archive a branch when:
 - Location is permanently closed
 - Branch is being consolidated with another location
-- You want to archive old data without deleting it
+- You want to hide old branches from active lists
+- You need to "delete" a branch but preserve all historical data
 
-**Important:** Deactivation is different from deletion. Historical data (stock movements, transfers) is preserved.
+**Important:** Archiving is a soft delete - the branch is hidden from active lists but all historical data (stock movements, transfers, user assignments) is preserved and can be restored at any time.
 
-### How to Deactivate
+### How to Archive
 
-**Option 1: Edit Form**
-1. Open the branch
-2. Change Status toggle to **Inactive**
-3. Click **"Save"**
+1. Click the **View** button next to the branch (or open any branch detail page)
+2. Click the **"Archive Branch"** button (red button with archive icon)
+3. Review the confirmation modal:
+   - "This branch will be hidden from your active branch list but can be restored at any time."
+   - "All stock history, transfers, and user assignments will be preserved."
+4. Click **"Archive"** to confirm
 
-**Option 2: Delete Button**
-1. From the branches list, click the **red delete icon**
-2. Branch is marked as inactive (not permanently deleted)
+**Note:** You cannot archive branches from the list view. You must open the branch detail page first.
 
-### What Happens When Deactivated
+### What Happens When Archived
 
-- Branch hidden from most dropdowns and lists
-- Historical stock movements remain visible in reports
-- Past transfers still show the branch name
-- Users can no longer select this branch for new operations
-- Can be reactivated later by toggling status back to Active
+**Immediately:**
+- Branch is hidden from the active branches list
+- Branch shows an "Archived" badge when viewing
+- Edit and Save buttons are hidden (branch becomes read-only)
+- Branch no longer appears in dropdowns for new operations
+
+**Preserved:**
+- All historical stock movements remain intact
+- Past transfers still reference the branch
+- Stock ledger entries remain visible
+- User branch memberships are preserved
+- Complete audit trail is maintained
+
+**Access:**
+- Archived branches can still be accessed via direct URL
+- Use the Archive Filter to view archived branches
+- All historical data remains queryable in reports
+
+## Restoring an Archived Branch
+
+### When to Restore
+
+Restore a branch when:
+- Location has reopened
+- Branch was archived by mistake
+- You need to reactivate operations at that location
+
+### How to Restore
+
+1. Go to the **Branches** page
+2. Click **"Filters"**
+3. Set **Archive Filter** to **"Archived branches only"** or **"All branches"**
+4. Click **"Apply"**
+5. Find the archived branch (shows "Archived" badge)
+6. Click the **View** button
+7. Click the **"Restore"** button (blue button)
+8. Branch is immediately restored and returned to active status
+
+**Note:** Restoring a branch makes it available for new operations again. All preserved historical data remains intact.
 
 ## Branch Memberships
 
@@ -258,10 +299,13 @@ Click **"Filters"** to narrow down:
 
 ✅ **Use descriptive slugs** - `warehouse-london` is better than `loc-01`
 ✅ **Keep names clear** - "London Warehouse" is better than "LW"
-✅ **Deactivate instead of delete** - Preserves historical data
+✅ **Archive instead of inactivate** - Use archive for permanently closed branches, keeps data intact
+✅ **Use status toggle for temporary changes** - Set to Inactive for temporary closures, Active for operations
+✅ **Archive preserves everything** - Stock history, transfers, and user assignments remain intact
 ✅ **Assign users to appropriate branches** - Controls access and visibility
 ✅ **Review activity logs** - Track changes and troubleshoot issues
 ✅ **Use consistent naming** - Follow a pattern like "City + Type" (e.g., "Paris Retail")
+✅ **Filter to find archived branches** - Use Archive Filter to review or restore old branches
 
 ## Common Tasks
 
@@ -290,20 +334,40 @@ For bulk setup:
 3. Use the **Branches** multiselect to add/remove branches
 4. Save
 
-### Task: Find Inactive Branches
+### Task: Find Archived Branches
 
 1. Go to **Branches** page
 2. Click **"Filters"**
-3. Set **Status** filter to **Inactive**
+3. Set **Archive Filter** to **"Archived branches only"**
 4. Click **"Apply"**
+5. View all archived branches with "Archived" badges
 
-### Task: Reactivate a Closed Branch
+### Task: Archive Multiple Branches
+
+1. Open each branch detail page individually
+2. Click **"Archive Branch"** button
+3. Confirm the archive action
+4. Repeat for each branch
+
+**Note:** There's no bulk archive feature yet. Each branch must be archived individually.
+
+### Task: Restore an Archived Branch
 
 1. Go to **Branches** page
-2. Filter by **Inactive** status
-3. Click the branch name
-4. Change Status toggle to **Active**
-5. Save
+2. Click **"Filters"**
+3. Set **Archive Filter** to **"Archived branches only"**
+4. Click **"Apply"**
+5. Click **View** button on the archived branch
+6. Click **"Restore"** button
+7. Branch is immediately restored
+
+### Task: View All Branches (Active and Archived)
+
+1. Go to **Branches** page
+2. Click **"Filters"**
+3. Set **Archive Filter** to **"All branches (active + archived)"**
+4. Click **"Apply"**
+5. Active and archived branches both appear (archived ones have badges)
 
 ## Permissions Required
 
@@ -344,13 +408,25 @@ If you can't see the Branches menu or "New Branch" button, contact your admin to
 
 **Can't delete a branch**
 - There's no permanent deletion (by design)
-- Use the delete button to mark it as **Inactive**
-- Inactive branches are hidden but data is preserved
+- Use the **"Archive Branch"** button on the branch detail page
+- Archived branches are hidden from active lists but data is preserved
+- Archived branches can be restored at any time
 
 **Branch appears in some places but not others**
-- Check if branch is **Inactive**
-- Inactive branches are hidden from dropdowns
-- Reactivate the branch if needed
+- Check if branch is **Archived**
+- Archived branches are hidden from active lists and dropdowns
+- Use the Archive Filter to view archived branches
+- Restore the branch if it should be active
+
+**Can't edit an archived branch**
+- This is by design - archived branches are read-only
+- Click the **"Restore"** button first to enable editing
+- Once restored, you can edit the branch normally
+
+**Archived branch not appearing in list**
+- Default view shows only active branches
+- Click **"Filters"** and change **Archive Filter** to **"Archived branches only"** or **"All branches"**
+- Click **"Apply"** to see archived branches
 
 ## Related Guides
 

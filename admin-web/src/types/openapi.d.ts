@@ -3317,6 +3317,7 @@ export interface paths {
                     cursorId?: string;
                     q?: string;
                     isActive?: boolean;
+                    archivedFilter?: "active-only" | "archived-only" | "all";
                     sortBy?: "branchName" | "createdAt" | "updatedAt" | "isActive";
                     sortDir?: "asc" | "desc";
                     includeTotal?: boolean;
@@ -3656,7 +3657,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Deactivated branch */
+                /** @description Archived branch */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -3666,7 +3667,7 @@ export interface paths {
                             /** @enum {boolean} */
                             success: true;
                             data: {
-                                hasDeactivatedBranch: boolean;
+                                success: boolean;
                             };
                             error: unknown;
                         };
@@ -3723,6 +3724,99 @@ export interface paths {
                 };
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/branches/{branchId}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    branchId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Restored archived branch */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                success: boolean;
+                            };
+                            error: unknown;
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        "X-RateLimit-Limit": string;
+                        "X-RateLimit-Remaining": string;
+                        "X-RateLimit-Reset": string;
+                        "Retry-After": string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Internal Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -7137,6 +7231,10 @@ export interface components {
             branchSlug: string;
             branchName: string;
             isActive: boolean;
+            isArchived: boolean;
+            /** Format: date-time */
+            archivedAt: string | null;
+            archivedByUserId: string | null;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -7160,6 +7258,8 @@ export interface components {
                 filters: {
                     q?: string;
                     isActive?: boolean;
+                    /** @enum {string} */
+                    archivedFilter?: "active-only" | "archived-only" | "all";
                 };
             };
         };

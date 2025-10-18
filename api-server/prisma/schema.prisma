@@ -157,6 +157,11 @@ model Branch {
   branchName String
   isActive   Boolean @default(true)
 
+  /// Soft delete fields
+  isArchived       Boolean   @default(false)
+  archivedAt       DateTime?
+  archivedByUserId String?
+
   // Relations
   memberships               UserBranchMembership[]
   productStocks             ProductStock[]
@@ -176,6 +181,7 @@ model Branch {
   @@unique([tenantId, branchSlug]) // unique slug per tenant
   @@index([tenantId])
   @@index([tenantId, branchName])
+  @@index([tenantId, isArchived])
 }
 
 model UserBranchMembership {

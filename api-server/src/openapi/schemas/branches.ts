@@ -7,6 +7,9 @@ export const ZodBranchRecord = z.object({
   branchSlug: z.string(),
   branchName: z.string(),
   isActive: z.boolean(),
+  isArchived: z.boolean(),
+  archivedAt: z.string().datetime().nullable(),
+  archivedByUserId: z.string().nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 }).openapi('BranchRecord');
@@ -32,6 +35,7 @@ export const ZodListBranchesQuery = z.object({
   cursorId: z.string().optional(),
   q: z.string().optional(),
   isActive: z.boolean().optional(),
+  archivedFilter: z.enum(['active-only', 'archived-only', 'all']).optional(),
   sortBy: z.enum(['branchName', 'createdAt', 'updatedAt', 'isActive']).optional(),
   sortDir: z.enum(['asc', 'desc']).optional(),
   includeTotal: z.boolean().optional(),
@@ -53,6 +57,7 @@ export const ZodBranchesListResponseData = z.object({
     filters: z.object({
       q: z.string().optional(),
       isActive: z.boolean().optional(),
+      archivedFilter: z.enum(['active-only', 'archived-only', 'all']).optional(),
     }),
   }),
 }).openapi('BranchesListResponseData');

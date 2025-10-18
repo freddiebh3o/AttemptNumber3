@@ -103,7 +103,7 @@ export function registerBranchPaths(registry: OpenAPIRegistry) {
     },
   });
 
-  // DELETE /api/branches/{branchId}
+  // DELETE /api/branches/{branchId} (now archives instead)
   registry.registerPath({
     tags: ['Branches'],
     method: 'delete',
@@ -112,8 +112,28 @@ export function registerBranchPaths(registry: OpenAPIRegistry) {
     request: { params: ZodUpdateBranchParams },
     responses: {
       200: {
-        description: 'Deactivated branch',
-        content: { 'application/json': { schema: successEnvelope(z.object({ hasDeactivatedBranch: z.boolean() })) } },
+        description: 'Archived branch',
+        content: { 'application/json': { schema: successEnvelope(z.object({ success: z.boolean() })) } },
+      },
+      401: RESPONSES[401],
+      403: RESPONSES[403],
+      404: RESPONSES[404],
+      429: RESPONSES[429],
+      500: RESPONSES[500],
+    },
+  });
+
+  // POST /api/branches/{branchId}/restore
+  registry.registerPath({
+    tags: ['Branches'],
+    method: 'post',
+    path: '/api/branches/{branchId}/restore',
+    security: [{ cookieAuth: [] }],
+    request: { params: ZodUpdateBranchParams },
+    responses: {
+      200: {
+        description: 'Restored archived branch',
+        content: { 'application/json': { schema: successEnvelope(z.object({ success: z.boolean() })) } },
       },
       401: RESPONSES[401],
       403: RESPONSES[403],

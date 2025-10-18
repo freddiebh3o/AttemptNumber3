@@ -29,12 +29,16 @@ type GetBranch200Response =
 type GetBranchActivity200Response =
   paths["/api/branches/{branchId}/activity"]["get"]["responses"]["200"]["content"]["application/json"];
 
+type RestoreBranch200Response =
+  paths["/api/branches/{branchId}/restore"]["post"]["responses"]["200"]["content"]["application/json"];
+
 // List (GET /api/branches)
 export async function listBranchesApiRequest(params?: {
   limit?: number;
   cursorId?: string;
   q?: string; // name contains
   isActive?: boolean;
+  archivedFilter?: "active-only" | "archived-only" | "all";
   // NOTE: If your backend ignores unknown params, you can keep these.
   // If you want strict OpenAPI conformance, remove them here and in the caller.
   createdAtFrom?: string; // YYYY-MM-DD
@@ -50,6 +54,7 @@ export async function listBranchesApiRequest(params?: {
   if (params?.cursorId !== undefined) search.set("cursorId", String(params.cursorId));
   if (params?.q) search.set("q", params.q);
   if (params?.isActive !== undefined) search.set("isActive", String(params.isActive));
+  if (params?.archivedFilter) search.set("archivedFilter", params.archivedFilter);
 
   // Safe to include if backend ignores unknowns (else delete these four lines)
   if (params?.createdAtFrom) search.set("createdAtFrom", params.createdAtFrom);
@@ -145,5 +150,22 @@ export async function getBranchActivityApiRequest(params: {
   const qs = sp.toString();
   return httpRequestJson<GetBranchActivity200Response>(
     `/api/branches/${branchId}/activity${qs ? `?${qs}` : ""}`
+  );
+}
+
+// Restore (POST /api/branches/{branchId}/restore)
+export async function restoreBranchApiRequest(params: {
+  branchId: string;
+  idempotencyKeyOptional?: string;
+}) {
+  const { branchId, idempotencyKeyOptional } = params;
+  return httpRequestJson<RestoreBranch200Response>(
+    `/api/branches/${branchId}/restore`,
+    {
+      method: "POST",
+      headers: idempotencyKeyOptional
+        ? { "Idempotency-Key": idempotencyKeyOptional }
+        : undefined,
+    }
   );
 }

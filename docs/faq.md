@@ -368,10 +368,37 @@ A physical location where inventory is stored.
 
 ### Can I delete a branch?
 
-Not currently implemented. You can deactivate a branch instead:
-- Set "Active" toggle to OFF
-- Branch hidden from most operations
-- Historical data preserved
+Yes! You can **archive** a branch (soft delete):
+1. Open the branch detail page
+2. Click **"Archive Branch"** button
+3. Confirm the action
+
+**What happens:**
+- Branch is hidden from active lists
+- All historical data is preserved (stock, transfers, users)
+- Can be restored anytime via the **"Restore"** button
+- Branch becomes read-only until restored
+
+**To view archived branches:**
+- Go to Branches page
+- Click **"Filters"**
+- Set **Archive Filter** to **"Archived branches only"**
+
+**See:** [Managing Branches - Archiving](branches-users/managing-branches.md#archiving-a-branch)
+
+### How do I restore an archived branch?
+
+1. Go to **Branches** page
+2. Click **"Filters"**
+3. Set **Archive Filter** to **"Archived branches only"** or **"All branches"**
+4. Click **"Apply"**
+5. Find the archived branch (shows "Archived" badge)
+6. Click the **View** button
+7. Click **"Restore"** button (blue button)
+
+The branch is immediately restored and available for use again.
+
+**See:** [Managing Branches - Restoring](branches-users/managing-branches.md#restoring-an-archived-branch)
 
 ## Analytics & Reports
 

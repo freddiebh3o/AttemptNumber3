@@ -16,7 +16,9 @@ import {
   createBranchForCurrentTenantService,
   updateBranchForCurrentTenantService,
   deactivateBranchForCurrentTenantService,
-  getBranchForCurrentTenantService,          // <-- NEW
+  getBranchForCurrentTenantService,
+  archiveBranchForCurrentTenantService,
+  restoreBranchForCurrentTenantService,
 } from '../services/branches/branchService.js';
 import { getAuditContext } from '../utils/auditContext.js';
 import { getBranchActivityForCurrentTenantService } from '../services/branches/branchActivityService.js'; // <-- NEW
@@ -30,6 +32,7 @@ const listQuerySchema = z.object({
   cursorId: z.string().min(1).optional(),
   q: z.string().min(1).optional(),
   isActive: z.coerce.boolean().optional(),
+  archivedFilter: z.enum(['active-only', 'archived-only', 'all']).optional(),
   sortBy: z.enum(['branchName', 'createdAt', 'updatedAt', 'isActive']).optional(),
   sortDir: z.enum(['asc', 'desc']).optional(),
   includeTotal: z.coerce.boolean().optional(),
@@ -76,6 +79,7 @@ branchRouter.get(
         ...(q.cursorId !== undefined && { cursorIdOptional: q.cursorId }),
         ...(q.q !== undefined && { qOptional: q.q }),
         ...(q.isActive !== undefined && { isActiveOptional: q.isActive }),
+        ...(q.archivedFilter !== undefined && { archivedFilterOptional: q.archivedFilter }),
         ...(q.sortBy !== undefined && { sortByOptional: q.sortBy }),
         ...(q.sortDir !== undefined && { sortDirOptional: q.sortDir }),
         ...(q.includeTotal !== undefined && { includeTotalOptional: q.includeTotal }),
@@ -167,7 +171,7 @@ branchRouter.put(
   }
 );
 
-// DELETE /api/branches/:branchId  (soft delete → isActive=false)
+// DELETE /api/branches/:branchId  (archive - soft delete)
 branchRouter.delete(
   '/:branchId',
   requireAuthenticatedUserMiddleware,
@@ -178,7 +182,31 @@ branchRouter.delete(
       assertAuthed(req);
       const ctx = getAuditContext(req);
       const { branchId } = req.validatedParams as z.infer<typeof updateParamsSchema>;
-      const out = await deactivateBranchForCurrentTenantService({
+      const out = await archiveBranchForCurrentTenantService({
+        currentTenantId: req.currentTenantId,
+        branchIdPathParam: branchId,
+        actorUserId: req.currentUserId,
+        auditContextOptional: ctx,
+      });
+      return res.status(200).json(createStandardSuccessResponse(out));
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
+// POST /api/branches/:branchId/restore
+branchRouter.post(
+  '/:branchId/restore',
+  requireAuthenticatedUserMiddleware,
+  requirePermission('tenant:manage'),
+  validateRequestParamsWithZod(updateParamsSchema),
+  async (req, res, next) => {
+    try {
+      assertAuthed(req);
+      const ctx = getAuditContext(req);
+      const { branchId } = req.validatedParams as z.infer<typeof updateParamsSchema>;
+      const out = await restoreBranchForCurrentTenantService({
         currentTenantId: req.currentTenantId,
         branchIdPathParam: branchId,
         auditContextOptional: ctx,

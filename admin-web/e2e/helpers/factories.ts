@@ -133,9 +133,88 @@ export const ProductFactory = {
 };
 
 /**
- * Branch factory for getting branch IDs in E2E tests
+ * Branch factory for creating, archiving, and managing branches in E2E tests
  */
 export const BranchFactory = {
+  /**
+   * Create a branch via API
+   *
+   * @param page - Playwright page object (must be authenticated)
+   * @param params - Branch creation parameters
+   * @returns Branch ID
+   *
+   * @example
+   * ```typescript
+   * const branchId = await BranchFactory.create(page, {
+   *   branchSlug: 'test-branch',
+   *   branchName: 'Test Branch',
+   *   isActive: true,
+   * });
+   * ```
+   */
+  async create(
+    page: Page,
+    params: {
+      branchSlug: string;
+      branchName: string;
+      isActive?: boolean;
+    }
+  ): Promise<string> {
+    const response = await makeAuthenticatedRequest(page, 'POST', '/api/branches', {
+      branchSlug: params.branchSlug,
+      branchName: params.branchName,
+      isActive: params.isActive ?? true,
+    });
+
+    if (!response.ok()) {
+      const errorText = await response.text();
+      throw new Error(`Failed to create branch: ${response.status()} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    return data.data.branch.id;
+  },
+
+  /**
+   * Archive a branch via API (soft delete)
+   *
+   * @param page - Playwright page object (must be authenticated)
+   * @param branchId - Branch ID to archive
+   *
+   * @example
+   * ```typescript
+   * await BranchFactory.archive(page, branchId);
+   * ```
+   */
+  async archive(page: Page, branchId: string): Promise<void> {
+    const response = await makeAuthenticatedRequest(page, 'DELETE', `/api/branches/${branchId}`);
+
+    if (!response.ok()) {
+      const errorText = await response.text();
+      throw new Error(`Failed to archive branch: ${response.status()} - ${errorText}`);
+    }
+  },
+
+  /**
+   * Restore an archived branch via API
+   *
+   * @param page - Playwright page object (must be authenticated)
+   * @param branchId - Branch ID to restore
+   *
+   * @example
+   * ```typescript
+   * await BranchFactory.restore(page, branchId);
+   * ```
+   */
+  async restore(page: Page, branchId: string): Promise<void> {
+    const response = await makeAuthenticatedRequest(page, 'POST', `/api/branches/${branchId}/restore`);
+
+    if (!response.ok()) {
+      const errorText = await response.text();
+      throw new Error(`Failed to restore branch: ${response.status()} - ${errorText}`);
+    }
+  },
+
   /**
    * Get the first branch ID for the authenticated tenant
    *
@@ -203,21 +282,36 @@ export const BranchFactory = {
    * Get all branches for the authenticated tenant
    *
    * @param page - Playwright page object (must be authenticated)
+   * @param params - Optional filter parameters
    * @returns Array of branch objects with id and branchName
    *
    * @example
    * ```typescript
    * const branches = await BranchFactory.getAll(page);
-   * const firstBranchId = branches[0].id;
+   * const allBranches = await BranchFactory.getAll(page, { archivedFilter: 'all' });
    * ```
    */
-  async getAll(page: Page): Promise<Array<{ id: string; branchName: string }>> {
+  async getAll(
+    page: Page,
+    params?: {
+      archivedFilter?: 'active-only' | 'archived-only' | 'all';
+    }
+  ): Promise<Array<{ id: string; branchName: string; isArchived?: boolean }>> {
     const apiUrl = getApiUrl();
     const cookieHeader = await getCookieHeader(page);
 
-    const response = await page.request.get(`${apiUrl}/api/branches`, {
-      headers: { 'Cookie': cookieHeader },
-    });
+    const search = new URLSearchParams();
+    if (params?.archivedFilter) {
+      search.set('archivedFilter', params.archivedFilter);
+    }
+
+    const qs = search.toString();
+    const response = await page.request.get(
+      `${apiUrl}/api/branches${qs ? `?${qs}` : ''}`,
+      {
+        headers: { 'Cookie': cookieHeader },
+      }
+    );
 
     if (!response.ok()) {
       throw new Error(`Failed to fetch branches: ${response.status()}`);

@@ -31,8 +31,7 @@ import { DatePickerInput } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
 import {
   IconPlus,
-  IconPencil,
-  IconTrash,
+  IconEye,
   IconRefresh,
   IconArrowsSort,
   IconArrowUp,
@@ -46,7 +45,6 @@ import {
 } from "@tabler/icons-react";
 import {
   listBranchesApiRequest,
-  deleteBranchApiRequest,
 } from "../api/branches";
 import { handlePageError } from "../utils/pageError";
 import { useAuthStore } from "../stores/auth";
@@ -59,10 +57,12 @@ type BranchRow = components["schemas"]["BranchRecord"];
 type SortField = "branchName" | "createdAt" | "updatedAt" | "isActive";
 type SortDir = "asc" | "desc";
 type ActiveFilter = "" | "true" | "false";
+type ArchivedFilter = "active-only" | "archived-only" | "all";
 
 type BranchFilters = {
   q: string; // name contains
   isActive: ActiveFilter;
+  archivedFilter: ArchivedFilter;
   createdAtFrom: string | null; // YYYY-MM-DD (UI convenience; server ignores if unsupported)
   createdAtTo: string | null;
   updatedAtFrom: string | null;
@@ -72,6 +72,7 @@ type BranchFilters = {
 const emptyFilters: BranchFilters = {
   q: "",
   isActive: "",
+  archivedFilter: "active-only",
   createdAtFrom: null,
   createdAtTo: null,
   updatedAtFrom: null,
@@ -143,6 +144,7 @@ export default function BranchesPage() {
     sortDir?: SortDir;
     q?: string | null | undefined;
     isActive?: ActiveFilter | null | undefined;
+    archivedFilter?: ArchivedFilter | null | undefined;
     createdAtFrom?: string | null | undefined;
     createdAtTo?: string | null | undefined;
     updatedAtFrom?: string | null | undefined;
@@ -164,6 +166,11 @@ export default function BranchesPage() {
       overrides?.isActive === undefined
         ? appliedFilters.isActive || null
         : overrides.isActive ?? null;
+
+    const archivedVal =
+      overrides?.archivedFilter === undefined
+        ? appliedFilters.archivedFilter
+        : overrides.archivedFilter ?? "active-only";
 
     const createdFromVal =
       overrides &&
@@ -194,6 +201,7 @@ export default function BranchesPage() {
     put("sortDir", overrides?.sortDir ?? sortDir);
     put("q", qVal);
     put("isActive", activeVal);
+    put("archivedFilter", archivedVal);
     put("createdAtFrom", createdFromVal);
     put("createdAtTo", createdToVal);
     put("updatedAtFrom", updatedFromVal);
@@ -219,6 +227,7 @@ export default function BranchesPage() {
     limitOverride?: number;
     qOverride?: string | null | undefined;
     isActiveOverride?: ActiveFilter | null | undefined;
+    archivedFilterOverride?: ArchivedFilter | null | undefined;
     createdFromOverride?: string | null | undefined;
     createdToOverride?: string | null | undefined;
     updatedFromOverride?: string | null | undefined;
@@ -239,6 +248,11 @@ export default function BranchesPage() {
           : opts.isActiveOverride == null || opts.isActiveOverride === ""
           ? undefined
           : opts.isActiveOverride === "true";
+
+      const archivedFilterParam =
+        opts?.archivedFilterOverride === undefined
+          ? appliedFilters.archivedFilter
+          : opts.archivedFilterOverride ?? "active-only";
 
       const createdFromParam =
         opts?.createdFromOverride === undefined
@@ -265,6 +279,7 @@ export default function BranchesPage() {
         cursorId: opts?.cursorId ?? cursorStack[pageIndex] ?? undefined,
         q: qParam,
         isActive: isActiveParam,
+        archivedFilter: archivedFilterParam,
         // If your backend doesn't accept the date filters, they'll simply be ignored client-side.
         createdAtFrom: createdFromParam,
         createdAtTo: createdToParam,
@@ -317,6 +332,7 @@ export default function BranchesPage() {
     limitOverride?: number;
     qOverride?: string | null | undefined;
     isActiveOverride?: ActiveFilter | null | undefined;
+    archivedFilterOverride?: ArchivedFilter | null | undefined;
     createdFromOverride?: string | null | undefined;
     createdToOverride?: string | null | undefined;
     updatedFromOverride?: string | null | undefined;
@@ -332,6 +348,7 @@ export default function BranchesPage() {
       sortDir: opts?.sortDirOverride,
       q: opts?.qOverride,
       isActive: opts?.isActiveOverride ?? null,
+      archivedFilter: opts?.archivedFilterOverride ?? null,
       createdAtFrom: opts?.createdFromOverride,
       createdAtTo: opts?.createdToOverride,
       updatedAtFrom: opts?.updatedFromOverride,
@@ -346,6 +363,7 @@ export default function BranchesPage() {
       cursorId: null,
       q: values.q.trim() || null,
       isActive: values.isActive || null,
+      archivedFilter: values.archivedFilter,
       createdAtFrom: values.createdAtFrom ?? null,
       createdAtTo: values.createdAtTo ?? null,
       updatedAtFrom: values.updatedAtFrom ?? null,
@@ -354,6 +372,7 @@ export default function BranchesPage() {
     resetToFirstPageAndFetch({
       qOverride: values.q.trim() || null,
       isActiveOverride: values.isActive || null,
+      archivedFilterOverride: values.archivedFilter,
       createdFromOverride: values.createdAtFrom ?? null,
       createdToOverride: values.createdAtTo ?? null,
       updatedFromOverride: values.updatedAtFrom ?? null,
@@ -381,6 +400,7 @@ export default function BranchesPage() {
     const qpSortDir = searchParams.get("sortDir") as SortDir | null;
     const qpQ = searchParams.get("q");
     const qpActive = searchParams.get("isActive") as ActiveFilter | null;
+    const qpArchived = searchParams.get("archivedFilter") as ArchivedFilter | null;
     const qpCreatedFrom = searchParams.get("createdAtFrom");
     const qpCreatedTo = searchParams.get("createdAtTo");
     const qpUpdatedFrom = searchParams.get("updatedAtFrom");
@@ -395,6 +415,7 @@ export default function BranchesPage() {
     setAppliedFilters({
       q: qpQ ?? "",
       isActive: (qpActive as ActiveFilter) ?? "",
+      archivedFilter: qpArchived ?? "active-only",
       createdAtFrom: qpCreatedFrom ?? null,
       createdAtTo: qpCreatedTo ?? null,
       updatedAtFrom: qpUpdatedFrom ?? null,
@@ -415,6 +436,7 @@ export default function BranchesPage() {
           : undefined,
       qOverride: qpQ ?? undefined,
       isActiveOverride: (qpActive as ActiveFilter | null) ?? undefined,
+      archivedFilterOverride: qpArchived ?? undefined,
       createdFromOverride: qpCreatedFrom ?? undefined,
       createdToOverride: qpCreatedTo ?? undefined,
       updatedFromOverride: qpUpdatedFrom ?? undefined,
@@ -433,6 +455,7 @@ export default function BranchesPage() {
     const qpSortDir = sp.get("sortDir") as SortDir | null;
     const qpQ = sp.get("q");
     const qpActive = sp.get("isActive") as ActiveFilter | null;
+    const qpArchived = sp.get("archivedFilter") as ArchivedFilter | null;
     const qpCreatedFrom = sp.get("createdAtFrom");
     const qpCreatedTo = sp.get("createdAtTo");
     const qpUpdatedFrom = sp.get("updatedAtFrom");
@@ -449,6 +472,7 @@ export default function BranchesPage() {
     setAppliedFilters({
       q: qpQ ?? "",
       isActive: (qpActive as ActiveFilter) ?? "",
+      archivedFilter: qpArchived ?? "active-only",
       createdAtFrom: qpCreatedFrom ?? null,
       createdAtTo: qpCreatedTo ?? null,
       updatedAtFrom: qpUpdatedFrom ?? null,
@@ -469,6 +493,7 @@ export default function BranchesPage() {
           : undefined,
       qOverride: qpQ ?? undefined,
       isActiveOverride: (qpActive as ActiveFilter | null) ?? undefined,
+      archivedFilterOverride: qpArchived ?? undefined,
       createdFromOverride: qpCreatedFrom ?? undefined,
       createdToOverride: qpCreatedTo ?? undefined,
       updatedFromOverride: qpUpdatedFrom ?? undefined,
@@ -524,27 +549,6 @@ export default function BranchesPage() {
           totalCount != null ? ` of ${totalCount}` : ""
         }`;
 
-  async function handleDelete(branchId: string) {
-    try {
-      const res = await deleteBranchApiRequest({
-        branchId,
-        idempotencyKeyOptional: `delete-${branchId}-${Date.now()}`,
-      });
-      if (res.success) {
-        notifications.show({
-          color: "green",
-          message: "Branch deleted",
-        });
-        resetToFirstPageAndFetch();
-      }
-    } catch (e: any) {
-      notifications.show({
-        color: "red",
-        message: e?.message ?? "Delete failed",
-      });
-    }
-  }
-
   async function copyShareableLink() {
     const href = window.location.href;
     try {
@@ -572,6 +576,15 @@ export default function BranchesPage() {
         key: "isActive",
         label:
           appliedFilters.isActive === "true" ? "status: Active" : "status: Inactive",
+      });
+    }
+    if (appliedFilters.archivedFilter && appliedFilters.archivedFilter !== "active-only") {
+      chips.push({
+        key: "archivedFilter",
+        label:
+          appliedFilters.archivedFilter === "archived-only"
+            ? "Archived branches only"
+            : "All branches (active + archived)",
       });
     }
     if (appliedFilters.createdAtFrom)
@@ -602,6 +615,7 @@ export default function BranchesPage() {
       ...appliedFilters,
       q: key === "q" ? "" : appliedFilters.q,
       isActive: key === "isActive" ? "" : appliedFilters.isActive,
+      archivedFilter: key === "archivedFilter" ? "active-only" : appliedFilters.archivedFilter,
       createdAtFrom:
         key === "createdAtFrom" ? null : appliedFilters.createdAtFrom,
       createdAtTo: key === "createdAtTo" ? null : appliedFilters.createdAtTo,
@@ -715,6 +729,26 @@ export default function BranchesPage() {
                 }
                 clearable
                 aria-label="Filter by status"
+              />
+            </Grid.Col>
+
+            <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+              <Select
+                label="Archive Filter"
+                data={[
+                  { value: "active-only", label: "Active branches only" },
+                  { value: "archived-only", label: "Archived branches only" },
+                  { value: "all", label: "All branches (active + archived)" },
+                ]}
+                value={values.archivedFilter}
+                onChange={(v) =>
+                  setValues({
+                    ...values,
+                    archivedFilter: (v ?? "active-only") as ArchivedFilter,
+                  })
+                }
+                aria-label="Filter by archive status"
+                data-testid="archived-filter-select"
               />
             </Grid.Col>
 
@@ -1022,7 +1056,14 @@ export default function BranchesPage() {
                     {rows!.map((r) => (
                       <Table.Tr key={r.id}>
                         <Table.Td>
-                          <Text fw={600}>{(r as any).branchName ?? (r as any).name ?? "—"}</Text>
+                          <Group gap="xs">
+                            <Text fw={600}>{(r as any).branchName ?? (r as any).name ?? "—"}</Text>
+                            {(r as any).isArchived && (
+                              <Badge color="gray" size="sm" data-testid="archived-badge">
+                                Archived
+                              </Badge>
+                            )}
+                          </Group>
                         </Table.Td>
                         <Table.Td>
                           {(r as any).isActive ? (
@@ -1047,23 +1088,10 @@ export default function BranchesPage() {
                               component={Link}
                               to={`/${tenantSlug}/branches/${r.id}`}
                               variant="light"
-                              onClick={() =>
-                                navigate(`/${tenantSlug}/branches/${r.id}`)
-                              }
-                              disabled={!canManageBranches}
-                              title="Edit branch"
+                              title="View branch"
+                              data-testid="view-branch-btn"
                             >
-                              <IconPencil size={16} />
-                            </ActionIcon>
-
-                            <ActionIcon
-                              variant="light"
-                              color="red"
-                              onClick={() => handleDelete(r.id as unknown as string)}
-                              disabled={!canManageBranches}
-                              title="Delete branch"
-                            >
-                              <IconTrash size={16} />
+                              <IconEye size={16} />
                             </ActionIcon>
                           </Group>
                         </Table.Td>

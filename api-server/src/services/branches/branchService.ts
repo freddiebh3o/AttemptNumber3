@@ -8,6 +8,7 @@ import { AuditAction, AuditEntityType } from '@prisma/client';
 
 type SortField = 'branchName' | 'createdAt' | 'updatedAt' | 'isActive';
 type SortDir = 'asc' | 'desc';
+type ArchivedFilter = 'active-only' | 'archived-only' | 'all';
 
 type AuditCtx = {
   actorUserId?: string | null;
@@ -22,6 +23,7 @@ export async function listBranchesForCurrentTenantService(params: {
   cursorIdOptional?: string;
   qOptional?: string;            // search slug/name
   isActiveOptional?: boolean;
+  archivedFilterOptional?: ArchivedFilter;
   sortByOptional?: SortField;
   sortDirOptional?: SortDir;
   includeTotalOptional?: boolean;
@@ -32,6 +34,7 @@ export async function listBranchesForCurrentTenantService(params: {
     cursorIdOptional,
     qOptional,
     isActiveOptional,
+    archivedFilterOptional,
     sortByOptional,
     sortDirOptional,
     includeTotalOptional,
@@ -40,10 +43,15 @@ export async function listBranchesForCurrentTenantService(params: {
   const limit = Math.min(Math.max(limitOptional ?? 20, 1), 100);
   const sortBy: SortField = sortByOptional ?? 'createdAt';
   const sortDir: SortDir = sortDirOptional ?? 'desc';
+  const archivedFilter: ArchivedFilter = archivedFilterOptional ?? 'active-only';
 
   const where: Prisma.BranchWhereInput = {
     tenantId: currentTenantId,
     ...(isActiveOptional !== undefined ? { isActive: isActiveOptional } : {}),
+    // Archive filter logic
+    ...(archivedFilter === 'active-only' ? { isArchived: false } : {}),
+    ...(archivedFilter === 'archived-only' ? { isArchived: true } : {}),
+    // 'all' means no filter on isArchived
     ...(qOptional && qOptional.trim()
       ? {
           OR: [
@@ -71,6 +79,9 @@ export async function listBranchesForCurrentTenantService(params: {
       branchSlug: true,
       branchName: true,
       isActive: true,
+      isArchived: true,
+      archivedAt: true,
+      archivedByUserId: true,
       createdAt: true,
       updatedAt: true,
     },
@@ -135,6 +146,9 @@ export async function createBranchForCurrentTenantService(params: {
           branchSlug: true,
           branchName: true,
           isActive: true,
+          isArchived: true,
+          archivedAt: true,
+          archivedByUserId: true,
           createdAt: true,
           updatedAt: true,
         },
@@ -196,6 +210,9 @@ export async function updateBranchForCurrentTenantService(params: {
           branchSlug: true,
           branchName: true,
           isActive: true,
+          isArchived: true,
+          archivedAt: true,
+          archivedByUserId: true,
           createdAt: true,
           updatedAt: true,
         },
@@ -217,6 +234,9 @@ export async function updateBranchForCurrentTenantService(params: {
           branchSlug: true,
           branchName: true,
           isActive: true,
+          isArchived: true,
+          archivedAt: true,
+          archivedByUserId: true,
           createdAt: true,
           updatedAt: true,
         },
@@ -274,6 +294,9 @@ export async function deactivateBranchForCurrentTenantService(params: {
         branchSlug: true,
         branchName: true,
         isActive: true,
+        isArchived: true,
+        archivedAt: true,
+        archivedByUserId: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -332,6 +355,9 @@ export async function getBranchForCurrentTenantService(params: {
       branchSlug: true,
       branchName: true,
       isActive: true,
+      isArchived: true,
+      archivedAt: true,
+      archivedByUserId: true,
       createdAt: true,
       updatedAt: true,
     },
@@ -347,7 +373,164 @@ export async function getBranchForCurrentTenantService(params: {
     branchSlug: b.branchSlug,
     branchName: b.branchName,
     isActive: b.isActive,
+    isArchived: b.isArchived,
+    archivedAt: b.archivedAt?.toISOString() ?? null,
+    archivedByUserId: b.archivedByUserId,
     createdAt: b.createdAt.toISOString(),
     updatedAt: b.updatedAt.toISOString(),
   };
+}
+
+/** Archive (soft delete) a branch */
+export async function archiveBranchForCurrentTenantService(params: {
+  currentTenantId: string;
+  branchIdPathParam: string;
+  actorUserId: string;
+  auditContextOptional?: AuditCtx;
+}) {
+  const { currentTenantId, branchIdPathParam, actorUserId, auditContextOptional } = params;
+
+  return await prismaClientInstance.$transaction(async (tx) => {
+    // load "before"
+    const before = await tx.branch.findFirst({
+      where: { id: branchIdPathParam, tenantId: currentTenantId },
+      select: {
+        id: true,
+        tenantId: true,
+        branchSlug: true,
+        branchName: true,
+        isActive: true,
+        isArchived: true,
+        archivedAt: true,
+        archivedByUserId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    if (!before) throw Errors.notFound('Branch not found.');
+
+    // If already archived, return success
+    if (before.isArchived) {
+      return { success: true };
+    }
+
+    const now = new Date();
+    const updated = await tx.branch.update({
+      where: { id: branchIdPathParam },
+      data: {
+        isArchived: true,
+        archivedAt: now,
+        archivedByUserId: actorUserId,
+      },
+      select: {
+        id: true,
+        tenantId: true,
+        branchSlug: true,
+        branchName: true,
+        isActive: true,
+        isArchived: true,
+        archivedAt: true,
+        archivedByUserId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (updated.tenantId !== currentTenantId) {
+      throw Errors.permissionDenied();
+    }
+
+    // AUDIT: DELETE (archive)
+    await writeAuditEvent(tx, {
+      tenantId: currentTenantId,
+      actorUserId: actorUserId,
+      entityType: AuditEntityType.BRANCH,
+      entityId: updated.id,
+      action: AuditAction.DELETE,
+      entityName: updated.branchName,
+      before,
+      after: updated,
+      correlationId: auditContextOptional?.correlationId ?? null,
+      ip: auditContextOptional?.ip ?? null,
+      userAgent: auditContextOptional?.userAgent ?? null,
+    });
+
+    return { success: true };
+  });
+}
+
+/** Restore an archived branch */
+export async function restoreBranchForCurrentTenantService(params: {
+  currentTenantId: string;
+  branchIdPathParam: string;
+  auditContextOptional?: AuditCtx;
+}) {
+  const { currentTenantId, branchIdPathParam, auditContextOptional } = params;
+
+  return await prismaClientInstance.$transaction(async (tx) => {
+    // load "before"
+    const before = await tx.branch.findFirst({
+      where: { id: branchIdPathParam, tenantId: currentTenantId },
+      select: {
+        id: true,
+        tenantId: true,
+        branchSlug: true,
+        branchName: true,
+        isActive: true,
+        isArchived: true,
+        archivedAt: true,
+        archivedByUserId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    if (!before) throw Errors.notFound('Branch not found.');
+
+    // If not archived, return success
+    if (!before.isArchived) {
+      return { success: true };
+    }
+
+    const updated = await tx.branch.update({
+      where: { id: branchIdPathParam },
+      data: {
+        isArchived: false,
+        archivedAt: null,
+        archivedByUserId: null,
+      },
+      select: {
+        id: true,
+        tenantId: true,
+        branchSlug: true,
+        branchName: true,
+        isActive: true,
+        isArchived: true,
+        archivedAt: true,
+        archivedByUserId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (updated.tenantId !== currentTenantId) {
+      throw Errors.permissionDenied();
+    }
+
+    // AUDIT: UPDATE (restore)
+    await writeAuditEvent(tx, {
+      tenantId: currentTenantId,
+      actorUserId: auditContextOptional?.actorUserId ?? null,
+      entityType: AuditEntityType.BRANCH,
+      entityId: updated.id,
+      action: AuditAction.UPDATE,
+      entityName: updated.branchName,
+      before,
+      after: updated,
+      correlationId: auditContextOptional?.correlationId ?? null,
+      ip: auditContextOptional?.ip ?? null,
+      userAgent: auditContextOptional?.userAgent ?? null,
+    });
+
+    return { success: true };
+  });
 }

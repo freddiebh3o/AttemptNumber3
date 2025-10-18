@@ -1,7 +1,7 @@
 // admin-web/src/pages/BranchPage.tsx
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Badge, Button, Group, Loader, Paper, Tabs, Text, Title } from "@mantine/core";
+import { Badge, Button, Group, Loader, Modal, Paper, Stack, Tabs, Text, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { useAuthStore } from "../stores/auth";
 import { handlePageError } from "../utils/pageError";
@@ -9,9 +9,12 @@ import {
   createBranchApiRequest,
   updateBranchApiRequest,
   getBranchApiRequest,
+  deleteBranchApiRequest,
+  restoreBranchApiRequest,
 } from "../api/branches";
 import { BranchOverviewTab } from "../components/branches/BranchOverviewTab";
 import { BranchActivityTab } from "../components/branches/BranchActivityTab";
+import { IconArchive } from "@tabler/icons-react";
 
 type TabKey = "overview" | "activity";
 
@@ -39,10 +42,12 @@ export default function BranchPage() {
   const [branchSlug, setBranchSlug] = useState("");
   const [branchName, setBranchName] = useState("");
   const [isActive, setIsActive] = useState(true);
+  const [isArchived, setIsArchived] = useState(false);
 
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
 
   // trigger refetch after successful update
   const [refreshTick, setRefreshTick] = useState(0);
@@ -61,6 +66,7 @@ export default function BranchPage() {
           setBranchSlug(b.branchSlug);
           setBranchName(b.branchName);
           setIsActive(b.isActive);
+          setIsArchived(b.isArchived || false);
         }
       } catch (e: any) {
         if (!cancelled && (e?.httpStatusCode === 404 || e?.status === 404)) {
@@ -129,6 +135,47 @@ export default function BranchPage() {
     }
   }
 
+  async function handleRestoreBranch() {
+    if (!branchId) return;
+    setSaving(true);
+    try {
+      const key = (crypto as any)?.randomUUID?.() ?? String(Date.now());
+      const res = await restoreBranchApiRequest({
+        branchId,
+        idempotencyKeyOptional: key,
+      });
+      if (res.success) {
+        notifications.show({ color: "green", message: "Branch restored." });
+        setRefreshTick((t) => t + 1);
+      }
+    } catch (e) {
+      handlePageError(e, { title: "Restore failed" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleArchiveBranch() {
+    if (!branchId) return;
+    setSaving(true);
+    setShowArchiveModal(false);
+    try {
+      const key = (crypto as any)?.randomUUID?.() ?? String(Date.now());
+      const res = await deleteBranchApiRequest({
+        branchId,
+        idempotencyKeyOptional: key,
+      });
+      if (res.success) {
+        notifications.show({ color: "green", message: "Branch archived successfully." });
+        setRefreshTick((t) => t + 1);
+      }
+    } catch (e) {
+      handlePageError(e, { title: "Archive failed" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const busy = saving || loading;
 
   if (isEdit && notFound) {
@@ -151,10 +198,40 @@ export default function BranchPage() {
         <Group gap="sm">
           <Title order={2}>{isEdit ? "Edit branch" : "New branch"}</Title>
           {!isActive && isEdit && <Badge color="gray">Inactive</Badge>}
+          {isEdit && isArchived && (
+            <Badge color="gray" size="lg" data-testid="archived-badge">
+              Archived
+            </Badge>
+          )}
         </Group>
         <Group>
           <Button variant="default" onClick={() => navigate(-1)}>Cancel</Button>
-          <Button onClick={handleSave} loading={busy} disabled={!canManage}>Save</Button>
+          {isEdit && isArchived && canManage && (
+            <Button
+              onClick={handleRestoreBranch}
+              loading={busy}
+              color="blue"
+              data-testid="restore-btn"
+            >
+              Restore
+            </Button>
+          )}
+          {isEdit && !isArchived && canManage && (
+            <Button
+              onClick={() => setShowArchiveModal(true)}
+              variant="light"
+              color="red"
+              leftSection={<IconArchive size={16} />}
+              data-testid="archive-branch-btn"
+            >
+              Archive Branch
+            </Button>
+          )}
+          {!isArchived && (
+            <Button onClick={handleSave} loading={busy} disabled={!canManage}>
+              Save
+            </Button>
+          )}
         </Group>
       </Group>
 
@@ -197,6 +274,36 @@ export default function BranchPage() {
           )}
         </Tabs>
       )}
+
+      {/* Archive Confirmation Modal */}
+      <Modal
+        opened={showArchiveModal}
+        onClose={() => setShowArchiveModal(false)}
+        title="Archive Branch?"
+        centered
+      >
+        <Stack gap="md">
+          <Text>
+            This branch will be hidden from your active branch list but can be restored at any time.
+            All stock history, transfers, and user assignments will be preserved.
+          </Text>
+          <Group justify="flex-end" gap="sm">
+            <Button
+              variant="default"
+              onClick={() => setShowArchiveModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              color="red"
+              onClick={handleArchiveBranch}
+              loading={busy}
+            >
+              Archive
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </div>
   );
 }
