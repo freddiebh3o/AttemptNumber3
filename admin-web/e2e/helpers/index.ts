@@ -30,6 +30,7 @@ export {
   TransferFactory,
   ApprovalRuleFactory,
   RoleFactory,
+  TenantUserFactory,
   Factories,
 } from './factories';
 

@@ -1475,8 +1475,8 @@ export interface paths {
                     limit?: number;
                     cursorId?: string;
                     q?: string;
-                    roleId?: string;
-                    roleName?: string;
+                    roleIds?: string;
+                    archivedFilter?: "active-only" | "archived-only" | "all";
                     createdAtFrom?: string;
                     createdAtTo?: string;
                     updatedAtFrom?: string;
@@ -1840,7 +1840,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Removed membership */
+                /** @description Archived membership */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -1850,7 +1850,7 @@ export interface paths {
                             /** @enum {boolean} */
                             success: true;
                             data: {
-                                hasRemovedMembership: boolean;
+                                hasArchivedMembership: boolean;
                             };
                             error: unknown;
                         };
@@ -1907,6 +1907,99 @@ export interface paths {
                 };
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tenant-users/{userId}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    userId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Restored archived membership */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                hasRestoredMembership: boolean;
+                            };
+                            error: unknown;
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        "X-RateLimit-Limit": string;
+                        "X-RateLimit-Remaining": string;
+                        "X-RateLimit-Reset": string;
+                        "Retry-After": string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Internal Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -6754,6 +6847,10 @@ export interface components {
             role: components["schemas"]["RoleSummary"];
             /** @default [] */
             branches: components["schemas"]["BranchSummary"][];
+            isArchived: boolean;
+            /** Format: date-time */
+            archivedAt: string | null;
+            archivedByUserId: string | null;
             /** Format: date-time */
             createdAt?: string;
             /** Format: date-time */
@@ -6776,8 +6873,7 @@ export interface components {
                 };
                 filters: {
                     q?: string;
-                    roleId?: string;
-                    roleName?: string;
+                    roleIds?: string[];
                     createdAtFrom?: string;
                     createdAtTo?: string;
                     updatedAtFrom?: string;

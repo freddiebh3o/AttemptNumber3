@@ -43,7 +43,7 @@ authRouter.post(
         tenantSlugInputValue: tenantSlug,
       });
       if (!verified) {
-        return next(Errors.validation('Invalid email, password, or tenant membership'));
+        return next(Errors.validation('Invalid credentials or your membership has been archived'));
       }
 
       const sessionTokenValue = createSignedSessionToken({
@@ -232,9 +232,9 @@ authRouter.post(
 
       const member = await prismaClientInstance.userTenantMembership.findUnique({
         where: { userId_tenantId: { userId: decoded.currentUserId, tenantId: tenant.id } },
-        select: { userId: true },
+        select: { userId: true, isArchived: true },
       });
-      if (!member) return next(Errors.permissionDenied());
+      if (!member || member.isArchived) return next(Errors.permissionDenied());
 
       const oldTenantId = decoded.currentTenantId;
       const sessionTokenValue = createSignedSessionToken({

@@ -22,7 +22,8 @@
       "Bash(npx prisma migrate dev:*)",
       "Bash(timeout 120 npm run test:accept:*)",
       "Bash(npm run prisma:generate:*)",
-      "Bash(del ai-chat.spec.ts ai-chat-phase2.spec.ts chat-analytics.spec.ts chat-suggestions.spec.ts)"
+      "Bash(del ai-chat.spec.ts ai-chat-phase2.spec.ts chat-analytics.spec.ts chat-suggestions.spec.ts)",
+      "Bash(npx tsc:*)"
     ],
     "deny": [],
     "ask": []

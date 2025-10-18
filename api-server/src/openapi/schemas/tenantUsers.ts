@@ -31,6 +31,9 @@ export const ZodTenantUserRecord = z
     userEmailAddress: z.string().email(),
     role: ZodRoleSummary.nullable(),
     branches: z.array(ZodBranchSummary).default([]),
+    isArchived: z.boolean(),
+    archivedAt: z.string().datetime().nullable(),
+    archivedByUserId: z.string().nullable(),
     createdAt: z.string().datetime().optional(),
     updatedAt: z.string().datetime().optional(),
   })
@@ -41,8 +44,8 @@ export const ZodListTenantUsersQuery = z
     limit: z.number().int().min(1).max(100).optional(),
     cursorId: z.string().optional(),
     q: z.string().optional(),
-    roleId: z.string().optional(),
-    roleName: z.string().optional(),
+    roleIds: z.string().optional(),
+    archivedFilter: z.enum(["active-only", "archived-only", "all"]).optional(),
     createdAtFrom: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -83,8 +86,7 @@ export const ZodTenantUsersListResponseData = z
       }),
       filters: z.object({
         q: z.string().optional(),
-        roleId: z.string().optional(),
-        roleName: z.string().optional(),
+        roleIds: z.array(z.string()).optional(),
         createdAtFrom: z
           .string()
           .regex(/^\d{4}-\d{2}-\d{2}$/)

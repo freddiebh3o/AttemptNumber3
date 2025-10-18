@@ -314,11 +314,17 @@ model UserTenantMembership {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   role   Role   @relation(fields: [roleId], references: [id])
 
+  /// Soft delete fields
+  isArchived       Boolean   @default(false)
+  archivedAt       DateTime?
+  archivedByUserId String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([userId, tenantId], name: "userId_tenantId")
   @@index([roleId])
+  @@index([tenantId, isArchived])
 }
 
 /// A product owned by a tenant (POC scope)

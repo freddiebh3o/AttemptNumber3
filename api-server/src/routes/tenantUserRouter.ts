@@ -17,6 +17,7 @@ import {
   createOrAttachUserToTenantService,
   updateTenantUserService,
   removeUserFromTenantService,
+  restoreUserMembershipService,
 } from '../services/tenantUsers/tenantUserService.js';
 import { listTenantUserActivityForUserService } from '../services/tenantUsers/tenantUserActivityService.js';
 
@@ -37,8 +38,8 @@ const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional(),
   cursorId: z.string().min(1).optional(),
   q: z.string().min(1).optional(),
-  roleId: z.string().min(1).optional(),
-  roleName: z.string().min(1).optional(),
+  roleIds: z.string().transform(s => s.split(',').map(x => x.trim()).filter(Boolean)).optional(),
+  archivedFilter: z.enum(['active-only', 'archived-only', 'all']).optional(),
   createdAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   createdAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   updatedAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -92,8 +93,8 @@ tenantUserRouter.get(
         ...(q.limit !== undefined && { limitOptional: q.limit }),
         ...(q.cursorId !== undefined && { cursorIdOptional: q.cursorId }),
         ...(q.q !== undefined && { qOptional: q.q }),
-        ...(q.roleId !== undefined && { roleIdOptional: q.roleId }),
-        ...(q.roleName !== undefined && { roleNameOptional: q.roleName }),
+        ...(q.roleIds !== undefined && { roleIdsOptional: q.roleIds }),
+        ...(q.archivedFilter !== undefined && { archivedFilterOptional: q.archivedFilter }),
         ...(q.createdAtFrom !== undefined && { createdAtFromOptional: q.createdAtFrom }),
         ...(q.createdAtTo !== undefined && { createdAtToOptional: q.createdAtTo }),
         ...(q.updatedAtFrom !== undefined && { updatedAtFromOptional: q.updatedAtFrom }),
@@ -205,6 +206,30 @@ tenantUserRouter.delete(
       const out = await removeUserFromTenantService({
         currentTenantId: req.currentTenantId,
         currentUserId: req.currentUserId,
+        targetUserId: userId,
+        auditContextOptional: getAuditContext(req),
+      });
+
+      return res.status(200).json(createStandardSuccessResponse(out));
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
+// POST /api/tenant-users/:userId/restore
+tenantUserRouter.post(
+  '/:userId/restore',
+  requireAuthenticatedUserMiddleware,
+  requirePermission('users:manage'),
+  validateRequestParamsWithZod(userIdParams),
+  async (req, res, next) => {
+    try {
+      assertAuthed(req);
+      const { userId } = req.validatedParams as z.infer<typeof userIdParams>;
+
+      const out = await restoreUserMembershipService({
+        currentTenantId: req.currentTenantId,
         targetUserId: userId,
         auditContextOptional: getAuditContext(req),
       });

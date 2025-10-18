@@ -77,12 +77,12 @@ export async function listUsersForCurrentTenantService(params: {
   cursorIdOptional?: string;
   // filters
   qOptional?: string;
-  roleIdOptional?: string;
-  roleNameOptional?: string;
+  roleIdsOptional?: string[];
   createdAtFromOptional?: string;  // 'YYYY-MM-DD'
   createdAtToOptional?: string;    // 'YYYY-MM-DD'
   updatedAtFromOptional?: string;  // 'YYYY-MM-DD'
   updatedAtToOptional?: string;    // 'YYYY-MM-DD'
+  archivedFilterOptional?: 'active-only' | 'archived-only' | 'all';
   // sort
   sortByOptional?: 'createdAt' | 'updatedAt' | 'userEmailAddress' | 'role';
   sortDirOptional?: 'asc' | 'desc';
@@ -93,12 +93,12 @@ export async function listUsersForCurrentTenantService(params: {
     limitOptional = 20,
     cursorIdOptional,
     qOptional,
-    roleIdOptional,
-    roleNameOptional,
+    roleIdsOptional,
     createdAtFromOptional,
     createdAtToOptional,
     updatedAtFromOptional,
     updatedAtToOptional,
+    archivedFilterOptional = 'active-only',
     sortByOptional = 'createdAt',
     sortDirOptional = 'desc',
     includeTotalOptional = false,
@@ -112,14 +112,23 @@ export async function listUsersForCurrentTenantService(params: {
   if (updatedAtFromOptional) updatedAt.gte = new Date(updatedAtFromOptional);
   if (updatedAtToOptional) updatedAt.lt = addDays(new Date(updatedAtToOptional), 1);
 
+  // Apply archive filter
+  let isArchivedFilter: boolean | undefined;
+  if (archivedFilterOptional === 'active-only') {
+    isArchivedFilter = false;
+  } else if (archivedFilterOptional === 'archived-only') {
+    isArchivedFilter = true;
+  }
+  // if 'all', leave undefined (no filter)
+
   const where: Prisma.UserTenantMembershipWhereInput = {
     tenantId: currentTenantId,
+    ...(isArchivedFilter !== undefined && { isArchived: isArchivedFilter }),
     ...(qOptional && {
       user: { userEmailAddress: { contains: qOptional, mode: 'insensitive' } },
     }),
-    ...(roleIdOptional && { roleId: roleIdOptional }),
-    ...(roleNameOptional && {
-      role: { name: { contains: roleNameOptional, mode: 'insensitive' } },
+    ...(roleIdsOptional && roleIdsOptional.length > 0 && {
+      roleId: { in: roleIdsOptional },
     }),
     ...((createdAt.gte || createdAt.lt) && { createdAt }),
     ...((updatedAt.gte || updatedAt.lt) && { updatedAt }),
@@ -147,6 +156,9 @@ export async function listUsersForCurrentTenantService(params: {
       ...(cursor && { cursor, skip: 1 }),
       select: {
         id: true,
+        isArchived: true,
+        archivedAt: true,
+        archivedByUserId: true,
         createdAt: true,
         updatedAt: true,
         user: {
@@ -213,6 +225,9 @@ export async function listUsersForCurrentTenantService(params: {
       createdAt: bm.branch.createdAt.toISOString(),
       updatedAt: bm.branch.updatedAt.toISOString(),
     })),
+    isArchived: m.isArchived,
+    archivedAt: m.archivedAt?.toISOString() ?? null,
+    archivedByUserId: m.archivedByUserId ?? null,
     createdAt: m.createdAt.toISOString(),
     updatedAt: m.updatedAt.toISOString(),
   }));
@@ -231,8 +246,7 @@ export async function listUsersForCurrentTenantService(params: {
       sort: { field: sortByOptional, direction: sortDirOptional },
       filters: {
         ...(qOptional ? { q: qOptional } : {}),
-        ...(roleIdOptional ? { roleId: roleIdOptional } : {}),
-        ...(roleNameOptional ? { roleName: roleNameOptional } : {}),
+        ...(roleIdsOptional && roleIdsOptional.length > 0 ? { roleIds: roleIdsOptional } : {}),
         ...(createdAtFromOptional ? { createdAtFrom: createdAtFromOptional } : {}),
         ...(createdAtToOptional ? { createdAtTo: createdAtToOptional } : {}),
         ...(updatedAtFromOptional ? { updatedAtFrom: updatedAtFromOptional } : {}),
@@ -251,6 +265,9 @@ export async function getUserForCurrentTenantService(params: {
   const m = await prismaClientInstance.userTenantMembership.findUnique({
     where: { userId_tenantId: { userId: targetUserId, tenantId: currentTenantId } },
     select: {
+      isArchived: true,
+      archivedAt: true,
+      archivedByUserId: true,
       createdAt: true,
       updatedAt: true,
       user: {
@@ -312,6 +329,9 @@ export async function getUserForCurrentTenantService(params: {
       createdAt: bm.branch.createdAt.toISOString(),
       updatedAt: bm.branch.updatedAt.toISOString(),
     })),
+    isArchived: m.isArchived,
+    archivedAt: m.archivedAt?.toISOString() ?? null,
+    archivedByUserId: m.archivedByUserId ?? null,
     createdAt: m.createdAt.toISOString(),
     updatedAt: m.updatedAt.toISOString(),
   };
@@ -668,8 +688,9 @@ export async function updateTenantUserService(params: {
 }
 
 /**
- * Remove a user from the current tenant.
- * Emits ROLE_REVOKE audit if membership was removed.
+ * Archive (soft delete) a user membership from the current tenant.
+ * Prevents users from archiving their own membership.
+ * Emits UPDATE audit event for archival.
  */
 export async function removeUserFromTenantService(params: {
   currentTenantId: string;
@@ -677,8 +698,13 @@ export async function removeUserFromTenantService(params: {
   targetUserId: string;
   auditContextOptional?: AuditCtx;
 }) {
-  const { currentTenantId, targetUserId, auditContextOptional } = params;
+  const { currentTenantId, currentUserId, targetUserId, auditContextOptional } = params;
   const meta = auditCtxOrNull(auditContextOptional);
+
+  // Prevent self-archival
+  if (currentUserId === targetUserId) {
+    throw Errors.validation('Cannot archive own membership', 'You cannot archive your own user membership.');
+  }
 
   const result = await prismaClientInstance.$transaction(async (tx) => {
     const ownerRole = await tx.role.findUnique({
@@ -689,41 +715,124 @@ export async function removeUserFromTenantService(params: {
 
     const targetMembership = await tx.userTenantMembership.findUnique({
       where: { userId_tenantId: { userId: targetUserId, tenantId: currentTenantId } },
-      select: { roleId: true, user: { select: { userEmailAddress: true } } },
+      select: {
+        roleId: true,
+        isArchived: true,
+        user: { select: { userEmailAddress: true } }
+      },
     });
-    if (!targetMembership) return { hasRemovedMembership: false };
+    if (!targetMembership) return { hasArchivedMembership: false };
+
+    // Already archived, nothing to do
+    if (targetMembership.isArchived) {
+      return { hasArchivedMembership: false };
+    }
 
     const isTargetOwner = targetMembership.roleId === ownerRole.id;
     if (isTargetOwner) {
       const owners = await tx.userTenantMembership.count({
-        where: { tenantId: currentTenantId, roleId: ownerRole.id },
+        where: { tenantId: currentTenantId, roleId: ownerRole.id, isArchived: false },
       });
       if (owners <= 1) throw Errors.cantDeleteLastOwner();
     }
 
-    const deleted = await tx.userTenantMembership.deleteMany({
-      where: { userId: targetUserId, tenantId: currentTenantId },
+    // Archive the membership (soft delete)
+    await tx.userTenantMembership.update({
+      where: { userId_tenantId: { userId: targetUserId, tenantId: currentTenantId } },
+      data: {
+        isArchived: true,
+        archivedAt: new Date(),
+        archivedByUserId: currentUserId,
+      },
     });
 
-    if (deleted.count > 0) {
-      try {
-        await writeAuditEvent(tx, {
-          tenantId: currentTenantId,
-          actorUserId: meta.actorUserId,
-          entityType: AuditEntityType.USER,
-          entityId: targetUserId,
-          action: AuditAction.ROLE_REVOKE,
-          entityName: targetMembership.user.userEmailAddress,
-          before: { roleId: targetMembership.roleId },
-          after: null,
-          correlationId: meta.correlationId,
-          ip: meta.ip,
-          userAgent: meta.userAgent,
-        });
-      } catch {}
+    // Audit event for archival
+    try {
+      await writeAuditEvent(tx, {
+        tenantId: currentTenantId,
+        actorUserId: meta.actorUserId,
+        entityType: AuditEntityType.USER,
+        entityId: targetUserId,
+        action: AuditAction.UPDATE,
+        entityName: targetMembership.user.userEmailAddress,
+        before: { isArchived: false },
+        after: { isArchived: true, archivedAt: new Date().toISOString(), archivedByUserId: currentUserId },
+        correlationId: meta.correlationId,
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      });
+    } catch {}
+
+    return { hasArchivedMembership: true };
+  });
+
+  return result;
+}
+
+/**
+ * Restore an archived user membership.
+ * Emits UPDATE audit event for restoration.
+ */
+export async function restoreUserMembershipService(params: {
+  currentTenantId: string;
+  targetUserId: string;
+  auditContextOptional?: AuditCtx;
+}) {
+  const { currentTenantId, targetUserId, auditContextOptional } = params;
+  const meta = auditCtxOrNull(auditContextOptional);
+
+  const result = await prismaClientInstance.$transaction(async (tx) => {
+    const targetMembership = await tx.userTenantMembership.findUnique({
+      where: { userId_tenantId: { userId: targetUserId, tenantId: currentTenantId } },
+      select: {
+        isArchived: true,
+        archivedAt: true,
+        archivedByUserId: true,
+        user: { select: { userEmailAddress: true } }
+      },
+    });
+
+    if (!targetMembership) {
+      throw Errors.notFound('User membership not found.');
     }
 
-    return { hasRemovedMembership: deleted.count > 0 };
+    // Not archived, nothing to restore
+    if (!targetMembership.isArchived) {
+      return { hasRestoredMembership: false };
+    }
+
+    // Restore the membership
+    await tx.userTenantMembership.update({
+      where: { userId_tenantId: { userId: targetUserId, tenantId: currentTenantId } },
+      data: {
+        isArchived: false,
+        archivedAt: null,
+        archivedByUserId: null,
+      },
+    });
+
+    // Audit event for restoration
+    try {
+      await writeAuditEvent(tx, {
+        tenantId: currentTenantId,
+        actorUserId: meta.actorUserId,
+        entityType: AuditEntityType.USER,
+        entityId: targetUserId,
+        action: AuditAction.UPDATE,
+        entityName: targetMembership.user.userEmailAddress,
+        before: {
+          isArchived: true,
+          archivedAt: targetMembership.archivedAt?.toISOString() ?? null,
+          archivedByUserId: targetMembership.archivedByUserId
+        },
+        after: { isArchived: false, archivedAt: null, archivedByUserId: null },
+        correlationId: meta.correlationId,
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      });
+    } catch {}
+
+    return { hasRestoredMembership: true };
   });
 
   return result;

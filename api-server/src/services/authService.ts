@@ -29,9 +29,12 @@ export async function verifyUserCredentialsForTenantService(params: {
 
   const membership = await prismaClientInstance.userTenantMembership.findUnique({
     where: { userId_tenantId: { userId: matchedUserRecord.id, tenantId: matchedTenantRecord.id } },
-    select: { userId: true, tenantId: true },
+    select: { userId: true, tenantId: true, isArchived: true },
   });
   if (!membership) return null;
+
+  // Reject archived memberships
+  if (membership.isArchived) return null;
 
   return { matchedUserId: membership.userId, matchedTenantId: membership.tenantId };
 }
@@ -40,7 +43,10 @@ export async function getUserMembershipsService(params: { currentUserId: string 
   const { currentUserId } = params;
 
   const memberships = await prismaClientInstance.userTenantMembership.findMany({
-    where: { userId: currentUserId },
+    where: {
+      userId: currentUserId,
+      isArchived: false, // Only return active memberships
+    },
     select: {
       tenant: { select: { tenantSlug: true, tenantName: true, id: true } },
       role: {

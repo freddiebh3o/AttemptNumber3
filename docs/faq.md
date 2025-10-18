@@ -284,6 +284,49 @@ Yes! If you're a member of multiple organizations:
 
 Roles are per-tenant, not global.
 
+### How do I remove a user who left the company?
+
+**Use archiving** instead of deleting:
+
+**Requirements:** `users:manage` permission (ADMIN, OWNER)
+
+**Steps:**
+1. Navigate to **Users** page
+2. Click the user's email
+3. Click **"Archive User"** button
+4. Confirm in the modal dialog
+
+**What happens:**
+- User cannot sign in anymore
+- All historical data preserved (audit trail, stock movements, transfers)
+- User can be restored if needed
+- User hidden from active lists by default
+
+**See:** [Managing Users - Archiving](branches-users/managing-users.md#archiving-a-user)
+
+### Can archived users be restored?
+
+Yes! Archiving is reversible:
+
+**Steps:**
+1. Go to **Users** page
+2. Click **"Filters"**
+3. Change **"Show users"** to **"Archived users only"**
+4. Find and click the archived user
+5. Click **"Restore"** button
+
+User can sign in immediately after restoration.
+
+**See:** [Managing Users - Restoring](branches-users/managing-users.md#restoring-an-archived-user)
+
+### What error do archived users see when trying to sign in?
+
+"Invalid credentials or your membership has been archived"
+
+This prevents confusion with incorrect password errors and clearly indicates the account is archived.
+
+**Solution:** Contact admin to restore the account if access is needed.
+
 ## Branches
 
 ### What is a branch?

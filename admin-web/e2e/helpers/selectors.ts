@@ -142,6 +142,19 @@ export const SELECTORS = {
   },
 
   /**
+   * User management selectors
+   */
+  USER: {
+    // Actions
+    ARCHIVE_BUTTON: 'archive-user-btn',
+    RESTORE_BUTTON: 'restore-btn',
+
+    // Display elements
+    ARCHIVED_BADGE: 'archived-badge',
+    ARCHIVED_FILTER_SELECT: 'archived-filter-select',
+  },
+
+  /**
    * Common UI element selectors
    */
   COMMON: {

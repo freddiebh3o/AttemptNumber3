@@ -35,7 +35,7 @@ function whitelistSnapshot(entityType: AuditEntityType, input: Jsonish) {
 
   switch (entityType) {
     case 'PRODUCT':
-      return pick(['id','productName','productSku','productPricePence','entityVersion','createdAt','updatedAt','tenantId']);
+      return pick(['id','productName','productSku','productPricePence','barcode','barcodeType','isArchived','archivedAt','archivedByUserId','entityVersion','createdAt','updatedAt','tenantId']);
     case 'STOCK_LOT':
       return pick(['id','productId','branchId','qtyReceived','qtyRemaining','unitCostPence','sourceRef','receivedAt']);
     case 'STOCK_LEDGER':
@@ -45,7 +45,7 @@ function whitelistSnapshot(entityType: AuditEntityType, input: Jsonish) {
     case 'PRODUCT_STOCK':
       return pick(['branchId','productId','qtyOnHand','qtyAllocated']);
     case 'USER':
-      return pick(['id','userEmailAddress','createdAt','currentTenantId']);
+      return pick(['id','userEmailAddress','createdAt','currentTenantId','roleId','roleName','branchIds','passwordChanged','isArchived','archivedAt','archivedByUserId']);
     case 'ROLE':
       return pick(['id', 'name', 'description', 'tenantId', 'isSystem', 'permissions']);
     case 'TENANT':

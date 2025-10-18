@@ -5,6 +5,7 @@ import {
   verifySignedSessionToken,
 } from "../utils/sessionCookie.js";
 import { Errors } from "../utils/httpErrors.js";
+import { prismaClientInstance } from "../db/prismaClient.js";
 
 export function sessionMiddleware(
   request: Request,
@@ -24,7 +25,7 @@ export function sessionMiddleware(
   next();
 }
 
-export function requireAuthenticatedUserMiddleware(
+export async function requireAuthenticatedUserMiddleware(
   request: Request,
   _response: Response,
   next: NextFunction
@@ -34,5 +35,28 @@ export function requireAuthenticatedUserMiddleware(
   if (!currentUserId || !currentTenantId) {
     return next(Errors.authRequired());
   }
+
+  // Check if the user's membership is archived
+  try {
+    const membership = await prismaClientInstance.userTenantMembership.findUnique({
+      where: {
+        userId_tenantId: {
+          userId: currentUserId,
+          tenantId: currentTenantId,
+        },
+      },
+      select: {
+        isArchived: true,
+      },
+    });
+
+    if (membership?.isArchived) {
+      return next(Errors.authRequired('User membership has been archived. Please contact your administrator.'));
+    }
+  } catch (error) {
+    // If there's a DB error, allow the request to proceed
+    // (fail open to avoid blocking all requests if DB is down)
+  }
+
   next();
 }

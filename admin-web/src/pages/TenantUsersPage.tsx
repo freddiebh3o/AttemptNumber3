@@ -23,18 +23,19 @@ import {
   rem,
   Tooltip,
   Grid,
+  Select,
+  MultiSelect,
 } from "@mantine/core";
 import { DatePickerInput } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
 import {
   listTenantUsersApiRequest,
-  deleteTenantUserApiRequest,
 } from "../api/tenantUsers";
+import { listRolesApiRequest } from "../api/roles";
 import { handlePageError } from "../utils/pageError";
 import { useAuthStore } from "../stores/auth";
 import {
   IconPlus,
-  IconTrash,
   IconRefresh,
   IconArrowsSort,
   IconArrowUp,
@@ -59,16 +60,18 @@ type UserRow = components["schemas"]["TenantUserRecord"];
 
 type UserFilters = {
   q: string; // email contains
-  roleName: string;
-  createdAtFrom: string | null; // YYYY-MM-DD
-  createdAtTo: string | null;
-  updatedAtFrom: string | null;
-  updatedAtTo: string | null;
+  roleIds: string[];
+  archivedFilter: "active-only" | "archived-only" | "all";
+  createdAtFrom: Date | null;
+  createdAtTo: Date | null;
+  updatedAtFrom: Date | null;
+  updatedAtTo: Date | null;
 };
 
 const emptyUserFilters: UserFilters = {
   q: "",
-  roleName: "",
+  roleIds: [],
+  archivedFilter: "active-only",
   createdAtFrom: null,
   createdAtTo: null,
   updatedAtFrom: null,
@@ -94,6 +97,9 @@ export default function TenantUsersPage() {
   const [errorForBoundary, setErrorForBoundary] = useState<
     (Error & { httpStatusCode?: number; correlationId?: string }) | null
   >(null);
+
+  // roles for multiselect
+  const [availableRoles, setAvailableRoles] = useState<{ value: string; label: string }[]>([]);
 
   // pagination/cursor
   const [hasNextPage, setHasNextPage] = useState(false);
@@ -140,11 +146,12 @@ export default function TenantUsersPage() {
     sortBy?: SortField;
     sortDir?: SortDir;
     q?: string | null | undefined;
-    roleName?: string | null | undefined;
-    createdAtFrom?: string | null | undefined;
-    createdAtTo?: string | null | undefined;
-    updatedAtFrom?: string | null | undefined;
-    updatedAtTo?: string | null | undefined;
+    roleIds?: string[] | null | undefined;
+    archivedFilter?: "active-only" | "archived-only" | "all";
+    createdAtFrom?: Date | null | undefined;
+    createdAtTo?: Date | null | undefined;
+    updatedAtFrom?: Date | null | undefined;
+    updatedAtTo?: Date | null | undefined;
     page?: number;
   }) {
     const params = new URLSearchParams();
@@ -159,10 +166,15 @@ export default function TenantUsersPage() {
         ? appliedFilters.q.trim() || null
         : overrides.q?.toString().trim() || null;
 
-    const roleVal =
-      overrides?.roleName === undefined
-        ? appliedFilters.roleName.trim() || null
-        : overrides.roleName?.toString().trim() || null;
+    const roleIdsVal =
+      overrides?.roleIds === undefined
+        ? appliedFilters.roleIds
+        : overrides.roleIds ?? [];
+
+    const archivedFilterVal =
+      overrides?.archivedFilter === undefined
+        ? appliedFilters.archivedFilter
+        : overrides.archivedFilter;
 
     const createdFromVal =
       overrides &&
@@ -192,11 +204,12 @@ export default function TenantUsersPage() {
     put("sortBy", overrides?.sortBy ?? sortBy);
     put("sortDir", overrides?.sortDir ?? sortDir);
     put("q", qVal);
-    put("roleName", roleVal);
-    put("createdAtFrom", createdFromVal);
-    put("createdAtTo", createdToVal);
-    put("updatedAtFrom", updatedFromVal);
-    put("updatedAtTo", updatedToVal);
+    if (roleIdsVal.length > 0) put("roleIds", roleIdsVal.join(","));
+    put("archivedFilter", archivedFilterVal);
+    put("createdAtFrom", createdFromVal ? createdFromVal.toISOString().split('T')[0] : null);
+    put("createdAtTo", createdToVal ? createdToVal.toISOString().split('T')[0] : null);
+    put("updatedAtFrom", updatedFromVal ? updatedFromVal.toISOString().split('T')[0] : null);
+    put("updatedAtTo", updatedToVal ? updatedToVal.toISOString().split('T')[0] : null);
 
     const cursor =
       overrides?.cursorId === undefined
@@ -217,11 +230,12 @@ export default function TenantUsersPage() {
     sortDirOverride?: SortDir;
     limitOverride?: number;
     qOverride?: string | null | undefined;
-    roleNameOverride?: string | null | undefined;
-    createdFromOverride?: string | null | undefined;
-    createdToOverride?: string | null | undefined;
-    updatedFromOverride?: string | null | undefined;
-    updatedToOverride?: string | null | undefined;
+    roleIdsOverride?: string[] | null | undefined;
+    archivedFilterOverride?: "active-only" | "archived-only" | "all";
+    createdFromOverride?: Date | null | undefined;
+    createdToOverride?: Date | null | undefined;
+    updatedFromOverride?: Date | null | undefined;
+    updatedToOverride?: Date | null | undefined;
   }) {
     setIsLoading(true);
     try {
@@ -230,34 +244,40 @@ export default function TenantUsersPage() {
           ? appliedFilters.q.trim() || undefined
           : opts.qOverride || undefined;
 
-      const roleParam =
-        opts?.roleNameOverride === undefined
-          ? appliedFilters.roleName.trim() || undefined
-          : opts.roleNameOverride?.trim() || undefined;
+      const roleIdsParam =
+        opts?.roleIdsOverride === undefined
+          ? appliedFilters.roleIds.length > 0 ? appliedFilters.roleIds.join(",") : undefined
+          : (opts.roleIdsOverride && opts.roleIdsOverride.length > 0) ? opts.roleIdsOverride.join(",") : undefined;
+
+      const archivedFilterParam =
+        opts?.archivedFilterOverride === undefined
+          ? appliedFilters.archivedFilter
+          : opts.archivedFilterOverride;
 
       const createdFromParam =
         opts?.createdFromOverride === undefined
-          ? appliedFilters.createdAtFrom || undefined
-          : opts.createdFromOverride || undefined;
+          ? appliedFilters.createdAtFrom ? appliedFilters.createdAtFrom.toISOString().split('T')[0] : undefined
+          : opts.createdFromOverride ? opts.createdFromOverride.toISOString().split('T')[0] : undefined;
       const createdToParam =
         opts?.createdToOverride === undefined
-          ? appliedFilters.createdAtTo || undefined
-          : opts.createdToOverride || undefined;
+          ? appliedFilters.createdAtTo ? appliedFilters.createdAtTo.toISOString().split('T')[0] : undefined
+          : opts.createdToOverride ? opts.createdToOverride.toISOString().split('T')[0] : undefined;
 
       const updatedFromParam =
         opts?.updatedFromOverride === undefined
-          ? appliedFilters.updatedAtFrom || undefined
-          : opts.updatedFromOverride || undefined;
+          ? appliedFilters.updatedAtFrom ? appliedFilters.updatedAtFrom.toISOString().split('T')[0] : undefined
+          : opts.updatedFromOverride ? opts.updatedFromOverride.toISOString().split('T')[0] : undefined;
       const updatedToParam =
         opts?.updatedToOverride === undefined
-          ? appliedFilters.updatedAtTo || undefined
-          : opts.updatedToOverride || undefined;
+          ? appliedFilters.updatedAtTo ? appliedFilters.updatedAtTo.toISOString().split('T')[0] : undefined
+          : opts.updatedToOverride ? opts.updatedToOverride.toISOString().split('T')[0] : undefined;
 
       const res = await listTenantUsersApiRequest({
         limit: opts?.limitOverride ?? limit,
         cursorId: opts?.cursorId ?? cursorStack[pageIndex] ?? undefined,
         q: qParam,
-        roleName: roleParam,
+        roleIds: roleIdsParam,
+        archivedFilter: archivedFilterParam,
         createdAtFrom: createdFromParam,
         createdAtTo: createdToParam,
         updatedAtFrom: updatedFromParam,
@@ -311,11 +331,12 @@ export default function TenantUsersPage() {
     sortDirOverride?: SortDir;
     limitOverride?: number;
     qOverride?: string | null | undefined;
-    roleNameOverride?: string | null | undefined;
-    createdFromOverride?: string | null | undefined;
-    createdToOverride?: string | null | undefined;
-    updatedFromOverride?: string | null | undefined;
-    updatedToOverride?: string | null | undefined;
+    roleIdsOverride?: string[] | null | undefined;
+    archivedFilterOverride?: "active-only" | "archived-only" | "all";
+    createdFromOverride?: Date | null | undefined;
+    createdToOverride?: Date | null | undefined;
+    updatedFromOverride?: Date | null | undefined;
+    updatedToOverride?: Date | null | undefined;
   }) {
     setCursorStack([null]);
     setPageIndex(0);
@@ -326,7 +347,8 @@ export default function TenantUsersPage() {
       sortBy: opts?.sortByOverride,
       sortDir: opts?.sortDirOverride,
       q: opts?.qOverride,
-      roleName: opts?.roleNameOverride,
+      roleIds: opts?.roleIdsOverride,
+      archivedFilter: opts?.archivedFilterOverride,
       createdAtFrom: opts?.createdFromOverride,
       createdAtTo: opts?.createdToOverride,
       updatedAtFrom: opts?.updatedFromOverride,
@@ -340,24 +362,45 @@ export default function TenantUsersPage() {
     setUrlFromState({
       cursorId: null,
       q: values.q.trim() || null,
-      roleName: values.roleName.trim() || null,
-      createdAtFrom: values.createdAtFrom ?? null,
-      createdAtTo: values.createdAtTo ?? null,
-      updatedAtFrom: values.updatedAtFrom ?? null,
-      updatedAtTo: values.updatedAtTo ?? null,
+      roleIds: values.roleIds.length > 0 ? values.roleIds : null,
+      archivedFilter: values.archivedFilter,
+      createdAtFrom: values.createdAtFrom,
+      createdAtTo: values.createdAtTo,
+      updatedAtFrom: values.updatedAtFrom,
+      updatedAtTo: values.updatedAtTo,
     });
     resetToFirstPageAndFetch({
       qOverride: values.q.trim() || null,
-      roleNameOverride: values.roleName.trim() || null,
-      createdFromOverride: values.createdAtFrom ?? null,
-      createdToOverride: values.createdAtTo ?? null,
-      updatedFromOverride: values.updatedAtFrom ?? null,
-      updatedToOverride: values.updatedAtTo ?? null,
+      roleIdsOverride: values.roleIds.length > 0 ? values.roleIds : null,
+      archivedFilterOverride: values.archivedFilter,
+      createdFromOverride: values.createdAtFrom,
+      createdToOverride: values.createdAtTo,
+      updatedFromOverride: values.updatedAtFrom,
+      updatedToOverride: values.updatedAtTo,
     });
   }
   function clearAllFiltersAndFetch() {
     applyAndFetch(emptyUserFilters);
   }
+
+  // Load available roles
+  useEffect(() => {
+    async function loadRoles() {
+      try {
+        const res = await listRolesApiRequest({ limit: 100 });
+        if (res.success) {
+          const roleOptions = res.data.items.map(role => ({
+            value: role.id,
+            label: role.name,
+          }));
+          setAvailableRoles(roleOptions);
+        }
+      } catch (err) {
+        console.error('Failed to load roles:', err);
+      }
+    }
+    void loadRoles();
+  }, [tenantSlug]);
 
   // initial load / tenant change
   useEffect(() => {
@@ -375,7 +418,8 @@ export default function TenantUsersPage() {
     const qpSortBy = searchParams.get("sortBy") as SortField | null;
     const qpSortDir = searchParams.get("sortDir") as SortDir | null;
     const qpQ = searchParams.get("q");
-    const qpRole = searchParams.get("roleName");
+    const qpRoleIds = searchParams.get("roleIds")?.split(",").filter(Boolean) ?? [];
+    const qpArchivedFilter = searchParams.get("archivedFilter") as "active-only" | "archived-only" | "all" | null;
     const qpCreatedFrom = searchParams.get("createdAtFrom");
     const qpCreatedTo = searchParams.get("createdAtTo");
     const qpUpdatedFrom = searchParams.get("updatedAtFrom");
@@ -389,11 +433,12 @@ export default function TenantUsersPage() {
 
     setAppliedFilters({
       q: qpQ ?? "",
-      roleName: qpRole ?? "",
-      createdAtFrom: qpCreatedFrom ?? null,
-      createdAtTo: qpCreatedTo ?? null,
-      updatedAtFrom: qpUpdatedFrom ?? null,
-      updatedAtTo: qpUpdatedTo ?? null,
+      roleIds: qpRoleIds,
+      archivedFilter: qpArchivedFilter ?? "active-only",
+      createdAtFrom: qpCreatedFrom ? new Date(qpCreatedFrom) : null,
+      createdAtTo: qpCreatedTo ? new Date(qpCreatedTo) : null,
+      updatedAtFrom: qpUpdatedFrom ? new Date(qpUpdatedFrom) : null,
+      updatedAtTo: qpUpdatedTo ? new Date(qpUpdatedTo) : null,
     });
 
     setCursorStack([qpCursor ?? null]);
@@ -409,11 +454,12 @@ export default function TenantUsersPage() {
           ? Math.max(1, Math.min(100, qpLimit))
           : undefined,
       qOverride: qpQ ?? undefined,
-      roleNameOverride: qpRole ?? undefined,
-      createdFromOverride: qpCreatedFrom ?? undefined,
-      createdToOverride: qpCreatedTo ?? undefined,
-      updatedFromOverride: qpUpdatedFrom ?? undefined,
-      updatedToOverride: qpUpdatedTo ?? undefined,
+      roleIdsOverride: qpRoleIds.length > 0 ? qpRoleIds : undefined,
+      archivedFilterOverride: qpArchivedFilter ?? undefined,
+      createdFromOverride: qpCreatedFrom ? new Date(qpCreatedFrom) : undefined,
+      createdToOverride: qpCreatedTo ? new Date(qpCreatedTo) : undefined,
+      updatedFromOverride: qpUpdatedFrom ? new Date(qpUpdatedFrom) : undefined,
+      updatedToOverride: qpUpdatedTo ? new Date(qpUpdatedTo) : undefined,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantSlug]);
@@ -427,7 +473,8 @@ export default function TenantUsersPage() {
     const qpSortBy = sp.get("sortBy") as SortField | null;
     const qpSortDir = sp.get("sortDir") as SortDir | null;
     const qpQ = sp.get("q");
-    const qpRole = sp.get("roleName");
+    const qpRoleIds = sp.get("roleIds")?.split(",").filter(Boolean) ?? [];
+    const qpArchivedFilter = sp.get("archivedFilter") as "active-only" | "archived-only" | "all" | null;
     const qpCreatedFrom = sp.get("createdAtFrom");
     const qpCreatedTo = sp.get("createdAtTo");
     const qpUpdatedFrom = sp.get("updatedAtFrom");
@@ -443,11 +490,12 @@ export default function TenantUsersPage() {
 
     setAppliedFilters({
       q: qpQ ?? "",
-      roleName: qpRole ?? "",
-      createdAtFrom: qpCreatedFrom ?? null,
-      createdAtTo: qpCreatedTo ?? null,
-      updatedAtFrom: qpUpdatedFrom ?? null,
-      updatedAtTo: qpUpdatedTo ?? null,
+      roleIds: qpRoleIds,
+      archivedFilter: qpArchivedFilter ?? "active-only",
+      createdAtFrom: qpCreatedFrom ? new Date(qpCreatedFrom) : null,
+      createdAtTo: qpCreatedTo ? new Date(qpCreatedTo) : null,
+      updatedAtFrom: qpUpdatedFrom ? new Date(qpUpdatedFrom) : null,
+      updatedAtTo: qpUpdatedTo ? new Date(qpUpdatedTo) : null,
     });
 
     setCursorStack([qpCursor ?? null]);
@@ -463,11 +511,12 @@ export default function TenantUsersPage() {
           ? Math.max(1, Math.min(100, qpLimit))
           : undefined,
       qOverride: qpQ ?? undefined,
-      roleNameOverride: qpRole ?? undefined,
-      createdFromOverride: qpCreatedFrom ?? undefined,
-      createdToOverride: qpCreatedTo ?? undefined,
-      updatedFromOverride: qpUpdatedFrom ?? undefined,
-      updatedToOverride: qpUpdatedTo ?? undefined,
+      roleIdsOverride: qpRoleIds.length > 0 ? qpRoleIds : undefined,
+      archivedFilterOverride: qpArchivedFilter ?? undefined,
+      createdFromOverride: qpCreatedFrom ? new Date(qpCreatedFrom) : undefined,
+      createdToOverride: qpCreatedTo ? new Date(qpCreatedTo) : undefined,
+      updatedFromOverride: qpUpdatedFrom ? new Date(qpUpdatedFrom) : undefined,
+      updatedToOverride: qpUpdatedTo ? new Date(qpUpdatedTo) : undefined,
     });
   }, [location.key, navigationType, tenantSlug]);
 
@@ -522,27 +571,6 @@ export default function TenantUsersPage() {
           totalCount != null ? ` of ${totalCount}` : ""
         }`;
 
-  async function handleDelete(userId: string) {
-    try {
-      const res = await deleteTenantUserApiRequest({
-        userId,
-        idempotencyKeyOptional: `delete-${userId}-${Date.now()}`,
-      });
-      if (res.success) {
-        notifications.show({
-          color: "green",
-          message: "User removed from tenant",
-        });
-        resetToFirstPageAndFetch();
-      }
-    } catch (e: any) {
-      notifications.show({
-        color: "red",
-        message: e?.message ?? "Delete failed",
-      });
-    }
-  }
-
   async function copyShareableLink() {
     const href = window.location.href;
     try {
@@ -565,27 +593,33 @@ export default function TenantUsersPage() {
     const chips: { key: keyof UserFilters; label: string }[] = [];
     if (appliedFilters.q.trim())
       chips.push({ key: "q", label: `search: "${appliedFilters.q.trim()}"` });
-    const roleTrim = appliedFilters.roleName.trim();
-    if (roleTrim) chips.push({ key: "roleName", label: `role: ${roleTrim}` });
+    if (appliedFilters.roleIds.length > 0)
+      chips.push({ key: "roleIds", label: `${appliedFilters.roleIds.length} role(s) selected` });
+    if (appliedFilters.archivedFilter !== "active-only") {
+      const label = appliedFilters.archivedFilter === "archived-only"
+        ? "archived users only"
+        : "all users (active + archived)";
+      chips.push({ key: "archivedFilter", label });
+    }
     if (appliedFilters.createdAtFrom)
       chips.push({
         key: "createdAtFrom",
-        label: `created ≥ ${appliedFilters.createdAtFrom}`,
+        label: `created ≥ ${appliedFilters.createdAtFrom.toISOString().split('T')[0]}`,
       });
     if (appliedFilters.createdAtTo)
       chips.push({
         key: "createdAtTo",
-        label: `created ≤ ${appliedFilters.createdAtTo}`,
+        label: `created ≤ ${appliedFilters.createdAtTo.toISOString().split('T')[0]}`,
       });
     if (appliedFilters.updatedAtFrom)
       chips.push({
         key: "updatedAtFrom",
-        label: `updated ≥ ${appliedFilters.updatedAtFrom}`,
+        label: `updated ≥ ${appliedFilters.updatedAtFrom.toISOString().split('T')[0]}`,
       });
     if (appliedFilters.updatedAtTo)
       chips.push({
         key: "updatedAtTo",
-        label: `updated ≤ ${appliedFilters.updatedAtTo}`,
+        label: `updated ≤ ${appliedFilters.updatedAtTo.toISOString().split('T')[0]}`,
       });
     return chips;
   }, [appliedFilters]);
@@ -594,7 +628,8 @@ export default function TenantUsersPage() {
     const next: UserFilters = {
       ...appliedFilters,
       q: key === "q" ? "" : appliedFilters.q,
-      roleName: key === "roleName" ? ("" as const) : appliedFilters.roleName,
+      roleIds: key === "roleIds" ? [] : appliedFilters.roleIds,
+      archivedFilter: key === "archivedFilter" ? "active-only" : appliedFilters.archivedFilter,
       createdAtFrom:
         key === "createdAtFrom" ? null : appliedFilters.createdAtFrom,
       createdAtTo: key === "createdAtTo" ? null : appliedFilters.createdAtTo,
@@ -694,16 +729,39 @@ export default function TenantUsersPage() {
             </Grid.Col>
 
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-              <TextInput
-                label="Role (contains)"
-                placeholder="e.g. Owner, Admin, Editor…"
-                value={values.roleName}
-                onChange={(e) =>
+              <MultiSelect
+                label="Roles"
+                placeholder="Select roles..."
+                data={availableRoles}
+                value={values.roleIds}
+                onChange={(roleIds) =>
                   setValues((prev) => ({
                     ...prev,
-                    roleName: e.currentTarget.value,
+                    roleIds,
                   }))
                 }
+                searchable
+                clearable
+                data-testid="role-filter-multiselect"
+              />
+            </Grid.Col>
+
+            <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+              <Select
+                label="Show users"
+                data={[
+                  { value: 'active-only', label: 'Active users only' },
+                  { value: 'archived-only', label: 'Archived users only' },
+                  { value: 'all', label: 'All users (active + archived)' },
+                ]}
+                value={values.archivedFilter}
+                onChange={(v) =>
+                  setValues((prev) => ({
+                    ...prev,
+                    archivedFilter: v as 'active-only' | 'archived-only' | 'all',
+                  }))
+                }
+                data-testid="archived-filter-select"
               />
             </Grid.Col>
 
@@ -713,9 +771,8 @@ export default function TenantUsersPage() {
                 placeholder="Start date"
                 value={values.createdAtFrom}
                 onChange={(v) =>
-                  setValues((prev) => ({ ...prev, createdAtFrom: v }))
+                  setValues({ ...values, createdAtFrom: v as Date | null })
                 }
-                valueFormat="YYYY-MM-DD"
                 popoverProps={{ withinPortal: true }}
                 presets={buildCommonDatePresets()}
                 clearable
@@ -728,9 +785,8 @@ export default function TenantUsersPage() {
                 placeholder="End date"
                 value={values.createdAtTo}
                 onChange={(v) =>
-                  setValues((prev) => ({ ...prev, createdAtTo: v }))
+                  setValues({ ...values, createdAtTo: v as Date | null })
                 }
-                valueFormat="YYYY-MM-DD"
                 popoverProps={{ withinPortal: true }}
                 presets={buildCommonDatePresets()}
                 clearable
@@ -743,9 +799,8 @@ export default function TenantUsersPage() {
                 placeholder="Start date"
                 value={values.updatedAtFrom}
                 onChange={(v) =>
-                  setValues((prev) => ({ ...prev, updatedAtFrom: v }))
+                  setValues({ ...values, updatedAtFrom: v as Date | null })
                 }
-                valueFormat="YYYY-MM-DD"
                 popoverProps={{ withinPortal: true }}
                 presets={buildCommonDatePresets()}
                 clearable
@@ -758,9 +813,8 @@ export default function TenantUsersPage() {
                 placeholder="End date"
                 value={values.updatedAtTo}
                 onChange={(v) =>
-                  setValues((prev) => ({ ...prev, updatedAtTo: v }))
+                  setValues({ ...values, updatedAtTo: v as Date | null })
                 }
-                valueFormat="YYYY-MM-DD"
                 popoverProps={{ withinPortal: true }}
                 presets={buildCommonDatePresets()}
                 clearable
@@ -1013,7 +1067,16 @@ export default function TenantUsersPage() {
                   <Table.Tbody>
                     {rows!.map((r) => (
                       <Table.Tr key={r.userId}>
-                        <Table.Td>{r.userEmailAddress}</Table.Td>
+                        <Table.Td>
+                          <Group gap="xs">
+                            {r.userEmailAddress}
+                            {r.isArchived && (
+                              <Badge color="gray" data-testid="archived-badge">
+                                Archived
+                              </Badge>
+                            )}
+                          </Group>
+                        </Table.Td>
                         <Table.Td className="min-w-[90px]">
                           <Badge>{r.role?.name ?? "—"}</Badge>
                         </Table.Td>
@@ -1046,25 +1109,14 @@ export default function TenantUsersPage() {
                             : "—"}
                         </Table.Td>
                         <Table.Td className="flex justify-end">
-                          <Group gap="xs">
-                            <ActionIcon
-                              variant="light"
-                              size="md"
-                              onClick={() => navigate(`/${tenantSlug}/users/${r.userId}`)}
-                              title="Edit user"
-                            >
-                              <IconEye size={16} />
-                            </ActionIcon>
-                            <ActionIcon
-                              variant="light"
-                              color="red"
-                              size="md"
-                              onClick={() => handleDelete(r.userId)}
-                              disabled={!canManageUsers}
-                            >
-                              <IconTrash size={16} />
-                            </ActionIcon>
-                          </Group>
+                          <ActionIcon
+                            variant="light"
+                            size="md"
+                            onClick={() => navigate(`/${tenantSlug}/users/${r.userId}`)}
+                            title="Edit user"
+                          >
+                            <IconEye size={16} />
+                          </ActionIcon>
                         </Table.Td>
                       </Table.Tr>
                     ))}

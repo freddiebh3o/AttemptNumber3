@@ -258,7 +258,7 @@ The AI has access to all this documentation and your real-time inventory data.
 ### Monthly Tasks
 
 **For Admins/Owners:**
-1. [User audit](branches-users/managing-users.md) - Remove inactive users
+1. [User audit](branches-users/managing-users.md#archiving-a-user) - Archive inactive users
 2. [Product cleanup](products/managing-products.md) - Archive obsolete products
 3. [Generate analytics](analytics/transfer-metrics.md) for the month
 4. Review and update [roles](branches-users/roles-permissions.md) if needed

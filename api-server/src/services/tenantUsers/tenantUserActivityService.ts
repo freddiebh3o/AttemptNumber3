@@ -143,11 +143,18 @@ function buildUserMessageParts(beforeJson: unknown, afterJson: unknown) {
     parts.branches = { added, removed };
   }
 
-  // If nothing recognized, expose a count so UI can still say “N field(s) changed)”
+  // Archive status
+  const archivedPick = pickFirst(diffs, ['isArchived','archived']);
+  if (archivedPick) {
+    parts.archived = { before: archivedPick.diff.before, after: archivedPick.diff.after };
+  }
+
+  // If nothing recognized, expose a count so UI can still say "N field(s) changed)"
   const remainingKeys = Object.keys(diffs).filter(k =>
     !['userEmailAddress','email','user_email','password','passwordHash','password_hash','pwHash','passwordUpdated',
       'role','userRole','tenantRole','authRole',
       'branchIds','branches','assignedBranchIds','memberBranchIds',
+      'isArchived','archived','archivedAt','archivedByUserId',
     ].includes(k)
   );
   if (remainingKeys.length > 0) parts.changedKeys = remainingKeys.length;
@@ -156,7 +163,7 @@ function buildUserMessageParts(beforeJson: unknown, afterJson: unknown) {
 }
 
 function summarizeUserChange(action: string, parts?: Record<string, any>) {
-  // Don’t include the user’s email again (we’re already on their page).
+  // Don't include the user's email again (we're already on their page).
   if (action !== 'UPDATE' || !parts) {
     // reasonable defaults for non-UPDATE actions
     if (action === 'CREATE') return 'User created';
@@ -164,6 +171,18 @@ function summarizeUserChange(action: string, parts?: Record<string, any>) {
     if (action === 'ROLE_ASSIGN') return 'Role assigned';
     if (action === 'ROLE_REVOKE') return 'Role revoked';
     return action.replaceAll('_',' ').toLowerCase();
+  }
+
+  // Check for archive/restore first (most specific)
+  if (parts.archived) {
+    const wasArchived = parts.archived.before === true;
+    const isNowArchived = parts.archived.after === true;
+
+    if (!wasArchived && isNowArchived) {
+      return 'Archived user';
+    } else if (wasArchived && !isNowArchived) {
+      return 'Restored user';
+    }
   }
 
   const changes: string[] = [];

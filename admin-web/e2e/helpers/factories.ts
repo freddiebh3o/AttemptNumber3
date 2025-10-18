@@ -764,6 +764,118 @@ export const RoleFactory = {
 };
 
 /**
+ * Tenant user factory for creating and managing tenant users in E2E tests
+ */
+export const TenantUserFactory = {
+  /**
+   * Get all tenant users via API
+   *
+   * @param page - Playwright page object (must be authenticated)
+   * @param params - Optional filter parameters
+   * @returns Array of user objects
+   *
+   * @example
+   * ```typescript
+   * const users = await TenantUserFactory.getAll(page);
+   * const archivedUsers = await TenantUserFactory.getAll(page, { archivedFilter: 'archived-only' });
+   * ```
+   */
+  async getAll(
+    page: Page,
+    params?: {
+      archivedFilter?: 'active-only' | 'archived-only' | 'all';
+    }
+  ): Promise<Array<{ userId: string; userEmailAddress: string; isArchived?: boolean }>> {
+    const apiUrl = getApiUrl();
+    const cookieHeader = await getCookieHeader(page);
+
+    const search = new URLSearchParams();
+    if (params?.archivedFilter) {
+      search.set('archivedFilter', params.archivedFilter);
+    }
+
+    const qs = search.toString();
+    const response = await page.request.get(
+      `${apiUrl}/api/tenant-users${qs ? `?${qs}` : ''}`,
+      {
+        headers: { 'Cookie': cookieHeader },
+      }
+    );
+
+    if (!response.ok()) {
+      throw new Error(`Failed to fetch tenant users: ${response.status()}`);
+    }
+
+    const data = await response.json();
+    return data.data.items;
+  },
+
+  /**
+   * Get a tenant user by ID via API
+   *
+   * @param page - Playwright page object (must be authenticated)
+   * @param userId - User ID
+   * @returns User object
+   *
+   * @example
+   * ```typescript
+   * const user = await TenantUserFactory.getById(page, userId);
+   * ```
+   */
+  async getById(page: Page, userId: string): Promise<any> {
+    const response = await makeAuthenticatedRequest(page, 'GET', `/api/tenant-users/${userId}`);
+
+    if (!response.ok()) {
+      const errorText = await response.text();
+      throw new Error(`Failed to fetch tenant user: ${response.status()} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    return data.data;
+  },
+
+  /**
+   * Archive a tenant user membership via API (soft delete)
+   *
+   * @param page - Playwright page object (must be authenticated)
+   * @param userId - User ID to archive
+   *
+   * @example
+   * ```typescript
+   * await TenantUserFactory.archive(page, userId);
+   * ```
+   */
+  async archive(page: Page, userId: string): Promise<void> {
+    const response = await makeAuthenticatedRequest(page, 'DELETE', `/api/tenant-users/${userId}`);
+
+    if (!response.ok()) {
+      const errorText = await response.text();
+      throw new Error(`Failed to archive user: ${response.status()} - ${errorText}`);
+    }
+  },
+
+  /**
+   * Restore an archived tenant user membership via API
+   *
+   * @param page - Playwright page object (must be authenticated)
+   * @param userId - User ID to restore
+   *
+   * @example
+   * ```typescript
+   * await TenantUserFactory.restore(page, userId);
+   * ```
+   */
+  async restore(page: Page, userId: string): Promise<void> {
+    const response = await makeAuthenticatedRequest(page, 'POST', `/api/tenant-users/${userId}/restore`);
+
+    if (!response.ok()) {
+      const errorText = await response.text();
+      throw new Error(`Failed to restore user: ${response.status()} - ${errorText}`);
+    }
+  },
+};
+
+/**
  * Aggregated factories export for convenience
  *
  * @example
@@ -783,4 +895,5 @@ export const Factories = {
   transfer: TransferFactory,
   approvalRule: ApprovalRuleFactory,
   role: RoleFactory,
+  tenantUser: TenantUserFactory,
 };

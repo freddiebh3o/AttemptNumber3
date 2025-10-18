@@ -198,6 +198,7 @@ function buildProductMessageParts(a: any) {
   pick(['sku'], 'sku');
   pick(['barcode', 'ean', 'upc'], 'barcode');
   pick(['isActive', 'active'], 'isActive');
+  pick(['isArchived', 'archived'], 'archived');
   pick(['salePrice', 'price', 'productPricePence', 'sale_price_pence'], 'salePrice');
   pick(['costPrice', 'cost'], 'costPrice');
   pick(['taxRate', 'taxPercent'], 'taxRate');
@@ -327,30 +328,66 @@ export async function getProductActivityForCurrentTenantService(params: GetActiv
   }
 
   // ---- Map to unified items ----
-  const auditMapped: UnifiedItem[] = auditEvents.map((a) => ({
-    kind: 'audit',
-    id: a.id,
-    when: a.createdAt.toISOString(),
-    action: a.action as string,
-    message:
-      a.action === 'CREATE'
-        ? 'Created product'
-        : a.action === 'UPDATE'
-        ? 'Updated product'
-        : a.action === 'DELETE'
-        ? 'Deleted product'
-        : a.action === 'STOCK_RECEIVE'
-        ? 'Received stock'
-        : a.action === 'STOCK_ADJUST'
-        ? 'Adjusted stock'
-        : a.action === 'STOCK_CONSUME'
-        ? 'Consumed stock'
-        : a.action.replaceAll('_', ' ').toLowerCase(),
-    messageParts: buildProductMessageParts(a),
-    actor: toActor(a.actorUserId),
-    correlationId: a.correlationId ?? null,
-    entityName: a.entityName ?? null,
-  }));
+  const auditMapped: UnifiedItem[] = auditEvents.map((a) => {
+    const messageParts = buildProductMessageParts(a);
+
+    // Check for archive/restore operations first
+    let message: string;
+    if (messageParts.archived && typeof messageParts.archived === 'object' && 'before' in messageParts.archived && 'after' in messageParts.archived) {
+      const wasArchived = (messageParts.archived as any).before === true;
+      const isNowArchived = (messageParts.archived as any).after === true;
+
+      if (!wasArchived && isNowArchived) {
+        message = 'Archived product';
+      } else if (wasArchived && !isNowArchived) {
+        message = 'Restored product';
+      } else {
+        // Fallback to default messages
+        message =
+          a.action === 'CREATE'
+            ? 'Created product'
+            : a.action === 'UPDATE'
+            ? 'Updated product'
+            : a.action === 'DELETE'
+            ? 'Deleted product'
+            : a.action === 'STOCK_RECEIVE'
+            ? 'Received stock'
+            : a.action === 'STOCK_ADJUST'
+            ? 'Adjusted stock'
+            : a.action === 'STOCK_CONSUME'
+            ? 'Consumed stock'
+            : a.action.replaceAll('_', ' ').toLowerCase();
+      }
+    } else {
+      // No archive/restore, use default messages
+      message =
+        a.action === 'CREATE'
+          ? 'Created product'
+          : a.action === 'UPDATE'
+          ? 'Updated product'
+          : a.action === 'DELETE'
+          ? 'Deleted product'
+          : a.action === 'STOCK_RECEIVE'
+          ? 'Received stock'
+          : a.action === 'STOCK_ADJUST'
+          ? 'Adjusted stock'
+          : a.action === 'STOCK_CONSUME'
+          ? 'Consumed stock'
+          : a.action.replaceAll('_', ' ').toLowerCase();
+    }
+
+    return {
+      kind: 'audit',
+      id: a.id,
+      when: a.createdAt.toISOString(),
+      action: a.action as string,
+      message,
+      messageParts,
+      actor: toActor(a.actorUserId),
+      correlationId: a.correlationId ?? null,
+      entityName: a.entityName ?? null,
+    };
+  });
 
   const ledgerMapped: UnifiedItem[] = ledgerItems.map((le) => {
     const when = new Date(le.occurredAt);

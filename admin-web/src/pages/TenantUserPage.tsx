@@ -15,6 +15,8 @@ import {
   PasswordInput,
   MultiSelect,
   Select,
+  Modal,
+  Alert,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import type { components } from "../types/openapi";
@@ -22,11 +24,15 @@ import {
   createTenantUserApiRequest,
   updateTenantUserApiRequest,
   getTenantUserApiRequest,
+  deleteTenantUserApiRequest,
+  restoreTenantUserApiRequest,
 } from "../api/tenantUsers";
 import { listRolesApiRequest } from "../api/roles";
 import { listBranchesApiRequest } from "../api/branches";
 import { handlePageError } from "../utils/pageError";
 import { TenantUserActivityTab } from "../components/tenantUsers/TenantUserActivityTab";
+import { IconArchive } from "@tabler/icons-react";
+import { useAuthStore } from "../stores/auth";
 
 type TenantUserRecord = components["schemas"]["TenantUserRecord"];
 type RoleRecord = components["schemas"]["RoleRecord"];
@@ -46,6 +52,8 @@ export default function TenantUserPage() {
   const { tenantSlug, userId } = useParams<{ tenantSlug: string; userId?: string }>();
   const isEdit = Boolean(userId);
   const navigate = useNavigate();
+  const canManageUsers = useAuthStore((s) => s.hasPerm("users:manage"));
+  const currentUserId = useAuthStore((s) => s.currentUserId);
 
   // tabs via URL
   const [searchParams, setSearchParams] = useSearchParams();
@@ -80,8 +88,10 @@ export default function TenantUserPage() {
   const [roleId, setRoleId] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [branchIds, setBranchIds] = useState<string[]>([]);
+  const [isArchived, setIsArchived] = useState(false);
 
   const [saving, setSaving] = useState(false);
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
 
   // trigger refetch after successful update
   const [refreshTick, setRefreshTick] = useState(0);
@@ -141,6 +151,7 @@ export default function TenantUserPage() {
           setRoleId(u.role?.id ?? null);
           const existingBranchIds = (u as any).branches?.map((b: any) => b.id) ?? [];
           setBranchIds(existingBranchIds);
+          setIsArchived(u.isArchived ?? false);
         }
       } catch (e: any) {
         if (!cancelled && (e?.httpStatusCode === 404 || e?.status === 404)) {
@@ -170,7 +181,6 @@ export default function TenantUserPage() {
   );
 
   const pageTitle = isEdit ? "Edit user" : "New user";
-  const isBusy = saving || loadingRoles || loadingBranches || (isEdit && loadingUser);
 
   function setsEqual(a: string[], b: string[]) {
     if (a.length !== b.length) return false;
@@ -243,6 +253,50 @@ export default function TenantUserPage() {
     }
   }
 
+  async function handleRestoreUser() {
+    if (!userId) return;
+    setSaving(true);
+    try {
+      const key = (crypto as any)?.randomUUID?.() ?? String(Date.now());
+      const res = await restoreTenantUserApiRequest({
+        userId,
+        idempotencyKeyOptional: key,
+      });
+      if (res.success) {
+        notifications.show({ color: "green", message: "User restored." });
+        setRefreshTick((t) => t + 1);
+      }
+    } catch (e) {
+      handlePageError(e, { title: "Restore failed" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleArchiveUser() {
+    if (!userId) return;
+    setSaving(true);
+    setShowArchiveModal(false);
+    try {
+      const key = (crypto as any)?.randomUUID?.() ?? String(Date.now());
+      const res = await deleteTenantUserApiRequest({
+        userId,
+        idempotencyKeyOptional: key,
+      });
+      if (res.success) {
+        notifications.show({ color: "green", message: "User archived successfully." });
+        setRefreshTick((t) => t + 1);
+      }
+    } catch (e) {
+      handlePageError(e, { title: "Archive failed" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const isOwnMembership = userId === currentUserId;
+  const busy = saving || loadingRoles || loadingBranches || (isEdit && loadingUser);
+
   // --- Not found (edit only) ---
   if (isEdit && notFound) {
     return (
@@ -274,19 +328,61 @@ export default function TenantUserPage() {
     <Stack gap="lg">
       {/* Header */}
       <Group justify="space-between" align="start">
-        <Title order={2}>{pageTitle}</Title>
+        <Group gap="sm">
+          <Title order={2}>{pageTitle}</Title>
+          {isEdit && isArchived && (
+            <Badge color="gray" size="lg" data-testid="archived-badge">
+              Archived
+            </Badge>
+          )}
+        </Group>
         <Group>
           <Button variant="default" onClick={() => navigate(-1)}>Cancel</Button>
-          <Button onClick={handleSave} loading={isBusy}>Save</Button>
+          {isEdit && isArchived && canManageUsers && (
+            <Button
+              onClick={handleRestoreUser}
+              loading={busy}
+              color="blue"
+              data-testid="restore-btn"
+            >
+              Restore
+            </Button>
+          )}
+          {isEdit && !isArchived && canManageUsers && !isOwnMembership && (
+            <Button
+              onClick={() => setShowArchiveModal(true)}
+              variant="light"
+              color="red"
+              leftSection={<IconArchive size={16} />}
+              data-testid="archive-user-btn"
+            >
+              Archive User
+            </Button>
+          )}
+          {!isArchived && (
+            <Button onClick={handleSave} loading={busy} disabled={!canManageUsers}>Save</Button>
+          )}
         </Group>
       </Group>
 
-      {isBusy && isEdit ? (
+      {busy && isEdit ? (
         <Group gap="sm">
           <Loader size="sm" />
           <Text>Loading…</Text>
         </Group>
       ) : (
+        <>
+          {/* Warning for archived users */}
+          {isEdit && isArchived && (
+            <Alert color="yellow" title="This user is archived" mb="md">
+              This user membership has been archived and cannot sign in.
+              All data is preserved and can be restored at any time.
+            </Alert>
+          )}
+        </>
+      )}
+
+      {!(busy && isEdit) && (
         <Tabs
           value={activeTab}
           onChange={(v) => {
@@ -352,6 +448,42 @@ export default function TenantUserPage() {
           )}
         </Tabs>
       )}
+
+      {/* Archive confirmation modal */}
+      <Modal
+        opened={showArchiveModal}
+        onClose={() => setShowArchiveModal(false)}
+        title="Archive User?"
+        centered
+      >
+        <Stack gap="md">
+          <Text>
+            This user membership will be deactivated and the user will not be able to sign in.
+            All history and related data will be preserved and this membership can be restored at any time.
+          </Text>
+          {isOwnMembership && (
+            <Alert color="red" title="Cannot archive own membership">
+              You cannot archive your own user membership.
+            </Alert>
+          )}
+          <Group justify="flex-end" gap="sm">
+            <Button
+              variant="default"
+              onClick={() => setShowArchiveModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              color="red"
+              onClick={handleArchiveUser}
+              loading={busy}
+              disabled={isOwnMembership}
+            >
+              Archive
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Stack>
   );
 }

@@ -170,6 +170,12 @@ Click **"Filters"** to access:
 - Filter by role name (text search)
 - Example: Search "ADMIN" finds users with ADMIN role
 
+**Show users** (Archive filter)
+- **Active users only** (default) - Shows only active users
+- **Archived users only** - Shows only archived users
+- **All users (active + archived)** - Shows all users
+- Archived users display a gray "Archived" badge
+
 **Created Date Range**
 - From/To dates
 - Find users added in a specific timeframe
@@ -277,33 +283,106 @@ When resetting for a user:
 2. Communicate it securely (don't email plain text)
 3. Instruct them to change it immediately after login
 
-## Removing a User
+## Archiving a User
 
-### When to Remove
+### What is Archiving?
 
-- Employee leaves the company
-- Contractor's engagement ends
-- Access should be revoked
+**Archiving** is a safe way to deactivate a user's access while preserving all their historical data and audit trails. Unlike permanent deletion, archived users:
 
-**Important:** Removing deletes the user's membership in your organization but preserves audit logs and historical data.
+- **Cannot sign in** to the organization
+- Are **hidden from active user lists** by default
+- Have **all historical data preserved** (stock movements, transfers, audit logs)
+- Can be **restored at any time** if needed
 
-### How to Remove
+**Use archiving when:**
+- An employee leaves the company
+- A contractor's engagement ends
+- Access should be temporarily revoked
+- You want to preserve complete audit trail
 
-From the Users page, click the **red trash icon** next to the user.
+### How to Archive
 
-**Note:** Currently no confirmation dialog - click carefully.
+1. Open the user's detail page (click their email from the Users list)
+2. Click the **"Archive User"** button (red button with archive icon)
+3. Review the confirmation dialog:
+   - "This user membership will be deactivated and the user will not be able to sign in."
+   - "All history and related data will be preserved and this membership can be restored at any time."
+4. Click **"Archive"** to confirm
 
-### What Happens
+**Confirmation Required:** A modal dialog appears to prevent accidental archival.
 
-- User's `UserTenantMembership` is deleted
-- User can no longer log in to your organization
-- All their historical actions remain in audit logs
-- Stock movements and transfers they created are preserved
-- User can be re-invited with the same email if needed
+### What Happens When You Archive
 
-### Cannot Remove Yourself
+✅ **User is deactivated:**
+- Cannot sign in to your organization anymore
+- Receives clear error message if sign-in attempted: "Invalid credentials or your membership has been archived"
+- Removed from tenant switcher dropdown (if they have other tenants)
 
-You cannot remove your own user account. Ask another admin to do it if necessary.
+✅ **Data is preserved:**
+- All audit logs remain intact
+- Stock movements they created are preserved
+- Transfers they created/approved are preserved
+- Activity history is fully accessible
+- Can view their historical data from the detail page
+
+✅ **User is hidden by default:**
+- Not shown in the Users list (unless filter changed)
+- Not selectable in forms or dropdowns
+- Appears as "Archived" in their user detail page
+
+### Cannot Archive Yourself
+
+You cannot archive your own user membership (button is hidden). This prevents accidental lockout. Ask another admin to archive your account if necessary.
+
+### Viewing Archived Users
+
+By default, the Users list shows only **active users**. To see archived users:
+
+1. Go to the **Users** page
+2. Click **"Filters"**
+3. Find the **"Show users"** dropdown
+4. Select one of:
+   - **"Active users only"** (default) - Hides archived users
+   - **"Archived users only"** - Shows only archived users
+   - **"All users (active + archived)"** - Shows everyone
+
+**Archived Badge:** Archived users display a gray **"Archived"** badge next to their email in the table.
+
+### Restoring an Archived User
+
+If a user needs to be reactivated (e.g., employee returns, contractor renewed):
+
+1. Filter to show archived users (see above)
+2. Click the archived user's email to open their detail page
+3. You'll see:
+   - Gray **"Archived"** badge in the header
+   - Yellow warning alert: "This user membership has been archived and cannot sign in"
+   - Blue **"Restore"** button
+4. Click **"Restore"**
+5. User is immediately reactivated
+
+**What Happens:**
+- User can sign in again immediately
+- User reappears in active user lists
+- All their historical data remains intact
+- No data loss from archive/restore cycle
+
+### Archive vs Delete
+
+**Archive (Recommended):**
+- ✅ User cannot sign in
+- ✅ All data preserved
+- ✅ Can be reversed anytime
+- ✅ Audit trail intact
+- ✅ Safe for users with stock/transfer history
+
+**Delete (Not Available):**
+- ❌ Permanently removes membership
+- ❌ Cannot be undone
+- ❌ May break audit trail references
+- ❌ Not available for users with related records
+
+**Best Practice:** Always use archive instead of delete for user deactivation.
 
 ## User Activity Tracking
 
@@ -354,9 +433,11 @@ If you can't see the Users menu or "New User" button, contact your admin to requ
 ✅ **Assign appropriate roles** - Don't give OWNER to everyone; use VIEWER for read-only access
 ✅ **Limit branch assignments** - Only assign branches user actually needs
 ✅ **Use strong passwords** - Minimum 8 chars, include numbers/symbols
-✅ **Review users regularly** - Remove inactive users to maintain security
+✅ **Archive instead of delete** - Use archive for departing employees (preserves audit trail)
+✅ **Review users regularly** - Archive inactive users to maintain security
 ✅ **Track activity** - Use activity logs to audit user actions
 ✅ **Document role changes** - Note why you promoted/downgraded users
+✅ **Periodic access review** - Monthly audit of archived vs active users
 
 ## Common Tasks
 
@@ -375,6 +456,37 @@ If you can't see the Users menu or "New User" button, contact your admin to requ
 1. Open the user
 2. Change **Role** to VIEWER
 3. Save
+
+### Task: Archive a Departing Employee
+
+**Scenario:** Employee leaves the company, needs access removed.
+
+1. Open the user's detail page
+2. Click **"Archive User"**
+3. Review confirmation dialog
+4. Click **"Archive"** to confirm
+5. User can no longer sign in
+
+**Result:** User deactivated, all historical data preserved.
+
+### Task: Restore a Returning Employee
+
+**Scenario:** Contractor returns after 6 months, needs access restored.
+
+1. Go to **Users** page
+2. Click **"Filters"**
+3. Change **"Show users"** to **"Archived users only"**
+4. Click **"Apply"**
+5. Find and click the user
+6. Click **"Restore"** button
+7. User can sign in immediately
+
+### Task: Find All Archived Users
+
+1. Go to **Users** page
+2. Click **"Filters"**
+3. In **"Show users"** dropdown, select **"Archived users only"**
+4. Click **"Apply"**
 
 ### Task: Move User to Different Branch
 
@@ -442,19 +554,36 @@ Currently no direct filter. Review the "Branches" column and look for empty entr
 - Try a different password
 - Check for special character requirements (if any)
 
-**Can't remove a user**
-- You cannot remove yourself
+**Can't archive a user**
+- You cannot archive yourself (button is hidden for your own account)
 - Ask another admin with `users:manage` permission
 - Verify you have the correct permissions
+
+**"Invalid credentials or your membership has been archived"**
+- User account has been archived and cannot sign in
+- Contact admin to restore the user if access needed
+- Admin: Filter for archived users and click Restore
+
+**Cannot see "Archive User" button**
+- You may lack `users:manage` permission
+- Button is hidden for your own user account (self-protection)
+- Contact OWNER or ADMIN for access
+
+**Archived user still appears in list**
+- Check archive filter - ensure it's set to "Active users only"
+- Clear all filters and reapply
+- Refresh the page
 
 ## Security Tips
 
 🔒 **Use unique passwords** - Don't reuse passwords across accounts
 🔒 **Review permissions regularly** - Audit user roles quarterly
-🔒 **Remove inactive users** - Delete accounts for users who left
+🔒 **Archive inactive users** - Archive (not delete) accounts for users who left
+🔒 **Verify archived status** - Periodically check that archived users cannot sign in
 🔒 **Limit OWNER role** - Only assign to trusted executives
 🔒 **Monitor activity logs** - Watch for suspicious behavior
 🔒 **Use principle of least privilege** - Give minimum necessary permissions
+🔒 **Restore carefully** - Verify user identity before restoring archived accounts
 
 ## Related Guides
 

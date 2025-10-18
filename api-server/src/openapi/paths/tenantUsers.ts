@@ -106,8 +106,27 @@ export function registerTenantUsersPaths(registry: OpenAPIRegistry) {
     request: { params: z.object({ userId: z.string() }) },
     responses: {
       200: {
-        description: 'Removed membership',
-        content: { 'application/json': { schema: successEnvelope(z.object({ hasRemovedMembership: z.boolean() })) } },
+        description: 'Archived membership',
+        content: { 'application/json': { schema: successEnvelope(z.object({ hasArchivedMembership: z.boolean() })) } },
+      },
+      401: RESPONSES[401],
+      403: { description: 'Forbidden', content: { 'application/json': { schema: errorEnvelope } } },
+      404: RESPONSES[404],
+      429: RESPONSES[429],
+      500: RESPONSES[500],
+    },
+  });
+
+  registry.registerPath({
+    tags: ['TenantUsers'],
+    method: 'post',
+    path: '/api/tenant-users/{userId}/restore',
+    security: [{ cookieAuth: [] }],
+    request: { params: z.object({ userId: z.string() }) },
+    responses: {
+      200: {
+        description: 'Restored archived membership',
+        content: { 'application/json': { schema: successEnvelope(z.object({ hasRestoredMembership: z.boolean() })) } },
       },
       401: RESPONSES[401],
       403: { description: 'Forbidden', content: { 'application/json': { schema: errorEnvelope } } },
