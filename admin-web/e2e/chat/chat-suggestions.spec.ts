@@ -13,36 +13,14 @@
  *   3. Ensure database is seeded: cd api-server && npm run db:seed
  *
  * Then run these tests from admin-web:
- *   cd admin-web && npm run test:accept:ui -- chat-suggestions.spec.ts
+ *   cd admin-web && npm run test:accept:ui -- chat/chat-suggestions.spec.ts
  */
 import { test, expect } from '@playwright/test';
-
-// Test credentials (from api-server/prisma/seed.ts)
-const TEST_USERS = {
-  owner: {
-    email: 'owner@acme.test',
-    password: 'Password123!',
-    tenant: 'acme',
-  },
-  viewer: {
-    email: 'viewer@acme.test',
-    password: 'Password123!',
-    tenant: 'acme',
-  },
-};
-
-// Helper function to sign in
-async function signIn(page: any, user: typeof TEST_USERS.owner) {
-  await page.goto('/');
-  await page.getByLabel(/email address/i).fill(user.email);
-  await page.getByLabel(/password/i).fill(user.password);
-  await page.getByLabel(/tenant/i).fill(user.tenant);
-  await page.getByRole('button', { name: /sign in/i }).click();
-  await expect(page).toHaveURL(`/${user.tenant}/products`);
-}
+import { signIn, TEST_USERS } from '../helpers';
 
 test.describe('AI Chat Smart Suggestions - Phase 4.3', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ context, page }) => {
+    await context.clearCookies();
     // Sign in as owner for all tests
     await signIn(page, TEST_USERS.owner);
   });
@@ -105,7 +83,8 @@ test.describe('AI Chat Smart Suggestions - Phase 4.3', () => {
       await suggestions.first().click();
 
       // Should see the suggestion text as a user message in the chat
-      await expect(modalContent.getByText(suggestionText!, { exact: true })).toBeVisible({ timeout: 2000 });
+      // Use .first() to avoid strict mode violation (text appears in button + user message)
+      await expect(modalContent.getByText(suggestionText!, { exact: true }).first()).toBeVisible({ timeout: 2000 });
 
       // Welcome message and suggestions should disappear after message is sent
       await expect(modalContent.getByText(/Hi! I'm your inventory assistant/i)).not.toBeVisible();
@@ -275,7 +254,7 @@ test.describe('AI Chat Smart Suggestions - Phase 4.3', () => {
       await sendButton.click();
 
       // Wait for message to appear
-      await expect(modalContent.getByText('First message', { exact: true })).toBeVisible();
+      await expect(modalContent.getByText('First message', { exact: true }).first()).toBeVisible();
 
       // Wait a moment for conversation to be saved
       await page.waitForTimeout(1000);
@@ -297,7 +276,7 @@ test.describe('AI Chat Smart Suggestions - Phase 4.3', () => {
         await expect(modalContent.getByText(/Suggested questions:/i)).not.toBeVisible();
 
         // Should see the old message
-        await expect(modalContent.getByText('First message', { exact: true })).toBeVisible();
+        await expect(modalContent.getByText('First message', { exact: true }).first()).toBeVisible();
       }
     });
   });

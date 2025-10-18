@@ -315,6 +315,7 @@ export default function CreateTransferModal({
                         onChange={(v) => updateItem(index, "productId", v || "")}
                         searchable
                         disabled={isLoadingData}
+                        data-testid={`transfer-item-product-select-${index}`}
                       />
                     </Table.Td>
                     <Table.Td>
@@ -329,6 +330,7 @@ export default function CreateTransferModal({
                           )
                         }
                         min={1}
+                        data-testid={`transfer-item-quantity-input-${index}`}
                       />
                     </Table.Td>
                     <Table.Td>

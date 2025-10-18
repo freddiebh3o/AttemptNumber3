@@ -15,30 +15,28 @@
  *   cd admin-web && npm run test:accept -- auth-flow.spec.ts
  */
 import { test, expect } from '@playwright/test';
+import { signIn, TEST_USERS, SELECTORS } from '../helpers';
 
-// Test credentials (from api-server/prisma/seed.ts)
-const TEST_USERS = {
-  owner: {
-    email: 'owner@acme.test',
-    password: 'Password123!',
-    tenant: 'acme',
-  },
-  admin: {
-    email: 'admin@acme.test',
-    password: 'Password123!',
-    tenant: 'acme',
-  },
-  editor: {
-    email: 'editor@acme.test',
-    password: 'Password123!',
-    tenant: 'acme',
-  },
-  viewer: {
-    email: 'viewer@acme.test',
-    password: 'Password123!',
-    tenant: 'acme',
-  },
-};
+// Check API server health before tests
+test.beforeAll(async () => {
+  const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
+  try {
+    const response = await fetch(`${apiUrl}/api/health`);
+    if (!response.ok) {
+      throw new Error(`API health check failed: ${response.status}`);
+    }
+  } catch (error) {
+    console.warn(
+      '⚠️  API server may not be running. Please start it with: cd api-server && npm run dev'
+    );
+    // Note: We don't throw here to allow tests to run and show more descriptive failures
+  }
+});
+
+// Clear cookies before each test for isolation
+test.beforeEach(async ({ context }) => {
+  await context.clearCookies();
+});
 
 test.describe('[ST-002] Authentication Flow', () => {
   test.beforeEach(async ({ page }) => {
@@ -46,63 +44,34 @@ test.describe('[ST-002] Authentication Flow', () => {
     await page.goto('/');
   });
 
-  // Helper: Check if API server is reachable
-  test.beforeAll(async () => {
-    const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
-    try {
-      const response = await fetch(`${apiUrl}/api/health`);
-      if (!response.ok) {
-        throw new Error(`API health check failed: ${response.status}`);
-      }
-    } catch (error) {
-      console.warn(
-        '⚠️  API server may not be running. Please start it with: cd api-server && npm run dev'
-      );
-      // Note: We don't throw here to allow tests to run and show more descriptive failures
-    }
-  });
-
   test.describe('[AC-002-1] Sign-In with Valid Credentials', () => {
     test('should redirect to products page after successful sign-in', async ({ page }) => {
-      // Fill in sign-in form with valid credentials
-      await page.getByLabel(/email address/i).fill(TEST_USERS.owner.email);
-      await page.getByLabel(/password/i).fill(TEST_USERS.owner.password);
-      await page.getByLabel(/tenant/i).fill(TEST_USERS.owner.tenant);
+      // Use shared signIn helper
+      await signIn(page, TEST_USERS.owner);
 
-      // Submit form
-      await page.getByRole('button', { name: /sign in/i }).click();
-
-      // Should redirect to /:tenantSlug/products
-      await expect(page).toHaveURL(`/${TEST_USERS.owner.tenant}/products`);
-
-      // Should show products page content
+      // Should redirect to /:tenantSlug/products (already verified by signIn helper)
+      // Additional verification: Should show products page content
       await expect(page.getByRole('heading', { name: /all products/i }).first()).toBeVisible();
     });
 
     test('should show sign-out button in navigation after sign-in', async ({ page }) => {
-      // Sign in
-      await page.getByLabel(/email address/i).fill(TEST_USERS.admin.email);
-      await page.getByLabel(/password/i).fill(TEST_USERS.admin.password);
-      await page.getByLabel(/tenant/i).fill(TEST_USERS.admin.tenant);
-      await page.getByRole('button', { name: /sign in/i }).click();
+      // Sign in using shared helper
+      await signIn(page, TEST_USERS.admin);
 
-      // Wait for redirect
-      await expect(page).toHaveURL(`/${TEST_USERS.admin.tenant}/products`);
-
-      // Should show sign-out button in header
+      // Should show sign-out button in header (note: data-testid not yet added to sign-out button)
       await expect(page.getByRole('button', { name: /sign out/i })).toBeVisible();
     });
   });
 
   test.describe('[AC-002-2] Sign-In with Invalid Credentials', () => {
     test('should show error notification for incorrect password', async ({ page }) => {
-      // Fill in form with invalid password
-      await page.getByLabel(/email address/i).fill(TEST_USERS.owner.email);
-      await page.getByLabel(/password/i).fill('WrongPassword123!');
-      await page.getByLabel(/tenant/i).fill(TEST_USERS.owner.tenant);
+      // Fill in form with invalid password using data-testid
+      await page.getByTestId(SELECTORS.AUTH.EMAIL_INPUT).fill(TEST_USERS.owner.email);
+      await page.getByTestId(SELECTORS.AUTH.PASSWORD_INPUT).fill('WrongPassword123!');
+      await page.getByTestId(SELECTORS.AUTH.TENANT_INPUT).fill(TEST_USERS.owner.tenant);
 
       // Submit form
-      await page.getByRole('button', { name: /sign in/i }).click();
+      await page.getByTestId(SELECTORS.AUTH.SIGN_IN_BUTTON).click();
 
       // Should show error notification (Mantine notifications appear as role="alert")
       await expect(page.getByRole('alert')).toBeVisible();
@@ -113,13 +82,13 @@ test.describe('[ST-002] Authentication Flow', () => {
     });
 
     test('should show error notification for non-existent user', async ({ page }) => {
-      // Fill in form with non-existent email
-      await page.getByLabel(/email address/i).fill('nonexistent@example.com');
-      await page.getByLabel(/password/i).fill('Password123!');
-      await page.getByLabel(/tenant/i).fill('acme');
+      // Fill in form with non-existent email using data-testid
+      await page.getByTestId(SELECTORS.AUTH.EMAIL_INPUT).fill('nonexistent@example.com');
+      await page.getByTestId(SELECTORS.AUTH.PASSWORD_INPUT).fill('Password123!');
+      await page.getByTestId(SELECTORS.AUTH.TENANT_INPUT).fill('acme');
 
       // Submit form
-      await page.getByRole('button', { name: /sign in/i }).click();
+      await page.getByTestId(SELECTORS.AUTH.SIGN_IN_BUTTON).click();
 
       // Should show error notification
       await expect(page.getByRole('alert')).toBeVisible();
@@ -130,13 +99,13 @@ test.describe('[ST-002] Authentication Flow', () => {
     });
 
     test('should show error notification for wrong tenant', async ({ page }) => {
-      // Fill in form with valid user but wrong tenant
-      await page.getByLabel(/email address/i).fill(TEST_USERS.owner.email);
-      await page.getByLabel(/password/i).fill(TEST_USERS.owner.password);
-      await page.getByLabel(/tenant/i).fill('nonexistent-tenant');
+      // Fill in form with valid user but wrong tenant using data-testid
+      await page.getByTestId(SELECTORS.AUTH.EMAIL_INPUT).fill(TEST_USERS.owner.email);
+      await page.getByTestId(SELECTORS.AUTH.PASSWORD_INPUT).fill(TEST_USERS.owner.password);
+      await page.getByTestId(SELECTORS.AUTH.TENANT_INPUT).fill('nonexistent-tenant');
 
       // Submit form
-      await page.getByRole('button', { name: /sign in/i }).click();
+      await page.getByTestId(SELECTORS.AUTH.SIGN_IN_BUTTON).click();
 
       // Should show error notification
       await expect(page.getByRole('alert')).toBeVisible();
@@ -149,14 +118,8 @@ test.describe('[ST-002] Authentication Flow', () => {
 
   test.describe('[AC-002-3] Session Persistence', () => {
     test('should maintain session after page reload', async ({ page }) => {
-      // Sign in
-      await page.getByLabel(/email address/i).fill(TEST_USERS.editor.email);
-      await page.getByLabel(/password/i).fill(TEST_USERS.editor.password);
-      await page.getByLabel(/tenant/i).fill(TEST_USERS.editor.tenant);
-      await page.getByRole('button', { name: /sign in/i }).click();
-
-      // Wait for redirect
-      await expect(page).toHaveURL(`/${TEST_USERS.editor.tenant}/products`);
+      // Sign in using shared helper
+      await signIn(page, TEST_USERS.editor);
 
       // Reload the page
       await page.reload();
@@ -168,13 +131,7 @@ test.describe('[ST-002] Authentication Flow', () => {
 
     test('should navigate to different pages while authenticated', async ({ page }) => {
       // Sign in as owner (has all permissions)
-      await page.getByLabel(/email address/i).fill(TEST_USERS.owner.email);
-      await page.getByLabel(/password/i).fill(TEST_USERS.owner.password);
-      await page.getByLabel(/tenant/i).fill(TEST_USERS.owner.tenant);
-      await page.getByRole('button', { name: /sign in/i }).click();
-
-      // Wait for redirect to products page
-      await expect(page).toHaveURL(`/${TEST_USERS.owner.tenant}/products`);
+      await signIn(page, TEST_USERS.owner);
 
       // Navigate to users page (requires users:manage permission)
       await page.goto(`/${TEST_USERS.owner.tenant}/users`);
@@ -191,16 +148,11 @@ test.describe('[ST-002] Authentication Flow', () => {
 
   test.describe('[AC-002-4] Sign-Out Flow', () => {
     test('should sign out and redirect to sign-in page', async ({ page }) => {
-      // Sign in first
-      await page.getByLabel(/email address/i).fill(TEST_USERS.viewer.email);
-      await page.getByLabel(/password/i).fill(TEST_USERS.viewer.password);
-      await page.getByLabel(/tenant/i).fill(TEST_USERS.viewer.tenant);
-      await page.getByRole('button', { name: /sign in/i }).click();
-
-      // Wait for redirect
-      await expect(page).toHaveURL(`/${TEST_USERS.viewer.tenant}/products`);
+      // Sign in using shared helper
+      await signIn(page, TEST_USERS.viewer);
 
       // Click sign out button (it's a button, not a menu item)
+      // Note: data-testid not yet added to sign-out button
       await page.getByRole('button', { name: /sign out/i }).click();
 
       // Should redirect to sign-in page (note: it's /sign-in not /)
@@ -209,14 +161,8 @@ test.describe('[ST-002] Authentication Flow', () => {
     });
 
     test('should not access protected pages after sign-out', async ({ page }) => {
-      // Sign in first
-      await page.getByLabel(/email address/i).fill(TEST_USERS.editor.email);
-      await page.getByLabel(/password/i).fill(TEST_USERS.editor.password);
-      await page.getByLabel(/tenant/i).fill(TEST_USERS.editor.tenant);
-      await page.getByRole('button', { name: /sign in/i }).click();
-
-      // Wait for redirect
-      await expect(page).toHaveURL(`/${TEST_USERS.editor.tenant}/products`);
+      // Sign in using shared helper
+      await signIn(page, TEST_USERS.editor);
 
       // Click sign out button
       await page.getByRole('button', { name: /sign out/i }).click();
@@ -239,39 +185,35 @@ test.describe('[ST-002] Authentication Flow', () => {
   });
 
   test.describe('[AC-002-5] Protected Route Access', () => {
-    test.skip('should redirect to sign-in when accessing protected route without authentication', async ({ page }) => {
-      // SKIPPED: Auth guard not yet implemented - protected routes currently accessible without authentication
-      // This test will be enabled once auth middleware/guard is added to the frontend router
-
+    test('should redirect to sign-in when accessing protected route without authentication', async ({ page }) => {
       // Try to access products page directly without signing in
       await page.goto('/acme/products');
 
       // Should be redirected to sign-in page
-      await expect(page).toHaveURL('/');
+      // The URL may include query params like ?reason=unauthorized
+      await expect(page).toHaveURL(/\/sign-in/);
       await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible();
+
+      // Should NOT show the actual products content
+      await expect(page.getByRole('heading', { name: /all products/i })).not.toBeVisible();
     });
 
-    test.skip('should redirect to sign-in when accessing user management without authentication', async ({ page }) => {
-      // SKIPPED: Auth guard not yet implemented - protected routes currently accessible without authentication
-      // This test will be enabled once auth middleware/guard is added to the frontend router
-
+    test('should redirect to sign-in when accessing user management without authentication', async ({ page }) => {
       // Try to access users page directly without signing in
       await page.goto('/acme/users');
 
       // Should be redirected to sign-in page
-      await expect(page).toHaveURL('/');
+      // The URL may include query params like ?reason=unauthorized
+      await expect(page).toHaveURL(/\/sign-in/);
       await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible();
+
+      // Should NOT show the actual users content
+      await expect(page.getByRole('heading', { name: /users/i })).not.toBeVisible();
     });
 
     test('should allow access to protected routes after authentication', async ({ page }) => {
-      // Sign in first
-      await page.getByLabel(/email address/i).fill(TEST_USERS.admin.email);
-      await page.getByLabel(/password/i).fill(TEST_USERS.admin.password);
-      await page.getByLabel(/tenant/i).fill(TEST_USERS.admin.tenant);
-      await page.getByRole('button', { name: /sign in/i }).click();
-
-      // Wait for redirect
-      await expect(page).toHaveURL(`/${TEST_USERS.admin.tenant}/products`);
+      // Sign in using shared helper
+      await signIn(page, TEST_USERS.admin);
 
       // Now try to access users page (admin has users:manage permission)
       await page.goto(`/${TEST_USERS.admin.tenant}/users`);

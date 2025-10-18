@@ -1,5 +1,6 @@
-// admin-web/e2e/barcode-scanning.spec.ts
+// admin-web/e2e/features/barcode-scanning.spec.ts
 import { test, expect, type Page } from '@playwright/test';
+import { signIn, TEST_USERS, Factories } from '../helpers';
 
 /**
  * Barcode Scanning Tests
@@ -13,75 +14,6 @@ import { test, expect, type Page } from '@playwright/test';
  * NOTE: Full camera-based scanning tests require manual testing on mobile devices.
  * These tests focus on the UI components and manual entry workflow.
  */
-
-// Test credentials from api-server/prisma/seed.ts
-const TEST_USERS = {
-  owner: { email: 'owner@acme.test', password: 'Password123!', tenant: 'acme' },
-  admin: { email: 'admin@acme.test', password: 'Password123!', tenant: 'acme' },
-  editor: { email: 'editor@acme.test', password: 'Password123!', tenant: 'acme' },
-  viewer: { email: 'viewer@acme.test', password: 'Password123!', tenant: 'acme' },
-};
-
-// Helper to sign in
-async function signIn(page: Page, user: typeof TEST_USERS.owner) {
-  await page.goto('/');
-  await page.getByLabel(/email address/i).fill(user.email);
-  await page.getByLabel(/password/i).fill(user.password);
-  await page.getByLabel(/tenant/i).fill(user.tenant);
-  await page.getByRole('button', { name: /sign in/i }).click();
-
-  // Wait for redirect to products page
-  await expect(page).toHaveURL(`/${user.tenant}/products`);
-}
-
-// Helper: Create product via API (requires authenticated page context)
-async function createProductViaAPI(page: Page, params: {
-  productName: string;
-  productSku: string;
-  productPricePence: number;
-  barcode?: string;
-  barcodeType?: string;
-}): Promise<string> {
-  const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
-
-  const cookies = await page.context().cookies();
-  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-
-  const response = await page.request.post(`${apiUrl}/api/products`, {
-    data: params,
-    headers: {
-      'Cookie': cookieHeader,
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok()) {
-    const errorText = await response.text();
-    throw new Error(`Failed to create product: ${response.status()} - ${errorText}`);
-  }
-
-  const data = await response.json();
-  return data.data.product.id;
-}
-
-// Helper: Delete product via API
-async function deleteProductViaAPI(page: Page, productId: string): Promise<void> {
-  if (!productId) return; // Skip if no product ID
-
-  const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
-
-  const cookies = await page.context().cookies();
-  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-
-  try {
-    await page.request.delete(`${apiUrl}/api/products/${productId}`, {
-      headers: { 'Cookie': cookieHeader },
-    });
-  } catch (error) {
-    // Ignore cleanup errors - test may have already cleaned up or failed before creation
-    console.log(`Failed to delete product ${productId}:`, error);
-  }
-}
 
 // Helper: Create stock transfer via API
 async function createTransferViaAPI(page: Page, params: {
@@ -231,25 +163,6 @@ async function deleteTransferViaAPI(page: Page, transferId: string): Promise<voi
   }
 }
 
-// Helper: Get branches for user
-async function getBranchesViaAPI(page: Page): Promise<Array<{ id: string; branchName: string }>> {
-  const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
-
-  const cookies = await page.context().cookies();
-  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-
-  const response = await page.request.get(`${apiUrl}/api/branches`, {
-    headers: { 'Cookie': cookieHeader },
-  });
-
-  if (!response.ok()) {
-    throw new Error(`Failed to get branches: ${response.status()}`);
-  }
-
-  const data = await response.json();
-  return data.data.items;
-}
-
 // Helper: Add stock to product at branch via API
 async function addStockViaAPI(page: Page, params: {
   productId: string;
@@ -315,8 +228,8 @@ test.describe('Product Barcode Management', () => {
     const productName = `E2E Barcode Add Test ${timestamp}`;
     const productSku = `BARCODE-ADD-${timestamp}`;
 
-    // Create product without barcode
-    const productId = await createProductViaAPI(page, {
+    // Create product without barcode using factory
+    const productId = await Factories.product.create(page, {
       productName,
       productSku,
       productPricePence: 1000,
@@ -354,7 +267,7 @@ test.describe('Product Barcode Management', () => {
       await expect(page.getByRole('textbox', { name: /barcode type/i })).toHaveValue('EAN-13');
       await expect(barcodeInput).toHaveValue(/5012345678\d{3}/);
     } finally {
-      await deleteProductViaAPI(page, productId);
+      await Factories.product.delete(page, productId);
     }
   });
 
@@ -366,8 +279,8 @@ test.describe('Product Barcode Management', () => {
     const originalBarcode = `ORIGINAL-${timestamp}`;
     const updatedBarcode = `UPDATED-${timestamp}`;
 
-    // Create product with barcode
-    const productId = await createProductViaAPI(page, {
+    // Create product with barcode using factory
+    const productId = await Factories.product.create(page, {
       productName,
       productSku: `BARCODE-UPDATE-${timestamp}`,
       productPricePence: 1500,
@@ -404,7 +317,7 @@ test.describe('Product Barcode Management', () => {
       await expect(page.getByLabel(/^barcode$/i)).toHaveValue(updatedBarcode);
       await expect(page.getByRole('textbox', { name: /barcode type/i })).toHaveValue('UPC-A');
     } finally {
-      await deleteProductViaAPI(page, productId);
+      await Factories.product.delete(page, productId);
     }
   });
 
@@ -414,8 +327,8 @@ test.describe('Product Barcode Management', () => {
     const timestamp = Date.now();
     const productName = `E2E Barcode Remove Test ${timestamp}`;
 
-    // Create product with barcode
-    const productId = await createProductViaAPI(page, {
+    // Create product with barcode using factory
+    const productId = await Factories.product.create(page, {
       productName,
       productSku: `BARCODE-REMOVE-${timestamp}`,
       productPricePence: 2000,
@@ -451,7 +364,7 @@ test.describe('Product Barcode Management', () => {
 
       await expect(page.getByRole('textbox', { name: /barcode type/i })).toHaveValue('None');
     } finally {
-      await deleteProductViaAPI(page, productId);
+      await Factories.product.delete(page, productId);
     }
   });
 
@@ -520,7 +433,7 @@ test.describe('Barcode Scanning Workflow', () => {
     const timestamp = Date.now();
 
     // Get branches
-    const branches = await getBranchesViaAPI(page);
+    const branches = await Factories.branch.getAll(page);
     if (branches.length < 2) {
       console.warn('Skipping test: Need at least 2 branches');
       return;
@@ -530,7 +443,7 @@ test.describe('Barcode Scanning Workflow', () => {
     const destBranch = branches[1];
 
     // Create product with barcode
-    const productId = await createProductViaAPI(page, {
+    const productId = await Factories.product.create(page, {
       productName: `Scan Test Product ${timestamp}`,
       productSku: `SCAN-SKU-${timestamp}`,
       productPricePence: 1000,
@@ -576,24 +489,13 @@ test.describe('Barcode Scanning Workflow', () => {
       await expect(manualButton).toBeVisible();
     } finally {
       await deleteTransferViaAPI(page, transferId);
-      await deleteProductViaAPI(page, productId);
+      await Factories.product.delete(page, productId);
     }
   });
 
   test('should hide "Scan to Receive" button for non-destination members', async ({ page }) => {
     // Viewer doesn't have stock:write permission
     await signIn(page, TEST_USERS.viewer);
-
-    // Get branches
-    const branches = await getBranchesViaAPI(page);
-    if (branches.length < 2) {
-      console.warn('Skipping test: Need at least 2 branches');
-      return;
-    }
-
-    // Create product with barcode (using owner's API call)
-    // Note: We'd need to switch back to owner for this - simplify by checking visibility only
-    // For now, just navigate to transfers page and verify button doesn't exist
 
     await page.goto(`/${TEST_USERS.viewer.tenant}/stock-transfers`);
     await page.waitForLoadState('networkidle');
@@ -618,7 +520,7 @@ test.describe('Barcode Scanning Workflow', () => {
     const timestamp = Date.now();
 
     // Get branches
-    const branches = await getBranchesViaAPI(page);
+    const branches = await Factories.branch.getAll(page);
     if (branches.length < 2) {
       console.warn('Skipping test: Need at least 2 branches');
       return;
@@ -628,7 +530,7 @@ test.describe('Barcode Scanning Workflow', () => {
     const destBranch = branches[1];
 
     // Create product with barcode
-    const productId = await createProductViaAPI(page, {
+    const productId = await Factories.product.create(page, {
       productName: `Modal Test Product ${timestamp}`,
       productSku: `MODAL-SKU-${timestamp}`,
       productPricePence: 1500,
@@ -683,7 +585,7 @@ test.describe('Barcode Scanning Workflow', () => {
       await expect(modal).not.toBeVisible();
     } finally {
       await deleteTransferViaAPI(page, transferId);
-      await deleteProductViaAPI(page, productId);
+      await Factories.product.delete(page, productId);
     }
   });
 
@@ -694,7 +596,7 @@ test.describe('Barcode Scanning Workflow', () => {
     const barcode = `MANUAL-ENTRY-${timestamp}`;
 
     // Get branches
-    const branches = await getBranchesViaAPI(page);
+    const branches = await Factories.branch.getAll(page);
     if (branches.length < 2) {
       console.warn('Skipping test: Need at least 2 branches');
       return;
@@ -706,7 +608,7 @@ test.describe('Barcode Scanning Workflow', () => {
     // Create product with barcode
     // Keep price low (500 pence = £5) to avoid triggering approval rules
     // Total value: 500 * 8 = 4000 pence = £40 (below £100 threshold)
-    const productId = await createProductViaAPI(page, {
+    const productId = await Factories.product.create(page, {
       productName: `Manual Entry Test ${timestamp}`,
       productSku: `MANUAL-SKU-${timestamp}`,
       productPricePence: 500, // £5 per unit (reduced from £20 to avoid approval rules)
@@ -783,7 +685,7 @@ test.describe('Barcode Scanning Workflow', () => {
       await expect(scannedQtyInput).toHaveValue('2');
     } finally {
       await deleteTransferViaAPI(page, transferId);
-      await deleteProductViaAPI(page, productId);
+      await Factories.product.delete(page, productId);
     }
   });
 
@@ -794,7 +696,7 @@ test.describe('Barcode Scanning Workflow', () => {
     const invalidBarcode = `INVALID-PRODUCT-${timestamp}`;
 
     // Get branches
-    const branches = await getBranchesViaAPI(page);
+    const branches = await Factories.branch.getAll(page);
     if (branches.length < 2) {
       console.warn('Skipping test: Need at least 2 branches');
       return;
@@ -804,7 +706,7 @@ test.describe('Barcode Scanning Workflow', () => {
     const destBranch = branches[1];
 
     // Create two products
-    const product1Id = await createProductViaAPI(page, {
+    const product1Id = await Factories.product.create(page, {
       productName: `Transfer Product ${timestamp}`,
       productSku: `TRANSFER-SKU-${timestamp}`,
       productPricePence: 1000,
@@ -812,7 +714,7 @@ test.describe('Barcode Scanning Workflow', () => {
       barcodeType: 'EAN13',
     });
 
-    const product2Id = await createProductViaAPI(page, {
+    const product2Id = await Factories.product.create(page, {
       productName: `Other Product ${timestamp}`,
       productSku: `OTHER-SKU-${timestamp}`,
       productPricePence: 1500,
@@ -866,8 +768,8 @@ test.describe('Barcode Scanning Workflow', () => {
       await expect(modal.getByText(/Other Product/i)).not.toBeVisible();
     } finally {
       await deleteTransferViaAPI(page, transferId);
-      await deleteProductViaAPI(page, product1Id);
-      await deleteProductViaAPI(page, product2Id);
+      await Factories.product.delete(page, product1Id);
+      await Factories.product.delete(page, product2Id);
     }
   });
 
@@ -878,7 +780,7 @@ test.describe('Barcode Scanning Workflow', () => {
 
     const timestamp = Date.now();
 
-    const branches = await getBranchesViaAPI(page);
+    const branches = await Factories.branch.getAll(page);
     if (branches.length < 2) {
       console.warn('Skipping test: Need at least 2 branches');
       return;
@@ -887,7 +789,7 @@ test.describe('Barcode Scanning Workflow', () => {
     const sourceBranch = branches[0];
     const destBranch = branches[1];
 
-    const productId = await createProductViaAPI(page, {
+    const productId = await Factories.product.create(page, {
       productName: `Already Received Product ${timestamp}`,
       productSku: `RECEIVED-SKU-${timestamp}`,
       productPricePence: 1000,
@@ -919,7 +821,7 @@ test.describe('Barcode Scanning Workflow', () => {
       // For now, verify scanner modal opens (covered by previous tests)
     } finally {
       await deleteTransferViaAPI(page, transferId);
-      await deleteProductViaAPI(page, productId);
+      await Factories.product.delete(page, productId);
     }
   });
 
@@ -930,7 +832,7 @@ test.describe('Barcode Scanning Workflow', () => {
 
     const timestamp = Date.now();
 
-    const branches = await getBranchesViaAPI(page);
+    const branches = await Factories.branch.getAll(page);
     if (branches.length < 2) {
       console.warn('Skipping test: Need at least 2 branches');
       return;
@@ -939,7 +841,7 @@ test.describe('Barcode Scanning Workflow', () => {
     const sourceBranch = branches[0];
     const destBranch = branches[1];
 
-    const productId = await createProductViaAPI(page, {
+    const productId = await Factories.product.create(page, {
       productName: `Over Receive Product ${timestamp}`,
       productSku: `OVER-SKU-${timestamp}`,
       productPricePence: 1500,
@@ -991,7 +893,7 @@ test.describe('Barcode Scanning Workflow', () => {
       await expect(page.getByText(/warning.*scanning more than expected/i).first()).toBeVisible();
     } finally {
       await deleteTransferViaAPI(page, transferId);
-      await deleteProductViaAPI(page, productId);
+      await Factories.product.delete(page, productId);
     }
   });
 });
@@ -1020,7 +922,7 @@ test.describe('Permission Checks', () => {
 
     const timestamp = Date.now();
 
-    const branches = await getBranchesViaAPI(page);
+    const branches = await Factories.branch.getAll(page);
     if (branches.length < 2) {
       console.warn('Skipping test: Need at least 2 branches');
       return;
@@ -1029,7 +931,7 @@ test.describe('Permission Checks', () => {
     const sourceBranch = branches[0];
     const destBranch = branches[1];
 
-    const productId = await createProductViaAPI(page, {
+    const productId = await Factories.product.create(page, {
       productName: `Owner Scan Test ${timestamp}`,
       productSku: `OWNER-SKU-${timestamp}`,
       productPricePence: 1000,
@@ -1069,7 +971,7 @@ test.describe('Permission Checks', () => {
       await expect(page.getByRole('dialog')).toBeVisible();
     } finally {
       await deleteTransferViaAPI(page, transferId);
-      await deleteProductViaAPI(page, productId);
+      await Factories.product.delete(page, productId);
     }
   });
 });

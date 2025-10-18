@@ -443,15 +443,17 @@ Planned/ → InProgress/ → Completed/YYYY-MM/
 - **Docs:** [README](./Features/Completed/testing-implementation/README.md) | [PRD](./Features/Completed/testing-implementation/prd.md) | [Issues](./Features/Completed/testing-implementation/issues.md)
 - **Key Features:** 227 backend tests (Jest), 72 frontend tests (Playwright), test helpers
 
-### In Progress Features (1)
+#### 5. E2E Test Refactoring & Organization
+- **Status:** ✅ Completed 2025-10-18
+- **What:** Refactored 18 E2E test files (8,299 lines) into domain-based structure with shared utilities
+- **Docs:** [README](./Features/Completed/e2e-test-refactoring/README.md) | [PRD](./Features/Completed/e2e-test-refactoring/prd.md)
+- **Key Features:** Domain folders (auth, products, stock, transfers, chat, features), 7 reusable factories, ~600+ lines removed, comprehensive documentation (README.md, GUIDELINES.md)
+
+### In Progress Features (0)
 
 **Location:** [Features/InProgress/](./Features/InProgress/)
 
-#### 1. Stock Transfers v2
-- **Status:** ⏳ In Progress
-- **What:** Multi-phase enhancements (templates, approval workflows, barcode, analytics)
-- **Docs:** [README](./Features/InProgress/stock-transfers-v2/README.md) | [PRD](./Features/InProgress/stock-transfers-v2/prd.md)
-- **Progress:** Phase 1 ✅ Complete, Phase 2 ⏳ In Progress (backend unit tests pending), Phases 3-4 📋 Planned
+**Status:** No features currently in progress
 
 ### Planned Features (0)
 
@@ -1056,13 +1058,14 @@ Each feature now has a README.md summarizing the work with completion date metad
 
 ### Feature Metrics
 
-**Completed Features:** 3
+**Completed Features:** 5
+- E2E Test Refactoring & Organization
+- Product Archival
 - Stock Transfers v1
+- Stock Transfers v2
 - Session Expiration Handler
-- Testing Implementation
 
-**In Progress:** 1
-- Stock Transfers v2 (Phase 1 ✅, Phase 2 ⏳, Phases 3-4 📋)
+**In Progress:** 0
 
 **Planned:** 0
 

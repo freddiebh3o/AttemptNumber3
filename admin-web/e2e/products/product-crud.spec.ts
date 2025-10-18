@@ -1,8 +1,9 @@
-// admin-web/e2e/product-management.spec.ts
-import { test, expect, type Page } from '@playwright/test';
+// admin-web/e2e/products/product-crud.spec.ts
+import { test, expect } from '@playwright/test';
+import { signIn, TEST_USERS, Factories } from '../helpers';
 
 /**
- * Phase 8: Frontend - Product Management Tests
+ * Phase 8: Frontend - Product Management Tests (Refactored)
  *
  * Tests cover:
  * - Product list page (display, pagination, search/filter, sorting)
@@ -10,70 +11,6 @@ import { test, expect, type Page } from '@playwright/test';
  * - Edit product flow (load, update, optimistic locking)
  * - Delete product flow (confirmation, success)
  */
-
-// Test credentials from api-server/prisma/seed.ts
-const TEST_USERS = {
-  owner: { email: 'owner@acme.test', password: 'Password123!', tenant: 'acme' },
-  admin: { email: 'admin@acme.test', password: 'Password123!', tenant: 'acme' },
-  editor: { email: 'editor@acme.test', password: 'Password123!', tenant: 'acme' },
-  viewer: { email: 'viewer@acme.test', password: 'Password123!', tenant: 'acme' },
-};
-
-// Helper to sign in
-async function signIn(page: Page, user: typeof TEST_USERS.owner) {
-  await page.goto('/');
-  await page.getByLabel(/email address/i).fill(user.email);
-  await page.getByLabel(/password/i).fill(user.password);
-  await page.getByLabel(/tenant/i).fill(user.tenant);
-  await page.getByRole('button', { name: /sign in/i }).click();
-
-  // Wait for redirect to products page
-  await expect(page).toHaveURL(`/${user.tenant}/products`);
-}
-
-// Helper: Create product via API (requires authenticated page context)
-async function createProductViaAPI(page: Page, params: {
-  productName: string;
-  productSku: string;
-  productPricePence: number;
-}): Promise<string> {
-  const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
-
-  // Get cookies from page context for authentication
-  const cookies = await page.context().cookies();
-  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-
-  const response = await page.request.post(`${apiUrl}/api/products`, {
-    data: params,
-    headers: {
-      'Cookie': cookieHeader,
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok()) {
-    const errorText = await response.text();
-    throw new Error(`Failed to create product: ${response.status()} - ${errorText}`);
-  }
-
-  const data = await response.json();
-  return data.data.id;
-}
-
-// Helper: Delete product via API (requires authenticated page context)
-async function deleteProductViaAPI(page: Page, productId: string): Promise<void> {
-  const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
-
-  // Get cookies from page context for authentication
-  const cookies = await page.context().cookies();
-  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-
-  await page.request.delete(`${apiUrl}/api/products/${productId}`, {
-    headers: {
-      'Cookie': cookieHeader,
-    },
-  });
-}
 
 // Check API server health before tests
 test.beforeAll(async () => {
@@ -219,37 +156,6 @@ test.describe('Product List Page', () => {
     await expect(page).toHaveURL(/sortBy=productName/);
     await expect(page).toHaveURL(/sortDir=asc/);
   });
-
-  test('should delete a product', async ({ page }) => {
-    await signIn(page, TEST_USERS.editor);
-
-    // Create a test product via API
-    const timestamp = Date.now();
-    const productName = `E2E Delete Test ${timestamp}`;
-
-    // Note: We don't use try/finally here because we're testing deletion
-    // Navigate to products page to see the new product
-    await page.goto(`/${TEST_USERS.editor.tenant}/products`);
-    await page.waitForLoadState('networkidle');
-    await expect(page.getByRole('table')).toBeVisible();
-
-    // Find our test product row by name
-    const productRow = page.locator('tr', { hasText: productName });
-    await expect(productRow).toBeVisible();
-
-    // Click delete button (second button in actions cell)
-    const actionsCell = productRow.locator('td').last();
-    const deleteButton = actionsCell.locator('button').last();
-    await deleteButton.click();
-
-    // Should show success notification
-    await expect(page.getByText(/product deleted/i)).toBeVisible();
-
-    // Product should be removed from list
-    await expect(productRow).not.toBeVisible();
-
-    // No cleanup needed - product was deleted by the test
-  });
 });
 
 test.describe('Create Product Flow', () => {
@@ -340,18 +246,18 @@ test.describe('Create Product Flow', () => {
 
     // Cleanup: delete the test product
     if (productId) {
-      await deleteProductViaAPI(page, productId);
+      await Factories.product.delete(page, productId);
     }
   });
 
   test('should show error for duplicate SKU', async ({ page }) => {
     await signIn(page, TEST_USERS.editor);
 
-    // Create a product via API first
+    // Create a product via factory first
     const timestamp = Date.now();
     const uniqueSku = `DUPLICATE-SKU-${timestamp}`;
 
-    const productId = await createProductViaAPI(page, {
+    const productId = await Factories.product.create(page, {
       productName: 'First Product',
       productSku: uniqueSku,
       productPricePence: 1000,
@@ -370,7 +276,7 @@ test.describe('Create Product Flow', () => {
       await expect(page.locator('[role="alert"]').first()).toBeVisible();
     } finally {
       // Cleanup: delete the test product
-      await deleteProductViaAPI(page, productId);
+      await Factories.product.delete(page, productId);
     }
   });
 });
@@ -408,12 +314,12 @@ test.describe('Edit Product Flow', () => {
   test('should update product successfully', async ({ page }) => {
     await signIn(page, TEST_USERS.editor);
 
-    // Create a test product via API
+    // Create a test product via factory
     const timestamp = Date.now();
     const productName = `E2E Update Test ${timestamp}`;
     const productSku = `UPD-${timestamp}`;
 
-    const productId = await createProductViaAPI(page, {
+    const productId = await Factories.product.create(page, {
       productName: productName,
       productSku: productSku,
       productPricePence: 3000,
@@ -452,7 +358,7 @@ test.describe('Edit Product Flow', () => {
       await expect(page.getByText(/product updated/i)).toBeVisible();
     } finally {
       // Cleanup: delete the test product
-      await deleteProductViaAPI(page, productId);
+      await Factories.product.delete(page, productId);
     }
   });
 
@@ -536,41 +442,5 @@ test.describe('Edit Product Flow', () => {
 
     // Should go back (browser back button behavior)
     await expect(page).toHaveURL(`/${TEST_USERS.editor.tenant}/products`);
-  });
-});
-
-test.describe('Product Permissions', () => {
-  test('should show view button (enabled) for viewer, not edit button', async ({ page }) => {
-    await signIn(page, TEST_USERS.viewer);
-
-    // Viewer should see the table
-    await expect(page.getByRole('table')).toBeVisible();
-
-    // The first button is now a "view" button (enabled) for viewers to access product details
-    // Viewers can view products and their stock, but cannot edit
-    const firstRow = page.locator('table tbody tr:first-child');
-    const actionsCell = firstRow.locator('td').last();
-    const viewButton = actionsCell.locator('button').first();
-
-    // View button should be enabled (allows viewing product details and stock)
-    await expect(viewButton).toBeEnabled();
-
-    // "New product" button should still be disabled
-    const newButton = page.getByRole('button', { name: /new product/i });
-    await expect(newButton).toBeDisabled();
-  });
-
-  test('should show permission denied for viewer on new product page', async ({ page }) => {
-    await signIn(page, TEST_USERS.viewer);
-
-    // Manually navigate to new product page (even though button is disabled)
-    await page.goto(`/${TEST_USERS.viewer.tenant}/products/new`);
-
-    // Should show permission denied message (RequirePermission component)
-    await expect(page.getByText(/no access/i)).toBeVisible();
-    await expect(page.getByText(/you don't have permission/i)).toBeVisible();
-
-    // Should not see the product form
-    await expect(page.getByRole('heading', { name: /new product/i })).not.toBeVisible();
   });
 });

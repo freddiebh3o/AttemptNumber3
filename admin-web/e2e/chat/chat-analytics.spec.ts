@@ -1,21 +1,6 @@
 // admin-web/tests/chat-analytics.spec.ts
 import { test, expect } from '@playwright/test';
-
-// Test users from seed data
-const TEST_USERS = {
-  owner: { email: 'owner@acme.test', password: 'Password123!', tenant: 'acme' },
-  admin: { email: 'admin@acme.test', password: 'Password123!', tenant: 'acme' },
-  viewer: { email: 'viewer@acme.test', password: 'Password123!', tenant: 'acme' },
-};
-
-async function signIn(page: any, user: any) {
-  await page.goto('/');
-  await page.getByLabel(/email address/i).fill(user.email);
-  await page.getByLabel(/password/i).fill(user.password);
-  await page.getByLabel(/tenant/i).fill(user.tenant);
-  await page.getByRole('button', { name: /sign in/i }).click();
-  await expect(page).toHaveURL(`/${user.tenant}/products`);
-}
+import { signIn, TEST_USERS } from '../helpers';
 
 test.describe('Chat Analytics Page', () => {
   test.beforeEach(async ({ context }) => {
@@ -146,26 +131,6 @@ test.describe('Chat Analytics Page', () => {
     await expect(dateRangeSelect).toHaveValue('Last 90 days');
   });
 
-  test.skip('should display "No tool usage data yet" when no tools have been used', async ({ page }) => {
-    // Skipped: This test is mutually exclusive with tests that expect tool data
-    // The empty state vs populated state depends on whether users have used the chat with tools
-    await signIn(page, TEST_USERS.owner);
-    await page.goto('/acme/chat-analytics');
-
-    // Wait for data to load
-    await page.waitForSelector('[data-testid="top-tools-table"]');
-
-    const table = page.getByTestId('top-tools-table');
-
-    // If no data, should display empty state message
-    const noDataMessage = table.getByText(/no tool usage data yet/i);
-    const hasData = await table.getByRole('row').count() > 1; // More than just header row
-
-    if (!hasData) {
-      await expect(noDataMessage).toBeVisible();
-    }
-  });
-
   test('should require authentication', async ({ page }) => {
     // Try to access without signing in
     await page.goto('/acme/chat-analytics');
@@ -217,9 +182,7 @@ test.describe('Chat Analytics Page', () => {
     }
   });
 
-  test.skip('should rank tools correctly in Top Tools table', async ({ page }) => {
-    // Skipped: This test requires tool usage data which may not exist
-    // It's mutually exclusive with the "No tool usage data yet" test
+  test('should rank tools correctly in Top Tools table', async ({ page }) => {
     await signIn(page, TEST_USERS.owner);
     await page.goto('/acme/chat-analytics');
 

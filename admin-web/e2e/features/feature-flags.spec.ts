@@ -1,5 +1,6 @@
-// admin-web/e2e/feature-flags.spec.ts
-import { test, expect, type Page } from '@playwright/test';
+// admin-web/e2e/features/feature-flags.spec.ts
+import { test, expect } from '@playwright/test';
+import { signIn, Factories } from '../helpers';
 
 /**
  * Feature Flags Tests
@@ -24,226 +25,6 @@ const TEST_USERS_GLOBEX = {
   // mixed@both.test has membership in both tenants
   viewer: { email: 'mixed@both.test', password: 'Password123!', tenant: 'globex' },
 };
-
-// Helper to sign in
-async function signIn(page: Page, user: typeof TEST_USERS_ACME.owner) {
-  await page.goto('/');
-  await page.getByLabel(/email address/i).fill(user.email);
-  await page.getByLabel(/password/i).fill(user.password);
-  await page.getByLabel(/tenant/i).fill(user.tenant);
-  await page.getByRole('button', { name: /sign in/i }).click();
-
-  // Wait for redirect to products page
-  await expect(page).toHaveURL(`/${user.tenant}/products`);
-}
-
-// Helper: Create product via API
-async function createProductViaAPI(page: Page, params: {
-  productName: string;
-  productSku: string;
-  productPricePence: number;
-  barcode?: string;
-  barcodeType?: string;
-}): Promise<string> {
-  const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
-
-  const cookies = await page.context().cookies();
-  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-
-  const response = await page.request.post(`${apiUrl}/api/products`, {
-    data: params,
-    headers: {
-      'Cookie': cookieHeader,
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok()) {
-    const errorText = await response.text();
-    throw new Error(`Failed to create product: ${response.status()} - ${errorText}`);
-  }
-
-  const data = await response.json();
-  return data.data.product.id;
-}
-
-// Helper: Delete product via API
-async function deleteProductViaAPI(page: Page, productId: string): Promise<void> {
-  if (!productId) return;
-
-  const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
-
-  const cookies = await page.context().cookies();
-  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-
-  try {
-    await page.request.delete(`${apiUrl}/api/products/${productId}`, {
-      headers: { 'Cookie': cookieHeader },
-    });
-  } catch (error) {
-    console.log(`Failed to delete product ${productId}:`, error);
-  }
-}
-
-// Helper: Create stock transfer via API
-async function createTransferViaAPI(page: Page, params: {
-  sourceBranchId: string;
-  destinationBranchId: string;
-  items: Array<{ productId: string; qtyToTransfer: number }>;
-}): Promise<string> {
-  const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
-
-  const cookies = await page.context().cookies();
-  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-
-  const timestamp = Date.now();
-  const requestNotes = `E2E Feature Flag Test Transfer [${timestamp}]`;
-
-  const requestBody = {
-    sourceBranchId: params.sourceBranchId,
-    destinationBranchId: params.destinationBranchId,
-    requestNotes: requestNotes,
-    items: params.items.map(item => ({
-      productId: item.productId,
-      qtyRequested: item.qtyToTransfer,
-    })),
-  };
-
-  const response = await page.request.post(`${apiUrl}/api/stock-transfers`, {
-    data: requestBody,
-    headers: {
-      'Cookie': cookieHeader,
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok()) {
-    const errorText = await response.text();
-    throw new Error(`Failed to create transfer: ${response.status()} - ${errorText}`);
-  }
-
-  const data = await response.json();
-  return data.data.id;
-}
-
-// Helper: Approve transfer via API
-async function approveTransferViaAPI(page: Page, transferId: string): Promise<void> {
-  const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
-
-  const cookies = await page.context().cookies();
-  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-
-  const response = await page.request.patch(`${apiUrl}/api/stock-transfers/${transferId}/review`, {
-    data: { action: 'approve' },
-    headers: {
-      'Cookie': cookieHeader,
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok()) {
-    const errorText = await response.text();
-    throw new Error(`Failed to approve transfer: ${response.status()} - ${errorText}`);
-  }
-}
-
-// Helper: Ship transfer via API
-async function shipTransferViaAPI(page: Page, transferId: string): Promise<void> {
-  const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
-
-  const cookies = await page.context().cookies();
-  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-
-  const response = await page.request.post(`${apiUrl}/api/stock-transfers/${transferId}/ship`, {
-    headers: {
-      'Cookie': cookieHeader,
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok()) {
-    const errorText = await response.text();
-    throw new Error(`Failed to ship transfer: ${response.status()} - ${errorText}`);
-  }
-}
-
-// Helper: Delete transfer via API
-async function deleteTransferViaAPI(page: Page, transferId: string): Promise<void> {
-  if (!transferId) return;
-
-  const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
-
-  const cookies = await page.context().cookies();
-  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-
-  try {
-    await page.request.post(`${apiUrl}/api/stock-transfers/${transferId}/cancel`, {
-      headers: { 'Cookie': cookieHeader, 'Content-Type': 'application/json' },
-    });
-  } catch (error) {
-    // Ignore - transfer may not be cancellable
-  }
-
-  try {
-    await page.request.delete(`${apiUrl}/api/stock-transfers/${transferId}`, {
-      headers: { 'Cookie': cookieHeader },
-    });
-  } catch (error) {
-    console.log(`Failed to delete transfer ${transferId}:`, error);
-  }
-}
-
-// Helper: Get branches for user
-async function getBranchesViaAPI(page: Page): Promise<Array<{ id: string; branchName: string }>> {
-  const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
-
-  const cookies = await page.context().cookies();
-  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-
-  const response = await page.request.get(`${apiUrl}/api/branches`, {
-    headers: { 'Cookie': cookieHeader },
-  });
-
-  if (!response.ok()) {
-    throw new Error(`Failed to get branches: ${response.status()}`);
-  }
-
-  const data = await response.json();
-  return data.data.items;
-}
-
-// Helper: Add stock to product at branch via API
-async function addStockViaAPI(page: Page, params: {
-  productId: string;
-  branchId: string;
-  qtyDelta: number;
-  unitCostPence: number;
-  reason?: string;
-}): Promise<void> {
-  const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
-
-  const cookies = await page.context().cookies();
-  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-
-  const response = await page.request.post(`${apiUrl}/api/stock/adjust`, {
-    data: {
-      productId: params.productId,
-      branchId: params.branchId,
-      qtyDelta: params.qtyDelta,
-      unitCostPence: params.unitCostPence,
-      reason: params.reason || 'E2E test stock setup',
-    },
-    headers: {
-      'Cookie': cookieHeader,
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok()) {
-    const errorText = await response.text();
-    throw new Error(`Failed to add stock: ${response.status()} - ${errorText}`);
-  }
-}
 
 // Check API server health before tests
 test.beforeAll(async () => {
@@ -271,7 +52,7 @@ test.describe('Feature Flags: ACME Tenant (Barcode Scanning Enabled)', () => {
     const timestamp = Date.now();
 
     // Get branches
-    const branches = await getBranchesViaAPI(page);
+    const branches = await Factories.branch.getAll(page);
     if (branches.length < 2) {
       console.warn('Skipping test: Need at least 2 branches');
       return;
@@ -281,7 +62,7 @@ test.describe('Feature Flags: ACME Tenant (Barcode Scanning Enabled)', () => {
     const destBranch = branches[1];
 
     // Create product with barcode
-    const productId = await createProductViaAPI(page, {
+    const productId = await Factories.product.create(page, {
       productName: `ACME Feature Test ${timestamp}`,
       productSku: `ACME-FF-${timestamp}`,
       productPricePence: 1000,
@@ -289,27 +70,16 @@ test.describe('Feature Flags: ACME Tenant (Barcode Scanning Enabled)', () => {
       barcodeType: 'EAN13',
     });
 
-    // Add stock to source branch
-    await addStockViaAPI(page, {
-      productId,
-      branchId: sourceBranch.id,
-      qtyDelta: 10,
-      unitCostPence: 100,
-      reason: 'E2E test: Feature flag test',
-    });
-
-    // Create transfer
-    const transferId = await createTransferViaAPI(page, {
+    // Create stock transfer with shipped status
+    const transferId = await Factories.transfer.createAndShip(page, {
       sourceBranchId: sourceBranch.id,
       destinationBranchId: destBranch.id,
-      items: [{ productId, qtyToTransfer: 5 }],
+      productId,
+      quantity: 5,
+      unitCostPence: 100,
     });
 
     try {
-      // Approve and ship transfer
-      await approveTransferViaAPI(page, transferId);
-      await shipTransferViaAPI(page, transferId);
-
       // Navigate to transfer detail page
       await page.goto(`/${TEST_USERS_ACME.owner.tenant}/stock-transfers/${transferId}`);
       await page.waitForLoadState('networkidle');
@@ -326,8 +96,8 @@ test.describe('Feature Flags: ACME Tenant (Barcode Scanning Enabled)', () => {
       const manualButton = page.getByRole('button', { name: /manual receive/i });
       await expect(manualButton).toBeVisible();
     } finally {
-      await deleteTransferViaAPI(page, transferId);
-      await deleteProductViaAPI(page, productId);
+      await Factories.transfer.delete(page, transferId);
+      await Factories.product.delete(page, productId);
     }
   });
 
@@ -339,7 +109,7 @@ test.describe('Feature Flags: ACME Tenant (Barcode Scanning Enabled)', () => {
     const productSku = `ACME-FIELDS-${timestamp}`;
 
     // Create product without barcode
-    const productId = await createProductViaAPI(page, {
+    const productId = await Factories.product.create(page, {
       productName,
       productSku,
       productPricePence: 1500,
@@ -372,7 +142,7 @@ test.describe('Feature Flags: ACME Tenant (Barcode Scanning Enabled)', () => {
       // Should show success notification
       await expect(page.getByText(/product updated/i)).toBeVisible();
     } finally {
-      await deleteProductViaAPI(page, productId);
+      await Factories.product.delete(page, productId);
     }
   });
 

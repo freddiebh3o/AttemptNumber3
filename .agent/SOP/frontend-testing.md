@@ -2,7 +2,67 @@
 
 **Purpose:** Guide for writing E2E tests using Playwright for the admin web frontend.
 
-**Last Updated:** 2025-10-13
+**Last Updated:** 2025-10-18
+
+---
+
+## 🚀 New Refactored Test Structure (2025-10-18)
+
+**The E2E test suite has been refactored into a domain-based structure with shared utilities.**
+
+### Quick Links to New Documentation:
+
+- **[admin-web/e2e/README.md](../../admin-web/e2e/README.md)** - Comprehensive guide to the new test structure, running tests, and using factories
+- **[admin-web/e2e/GUIDELINES.md](../../admin-web/e2e/GUIDELINES.md)** - Detailed best practices, patterns, and lessons learned from all domains
+
+### What Changed:
+
+1. **Domain-Based Organization:**
+   - Tests moved from flat structure to 6 domain folders: `auth/`, `products/`, `stock/`, `transfers/`, `chat/`, `features/`
+   - All duplicated helpers (TEST_USERS, signIn, createProductViaAPI, etc.) removed
+
+2. **Shared Utilities:**
+   - All helpers centralized in `admin-web/e2e/helpers/`
+   - Factory pattern for entity creation: `Factories.product.create()`, `Factories.transfer.createAndShip()`, etc.
+   - Single import point: `import { signIn, TEST_USERS, Factories } from '../helpers'`
+
+3. **Improved Patterns:**
+   - Consistent health checks and cookie clearing
+   - Try/finally cleanup blocks for all tests
+   - data-testid selectors where possible
+   - Comprehensive documentation of lessons learned
+
+### Migration Status:
+
+✅ **Complete:** All 18 test files refactored across 6 domains
+✅ **Passing:** 299 tests (227 backend + 72 frontend)
+✅ **Code Reduction:** ~600+ lines of duplicated code removed
+
+### For New Tests:
+
+**Use the new structure and helpers:**
+```typescript
+import { test, expect } from '@playwright/test';
+import { signIn, TEST_USERS, Factories } from '../helpers';
+
+test('should create product', async ({ page }) => {
+  await signIn(page, TEST_USERS.editor);
+
+  const productId = await Factories.product.create(page, {
+    productName: 'Test Product',
+    productSku: `TEST-${Date.now()}`,
+    productPricePence: 1000,
+  });
+
+  try {
+    // Test logic...
+  } finally {
+    await Factories.product.delete(page, productId);
+  }
+});
+```
+
+**See [admin-web/e2e/README.md](../../admin-web/e2e/README.md) for complete examples.**
 
 ---
 

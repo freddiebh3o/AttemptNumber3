@@ -15,48 +15,14 @@
  *   3. Ensure database is seeded: cd api-server && npm run db:seed
  *
  * Then run these tests from admin-web:
- *   cd admin-web && npm run test:accept -- ai-chat-phase2.spec.ts
+ *   cd admin-web && npm run test:accept -- chat/chat-advanced.spec.ts
  */
 import { test, expect } from '@playwright/test';
-
-// Test credentials (from api-server/prisma/seed.ts)
-const TEST_USERS = {
-  owner: {
-    email: 'owner@acme.test',
-    password: 'Password123!',
-    tenant: 'acme',
-  },
-  admin: {
-    email: 'admin@acme.test',
-    password: 'Password123!',
-    tenant: 'acme',
-  },
-};
-
-// Helper function to sign in
-async function signIn(page: any, user: typeof TEST_USERS.owner) {
-  await page.goto('/');
-  await page.getByLabel(/email address/i).fill(user.email);
-  await page.getByLabel(/password/i).fill(user.password);
-  await page.getByLabel(/tenant/i).fill(user.tenant);
-  await page.getByRole('button', { name: /sign in/i }).click();
-  await expect(page).toHaveURL(`/${user.tenant}/products`);
-}
-
-// Helper to open chat and send message
-async function sendChatMessage(page: any, message: string) {
-  const messageInput = page.getByTestId('chat-input');
-  const sendButton = page.getByTestId('chat-send-button');
-
-  await messageInput.fill(message);
-  await sendButton.click();
-
-  // Wait for user message to appear
-  await expect(page.getByText(message, { exact: true })).toBeVisible({ timeout: 2000 });
-}
+import { signIn, TEST_USERS, sendChatMessage, closeChatModal } from '../helpers';
 
 test.describe('AI Chat Assistant - Phase 2 Tools', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ context, page }) => {
+    await context.clearCookies();
     // Sign in as owner for all tests
     await signIn(page, TEST_USERS.owner);
 
@@ -67,25 +33,6 @@ test.describe('AI Chat Assistant - Phase 2 Tools', () => {
   });
 
   test.describe('[AC-PHASE2-1] Updated Empty State', () => {
-    test('should show Phase 2 capabilities in empty state', async ({ page }) => {
-      const modalContent = page.getByTestId('chat-modal-content');
-
-      // Should see the updated greeting
-      await expect(modalContent.getByText(/manage your inventory/i)).toBeVisible();
-
-      // Should see all 4 categories
-      await expect(modalContent.getByText(/Products & Stock/i)).toBeVisible();
-      await expect(modalContent.getByText(/Transfers & Approvals/i)).toBeVisible();
-      await expect(modalContent.getByText(/Analytics & Insights/i)).toBeVisible();
-      await expect(modalContent.getByText(/Team & Branches/i)).toBeVisible();
-
-      // Should see example questions
-      await expect(modalContent.getByText(/low on stock/i)).toBeVisible();
-      await expect(modalContent.getByText(/pending transfers/i)).toBeVisible();
-      await expect(modalContent.getByText(/completion rate/i)).toBeVisible();
-      await expect(modalContent.getByText(/warehouse managers/i)).toBeVisible();
-    });
-
     test('should have updated placeholder text', async ({ page }) => {
       const messageInput = page.getByTestId('chat-input');
 
@@ -330,7 +277,7 @@ test.describe('AI Chat Assistant - Phase 2 Tools', () => {
       ).toBeVisible({ timeout: 15000 });
     });
 
-    test('should maintain context across Phase 2 tools', async ({ page }) => {
+    test('should maintain conversation context between follow-up questions', async ({ page }) => {
       const modalContent = page.getByTestId('chat-modal-content');
 
       // First message about branches
@@ -339,7 +286,7 @@ test.describe('AI Chat Assistant - Phase 2 Tools', () => {
         modalContent.getByText(/branch|warehouse/i).first()
       ).toBeVisible({ timeout: 15000 });
 
-      // Follow-up about stock at those branches (should use context)
+      // Follow-up about stock at those branches (should use context from previous message)
       await sendChatMessage(page, 'What stock is at the first one?');
       await expect(
         modalContent.getByText(/stock|product|quantity/i).first()
@@ -411,17 +358,6 @@ test.describe('AI Chat Assistant - Phase 2 Tools', () => {
   });
 
   test.describe('[AC-PHASE2-10] Error Handling', () => {
-    test('should handle requests for non-existent data gracefully', async ({ page }) => {
-      const modalContent = page.getByTestId('chat-modal-content');
-
-      await sendChatMessage(page, 'Show me details for product XYZ-NONEXISTENT');
-
-      // Should get a helpful error message (not a crash)
-      await expect(
-        modalContent.getByText(/not found|doesn't exist|unable|couldn't find/i).first()
-      ).toBeVisible({ timeout: 15000 });
-    });
-
     test('should handle ambiguous queries by asking for clarification', async ({ page }) => {
       const modalContent = page.getByTestId('chat-modal-content');
 

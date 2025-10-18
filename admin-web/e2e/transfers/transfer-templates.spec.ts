@@ -1,5 +1,6 @@
-// admin-web/e2e/transfer-templates.spec.ts
-import { test, expect, type Page } from '@playwright/test';
+// transfer-templates.spec.ts
+import { test, expect } from '@playwright/test';
+import { signIn, TEST_USERS, Factories } from '../helpers';
 
 /**
  * E2E Tests for Stock Transfer Templates
@@ -11,28 +12,6 @@ import { test, expect, type Page } from '@playwright/test';
  * - Deleting templates
  * - Using templates to create transfers (pre-fill workflow)
  */
-
-// Test credentials from api-server/prisma/seed.ts
-const TEST_USERS = {
-  owner: { email: 'owner@acme.test', password: 'Password123!', tenant: 'acme' },
-  editor: { email: 'editor@acme.test', password: 'Password123!', tenant: 'acme' },
-  viewer: { email: 'viewer@acme.test', password: 'Password123!', tenant: 'acme' },
-};
-
-// Helper to sign in
-async function signIn(page: Page, user: typeof TEST_USERS.owner) {
-  await page.goto('/');
-  await page.getByLabel(/email address/i).fill(user.email);
-  await page.getByLabel(/password/i).fill(user.password);
-  await page.getByLabel(/tenant/i).fill(user.tenant);
-  await page.getByRole('button', { name: /sign in/i }).click();
-
-  // Wait for redirect to products page
-  await expect(page).toHaveURL(`/${user.tenant}/products`);
-
-  // Wait a bit for auth store to populate with branch memberships
-  await page.waitForTimeout(500);
-}
 
 // Check API server health before tests
 test.beforeAll(async () => {
@@ -53,123 +32,18 @@ test.beforeEach(async ({ context }) => {
   await context.clearCookies();
 });
 
-// Helper: Create template via API (requires authenticated page context)
-async function createTemplateViaAPI(page: Page, params: {
-  name: string;
-  description?: string;
-  sourceBranchId: string;
-  destinationBranchId: string;
-  items: Array<{ productId: string; defaultQty: number }>;
-}): Promise<string> {
-  const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
-  const cookies = await page.context().cookies();
-  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-
-  const response = await page.request.post(`${apiUrl}/api/stock-transfer-templates`, {
-    data: params,
-    headers: {
-      'Cookie': cookieHeader,
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok()) {
-    const errorText = await response.text();
-    throw new Error(`Failed to create template: ${response.status()} - ${errorText}`);
-  }
-
-  const data = await response.json();
-  return data.data.id;
-}
-
-// Helper: Delete template via API (requires authenticated page context)
-async function deleteTemplateViaAPI(page: Page, templateId: string): Promise<void> {
-  const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
-  const cookies = await page.context().cookies();
-  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-
-  await page.request.delete(`${apiUrl}/api/stock-transfer-templates/${templateId}`, {
-    headers: { 'Cookie': cookieHeader },
-  });
-}
-
-// Helper: Get first branch ID
-async function getFirstBranchId(page: Page): Promise<string> {
-  const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
-  const cookies = await page.context().cookies();
-  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-
-  const response = await page.request.get(`${apiUrl}/api/branches`, {
-    headers: { 'Cookie': cookieHeader },
-  });
-
-  if (!response.ok()) {
-    throw new Error(`Failed to fetch branches: ${response.status()}`);
-  }
-
-  const data = await response.json();
-  if (data.data.items.length < 1) {
-    throw new Error('No branches found');
-  }
-
-  return data.data.items[0].id;
-}
-
-// Helper: Get second branch ID (or first if only one exists)
-async function getSecondBranchId(page: Page): Promise<string> {
-  const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
-  const cookies = await page.context().cookies();
-  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-
-  const response = await page.request.get(`${apiUrl}/api/branches`, {
-    headers: { 'Cookie': cookieHeader },
-  });
-
-  if (!response.ok()) {
-    throw new Error(`Failed to fetch branches: ${response.status()}`);
-  }
-
-  const data = await response.json();
-  if (data.data.items.length < 1) {
-    throw new Error('No branches found');
-  }
-
-  // Return second branch if available, otherwise return first
-  return data.data.items.length > 1 ? data.data.items[1].id : data.data.items[0].id;
-}
-
-// Helper: Get first product ID
-async function getFirstProductId(page: Page): Promise<string> {
-  const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
-  const cookies = await page.context().cookies();
-  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-
-  const response = await page.request.get(`${apiUrl}/api/products`, {
-    headers: { 'Cookie': cookieHeader },
-  });
-
-  if (!response.ok()) {
-    throw new Error(`Failed to fetch products: ${response.status()}`);
-  }
-
-  const data = await response.json();
-  if (data.data.items.length < 1) {
-    throw new Error('No products found');
-  }
-
-  return data.data.items[0].id;
-}
-
 test.describe('Transfer Templates - List and Navigation', () => {
-  test.skip('should navigate to templates page from sidebar', async ({ page }) => {
+  test('should navigate to templates page from sidebar', async ({ page }) => {
     await signIn(page, TEST_USERS.owner);
 
-    // Click on Stock Management group in sidebar (if collapsed) to expand it
+    // Navigate to a page first to ensure sidebar is loaded
+    await page.goto(`/${TEST_USERS.owner.tenant}/stock-transfers`);
+    await page.waitForLoadState('networkidle');
+
+    // Expand Stock Management dropdown in sidebar
     const stockManagementNav = page.getByRole('navigation').getByText(/stock management/i);
-    if (await stockManagementNav.isVisible()) {
-      await stockManagementNav.click();
-      await page.waitForTimeout(300); // Wait for expansion animation
-    }
+    await stockManagementNav.click();
+    await page.waitForTimeout(300); // Wait for expansion animation
 
     // Click on Transfer Templates link
     await page.getByRole('link', { name: /transfer templates/i }).click();
@@ -221,7 +95,7 @@ test.describe('Transfer Templates - Create Template', () => {
     await expect(dialog.getByLabel(/destination branch/i)).toBeVisible();
   });
 
-  test.skip('should create template with products', async ({ page }) => {
+  test('should create template with products', async ({ page }) => {
     await signIn(page, TEST_USERS.owner);
     await page.goto(`/${TEST_USERS.owner.tenant}/transfer-templates`);
 
@@ -261,19 +135,23 @@ test.describe('Transfer Templates - Create Template', () => {
 
       await page.waitForTimeout(500);
 
-      // Add a product
-      await dialog.getByRole('button', { name: /add product/i }).click();
+      // Add an item
+      await dialog.getByRole('button', { name: /add item/i }).click();
       await page.waitForTimeout(500);
 
+      // Wait for product select to be enabled
+      const productSelect = page.getByTestId('template-item-product-select-0');
+      await productSelect.waitFor({ state: 'visible', timeout: 10000 });
+      await expect(productSelect).toBeEnabled({ timeout: 10000 });
+
       // Select first product from the list
-      const productSelect = dialog.locator('[role="combobox"]').first();
       await productSelect.click();
       await page.waitForTimeout(500);
       // getByRole automatically filters hidden elements
       await page.getByRole('option').first().click();
 
-      // Set default quantity
-      const qtyInput = dialog.getByLabel(/default quantity/i).first();
+      // Set default quantity using data-testid
+      const qtyInput = page.getByTestId('template-item-quantity-input-0');
       await qtyInput.fill('10');
 
       // Submit form
@@ -301,7 +179,7 @@ test.describe('Transfer Templates - Create Template', () => {
     } finally {
       // Cleanup: delete the test template
       if (templateId) {
-        await deleteTemplateViaAPI(page, templateId);
+        await Factories.template.delete(page, templateId);
       }
     }
   });
@@ -392,11 +270,11 @@ test.describe('Transfer Templates - Duplicate Template', () => {
 
     try {
       // Create a template via API first
-      const sourceBranchId = await getFirstBranchId(page);
-      const destBranchId = await getSecondBranchId(page);
-      const productId = await getFirstProductId(page);
+      const sourceBranchId = await Factories.branch.getFirst(page);
+      const destBranchId = await Factories.branch.getSecond(page);
+      const productId = await Factories.product.getFirst(page);
 
-      originalTemplateId = await createTemplateViaAPI(page, {
+      originalTemplateId = await Factories.template.create(page, {
         name: templateName,
         description: 'Template to be duplicated',
         sourceBranchId,
@@ -452,55 +330,78 @@ test.describe('Transfer Templates - Duplicate Template', () => {
     } finally {
       // Cleanup: delete both templates
       if (originalTemplateId) {
-        await deleteTemplateViaAPI(page, originalTemplateId);
+        await Factories.template.delete(page, originalTemplateId);
       }
       if (duplicatedTemplateId) {
-        await deleteTemplateViaAPI(page, duplicatedTemplateId);
+        await Factories.template.delete(page, duplicatedTemplateId);
       }
     }
   });
 });
 
 test.describe('Transfer Templates - Delete Template', () => {
-  test.skip('should delete template with confirmation', async ({ page }) => {
+  test('should delete template with confirmation', async ({ page }) => {
     await signIn(page, TEST_USERS.owner);
 
     const timestamp = Date.now();
     const templateName = `E2E Delete Test ${timestamp}`;
 
-    // Navigate to templates page
-    await page.goto(`/${TEST_USERS.owner.tenant}/transfer-templates`);
-    await page.waitForTimeout(1000);
+    // Create a template via API first
+    const sourceBranchId = await Factories.branch.getFirst(page);
+    const destBranchId = await Factories.branch.getSecond(page);
+    const productId = await Factories.product.getFirst(page);
 
-    // Find the template row
-    const templateRow = page.locator('tr', { hasText: templateName });
-    await expect(templateRow).toBeVisible();
-    await page.waitForTimeout(500); // Wait for row to fully render
+    const templateId = await Factories.template.create(page, {
+      name: templateName,
+      description: 'Template to be deleted',
+      sourceBranchId,
+      destinationBranchId: destBranchId,
+      items: [{ productId, defaultQty: 5 }],
+    });
 
-    // Find and click the action menu button
-    const lastCell = templateRow.locator('td').last();
-    const actionsButton = lastCell.locator('button[aria-label*="enu"], button[aria-haspopup="menu"]').first();
-    await actionsButton.click();
+    let wasDeleted = false;
 
-    // Click Delete option
-    await page.getByRole('menuitem', { name: /delete/i }).click();
+    try {
+      // Navigate to templates page
+      await page.goto(`/${TEST_USERS.owner.tenant}/transfer-templates`);
+      await page.waitForTimeout(1000);
 
-    // Confirmation modal should open
-    const confirmDialog = page.getByRole('dialog');
-    await expect(confirmDialog).toBeVisible();
-    await expect(confirmDialog.getByText(/confirm deletion/i)).toBeVisible();
+      // Find the template row
+      const templateRow = page.locator('tr', { hasText: templateName });
+      await expect(templateRow).toBeVisible();
+      await page.waitForTimeout(500); // Wait for row to fully render
 
-    // Confirm deletion
-    await confirmDialog.getByRole('button', { name: /delete/i }).click();
+      // Find and click the delete button using test ID (similar to duplicate button pattern)
+      const deleteButton = page.getByTestId(`delete-template-${templateId}`);
+      await expect(deleteButton).toBeVisible({ timeout: 5000 });
+      await deleteButton.click();
 
-    // Should show success notification
-    await expect(page.getByText(/template deleted/i)).toBeVisible({ timeout: 10000 });
+      // Confirmation modal should open
+      const confirmDialog = page.getByRole('dialog');
+      await expect(confirmDialog).toBeVisible();
+      await expect(confirmDialog.getByRole('heading', { name: /delete template/i })).toBeVisible();
 
-    // Template should be removed from list
-    await page.waitForTimeout(500);
-    await expect(page.getByText(templateName, { exact: true })).not.toBeVisible();
+      // Confirm deletion
+      await confirmDialog.getByRole('button', { name: /delete template/i }).click();
 
-    // No cleanup needed - template was deleted by the test
+      // Should show success notification
+      await expect(page.getByText(/template deleted/i)).toBeVisible({ timeout: 10000 });
+
+      // Template should be removed from list
+      await page.waitForTimeout(500);
+      await expect(page.getByText(templateName, { exact: true })).not.toBeVisible();
+
+      wasDeleted = true;
+    } finally {
+      // Cleanup: delete template if test failed before deletion
+      if (!wasDeleted) {
+        try {
+          await Factories.template.delete(page, templateId);
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+    }
   });
 });
 
@@ -546,11 +447,11 @@ test.describe('Transfer Templates - Use Template to Create Transfer', () => {
     const templateName = `E2E Use Template ${timestamp}`;
 
     // Create a template via API first
-    const sourceBranchId = await getFirstBranchId(page);
-    const destBranchId = await getSecondBranchId(page);
-    const productId = await getFirstProductId(page);
+    const sourceBranchId = await Factories.branch.getFirst(page);
+    const destBranchId = await Factories.branch.getSecond(page);
+    const productId = await Factories.product.getFirst(page);
 
-    const templateId = await createTemplateViaAPI(page, {
+    const templateId = await Factories.template.create(page, {
       name: templateName,
       description: 'Template for transfer creation test',
       sourceBranchId,
@@ -602,7 +503,7 @@ test.describe('Transfer Templates - Use Template to Create Transfer', () => {
       await expect(page.getByRole('heading', { name: 'Stock Transfers', exact: true })).toBeVisible();
     } finally {
       // Cleanup: delete the test template
-      await deleteTemplateViaAPI(page, templateId);
+      await Factories.template.delete(page, templateId);
     }
   });
 });

@@ -368,6 +368,7 @@ export default function CreateTemplateModal({
                         onChange={(v) => updateItem(index, "productId", v || "")}
                         searchable
                         disabled={isLoading}
+                        data-testid={`template-item-product-select-${index}`}
                       />
                     </Table.Td>
                     <Table.Td>
@@ -379,6 +380,7 @@ export default function CreateTemplateModal({
                         }
                         min={1}
                         disabled={isLoading}
+                        data-testid={`template-item-quantity-input-${index}`}
                       />
                     </Table.Td>
                     <Table.Td>

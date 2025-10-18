@@ -103,6 +103,7 @@ export default function SignInPage() {
                 value={userEmailInputValue}
                 onChange={(e) => setUserEmailInputValue(e.currentTarget.value)}
                 onFocus={handleInputFocus}
+                data-testid="auth-email-input"
               />
               <PasswordInput
                 label="Password"
@@ -110,6 +111,7 @@ export default function SignInPage() {
                 value={userPasswordInputValue}
                 onChange={(e) => setUserPasswordInputValue(e.currentTarget.value)}
                 onFocus={handleInputFocus}
+                data-testid="auth-password-input"
               />
               <TextInput
                 label="Tenant"
@@ -118,8 +120,9 @@ export default function SignInPage() {
                 value={tenantSlugInputValue}
                 onChange={(e) => setTenantSlugInputValue(e.currentTarget.value)}
                 onFocus={handleInputFocus}
+                data-testid="auth-tenant-input"
               />
-              <Button loading={isSubmittingSignInForm} type="submit">
+              <Button loading={isSubmittingSignInForm} type="submit" data-testid="auth-signin-button">
                 Sign in
               </Button>
             </Stack>

@@ -1,5 +1,6 @@
-// admin-web/e2e/transfer-approval-rules.spec.ts
+// transfer-approval-rules.spec.ts
 import { test, expect, type Page } from '@playwright/test';
+import { signIn, TEST_USERS, Factories } from '../helpers';
 
 /**
  * E2E Tests for Transfer Approval Rules
@@ -17,119 +18,6 @@ import { test, expect, type Page } from '@playwright/test';
  * - No reliance on seed data except for base tenant/users
  * - Cookies cleared between tests
  */
-
-// Test credentials from api-server/prisma/seed.ts
-const TEST_USERS = {
-  owner: { email: 'owner@acme.test', password: 'Password123!', tenant: 'acme' },
-  admin: { email: 'admin@acme.test', password: 'Password123!', tenant: 'acme' },
-  editor: { email: 'editor@acme.test', password: 'Password123!', tenant: 'acme' },
-  viewer: { email: 'viewer@acme.test', password: 'Password123!', tenant: 'acme' },
-};
-
-// Helper to sign in
-async function signIn(page: Page, user: typeof TEST_USERS.owner) {
-  await page.goto('/');
-  await page.getByLabel(/email address/i).fill(user.email);
-  await page.getByLabel(/password/i).fill(user.password);
-  await page.getByLabel(/tenant/i).fill(user.tenant);
-  await page.getByRole('button', { name: /sign in/i }).click();
-
-  // Wait for redirect to products page
-  await expect(page).toHaveURL(`/${user.tenant}/products`);
-
-  // Wait for auth store to populate
-  await page.waitForTimeout(500);
-}
-
-// Helper to get role ID by name (requires authenticated page context)
-async function getRoleId(page: Page, roleName: string): Promise<string> {
-  const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
-
-  // Get cookies from the page context to authenticate the API request
-  const cookies = await page.context().cookies();
-  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-
-  const response = await page.request.get(`${apiUrl}/api/roles`, {
-    headers: {
-      'Cookie': cookieHeader,
-    },
-  });
-
-  if (!response.ok()) {
-    throw new Error(`Failed to fetch roles: ${response.status()}`);
-  }
-
-  const data = await response.json();
-
-  if (!data.data || !data.data.items) {
-    throw new Error(`Invalid response structure: ${JSON.stringify(data)}`);
-  }
-
-  const role = data.data.items.find((r: any) => r.name === roleName);
-  if (!role) throw new Error(`Role not found: ${roleName}`);
-  return role.id;
-}
-
-// Helper to create approval rule via API (requires authenticated page context)
-async function createApprovalRuleViaAPI(page: Page, params: {
-  name: string;
-  description: string;
-  isActive: boolean;
-  approvalMode: 'SEQUENTIAL' | 'PARALLEL' | 'HYBRID';
-  priority: number;
-  conditions: Array<{
-    conditionType: string;
-    threshold?: number;
-    branchId?: string;
-  }>;
-  levels: Array<{
-    level: number;
-    name: string;
-    requiredRoleId: string;
-  }>;
-}): Promise<string> {
-  const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
-
-  // Get cookies from the page context to authenticate the API request
-  const cookies = await page.context().cookies();
-  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-
-  const response = await page.request.post(`${apiUrl}/api/transfer-approval-rules`, {
-    data: params,
-    headers: {
-      'Cookie': cookieHeader,
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok()) {
-    const errorText = await response.text();
-    throw new Error(`Failed to create approval rule: ${response.status()} - ${errorText}`);
-  }
-
-  const data = await response.json();
-  return data.data.id;
-}
-
-// Helper to delete approval rule via API (requires authenticated page context)
-async function deleteApprovalRuleViaAPI(page: Page, ruleId: string): Promise<void> {
-  const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
-
-  // Get cookies from the page context to authenticate the API request
-  const cookies = await page.context().cookies();
-  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-
-  const response = await page.request.delete(`${apiUrl}/api/transfer-approval-rules/${ruleId}`, {
-    headers: {
-      'Cookie': cookieHeader,
-    },
-  });
-
-  if (!response.ok()) {
-    const errorText = await response.text();
-    console.warn(`Failed to delete approval rule ${ruleId}: ${response.status()} - ${errorText}`);
-  }
-}
 
 // Check API server health before tests
 test.beforeAll(async () => {
@@ -154,20 +42,11 @@ test.describe('Approval Rules - List and Navigation', () => {
   test('should navigate to approval rules page from sidebar', async ({ page }) => {
     await signIn(page, TEST_USERS.owner);
 
-    // Wait for sidebar to be ready
-    await page.waitForTimeout(500);
-
-    // Look for Stock Management parent (it's a button, not a link)
-    const stockManagementButton = page.getByRole('button', { name: /stock management/i });
-
-    // Expand Stock Management section if it exists
-    if (await stockManagementButton.isVisible()) {
-      // Check if it's collapsed (aria-expanded might be false)
-      const isExpanded = await stockManagementButton.getAttribute('aria-expanded');
-      if (isExpanded === 'false') {
-        await stockManagementButton.click();
-        await page.waitForTimeout(300);
-      }
+    // Expand "Stock Management" navigation group if collapsed
+    const stockManagementNav = page.getByRole('navigation').getByText(/stock management/i);
+    if (await stockManagementNav.isVisible()) {
+      await stockManagementNav.click();
+      await page.waitForTimeout(300); // Wait for expansion animation
     }
 
     // Click on Approval Rules link (nested under Stock Management)
@@ -235,73 +114,97 @@ test.describe('Approval Rules - Create Rule', () => {
     await expect(dialog.getByText(/approval levels/i)).toBeVisible();
   });
 
-  test.skip('should create rule with quantity threshold and sequential approval', async ({ page }) => {
-    // SKIPPED: Complex Mantine Select dropdown interactions are flaky in E2E tests
-    // This functionality should be tested manually or with a different approach
+  test('should create rule with quantity threshold and sequential approval', async ({ page }) => {
     await signIn(page, TEST_USERS.owner);
     await page.goto(`/${TEST_USERS.owner.tenant}/stock-transfers/approval-rules`);
 
     await page.waitForTimeout(1000);
 
-    await page.getByRole('button', { name: /create rule/i }).click();
-    await page.waitForTimeout(500);
-
-    const dialog = page.getByRole('dialog');
-
-    // Fill basic info
     const timestamp = Date.now();
     const ruleName = `E2E Test Rule ${timestamp}`;
-    await dialog.getByLabel(/rule name/i).fill(ruleName);
-    await dialog.getByLabel(/description/i).fill('Automated test rule');
+    let ruleId: string | undefined;
 
-    // Approval mode is Sequential by default, just verify it's set
-    await page.waitForTimeout(300);
+    try {
+      await page.getByRole('button', { name: /create rule/i }).first().click();
+      await page.waitForTimeout(500);
 
-    // Add condition
-    await dialog.getByRole('button', { name: /add condition/i }).click();
-    await page.waitForTimeout(1000);
+      const dialog = page.getByRole('dialog');
 
-    // The condition type defaults to TOTAL_QTY_THRESHOLD, so we can just set the value
-    // Find the NumberInput in the conditions table for threshold
-    const conditionTable = dialog.locator('table').first();
-    const thresholdInput = conditionTable.getByPlaceholder(/quantity/i);
-    await thresholdInput.fill('100');
+      // Fill basic info
+      await dialog.getByLabel(/rule name/i).fill(ruleName);
+      await dialog.getByLabel(/description/i).fill('Automated test rule');
 
-    // Add approval level
-    await dialog.getByRole('button', { name: /add level/i }).click();
-    await page.waitForTimeout(1000);
+      // Approval mode is Sequential by default, just verify it's set
+      await page.waitForTimeout(300);
 
-    // Find the levels table
-    const levelsTable = dialog.locator('table').nth(1);
+      // Add condition
+      await dialog.getByRole('button', { name: /add condition/i }).click();
+      await page.waitForTimeout(500);
 
-    // Fill level name - find the TextInput for level name
-    const levelNameInput = levelsTable.getByPlaceholder(/manager/i);
-    await levelNameInput.fill('Manager');
+      // The condition type defaults to TOTAL_QTY_THRESHOLD, so we can just set the value
+      // Find the NumberInput in the conditions table for threshold
+      const thresholdInput = dialog.getByPlaceholder(/quantity/i);
+      await thresholdInput.fill('100');
 
-    // Role is selected by default, now select a role from the dropdown
-    // Find the Select in the levels table
-    const roleSelect = levelsTable.getByPlaceholder(/select role/i);
-    await roleSelect.click();
-    await page.waitForTimeout(500);
+      // Add approval level
+      await dialog.getByRole('button', { name: /add level/i }).click();
+      await page.waitForTimeout(500);
 
-    // Select first available role
-    const roleOptions = page.locator('[role="option"]');
-    await roleOptions.first().click({ force: true });
+      // Fill level name - find the TextInput for level name
+      const levelNameInput = dialog.getByPlaceholder(/manager/i);
+      await levelNameInput.fill('Manager');
 
-    await page.waitForTimeout(500);
+      // Role is selected by default, now select a role from the dropdown
+      // Use the data-testid we added for the first level (index 0)
+      const roleSelect = page.getByTestId('approval-level-role-select-0');
+      await roleSelect.click();
+      await page.waitForTimeout(500);
 
-    // Submit form
-    await dialog.getByRole('button', { name: /create rule/i }).click();
+      // Select first available role using getByRole('option') pattern
+      // getByRole automatically filters hidden elements
+      await page.getByRole('option').first().click();
 
-    // Should show success notification
-    await expect(page.getByText(/rule created/i)).toBeVisible({ timeout: 10000 });
+      await page.waitForTimeout(500);
 
-    // Modal should close
-    await expect(dialog).not.toBeVisible();
+      // Submit form
+      await dialog.getByRole('button', { name: /create rule/i }).click();
 
-    // Should see new rule in list
-    await page.waitForTimeout(500);
-    await expect(page.getByText(ruleName)).toBeVisible();
+      // Should show success notification
+      await expect(page.getByText(/rule created/i)).toBeVisible({ timeout: 10000 });
+
+      // Modal should close
+      await expect(dialog).not.toBeVisible();
+
+      // Should see new rule in list
+      await page.waitForTimeout(500);
+      await expect(page.getByText(ruleName)).toBeVisible();
+
+      // Extract rule ID from the row for cleanup
+      const ruleRow = page.locator('tr', { hasText: ruleName });
+      await expect(ruleRow).toBeVisible();
+
+      // Get the rule ID by fetching via API using the rule name
+      const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
+      const cookies = await page.context().cookies();
+      const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+
+      const response = await page.request.get(`${apiUrl}/api/stock-transfers/approval-rules`, {
+        headers: { 'Cookie': cookieHeader },
+      });
+
+      if (response.ok()) {
+        const data = await response.json();
+        const createdRule = data.data.items.find((r: any) => r.name === ruleName);
+        if (createdRule) {
+          ruleId = createdRule.id;
+        }
+      }
+    } finally {
+      // Cleanup: delete the test rule
+      if (ruleId) {
+        await Factories.approvalRule.delete(page, ruleId);
+      }
+    }
   });
 
   test('should validate required fields', async ({ page }) => {
@@ -331,11 +234,11 @@ test.describe('Approval Rules - Edit and Delete', () => {
     await signIn(page, TEST_USERS.owner);
 
     // Create a test rule via API
-    const adminRoleId = await getRoleId(page, 'ADMIN');
+    const adminRoleId = await Factories.role.getByName(page, 'ADMIN');
     const timestamp = Date.now();
     const ruleName = `E2E Toggle Test ${timestamp}`;
 
-    const ruleId = await createApprovalRuleViaAPI(page, {
+    const ruleId = await Factories.approvalRule.create(page, {
       name: ruleName,
       description: 'Test rule for toggle',
       isActive: true,
@@ -376,7 +279,7 @@ test.describe('Approval Rules - Edit and Delete', () => {
       expect(isNowChecked).toBe(false);
     } finally {
       // Cleanup: delete the test rule (runs even if test fails)
-      await deleteApprovalRuleViaAPI(page, ruleId);
+      await Factories.approvalRule.delete(page, ruleId);
     }
   });
 
@@ -384,11 +287,11 @@ test.describe('Approval Rules - Edit and Delete', () => {
     await signIn(page, TEST_USERS.owner);
 
     // Create a test rule via API
-    const adminRoleId = await getRoleId(page, 'ADMIN');
+    const adminRoleId = await Factories.role.getByName(page, 'ADMIN');
     const timestamp = Date.now();
     const ruleName = `E2E Edit Test ${timestamp}`;
 
-    const ruleId = await createApprovalRuleViaAPI(page, {
+    const ruleId = await Factories.approvalRule.create(page, {
       name: ruleName,
       description: 'Test rule for editing',
       isActive: true,
@@ -433,7 +336,7 @@ test.describe('Approval Rules - Edit and Delete', () => {
       await expect(page.getByText(newName)).toBeVisible();
     } finally {
       // Cleanup: delete the test rule (runs even if test fails)
-      await deleteApprovalRuleViaAPI(page, ruleId);
+      await Factories.approvalRule.delete(page, ruleId);
     }
   });
 
@@ -441,11 +344,11 @@ test.describe('Approval Rules - Edit and Delete', () => {
     await signIn(page, TEST_USERS.owner);
 
     // Create a test rule via API
-    const adminRoleId = await getRoleId(page, 'ADMIN');
+    const adminRoleId = await Factories.role.getByName(page, 'ADMIN');
     const timestamp = Date.now();
     const ruleName = `E2E Delete Test ${timestamp}`;
 
-    await createApprovalRuleViaAPI(page, {
+    await Factories.approvalRule.create(page, {
       name: ruleName,
       description: 'Test rule for deletion',
       isActive: true,

@@ -1,8 +1,9 @@
-// admin-web/e2e/permission-checks.spec.ts
-import { test, expect, type Page } from '@playwright/test';
+// admin-web/e2e/auth/permission-checks.spec.ts
+import { test, expect } from '@playwright/test';
+import { signIn, TEST_USERS } from '../helpers';
 
 /**
- * Phase 10: Frontend - Permission-Based UI Tests
+ * Permission-Based UI Tests
  *
  * Tests cross-cutting permission behavior across all features:
  * - OWNER: Full access (all permissions)
@@ -13,26 +14,6 @@ import { test, expect, type Page } from '@playwright/test';
  * This test suite verifies that the UI correctly shows/hides buttons and
  * displays permission denied messages based on user roles.
  */
-
-// Test credentials from api-server/prisma/seed.ts
-const TEST_USERS = {
-  owner: { email: 'owner@acme.test', password: 'Password123!', tenant: 'acme' },
-  admin: { email: 'admin@acme.test', password: 'Password123!', tenant: 'acme' },
-  editor: { email: 'editor@acme.test', password: 'Password123!', tenant: 'acme' },
-  viewer: { email: 'viewer@acme.test', password: 'Password123!', tenant: 'acme' },
-};
-
-// Helper to sign in
-async function signIn(page: Page, user: typeof TEST_USERS.owner) {
-  await page.goto('/');
-  await page.getByLabel(/email address/i).fill(user.email);
-  await page.getByLabel(/password/i).fill(user.password);
-  await page.getByLabel(/tenant/i).fill(user.tenant);
-  await page.getByRole('button', { name: /sign in/i }).click();
-
-  // Wait for redirect to products page
-  await expect(page).toHaveURL(`/${user.tenant}/products`);
-}
 
 // Check API server health before tests
 test.beforeAll(async () => {
@@ -46,6 +27,11 @@ test.beforeAll(async () => {
     console.warn('⚠️  API server may not be running. Tests will fail without it.');
     console.warn('   Start it with: cd api-server && npm run dev');
   }
+});
+
+// Clear cookies before each test for isolation
+test.beforeEach(async ({ context }) => {
+  await context.clearCookies();
 });
 
 test.describe('[PERM-001] Product Management Permissions', () => {
@@ -252,6 +238,13 @@ test.describe('[PERM-003] User Management Permissions', () => {
   test('OWNER should have user management access', async ({ page }) => {
     await signIn(page, TEST_USERS.owner);
 
+    // Expand "User Management" navigation group if collapsed
+    const userManagementNav = page.getByRole('navigation').getByText(/user management/i);
+    if (await userManagementNav.isVisible()) {
+      await userManagementNav.click();
+      await page.waitForTimeout(300); // Wait for expansion animation
+    }
+
     // Navigate to users page
     await page.getByRole('link', { name: /users/i }).click();
     await expect(page).toHaveURL(/\/users/);
@@ -264,6 +257,13 @@ test.describe('[PERM-003] User Management Permissions', () => {
 
   test('ADMIN should have user management access', async ({ page }) => {
     await signIn(page, TEST_USERS.admin);
+
+    // Expand "User Management" navigation group if collapsed
+    const userManagementNav = page.getByRole('navigation').getByText(/user management/i);
+    if (await userManagementNav.isVisible()) {
+      await userManagementNav.click();
+      await page.waitForTimeout(300); // Wait for expansion animation
+    }
 
     // Navigate to users page
     await page.getByRole('link', { name: /users/i }).click();
@@ -305,8 +305,17 @@ test.describe('[PERM-004] Navigation Visibility', () => {
   test('OWNER should see all navigation links', async ({ page }) => {
     await signIn(page, TEST_USERS.owner);
 
-    // Should see Products, Users, Branches links
+    // Should see Products link
     await expect(page.getByRole('link', { name: /^products$/i })).toBeVisible();
+
+    // Expand "User Management" navigation group to see Users link
+    const userManagementNav = page.getByRole('navigation').getByText(/user management/i);
+    if (await userManagementNav.isVisible()) {
+      await userManagementNav.click();
+      await page.waitForTimeout(300);
+    }
+
+    // Should see Users and Branches links
     await expect(page.getByRole('link', { name: /users/i })).toBeVisible();
     await expect(page.getByRole('link', { name: /branches/i })).toBeVisible();
   });
@@ -314,8 +323,17 @@ test.describe('[PERM-004] Navigation Visibility', () => {
   test('ADMIN should see all navigation links', async ({ page }) => {
     await signIn(page, TEST_USERS.admin);
 
-    // Admin should see all links
+    // Should see Products link
     await expect(page.getByRole('link', { name: /^products$/i })).toBeVisible();
+
+    // Expand "User Management" navigation group to see Users link
+    const userManagementNav = page.getByRole('navigation').getByText(/user management/i);
+    if (await userManagementNav.isVisible()) {
+      await userManagementNav.click();
+      await page.waitForTimeout(300);
+    }
+
+    // Admin should see all links
     await expect(page.getByRole('link', { name: /users/i })).toBeVisible();
     await expect(page.getByRole('link', { name: /branches/i })).toBeVisible();
   });

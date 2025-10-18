@@ -1,61 +1,30 @@
-// admin-web/e2e/product-archive.spec.ts
-import { test, expect, type Page } from '@playwright/test';
+// admin-web/e2e/products/product-archive.spec.ts
+import { test, expect } from '@playwright/test';
+import { signIn, TEST_USERS, Factories, SELECTORS } from '../helpers';
 
-const TEST_USERS = {
-  owner: { email: 'owner@acme.test', password: 'Password123!', tenant: 'acme' },
-  viewer: { email: 'viewer@acme.test', password: 'Password123!', tenant: 'acme' },
-};
+/**
+ * Product Archive & Restore Tests (Refactored)
+ *
+ * Tests cover:
+ * - Archive product from detail page
+ * - Restore archived product
+ * - Filter archived products
+ * - Permission-based archive/restore visibility
+ */
 
-async function signIn(page: Page, user: typeof TEST_USERS.owner) {
-  await page.goto('/');
-  await page.getByLabel(/email address/i).fill(user.email);
-  await page.getByLabel(/password/i).fill(user.password);
-  await page.getByLabel(/tenant/i).fill(user.tenant);
-  await page.getByRole('button', { name: /sign in/i }).click();
-  await expect(page).toHaveURL(`/${user.tenant}/products`);
-}
-
-async function createProductViaAPI(page: Page, params: {
-  productName: string;
-  productSku: string;
-  productPricePence: number;
-}): Promise<string> {
+// Check API server health before tests
+test.beforeAll(async () => {
   const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
-
-  // Get cookies from page context for authentication
-  const cookies = await page.context().cookies();
-  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-
-  const response = await page.request.post(`${apiUrl}/api/products`, {
-    data: params,
-    headers: {
-      'Cookie': cookieHeader,
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok()) {
-    const errorText = await response.text();
-    throw new Error(`Failed to create product: ${response.status()} - ${errorText}`);
+  try {
+    const response = await fetch(`${apiUrl}/api/health`);
+    if (!response.ok) {
+      throw new Error(`API health check failed with status ${response.status}`);
+    }
+  } catch (error) {
+    console.warn('⚠️  API server may not be running. Tests will fail without it.');
+    console.warn('   Start it with: cd api-server && npm run dev');
   }
-
-  const data = await response.json();
-  return data.data.product.id;
-}
-
-async function deleteProductViaAPI(page: Page, productId: string): Promise<void> {
-  const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
-
-  // Get cookies from page context for authentication
-  const cookies = await page.context().cookies();
-  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-
-  await page.request.delete(`${apiUrl}/api/products/${productId}`, {
-    headers: {
-      'Cookie': cookieHeader,
-    },
-  });
-}
+});
 
 test.describe('Product Archive Functionality', () => {
   test.beforeEach(async ({ context }) => {
@@ -69,12 +38,12 @@ test.describe('Product Archive Functionality', () => {
 
     try {
       // Create a test product
-      productId = await createProductViaAPI(page, {
+      productId = await Factories.product.create(page, {
         productName: 'Test Archive Product',
         productSku: `ARCHIVE-${Date.now()}`,
         productPricePence: 1000,
       });
-      
+
 
       // Navigate to product detail page
       await page.goto(`/${TEST_USERS.owner.tenant}/products/${productId}`);
@@ -84,7 +53,7 @@ test.describe('Product Archive Functionality', () => {
       await expect(page.getByRole('heading', { name: /edit product/i })).toBeVisible();
 
       // Click the archive button
-      const archiveButton = page.getByTestId('archive-product-btn');
+      const archiveButton = page.getByTestId(SELECTORS.PRODUCT.ARCHIVE_BUTTON);
       await expect(archiveButton).toBeVisible();
       await archiveButton.click();
 
@@ -105,16 +74,16 @@ test.describe('Product Archive Functionality', () => {
       await expect(modal).not.toBeVisible();
 
       // Archived badge should appear
-      await expect(page.getByTestId('archived-badge')).toBeVisible();
-      await expect(page.getByTestId('archived-badge')).toHaveText('Archived');
+      await expect(page.getByTestId(SELECTORS.PRODUCT.ARCHIVED_BADGE)).toBeVisible();
+      await expect(page.getByTestId(SELECTORS.PRODUCT.ARCHIVED_BADGE)).toHaveText('Archived');
 
       // Archive button should be replaced with Restore button
-      await expect(page.getByTestId('archive-product-btn')).not.toBeVisible();
-      await expect(page.getByTestId('restore-btn')).toBeVisible();
+      await expect(page.getByTestId(SELECTORS.PRODUCT.ARCHIVE_BUTTON)).not.toBeVisible();
+      await expect(page.getByTestId(SELECTORS.PRODUCT.RESTORE_BUTTON)).toBeVisible();
     } finally {
       // Cleanup
       if (productId) {
-        await deleteProductViaAPI(page, productId);
+        await Factories.product.delete(page, productId);
       }
     }
   });
@@ -126,7 +95,7 @@ test.describe('Product Archive Functionality', () => {
 
     try {
       // Create a test product
-      productId = await createProductViaAPI(page, {
+      productId = await Factories.product.create(page, {
         productName: 'Test Cancel Archive',
         productSku: `CANCEL-${Date.now()}`,
         productPricePence: 1500,
@@ -138,7 +107,7 @@ test.describe('Product Archive Functionality', () => {
       await expect(page.getByRole('heading', { name: /edit product/i })).toBeVisible();
 
       // Click the archive button
-      await page.getByTestId('archive-product-btn').click();
+      await page.getByTestId(SELECTORS.PRODUCT.ARCHIVE_BUTTON).click();
 
       // Modal should appear
       const modal = page.getByRole('dialog');
@@ -152,13 +121,13 @@ test.describe('Product Archive Functionality', () => {
       await expect(modal).not.toBeVisible();
 
       // Product should still be active (no archived badge)
-      await expect(page.getByTestId('archived-badge')).not.toBeVisible();
+      await expect(page.getByTestId(SELECTORS.PRODUCT.ARCHIVED_BADGE)).not.toBeVisible();
 
       // Archive button should still be visible
-      await expect(page.getByTestId('archive-product-btn')).toBeVisible();
+      await expect(page.getByTestId(SELECTORS.PRODUCT.ARCHIVE_BUTTON)).toBeVisible();
     } finally {
       if (productId) {
-        await deleteProductViaAPI(page, productId);
+        await Factories.product.delete(page, productId);
       }
     }
   });
@@ -169,15 +138,15 @@ test.describe('Product Archive Functionality', () => {
     let productId: string | undefined;
 
     try {
-      // Create and archive a product
-      productId = await createProductViaAPI(page, {
+      // Create a product
+      productId = await Factories.product.create(page, {
         productName: 'Test Restore Product',
         productSku: `RESTORE-${Date.now()}`,
         productPricePence: 2000,
       });
 
-      // Archive it via API
-      await deleteProductViaAPI(page, productId);
+      // Archive it
+      await Factories.product.archive(page, productId);
 
       // Navigate to archived product
       await page.goto(`/${TEST_USERS.owner.tenant}/products/${productId}`);
@@ -185,10 +154,10 @@ test.describe('Product Archive Functionality', () => {
       await expect(page.getByRole('heading', { name: /edit product/i })).toBeVisible();
 
       // Archived badge should be visible
-      await expect(page.getByTestId('archived-badge')).toBeVisible();
+      await expect(page.getByTestId(SELECTORS.PRODUCT.ARCHIVED_BADGE)).toBeVisible();
 
       // Click Restore button
-      const restoreButton = page.getByTestId('restore-btn');
+      const restoreButton = page.getByTestId(SELECTORS.PRODUCT.RESTORE_BUTTON);
       await expect(restoreButton).toBeVisible();
       await restoreButton.click();
 
@@ -196,14 +165,14 @@ test.describe('Product Archive Functionality', () => {
       await expect(page.getByRole('alert')).toContainText(/product restored/i);
 
       // Archived badge should disappear
-      await expect(page.getByTestId('archived-badge')).not.toBeVisible();
+      await expect(page.getByTestId(SELECTORS.PRODUCT.ARCHIVED_BADGE)).not.toBeVisible();
 
       // Restore button should be replaced with Archive button
-      await expect(page.getByTestId('restore-btn')).not.toBeVisible();
-      await expect(page.getByTestId('archive-product-btn')).toBeVisible();
+      await expect(page.getByTestId(SELECTORS.PRODUCT.RESTORE_BUTTON)).not.toBeVisible();
+      await expect(page.getByTestId(SELECTORS.PRODUCT.ARCHIVE_BUTTON)).toBeVisible();
     } finally {
       if (productId) {
-        await deleteProductViaAPI(page, productId);
+        await Factories.product.delete(page, productId);
       }
     }
   });
@@ -215,14 +184,14 @@ test.describe('Product Archive Functionality', () => {
 
     try {
       // Create two products
-      const activeId = await createProductViaAPI(page, {
+      const activeId = await Factories.product.create(page, {
         productName: 'Active Product',
         productSku: `ACTIVE-${Date.now()}`,
         productPricePence: 1000,
       });
       productIds.push(activeId);
 
-      const archivedId = await createProductViaAPI(page, {
+      const archivedId = await Factories.product.create(page, {
         productName: 'Archived Product',
         productSku: `ARCHIVED-${Date.now()}`,
         productPricePence: 2000,
@@ -230,7 +199,7 @@ test.describe('Product Archive Functionality', () => {
       productIds.push(archivedId);
 
       // Archive the second product
-      await deleteProductViaAPI(page, archivedId);
+      await Factories.product.archive(page, archivedId);
 
       // Go to products page
       await page.goto(`/${TEST_USERS.owner.tenant}/products`);
@@ -242,7 +211,7 @@ test.describe('Product Archive Functionality', () => {
 
       // Verify default filter is active (no-archived is the default)
       // Check that NO archived badges are visible in the table
-      const archivedBadges = await page.getByTestId('archived-badge').count();
+      const archivedBadges = await page.getByTestId(SELECTORS.PRODUCT.ARCHIVED_BADGE).count();
       expect(archivedBadges).toBe(0);
 
       // Open filters
@@ -260,7 +229,7 @@ test.describe('Product Archive Functionality', () => {
       await page.waitForSelector('table tbody tr');
 
       // Should now show only archived products (check for archived badges)
-      const archivedBadgesAfterFilter = await page.getByTestId('archived-badge').count();
+      const archivedBadgesAfterFilter = await page.getByTestId(SELECTORS.PRODUCT.ARCHIVED_BADGE).count();
       expect(archivedBadgesAfterFilter).toBeGreaterThan(0);
 
       // All visible rows should have an archived badge
@@ -268,7 +237,7 @@ test.describe('Product Archive Functionality', () => {
       expect(archivedBadgesAfterFilter).toBe(rowCount);
     } finally {
       for (const id of productIds) {
-        await deleteProductViaAPI(page, id);
+        await Factories.product.delete(page, id);
       }
     }
   });
@@ -280,14 +249,14 @@ test.describe('Product Archive Functionality', () => {
 
     try {
       // Create two products
-      const activeId = await createProductViaAPI(page, {
+      const activeId = await Factories.product.create(page, {
         productName: 'Active Both',
         productSku: `ACTIVE-BOTH-${Date.now()}`,
         productPricePence: 1000,
       });
       productIds.push(activeId);
 
-      const archivedId = await createProductViaAPI(page, {
+      const archivedId = await Factories.product.create(page, {
         productName: 'Archived Both',
         productSku: `ARCHIVED-BOTH-${Date.now()}`,
         productPricePence: 2000,
@@ -295,7 +264,7 @@ test.describe('Product Archive Functionality', () => {
       productIds.push(archivedId);
 
       // Archive the second product
-      await deleteProductViaAPI(page, archivedId);
+      await Factories.product.archive(page, archivedId);
 
       // Go to products page
       await page.goto(`/${TEST_USERS.owner.tenant}/products`);
@@ -319,11 +288,11 @@ test.describe('Product Archive Functionality', () => {
       await expect(page.getByRole('cell', { name: 'Archived Both' }).first()).toBeVisible();
 
       // Archived badge should be visible on the archived product
-      const archivedBadge = page.getByTestId('archived-badge').first();
+      const archivedBadge = page.getByTestId(SELECTORS.PRODUCT.ARCHIVED_BADGE).first();
       await expect(archivedBadge).toBeVisible();
     } finally {
       for (const id of productIds) {
-        await deleteProductViaAPI(page, id);
+        await Factories.product.delete(page, id);
       }
     }
   });
@@ -335,13 +304,13 @@ test.describe('Product Archive Functionality', () => {
 
     try {
       // Create and archive a product
-      productId = await createProductViaAPI(page, {
+      productId = await Factories.product.create(page, {
         productName: 'Direct Access Archived',
         productSku: `DIRECT-${Date.now()}`,
         productPricePence: 3000,
       });
 
-      await deleteProductViaAPI(page, productId);
+      await Factories.product.archive(page, productId);
 
       // Navigate directly to archived product URL
       await page.goto(`/${TEST_USERS.owner.tenant}/products/${productId}`);
@@ -351,13 +320,13 @@ test.describe('Product Archive Functionality', () => {
       await expect(page.getByRole('heading', { name: /edit product/i })).toBeVisible();
 
       // Should show archived badge
-      await expect(page.getByTestId('archived-badge')).toBeVisible();
+      await expect(page.getByTestId(SELECTORS.PRODUCT.ARCHIVED_BADGE)).toBeVisible();
 
       // Should show restore button
-      await expect(page.getByTestId('restore-btn')).toBeVisible();
+      await expect(page.getByTestId(SELECTORS.PRODUCT.RESTORE_BUTTON)).toBeVisible();
     } finally {
       if (productId) {
-        await deleteProductViaAPI(page, productId);
+        await Factories.product.delete(page, productId);
       }
     }
   });
@@ -372,7 +341,7 @@ test.describe('Product Archive Functionality', () => {
       await page.context().clearCookies();
       await signIn(page, TEST_USERS.owner);
 
-      productId = await createProductViaAPI(page, {
+      productId = await Factories.product.create(page, {
         productName: 'Viewer Test Product',
         productSku: `VIEWER-${Date.now()}`,
         productPricePence: 1500,
@@ -388,13 +357,13 @@ test.describe('Product Archive Functionality', () => {
       await expect(page.getByRole('heading', { name: /edit product/i })).toBeVisible();
 
       // Archive button should not be visible (viewer lacks products:write)
-      await expect(page.getByTestId('archive-product-btn')).not.toBeVisible();
+      await expect(page.getByTestId(SELECTORS.PRODUCT.ARCHIVE_BUTTON)).not.toBeVisible();
 
       // Now archive it as OWNER
       await page.context().clearCookies();
       await signIn(page, TEST_USERS.owner);
 
-      await deleteProductViaAPI(page, productId);
+      await Factories.product.archive(page, productId);
 
       // Sign back in as VIEWER
       await page.context().clearCookies();
@@ -406,16 +375,16 @@ test.describe('Product Archive Functionality', () => {
       await expect(page.getByRole('heading', { name: /edit product/i })).toBeVisible();
 
       // Should see archived badge
-      await expect(page.getByTestId('archived-badge')).toBeVisible();
+      await expect(page.getByTestId(SELECTORS.PRODUCT.ARCHIVED_BADGE)).toBeVisible();
 
       // Restore button should not be visible
-      await expect(page.getByTestId('restore-btn')).not.toBeVisible();
+      await expect(page.getByTestId(SELECTORS.PRODUCT.RESTORE_BUTTON)).not.toBeVisible();
     } finally {
       if (productId) {
         // Cleanup as OWNER
         await page.context().clearCookies();
         await signIn(page, TEST_USERS.owner);
-        await deleteProductViaAPI(page, productId);
+        await Factories.product.delete(page, productId);
       }
     }
   });

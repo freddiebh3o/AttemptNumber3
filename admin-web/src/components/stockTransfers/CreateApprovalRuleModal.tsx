@@ -611,6 +611,7 @@ export default function CreateApprovalRuleModal({
                           onChange={(v) => updateLevel(index, { requiredRoleId: v || undefined })}
                           searchable
                           disabled={isLoading}
+                          data-testid={`approval-level-role-select-${index}`}
                         />
                       ) : (
                         <Select
@@ -620,6 +621,7 @@ export default function CreateApprovalRuleModal({
                           onChange={(v) => updateLevel(index, { requiredUserId: v || undefined })}
                           searchable
                           disabled={isLoading}
+                          data-testid={`approval-level-user-select-${index}`}
                         />
                       )}
                     </Table.Td>

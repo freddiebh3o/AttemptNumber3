@@ -1,8 +1,9 @@
-// admin-web/e2e/stock-management.spec.ts
-import { test, expect, type Page } from '@playwright/test';
+// admin-web/e2e/stock/stock-management.spec.ts
+import { test, expect } from '@playwright/test';
+import { signIn, TEST_USERS, Factories } from '../helpers';
 
 /**
- * Phase 9: Frontend - Stock Management Tests
+ * Phase 9: Frontend - Stock Management Tests (Refactored)
  *
  * Tests cover:
  * - FIFO tab display (stock levels, lots, ledger)
@@ -10,25 +11,6 @@ import { test, expect, type Page } from '@playwright/test';
  * - Ledger filtering and pagination
  * - Branch selection
  */
-
-// Test credentials from api-server/prisma/seed.ts
-const TEST_USERS = {
-  owner: { email: 'owner@acme.test', password: 'Password123!', tenant: 'acme' },
-  editor: { email: 'editor@acme.test', password: 'Password123!', tenant: 'acme' },
-  viewer: { email: 'viewer@acme.test', password: 'Password123!', tenant: 'acme' },
-};
-
-// Helper to sign in
-async function signIn(page: Page, user: typeof TEST_USERS.owner) {
-  await page.goto('/');
-  await page.getByLabel(/email address/i).fill(user.email);
-  await page.getByLabel(/password/i).fill(user.password);
-  await page.getByLabel(/tenant/i).fill(user.tenant);
-  await page.getByRole('button', { name: /sign in/i }).click();
-
-  // Wait for redirect to products page
-  await expect(page).toHaveURL(`/${user.tenant}/products`);
-}
 
 // Check API server health before tests
 test.beforeAll(async () => {
@@ -51,100 +33,6 @@ test.beforeEach(async ({ context }) => {
   // Note: Don't clear localStorage/sessionStorage here - it causes SecurityError
   // when page hasn't navigated yet. Browser storage is cleared on navigation anyway.
 });
-
-// Helper: Create product with stock via API
-async function createProductWithStockViaAPI(page: Page): Promise<{ productId: string; branchId: string }> {
-  const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
-  const cookies = await page.context().cookies();
-  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-
-  // Create product
-  const timestamp = Date.now();
-  const productRes = await page.request.post(`${apiUrl}/api/products`, {
-    data: {
-      productName: `E2E Ledger Test ${timestamp}`,
-      productSku: `LEDGER-${timestamp}`,
-      productPricePence: 1000,
-    },
-    headers: {
-      'Cookie': cookieHeader,
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!productRes.ok()) {
-    const errorText = await productRes.text();
-    throw new Error(`Failed to create product: ${productRes.status()} - ${errorText}`);
-  }
-
-  const productData = await productRes.json();
-  const productId = productData.data.product.id;
-
-  // Get first branch
-  const branchRes = await page.request.get(`${apiUrl}/api/branches`, {
-    headers: { 'Cookie': cookieHeader },
-  });
-
-  if (!branchRes.ok()) {
-    throw new Error(`Failed to get branches: ${branchRes.status()}`);
-  }
-
-  const branchData = await branchRes.json();
-  const branchId = branchData.data.items[0].id;
-
-  // Add initial stock (creates ledger entries)
-  const adjustRes1 = await page.request.post(`${apiUrl}/api/stock/adjust`, {
-    data: {
-      productId,
-      branchId,
-      qtyDelta: 20,
-      unitCostPence: 100,
-      reason: 'E2E test setup',
-    },
-    headers: {
-      'Cookie': cookieHeader,
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!adjustRes1.ok()) {
-    const errorText = await adjustRes1.text();
-    throw new Error(`Failed to adjust stock (1): ${adjustRes1.status()} - ${errorText}`);
-  }
-
-  // Add another adjustment for pagination testing
-  const adjustRes2 = await page.request.post(`${apiUrl}/api/stock/adjust`, {
-    data: {
-      productId,
-      branchId,
-      qtyDelta: 10,
-      unitCostPence: 120,
-      reason: 'E2E test setup 2',
-    },
-    headers: {
-      'Cookie': cookieHeader,
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!adjustRes2.ok()) {
-    const errorText = await adjustRes2.text();
-    throw new Error(`Failed to adjust stock (2): ${adjustRes2.status()} - ${errorText}`);
-  }
-
-  return { productId, branchId };
-}
-
-// Helper: Delete product via API
-async function deleteProductViaAPI(page: Page, productId: string): Promise<void> {
-  const apiUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4000';
-  const cookies = await page.context().cookies();
-  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-
-  await page.request.delete(`${apiUrl}/api/products/${productId}`, {
-    headers: { 'Cookie': cookieHeader },
-  });
-}
 
 test.describe('FIFO Tab - Stock Levels and Lots', () => {
   test('should display FIFO tab with stock levels', async ({ page }) => {
@@ -331,14 +219,6 @@ test.describe('FIFO Tab - Adjust Stock Modal', () => {
     const newQty = parseInt(newOnHandText?.match(/on hand:\s*(\d+)/i)?.[1] || '0');
     expect(newQty).toBeGreaterThan(currentQty);
   });
-
-  test.skip('should disable adjust stock button without permission', async ({ page }) => {
-    // SKIPPED: Viewer role cannot access product edit pages at all
-    // The edit button is disabled in the products list, so we cannot navigate to the FIFO tab
-    // This is tested via product permissions tests instead
-    await signIn(page, TEST_USERS.viewer);
-    await page.waitForSelector('table tbody tr:first-child', { state: 'visible', timeout: 10000 });
-  });
 });
 
 test.describe('FIFO Tab - Ledger Display and Filtering', () => {
@@ -347,7 +227,7 @@ test.describe('FIFO Tab - Ledger Display and Filtering', () => {
     await signIn(page, TEST_USERS.owner);
 
     // Create product with stock (guarantees ledger entries exist)
-    const { productId } = await createProductWithStockViaAPI(page);
+    const { productId } = await Factories.stock.createProductWithStock(page);
 
     try {
       // Navigate to the product we just created
@@ -373,7 +253,7 @@ test.describe('FIFO Tab - Ledger Display and Filtering', () => {
       // Should show at least one ledger entry
       await expect(ledgerTable.locator('tbody tr').first()).toBeVisible();
     } finally {
-      await deleteProductViaAPI(page, productId);
+      await Factories.product.delete(page, productId);
     }
   });
 
@@ -428,7 +308,7 @@ test.describe('FIFO Tab - Ledger Display and Filtering', () => {
     await signIn(page, TEST_USERS.owner);
 
     // Create product with stock (guarantees ledger entries exist - 2 entries from helper)
-    const { productId } = await createProductWithStockViaAPI(page);
+    const { productId } = await Factories.stock.createProductWithStock(page);
 
     try {
       // Navigate to the product we just created
@@ -459,31 +339,8 @@ test.describe('FIFO Tab - Ledger Display and Filtering', () => {
         await expect(page.getByRole('button', { name: /prev/i }).last()).toBeEnabled();
       }
     } finally {
-      await deleteProductViaAPI(page, productId);
+      await Factories.product.delete(page, productId);
     }
-  });
-
-  test.skip('should change ledger page size', async ({ page }) => {
-    // SKIPPED: The per-page input is tricky to locate reliably
-    // There are multiple number inputs on the page (branch selector dropdown, per-page for lots, per-page for ledger)
-    // This functionality is tested manually and works correctly
-    await signIn(page, TEST_USERS.editor);
-
-    await page.waitForSelector('table tbody tr:first-child', { state: 'visible', timeout: 10000 });
-    const firstRow = page.locator('table tbody tr:first-child');
-    await firstRow.locator('td').last().locator('button').first().click();
-
-    await page.getByRole('tab', { name: /fifo/i }).click();
-    await page.waitForTimeout(1000);
-
-    // Find "Per page" input (near the ledger table) - difficult to select uniquely
-    const perPageInput = page.locator('input[type="number"]').last();
-    await perPageInput.clear();
-    await perPageInput.fill('10');
-    await perPageInput.press('Enter');
-
-    await page.waitForTimeout(1000);
-    await expect(page).toHaveURL(/limit=10/);
   });
 });
 
