@@ -53,6 +53,8 @@ export async function listRolesApiRequest(params?: {
   // NEW: permission filters
   permissionKeys?: string[] | PermissionKey[];
   permMatch?: "any" | "all";
+  // NEW: archive filter
+  archivedFilter?: "active-only" | "archived-only" | "all";
 }) {
   const search = new URLSearchParams();
   if (params?.limit != null) search.set("limit", String(params.limit));
@@ -67,6 +69,7 @@ export async function listRolesApiRequest(params?: {
   if (params?.sortBy) search.set("sortBy", params.sortBy);
   if (params?.sortDir) search.set("sortDir", params.sortDir);
   if (params?.includeTotal) search.set("includeTotal", "1");
+  if (params?.archivedFilter) search.set("archivedFilter", params.archivedFilter);
 
   // NEW: permission filters as CSV + match mode
   const keys = params?.permissionKeys ?? [];
@@ -150,4 +153,17 @@ export async function getRoleActivityApiRequest(params: {
   return httpRequestJson<GetRoleActivity200>(
     `/api/roles/${params.roleId}/activity${qs ? `?${qs}` : ""}`
   );
+}
+
+type RestoreRole200 =
+  paths["/api/roles/{roleId}/restore"]["post"]["responses"]["200"]["content"]["application/json"];
+
+export async function restoreRoleApiRequest(
+  roleId: string,
+  idempotencyKey?: string
+) {
+  return httpRequestJson<RestoreRole200>(`/api/roles/${roleId}/restore`, {
+    method: "POST",
+    headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
+  });
 }

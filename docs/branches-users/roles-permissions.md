@@ -191,20 +191,61 @@ Click **"Save"** to create the role.
 - Users may need to refresh their browser to see UI changes
 - Removed permissions immediately block access to those features
 
-### Deleting a Custom Role
+### Archiving Custom Roles
 
-**How to Delete:**
-From the Roles page, click the **red trash icon** next to the custom role.
+Custom roles can be **archived** instead of permanently deleted. Archiving hides the role from active views while preserving audit history.
+
+**How to Archive:**
+1. Open the custom role from the Roles page
+2. Click the **red "Archive"** button in the header
+3. Confirm in the modal by clicking **"Archive"**
 
 **Important:**
-- Cannot delete system roles (OWNER, ADMIN, EDITOR, VIEWER)
-- Cannot delete roles currently assigned to users
-- Deletion is permanent (no undo)
+- ✅ Custom roles can be archived
+- ❌ System roles (OWNER, ADMIN, EDITOR, VIEWER) **cannot be archived**
+- ❌ Roles with active user assignments **cannot be archived**
+- ✅ Archived roles can be **restored** later
 
-**Error: "Role is in use by users"**
-- This role is assigned to one or more users
-- Reassign those users to a different role first
-- Then delete the role
+**Confirmation Modal:**
+When archiving, you'll see a confirmation:
+> "Are you sure you want to archive this role? This role will be hidden from your active role list. Users with this role will need to be reassigned. This action can be reversed by restoring the role."
+
+**What Happens When Archived:**
+- Role is hidden from the active roles list (use filter to view)
+- Role cannot be assigned to new users
+- Historical role assignments remain in audit trail
+- Role can be restored at any time
+
+**Error: "Cannot archive role with active memberships"**
+- This role is currently assigned to one or more users
+- You must reassign those users to a different role first
+- Then you can archive the role
+
+**To Reassign Users:**
+1. Go to **Users** page
+2. Filter by the role name
+3. For each user, change their role to a different one
+4. Save changes
+5. Return to the role and archive it
+
+### Restoring Archived Roles
+
+If you archived a role by mistake or need it again, you can restore it.
+
+**How to Restore:**
+1. Go to **Roles** page
+2. Click **"Filters"** button
+3. Change **"Archived Filter"** to **"Archived roles only"** or **"All roles"**
+4. Click **"Apply filters"**
+5. Open the archived role (it will have a red "Archived" badge)
+6. Click the **green "Restore"** button
+7. Role is immediately restored to active status
+
+**After Restoring:**
+- Role appears in active roles list
+- Role can be assigned to users again
+- All permissions are preserved exactly as before
+- Role can be edited again
 
 ## Assigning Roles to Users
 
@@ -244,6 +285,16 @@ From the Roles page, click the **red trash icon** next to the custom role.
 - **System** - Show only system roles (OWNER, ADMIN, EDITOR, VIEWER)
 - **Custom** - Show only custom roles you created
 - **Any** - Show both
+
+**Archived Filter** ⭐ NEW
+- **Active roles only** (default) - Show only active roles
+- **Archived roles only** - Show only archived roles
+- **All roles (active + archived)** - Show everything
+
+This filter helps you:
+- Hide archived roles from your day-to-day view
+- Find and restore previously archived roles
+- Audit all roles including historical ones
 
 **Permissions (any/all)**
 - **Any** - Roles with ANY of the selected permissions
@@ -422,14 +473,24 @@ If you can't see the Roles menu, contact your admin to request `roles:manage` pe
    - Change **Role** to VIEWER
    - Save
 
-### Task: Delete Unused Custom Roles
+### Task: Archive Unused Custom Roles
 
 1. Go to **Roles** page
 2. Click **"Filters"**
 3. Set **System role** to "Custom"
-4. Click **"Apply"**
-5. For each role, click **trash icon** to delete
-6. If error "Role is in use", reassign users first
+4. Set **Archived Filter** to "Active roles only"
+5. Click **"Apply filters"**
+6. For each unused role:
+   - Click the role name to open it
+   - Click the red **"Archive"** button
+   - Confirm in the modal
+7. If error "Cannot archive role with active memberships", reassign users first
+
+**To View Archived Roles Later:**
+1. Go to **Roles** page
+2. Click **"Filters"**
+3. Set **Archived Filter** to "Archived roles only"
+4. Click **"Apply filters"**
 
 ## Troubleshooting
 
@@ -445,21 +506,29 @@ If you can't see the Roles menu, contact your admin to request `roles:manage` pe
 
 **Can't edit a role**
 - System roles (OWNER, ADMIN, EDITOR, VIEWER) cannot be edited
+- Archived roles cannot be edited (restore them first)
 - Custom roles can be edited by users with `roles:manage`
 - Check if you have `roles:manage` permission
 
-**Can't delete a role**
-- System roles cannot be deleted
-- Custom roles assigned to users cannot be deleted
+**Can't archive a role**
+- System roles (OWNER, ADMIN, EDITOR, VIEWER) **cannot be archived**
+- Custom roles assigned to users cannot be archived
 - Reassign users to different roles first
-- Then delete the custom role
+- Then archive the custom role
 
-**"Role is in use by users"**
+**"Cannot archive role with active memberships"**
 - This role is assigned to one or more users
 - Go to **Users** page
 - Find users with this role (filter by role name)
 - Change their role to something else
-- Return to **Roles** page and delete
+- Return to **Roles** page and archive
+
+**Can't see archived roles**
+- Archived roles are hidden by default
+- Click **"Filters"** button
+- Change **"Archived Filter"** to **"Archived roles only"** or **"All roles"**
+- Click **"Apply filters"**
+- Archived roles will show with a red "Archived" badge
 
 **Custom role permissions not working**
 - Verify the role has the necessary permissions

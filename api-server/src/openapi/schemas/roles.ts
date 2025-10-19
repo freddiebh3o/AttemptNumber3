@@ -22,6 +22,9 @@ export const ZodRoleRecord = z.object({
   name: z.string(),
   description: z.string().nullable(),
   isSystem: z.boolean(),
+  isArchived: z.boolean(),
+  archivedAt: z.string().datetime().nullable(),
+  archivedByUserId: z.string().nullable(),
   permissions: z.array(ZodPermissionKey),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
@@ -30,6 +33,8 @@ export const ZodRoleRecord = z.object({
 // NEW: helper enum for match mode
 export const ZodPermMatch = z.enum(['any', 'all']).openapi('PermMatch');
 
+export const ZodArchivedFilter = z.enum(['active-only', 'archived-only', 'all']).openapi('ArchivedFilter');
+
 export const ZodListRolesQuery = z.object({
   limit: z.number().int().min(1).max(100).optional(),
   cursorId: z.string().optional(),
@@ -37,6 +42,9 @@ export const ZodListRolesQuery = z.object({
   q: z.string().optional(),
   name: z.string().optional(),
   isSystem: z.coerce.boolean().optional(),
+  archivedFilter: ZodArchivedFilter
+    .describe("Filter by archive status: 'active-only' (default), 'archived-only', or 'all'")
+    .optional(),
   createdAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   createdAtTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   updatedAtFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),

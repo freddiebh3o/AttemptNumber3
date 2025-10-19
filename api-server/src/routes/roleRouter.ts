@@ -16,6 +16,7 @@ import {
   updateTenantRoleService,
   deleteTenantRoleService,
   getTenantRoleService,
+  restoreTenantRoleService,
 } from "../services/role/roleService.js";
 import {
   assertAuthed,
@@ -41,6 +42,7 @@ const listQuerySchema = z.object({
   q: z.string().min(1).optional(),
   name: z.string().min(1).optional(),
   isSystem: z.coerce.boolean().optional(),
+  archivedFilter: z.enum(["active-only", "archived-only", "all"]).optional(),
   createdAtFrom: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -134,6 +136,9 @@ roleRouter.get(
         }),
         ...(req.validatedQuery.isSystem !== undefined && {
           isSystemOptional: req.validatedQuery.isSystem,
+        }),
+        ...(req.validatedQuery.archivedFilter !== undefined && {
+          archivedFilterOptional: req.validatedQuery.archivedFilter,
         }),
         ...(req.validatedQuery.createdAtFrom !== undefined && {
           createdAtFromOptional: req.validatedQuery.createdAtFrom,
@@ -232,7 +237,7 @@ roleRouter.put(
   }
 );
 
-// DELETE /api/roles/:roleId
+// DELETE /api/roles/:roleId (archives the role)
 roleRouter.delete(
   "/roles/:roleId",
   requireAuthenticatedUserMiddleware,
@@ -243,13 +248,37 @@ roleRouter.delete(
       assertAuthed(req);
       assertHasParams<z.infer<typeof roleIdParams>>(req);
 
-      const result = await deleteTenantRoleService({
+      const role = await deleteTenantRoleService({
         currentTenantId: req.currentTenantId,
         roleId: req.validatedParams.roleId,
         auditContextOptional: getAuditContext(req),
       });
 
-      return res.status(200).json(createStandardSuccessResponse(result));
+      return res.status(200).json(createStandardSuccessResponse({ role }));
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
+// POST /api/roles/:roleId/restore
+roleRouter.post(
+  "/roles/:roleId/restore",
+  requireAuthenticatedUserMiddleware,
+  requirePermission("roles:manage"),
+  validateRequestParamsWithZod(roleIdParams),
+  async (req, res, next) => {
+    try {
+      assertAuthed(req);
+      assertHasParams<z.infer<typeof roleIdParams>>(req);
+
+      const role = await restoreTenantRoleService({
+        currentTenantId: req.currentTenantId,
+        roleId: req.validatedParams.roleId,
+        auditContextOptional: getAuditContext(req),
+      });
+
+      return res.status(200).json(createStandardSuccessResponse({ role }));
     } catch (err) {
       return next(err);
     }

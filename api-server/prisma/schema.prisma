@@ -34,6 +34,11 @@ model Role {
   description String?
   isSystem    Boolean @default(false) // seed defaults can mark true
 
+  // archival (soft delete)
+  isArchived       Boolean  @default(false)
+  archivedAt       DateTime?
+  archivedByUserId String?
+
   // permissions
   permissions RolePermission[]
 
@@ -49,6 +54,7 @@ model Role {
 
   @@unique([tenantId, name]) // one role name per tenant
   @@index([tenantId])
+  @@index([tenantId, isArchived])
 }
 
 /// ----- NEW: join table role<->permission -----

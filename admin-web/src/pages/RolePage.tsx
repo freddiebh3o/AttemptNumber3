@@ -1,8 +1,9 @@
 // admin-web/src/pages/RolePage.tsx
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Badge, Button, Group, Loader, Stack, Tabs, Text, Title, Paper } from "@mantine/core";
+import { Badge, Button, Group, Loader, Stack, Tabs, Text, Title, Paper, Modal } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
+import { IconArchive, IconRestore } from "@tabler/icons-react";
 import { useAuthStore } from "../stores/auth";
 import { handlePageError } from "../utils/pageError";
 import {
@@ -10,6 +11,8 @@ import {
   updateRoleApiRequest,
   listPermissionsApiRequest,
   getRoleApiRequest,
+  deleteRoleApiRequest,
+  restoreRoleApiRequest,
   type PermissionRecord,
   type PermissionKey,
 } from "../api/roles";
@@ -49,10 +52,16 @@ export default function RolePage() {
   const [permOptions, setPermOptions] = useState<PermissionRecord[]>([]);
   const [selectedPerms, setSelectedPerms] = useState<PermissionKey[]>([]);
   const [isSystem, setIsSystem] = useState(false);
+  const [isArchived, setIsArchived] = useState(false);
 
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [notFound, setNotFound] = useState(false);
+
+  // Archive/restore state
+  const [archiveModalOpen, setArchiveModalOpen] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
 
   // Trigger a refetch after successful updates
   const [refreshTick, setRefreshTick] = useState(0);
@@ -90,6 +99,7 @@ export default function RolePage() {
           setDescription(r.description ?? "");
           setSelectedPerms(r.permissions as PermissionKey[]);
           setIsSystem(r.isSystem);
+          setIsArchived(r.isArchived ?? false);
         }
       } catch (e: any) {
         if (!cancelled && (e?.httpStatusCode === 404 || e?.status === 404)) {
@@ -158,6 +168,48 @@ export default function RolePage() {
     }
   }
 
+  async function handleArchive() {
+    if (!roleId) return;
+
+    setIsArchiving(true);
+    try {
+      const res = await deleteRoleApiRequest(roleId, `archive-${roleId}-${Date.now()}`);
+      if (res.success) {
+        notifications.show({ color: "green", message: "Role archived successfully" });
+        setArchiveModalOpen(false);
+        setRefreshTick((t) => t + 1); // Refresh to show archived state
+      }
+    } catch (e: any) {
+      const msg =
+        e?.details?.error?.errorCode === "CONFLICT"
+          ? e?.details?.error?.userFacingMessage ?? "Cannot archive role with active memberships"
+          : e?.message ?? "Archive failed";
+      notifications.show({ color: "red", message: msg });
+    } finally {
+      setIsArchiving(false);
+    }
+  }
+
+  async function handleRestore() {
+    if (!roleId) return;
+
+    setIsRestoring(true);
+    try {
+      const res = await restoreRoleApiRequest(roleId, `restore-${roleId}-${Date.now()}`);
+      if (res.success) {
+        notifications.show({ color: "green", message: "Role restored successfully" });
+        setRefreshTick((t) => t + 1); // Refresh to show active state
+      }
+    } catch (e: any) {
+      notifications.show({
+        color: "red",
+        message: e?.message ?? "Restore failed",
+      });
+    } finally {
+      setIsRestoring(false);
+    }
+  }
+
   const busy = saving || loading;
 
   // --- Not found (edit mode) ---
@@ -197,13 +249,51 @@ export default function RolePage() {
       <Group justify="space-between" align="start">
         <Group gap="sm">
           <Title order={2}>{isEdit ? "Edit role" : "New role"}</Title>
-          {isEdit && isSystem && <Badge color="gray">System</Badge>}
+          {isEdit && isArchived && (
+            <Badge color="red" size="lg" data-testid="archived-badge">
+              Archived
+            </Badge>
+          )}
+          {isEdit && isSystem && (
+            <Badge color="gray" size="lg" data-testid="system-badge">
+              System Role
+            </Badge>
+          )}
         </Group>
         <Group>
+          {/* Archive button: only for active custom roles */}
+          {isEdit && !isArchived && !isSystem && canManageRoles && (
+            <Button
+              variant="light"
+              color="red"
+              leftSection={<IconArchive size={16} />}
+              onClick={() => setArchiveModalOpen(true)}
+              data-testid="archive-role-btn"
+            >
+              Archive
+            </Button>
+          )}
+          {/* Restore button: only for archived roles */}
+          {isEdit && isArchived && canManageRoles && (
+            <Button
+              variant="light"
+              color="green"
+              leftSection={<IconRestore size={16} />}
+              onClick={handleRestore}
+              loading={isRestoring}
+              data-testid="restore-role-btn"
+            >
+              Restore
+            </Button>
+          )}
           <Button variant="default" onClick={() => navigate(-1)}>
             Cancel
           </Button>
-          <Button onClick={handleSave} loading={busy} disabled={!canManageRoles || (isEdit && isSystem)}>
+          <Button
+            onClick={handleSave}
+            loading={busy}
+            disabled={!canManageRoles || (isEdit && isSystem) || (isEdit && isArchived)}
+          >
             Save
           </Button>
         </Group>
@@ -250,6 +340,32 @@ export default function RolePage() {
           )}
         </Tabs>
       )}
+
+      {/* Archive Confirmation Modal */}
+      <Modal
+        opened={archiveModalOpen}
+        onClose={() => setArchiveModalOpen(false)}
+        title="Archive Role"
+        centered
+      >
+        <Stack>
+          <Text>
+            Are you sure you want to archive this role? This role will be hidden from your active
+            role list. Users with this role will need to be reassigned.
+          </Text>
+          <Text size="sm" c="dimmed">
+            This action can be reversed by restoring the role.
+          </Text>
+          <Group justify="flex-end">
+            <Button variant="subtle" onClick={() => setArchiveModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button color="red" onClick={handleArchive} loading={isArchiving}>
+              Archive
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Stack>
   );
 }

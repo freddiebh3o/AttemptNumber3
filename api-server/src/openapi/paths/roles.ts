@@ -140,7 +140,7 @@ export function registerRolePaths(registry: OpenAPIRegistry) {
     },
   });
 
-  // DELETE /api/roles/{roleId}
+  // DELETE /api/roles/{roleId} (archives the role)
   registry.registerPath({
     tags: ['Roles'],
     method: 'delete',
@@ -149,10 +149,35 @@ export function registerRolePaths(registry: OpenAPIRegistry) {
     request: { params: ZodRoleIdParam, headers: ZodIdempotencyHeaders },
     responses: {
       200: {
-        description: 'Deleted role',
+        description: 'Archived role',
         content: {
           'application/json': {
-            schema: successEnvelope(z.object({ hasDeletedRole: z.boolean() })),
+            schema: successEnvelope(z.object({ role: ZodRoleRecord })),
+          },
+        },
+      },
+      401: RESPONSES[401],
+      403: RESPONSES[403],
+      404: RESPONSES[404],
+      409: RESPONSES[409],
+      429: RESPONSES[429],
+      500: RESPONSES[500],
+    },
+  });
+
+  // POST /api/roles/{roleId}/restore
+  registry.registerPath({
+    tags: ['Roles'],
+    method: 'post',
+    path: '/api/roles/{roleId}/restore',
+    security: [{ cookieAuth: [] }],
+    request: { params: ZodRoleIdParam, headers: ZodIdempotencyHeaders },
+    responses: {
+      200: {
+        description: 'Restored role',
+        content: {
+          'application/json': {
+            schema: successEnvelope(z.object({ role: ZodRoleRecord })),
           },
         },
       },

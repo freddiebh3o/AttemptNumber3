@@ -41,6 +41,7 @@ export async function listTenantRolesService(params: {
   qOptional?: string;
   nameOptional?: string;
   isSystemOptional?: boolean;
+  archivedFilterOptional?: "active-only" | "archived-only" | "all";
   createdAtFromOptional?: string;
   createdAtToOptional?: string;
   updatedAtFromOptional?: string;
@@ -59,6 +60,7 @@ export async function listTenantRolesService(params: {
     qOptional,
     nameOptional,
     isSystemOptional,
+    archivedFilterOptional = "active-only",
     createdAtFromOptional,
     createdAtToOptional,
     updatedAtFromOptional,
@@ -92,6 +94,10 @@ export async function listTenantRolesService(params: {
       name: { contains: nameOptional, mode: "insensitive" },
     }),
     ...(isSystemOptional !== undefined && { isSystem: isSystemOptional }),
+    // Archived filter
+    ...(archivedFilterOptional === "active-only" && { isArchived: false }),
+    ...(archivedFilterOptional === "archived-only" && { isArchived: true }),
+    // "all" means no filter on isArchived
     ...((createdAt.gte || createdAt.lt) && { createdAt }),
     ...((updatedAt.gte || updatedAt.lt) && { updatedAt }),
   };
@@ -141,6 +147,9 @@ export async function listTenantRolesService(params: {
         name: true,
         description: true,
         isSystem: true,
+        isArchived: true,
+        archivedAt: true,
+        archivedByUserId: true,
         createdAt: true,
         updatedAt: true,
         permissions: { select: { permission: { select: { key: true } } } },
@@ -159,6 +168,9 @@ export async function listTenantRolesService(params: {
     name: r.name,
     description: r.description ?? null,
     isSystem: r.isSystem,
+    isArchived: r.isArchived,
+    archivedAt: r.archivedAt?.toISOString() ?? null,
+    archivedByUserId: r.archivedByUserId ?? null,
     permissions: r.permissions.map((p) => p.permission.key).sort(),
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
@@ -217,7 +229,18 @@ export async function createTenantRoleService(params: {
   return await prisma.$transaction(async (tx) => {
     const role = await tx.role.create({
       data: { tenantId: currentTenantId, name: trimmedName, description, isSystem: false },
-      select: { id: true, tenantId: true, name: true, description: true, isSystem: true, createdAt: true, updatedAt: true },
+      select: {
+        id: true,
+        tenantId: true,
+        name: true,
+        description: true,
+        isSystem: true,
+        isArchived: true,
+        archivedAt: true,
+        archivedByUserId: true,
+        createdAt: true,
+        updatedAt: true
+      },
     });
 
     if (ids.length) {
@@ -253,6 +276,9 @@ export async function createTenantRoleService(params: {
       name: role.name,
       description: role.description ?? null,
       isSystem: role.isSystem,
+      isArchived: role.isArchived,
+      archivedAt: role.archivedAt?.toISOString() ?? null,
+      archivedByUserId: role.archivedByUserId ?? null,
       permissions: permissionKeys.sort(),
       createdAt: role.createdAt.toISOString(),
       updatedAt: role.updatedAt.toISOString(),
@@ -279,6 +305,9 @@ export async function updateTenantRoleService(params: {
         name: true,
         description: true,
         isSystem: true,
+        isArchived: true,
+        archivedAt: true,
+        archivedByUserId: true,
         createdAt: true,
         updatedAt: true,
         permissions: { select: { permissionId: true, permission: { select: { key: true } } } },
@@ -287,6 +316,7 @@ export async function updateTenantRoleService(params: {
     if (!role || role.tenantId !== currentTenantId)
       throw Errors.notFound("Role not found for this tenant.");
     if (role.isSystem) throw Errors.conflict("System roles cannot be modified.");
+    if (role.isArchived) throw Errors.conflict("Archived roles cannot be modified. Please restore the role first.");
 
     const before = {
       id: role.id,
@@ -294,6 +324,9 @@ export async function updateTenantRoleService(params: {
       name: role.name,
       description: role.description ?? null,
       isSystem: role.isSystem,
+      isArchived: role.isArchived,
+      archivedAt: role.archivedAt,
+      archivedByUserId: role.archivedByUserId,
       permissions: role.permissions.map((p) => p.permission.key).sort(),
       createdAt: role.createdAt,
       updatedAt: role.updatedAt,
@@ -352,6 +385,9 @@ export async function updateTenantRoleService(params: {
         name: true,
         description: true,
         isSystem: true,
+        isArchived: true,
+        archivedAt: true,
+        archivedByUserId: true,
         createdAt: true,
         updatedAt: true,
         permissions: { select: { permission: { select: { key: true } } } },
@@ -365,6 +401,9 @@ export async function updateTenantRoleService(params: {
       name: fresh.name,
       description: fresh.description ?? null,
       isSystem: fresh.isSystem,
+      isArchived: fresh.isArchived,
+      archivedAt: fresh.archivedAt,
+      archivedByUserId: fresh.archivedByUserId,
       permissions: fresh.permissions.map((p) => p.permission.key).sort(),
       createdAt: fresh.createdAt,
       updatedAt: fresh.updatedAt,
@@ -391,6 +430,9 @@ export async function updateTenantRoleService(params: {
       name: fresh.name,
       description: fresh.description ?? null,
       isSystem: fresh.isSystem,
+      isArchived: fresh.isArchived,
+      archivedAt: fresh.archivedAt?.toISOString() ?? null,
+      archivedByUserId: fresh.archivedByUserId ?? null,
       permissions: after.permissions,
       createdAt: fresh.createdAt.toISOString(),
       updatedAt: fresh.updatedAt.toISOString(),
@@ -412,7 +454,11 @@ export async function deleteTenantRoleService(params: {
         id: true,
         tenantId: true,
         name: true,
+        description: true,
         isSystem: true,
+        isArchived: true,
+        archivedAt: true,
+        archivedByUserId: true,
         createdAt: true,
         updatedAt: true,
         permissions: { select: { permission: { select: { key: true } } } },
@@ -420,43 +466,93 @@ export async function deleteTenantRoleService(params: {
     });
     if (!role || role.tenantId !== currentTenantId)
       throw Errors.notFound("Role not found for this tenant.");
-    if (role.isSystem) throw Errors.conflict("System roles cannot be deleted.");
+    if (role.isSystem) throw Errors.conflict("System roles cannot be archived.");
+    if (role.isArchived) throw Errors.conflict("Role is already archived.");
 
     const inUse = await tx.userTenantMembership.count({ where: { roleId } });
     if (inUse > 0) {
-      throw Errors.conflict(`Role is in use by ${inUse} user(s) and cannot be deleted.`);
+      throw Errors.conflict(`Role is in use by ${inUse} user(s) and cannot be archived.`);
     }
 
     const before = {
       id: role.id,
       tenantId: role.tenantId ?? "",
       name: role.name,
-      description: null as string | null, // description not selected above; set null or include in select if needed
+      description: role.description ?? null,
       isSystem: role.isSystem,
+      isArchived: role.isArchived,
+      archivedAt: role.archivedAt,
+      archivedByUserId: role.archivedByUserId,
       permissions: role.permissions.map((p) => p.permission.key).sort(),
       createdAt: role.createdAt,
       updatedAt: role.updatedAt,
     };
 
-    await tx.rolePermission.deleteMany({ where: { roleId } });
-    await tx.role.delete({ where: { id: roleId } });
+    // Archive the role instead of deleting
+    const archived = await tx.role.update({
+      where: { id: roleId },
+      data: {
+        isArchived: true,
+        archivedAt: new Date(),
+        archivedByUserId: auditContextOptional?.actorUserId ?? null,
+      },
+      select: {
+        id: true,
+        tenantId: true,
+        name: true,
+        description: true,
+        isSystem: true,
+        isArchived: true,
+        archivedAt: true,
+        archivedByUserId: true,
+        createdAt: true,
+        updatedAt: true,
+        permissions: { select: { permission: { select: { key: true } } } },
+      },
+    });
 
-    // AUDIT: DELETE (ROLE)
+    const after = {
+      id: archived.id,
+      tenantId: archived.tenantId ?? "",
+      name: archived.name,
+      description: archived.description ?? null,
+      isSystem: archived.isSystem,
+      isArchived: archived.isArchived,
+      archivedAt: archived.archivedAt,
+      archivedByUserId: archived.archivedByUserId,
+      permissions: archived.permissions.map((p) => p.permission.key).sort(),
+      createdAt: archived.createdAt,
+      updatedAt: archived.updatedAt,
+    };
+
+    // AUDIT: UPDATE (ROLE) - archival is an update, not delete
     await writeAuditEvent(tx, {
       tenantId: currentTenantId,
       actorUserId: auditContextOptional?.actorUserId ?? null,
       entityType: AuditEntityType.ROLE,
       entityId: role.id,
-      action: AuditAction.DELETE,
+      action: AuditAction.UPDATE,
       entityName: role.name,
       before,
-      after: null,
+      after,
       correlationId: auditContextOptional?.correlationId ?? null,
       ip: auditContextOptional?.ip ?? null,
       userAgent: auditContextOptional?.userAgent ?? null,
     });
 
-    return { hasDeletedRole: true };
+    return {
+      id: archived.id,
+      tenantId: archived.tenantId ?? "",
+      name: archived.name,
+      description: archived.description ?? null,
+      isSystem: archived.isSystem,
+      isArchived: archived.isArchived,
+      archivedAt: archived.archivedAt?.toISOString() ?? null,
+      archivedByUserId: archived.archivedByUserId ?? null,
+      permissions: archived.permissions.map((p) => p.permission.key).sort(),
+      createdAt: archived.createdAt.toISOString(),
+      updatedAt: archived.updatedAt.toISOString(),
+    };
   });
 }
 
@@ -474,6 +570,9 @@ export async function getTenantRoleService(params: {
       name: true,
       description: true,
       isSystem: true,
+      isArchived: true,
+      archivedAt: true,
+      archivedByUserId: true,
       createdAt: true,
       updatedAt: true,
       permissions: { select: { permission: { select: { key: true } } } },
@@ -490,8 +589,125 @@ export async function getTenantRoleService(params: {
     name: r.name,
     description: r.description ?? null,
     isSystem: r.isSystem,
+    isArchived: r.isArchived,
+    archivedAt: r.archivedAt?.toISOString() ?? null,
+    archivedByUserId: r.archivedByUserId ?? null,
     permissions: r.permissions.map((p) => p.permission.key).sort(),
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
   };
+}
+
+export async function restoreTenantRoleService(params: {
+  currentTenantId: string;
+  roleId: string;
+  auditContextOptional?: AuditCtx;
+}) {
+  const { currentTenantId, roleId, auditContextOptional } = params;
+
+  return await prisma.$transaction(async (tx) => {
+    const role = await tx.role.findUnique({
+      where: { id: roleId },
+      select: {
+        id: true,
+        tenantId: true,
+        name: true,
+        description: true,
+        isSystem: true,
+        isArchived: true,
+        archivedAt: true,
+        archivedByUserId: true,
+        createdAt: true,
+        updatedAt: true,
+        permissions: { select: { permission: { select: { key: true } } } },
+      },
+    });
+
+    if (!role || role.tenantId !== currentTenantId) {
+      throw Errors.notFound("Role not found for this tenant.");
+    }
+    if (!role.isArchived) {
+      throw Errors.conflict("Role is not archived.");
+    }
+
+    const before = {
+      id: role.id,
+      tenantId: role.tenantId ?? "",
+      name: role.name,
+      description: role.description ?? null,
+      isSystem: role.isSystem,
+      isArchived: role.isArchived,
+      archivedAt: role.archivedAt,
+      archivedByUserId: role.archivedByUserId,
+      permissions: role.permissions.map((p) => p.permission.key).sort(),
+      createdAt: role.createdAt,
+      updatedAt: role.updatedAt,
+    };
+
+    // Restore the role
+    const restored = await tx.role.update({
+      where: { id: roleId },
+      data: {
+        isArchived: false,
+        archivedAt: null,
+        archivedByUserId: null,
+      },
+      select: {
+        id: true,
+        tenantId: true,
+        name: true,
+        description: true,
+        isSystem: true,
+        isArchived: true,
+        archivedAt: true,
+        archivedByUserId: true,
+        createdAt: true,
+        updatedAt: true,
+        permissions: { select: { permission: { select: { key: true } } } },
+      },
+    });
+
+    const after = {
+      id: restored.id,
+      tenantId: restored.tenantId ?? "",
+      name: restored.name,
+      description: restored.description ?? null,
+      isSystem: restored.isSystem,
+      isArchived: restored.isArchived,
+      archivedAt: restored.archivedAt,
+      archivedByUserId: restored.archivedByUserId,
+      permissions: restored.permissions.map((p) => p.permission.key).sort(),
+      createdAt: restored.createdAt,
+      updatedAt: restored.updatedAt,
+    };
+
+    // AUDIT: UPDATE (ROLE) - restore is an update
+    await writeAuditEvent(tx, {
+      tenantId: currentTenantId,
+      actorUserId: auditContextOptional?.actorUserId ?? null,
+      entityType: AuditEntityType.ROLE,
+      entityId: role.id,
+      action: AuditAction.UPDATE,
+      entityName: role.name,
+      before,
+      after,
+      correlationId: auditContextOptional?.correlationId ?? null,
+      ip: auditContextOptional?.ip ?? null,
+      userAgent: auditContextOptional?.userAgent ?? null,
+    });
+
+    return {
+      id: restored.id,
+      tenantId: restored.tenantId ?? "",
+      name: restored.name,
+      description: restored.description ?? null,
+      isSystem: restored.isSystem,
+      isArchived: restored.isArchived,
+      archivedAt: restored.archivedAt?.toISOString() ?? null,
+      archivedByUserId: restored.archivedByUserId ?? null,
+      permissions: restored.permissions.map((p) => p.permission.key).sort(),
+      createdAt: restored.createdAt.toISOString(),
+      updatedAt: restored.updatedAt.toISOString(),
+    };
+  });
 }

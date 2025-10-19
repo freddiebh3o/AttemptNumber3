@@ -249,6 +249,36 @@ Custom roles let you mix and match permissions for specific job functions.
 
 **See:** [Roles & Permissions - Custom Roles](branches-users/roles-permissions.md#custom-roles)
 
+### Can I delete custom roles?
+
+Custom roles can be **archived** instead of permanently deleted. Archiving hides the role while preserving audit history.
+
+**How to archive:**
+1. Open the role from the Roles page
+2. Click the red **"Archive"** button
+3. Confirm in the modal
+
+**Important:**
+- ✅ Custom roles can be archived and restored
+- ❌ System roles (OWNER, ADMIN, EDITOR, VIEWER) **cannot be archived**
+- ❌ Roles with active users **cannot be archived** (reassign users first)
+
+**See:** [Roles & Permissions - Archiving Roles](branches-users/roles-permissions.md#archiving-custom-roles)
+
+### Can I restore an archived role?
+
+Yes! Archived roles can be restored at any time.
+
+**How to restore:**
+1. Go to Roles page
+2. Click **"Filters"** and set **"Archived Filter"** to **"Archived roles only"**
+3. Open the archived role (it has a red "Archived" badge)
+4. Click the green **"Restore"** button
+
+The role is immediately restored with all permissions preserved.
+
+**See:** [Roles & Permissions - Restoring Roles](branches-users/roles-permissions.md#restoring-archived-roles)
+
 ### How do I invite a new user?
 
 **Requirements:** `users:manage` permission (ADMIN, OWNER)

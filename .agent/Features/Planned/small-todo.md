@@ -1,1 +1,5 @@
 - Chat feature should be behind a feature flag and the user should input their OPENAI_API_KEY in the admin section (probably inside of system)
+
+- Upgrade the transfer approval rules ui. 
+    - Add a individual rule page for creating/editing. 
+    - change pencil icon to a view icon

@@ -1045,6 +1045,63 @@ export const ApprovalRuleFactory = {
  */
 export const RoleFactory = {
   /**
+   * Create a custom role via API
+   *
+   * @param page - Playwright page object (must be authenticated)
+   * @param params - Role creation parameters
+   * @returns Role ID
+   *
+   * @example
+   * ```typescript
+   * const roleId = await RoleFactory.create(page, {
+   *   name: 'Custom Manager',
+   *   description: 'Manager role with specific permissions',
+   *   permissionKeys: ['products:read', 'products:write'],
+   * });
+   * ```
+   */
+  async create(
+    page: Page,
+    params: {
+      name: string;
+      description?: string;
+      permissionKeys?: string[];
+    }
+  ): Promise<string> {
+    const response = await makeAuthenticatedRequest(page, 'POST', '/api/roles', params);
+
+    if (!response.ok()) {
+      const errorText = await response.text();
+      throw new Error(`Failed to create role: ${response.status()} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    return data.data.role.id;
+  },
+
+  /**
+   * Delete a role via API (archives it)
+   * Silently ignores 409 CONFLICT errors (role already archived)
+   *
+   * @param page - Playwright page object (must be authenticated)
+   * @param roleId - Role ID to delete
+   *
+   * @example
+   * ```typescript
+   * await RoleFactory.delete(page, roleId);
+   * ```
+   */
+  async delete(page: Page, roleId: string): Promise<void> {
+    const response = await makeAuthenticatedRequest(page, 'DELETE', `/api/roles/${roleId}`);
+
+    // Ignore 409 CONFLICT (role already archived) - this is expected in cleanup
+    if (!response.ok() && response.status() !== 409) {
+      const errorText = await response.text();
+      throw new Error(`Failed to delete role: ${response.status()} - ${errorText}`);
+    }
+  },
+
+  /**
    * Get a role ID by name via API
    *
    * @param page - Playwright page object (must be authenticated)

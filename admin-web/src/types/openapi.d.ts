@@ -2948,7 +2948,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Deleted role */
+                /** @description Archived role */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -2958,7 +2958,7 @@ export interface paths {
                             /** @enum {boolean} */
                             success: true;
                             data: {
-                                hasDeletedRole: boolean;
+                                role: components["schemas"]["RoleRecord"];
                             };
                             error: unknown;
                         };
@@ -3044,6 +3044,8 @@ export interface paths {
                     q?: string;
                     name?: string;
                     isSystem?: boolean | null;
+                    /** @description Filter by archive status: 'active-only' (default), 'archived-only', or 'all' */
+                    archivedFilter?: "active-only" | "archived-only" | "all";
                     createdAtFrom?: string;
                     createdAtTo?: string;
                     updatedAtFrom?: string;
@@ -3157,6 +3159,110 @@ export interface paths {
                 };
                 /** @description Forbidden */
                 403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        "X-RateLimit-Limit": string;
+                        "X-RateLimit-Remaining": string;
+                        "X-RateLimit-Reset": string;
+                        "Retry-After": string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Internal Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/roles/{roleId}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: {
+                    "Idempotency-Key"?: string;
+                };
+                path: {
+                    roleId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Restored role */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                role: components["schemas"]["RoleRecord"];
+                            };
+                            error: unknown;
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -7278,6 +7384,10 @@ export interface components {
             name: string;
             description: string | null;
             isSystem: boolean;
+            isArchived: boolean;
+            /** Format: date-time */
+            archivedAt: string | null;
+            archivedByUserId: string | null;
             permissions: components["schemas"]["PermissionKey"][];
             /** Format: date-time */
             createdAt: string;

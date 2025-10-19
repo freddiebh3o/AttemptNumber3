@@ -38,7 +38,6 @@ import {
   IconArrowDown,
   IconPlus,
   IconRefresh,
-  IconTrash,
   IconEye,
   IconFilter,
   IconChevronDown,
@@ -72,6 +71,7 @@ type RoleFilters = {
   updatedAtTo: string | null;
   permissionKeys: PermissionKey[];
   permMatch: "any" | "all";
+  archivedFilter: "active-only" | "archived-only" | "all";
 };
 
 const emptyFilters: RoleFilters = {
@@ -84,6 +84,7 @@ const emptyFilters: RoleFilters = {
   updatedAtTo: null,
   permissionKeys: [],
   permMatch: "any",
+  archivedFilter: "active-only",
 };
 
 export default function RolesPage() {
@@ -181,6 +182,7 @@ export default function RolesPage() {
       updatedAtTo: string | null;
       permissionKeys: PermissionKey[] | null;
       permMatch: "any" | "all" | null;
+      archivedFilter: "active-only" | "archived-only" | "all" | null;
     }>
   ) {
     const p = new URLSearchParams();
@@ -226,6 +228,10 @@ export default function RolesPage() {
       over && Object.prototype.hasOwnProperty.call(over, "permMatch")
         ? over.permMatch ?? null
         : appliedFilters.permMatch ?? null;
+    const archivedFilterVal =
+      over && Object.prototype.hasOwnProperty.call(over, "archivedFilter")
+        ? over.archivedFilter ?? "active-only"
+        : appliedFilters.archivedFilter;
 
     put("limit", over?.limit ?? limit);
     put("sortBy", over?.sortBy ?? sortBy);
@@ -237,6 +243,7 @@ export default function RolesPage() {
     put("createdAtTo", createdToVal);
     put("updatedAtFrom", updatedFromVal);
     put("updatedAtTo", updatedToVal);
+    put("archivedFilter", archivedFilterVal);
 
     if (permKeysVal && permKeysVal.length > 0) {
       p.set("permissionKeys", permKeysVal.join(","));
@@ -270,6 +277,7 @@ export default function RolesPage() {
     updatedToOverride?: string | null | undefined;
     permissionKeysOverride?: PermissionKey[] | null | undefined;
     permMatchOverride?: "any" | "all" | undefined;
+    archivedFilterOverride?: "active-only" | "archived-only" | "all" | undefined;
   }) {
     setIsLoading(true);
     try {
@@ -315,6 +323,10 @@ export default function RolesPage() {
         opts?.permMatchOverride === undefined
           ? appliedFilters.permMatch
           : opts.permMatchOverride;
+      const archivedFilterParam =
+        opts?.archivedFilterOverride === undefined
+          ? appliedFilters.archivedFilter
+          : opts.archivedFilterOverride;
 
       const res = await listRolesApiRequest({
         limit: opts?.limitOverride ?? limit,
@@ -337,6 +349,7 @@ export default function RolesPage() {
           Array.isArray(permKeysParam) && permKeysParam.length > 0
             ? permMatchParam
             : undefined,
+        archivedFilter: archivedFilterParam,
       });
 
       if (res.success) {
@@ -375,6 +388,7 @@ export default function RolesPage() {
     updatedToOverride?: string | null | undefined;
     permissionKeysOverride?: PermissionKey[] | null | undefined;
     permMatchOverride?: "any" | "all" | undefined;
+    archivedFilterOverride?: "active-only" | "archived-only" | "all" | undefined;
   }) {
     setCursorStack([null]);
     setPageIndex(0);
@@ -399,6 +413,10 @@ export default function RolesPage() {
         opts?.permMatchOverride === undefined
           ? appliedFilters.permMatch
           : opts.permMatchOverride ?? "any",
+      archivedFilter:
+        opts?.archivedFilterOverride === undefined
+          ? appliedFilters.archivedFilter
+          : opts.archivedFilterOverride ?? "active-only",
     });
     void fetchPageWith({ includeTotal: true, cursorId: null, ...opts });
   }
@@ -416,6 +434,7 @@ export default function RolesPage() {
       updatedAtTo: values.updatedAtTo ?? null,
       permissionKeys: values.permissionKeys,
       permMatch: values.permissionKeys.length ? values.permMatch : null,
+      archivedFilter: values.archivedFilter,
     });
     resetToFirstPageAndFetch({
       qOverride: values.q.trim() || null,
@@ -429,6 +448,7 @@ export default function RolesPage() {
       permMatchOverride: values.permissionKeys.length
         ? values.permMatch
         : "any",
+      archivedFilterOverride: values.archivedFilter,
     });
   }
   function clearAllFiltersAndFetch() {
@@ -487,6 +507,8 @@ export default function RolesPage() {
       .filter(Boolean) as PermissionKey[];
     const qpPermMatch =
       (searchParams.get("permMatch") as "any" | "all" | null) ?? "any";
+    const qpArchivedFilter =
+      (searchParams.get("archivedFilter") as "active-only" | "archived-only" | "all" | null) ?? "active-only";
 
     if (!Number.isNaN(qpLimit) && qpLimit)
       setLimit(Math.max(1, Math.min(100, qpLimit)));
@@ -503,6 +525,7 @@ export default function RolesPage() {
       updatedAtTo: qpUpdatedTo ?? null,
       permissionKeys: qpPermKeys,
       permMatch: qpPermKeys.length ? qpPermMatch : "any",
+      archivedFilter: qpArchivedFilter,
     });
 
     setCursorStack([qpCursor ?? null]);
@@ -526,6 +549,7 @@ export default function RolesPage() {
       updatedToOverride: qpUpdatedTo ?? undefined,
       permissionKeysOverride: qpPermKeys.length ? qpPermKeys : undefined,
       permMatchOverride: qpPermKeys.length ? qpPermMatch : undefined,
+      archivedFilterOverride: qpArchivedFilter,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantSlug]);
@@ -555,6 +579,8 @@ export default function RolesPage() {
       .map((s) => s.trim())
       .filter(Boolean) as PermissionKey[];
     const qpPermMatch = (sp.get("permMatch") as "any" | "all" | null) ?? "any";
+    const qpArchivedFilter =
+      (sp.get("archivedFilter") as "active-only" | "archived-only" | "all" | null) ?? "active-only";
 
     if (!Number.isNaN(qpLimit) && qpLimit)
       setLimit(Math.max(1, Math.min(100, qpLimit)));
@@ -571,6 +597,7 @@ export default function RolesPage() {
       updatedAtTo: qpUpdatedTo ?? null,
       permissionKeys: qpPermKeys,
       permMatch: qpPermKeys.length ? qpPermMatch : "any",
+      archivedFilter: qpArchivedFilter,
     });
 
     setCursorStack([qpCursor ?? null]);
@@ -594,6 +621,7 @@ export default function RolesPage() {
       updatedToOverride: qpUpdatedTo ?? undefined,
       permissionKeysOverride: qpPermKeys.length ? qpPermKeys : undefined,
       permMatchOverride: qpPermKeys.length ? qpPermMatch : undefined,
+      archivedFilterOverride: qpArchivedFilter,
     });
   }, [location.key, navigationType, tenantSlug]);
 
@@ -718,6 +746,17 @@ export default function RolesPage() {
         }): ${appliedFilters.permissionKeys.join(", ")}`,
       });
     }
+    if (appliedFilters.archivedFilter !== "active-only") {
+      const labelMap = {
+        "archived-only": "Archived roles only",
+        "all": "All roles (active + archived)",
+        "active-only": "Active roles only",
+      };
+      chips.push({
+        key: "archivedFilter",
+        label: labelMap[appliedFilters.archivedFilter],
+      });
+    }
     return chips;
   }, [appliedFilters]);
 
@@ -736,6 +775,8 @@ export default function RolesPage() {
       permissionKeys:
         key === "permissionKeys" ? [] : appliedFilters.permissionKeys,
       permMatch: key === "permissionKeys" ? "any" : appliedFilters.permMatch,
+      archivedFilter:
+        key === "archivedFilter" ? "active-only" : appliedFilters.archivedFilter,
     };
     applyAndFetch(next);
   }
@@ -858,6 +899,28 @@ export default function RolesPage() {
             </Grid.Col>
 
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+              <Select
+                label="Archived Filter"
+                placeholder="Active roles only"
+                data={[
+                  { value: "active-only", label: "Active roles only" },
+                  { value: "archived-only", label: "Archived roles only" },
+                  { value: "all", label: "All roles (active + archived)" },
+                ]}
+                value={values.archivedFilter}
+                onChange={(v) =>
+                  setValues({
+                    ...values,
+                    archivedFilter: (v ?? "active-only") as RoleFilters["archivedFilter"],
+                  })
+                }
+                clearable
+                aria-label="Filter by archived status"
+                data-testid="role-archived-filter-select"
+              />
+            </Grid.Col>
+
+            <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
               <DatePickerInput
                 label="Created from"
                 placeholder="Start date"
@@ -908,8 +971,6 @@ export default function RolesPage() {
                 clearable
               />
             </Grid.Col>
-
-            <Grid.Col span={{ base: 12, sm: 6, md: 3 }} />
 
             {/* Permission filters */}
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
@@ -1154,17 +1215,24 @@ export default function RolesPage() {
                     {rows!.map((r) => (
                       <Table.Tr key={r.id}>
                         <Table.Td>
-                          <Anchor
-                            component={Link}
-                            to={`/${tenantSlug}/roles/${r.id}`}
-                            title="Open role"
-                          >
-                            <Text fw={600}>{r.name}</Text>
-                          </Anchor>
+                          <Group gap="xs">
+                            <Anchor
+                              component={Link}
+                              to={`/${tenantSlug}/roles/${r.id}`}
+                              title="Open role"
+                            >
+                              <Text fw={600}>{r.name}</Text>
+                            </Anchor>
+                            {r.isArchived && (
+                              <Badge color="red" data-testid="role-archived-badge">
+                                Archived
+                              </Badge>
+                            )}
+                          </Group>
                         </Table.Td>
                         <Table.Td>
                           {r.isSystem ? (
-                            <Badge color="gray">System</Badge>
+                            <Badge color="gray" data-testid="role-system-badge">System</Badge>
                           ) : (
                             <Badge color="blue">Custom</Badge>
                           )}
@@ -1182,33 +1250,15 @@ export default function RolesPage() {
                         <Table.Td>{new Date(r.updatedAt).toLocaleString()}</Table.Td>
                         <Table.Td className="text-right">
                           <Group gap="xs" justify="flex-end">
-                            {/* Edit now navigates to role page (disabled for system roles if you want to keep that constraint) */}
+                            {/* View button navigates to role detail page where archive/restore happens */}
                             <ActionIcon
                               variant="light"
                               component={Link}
                               to={`/${tenantSlug}/roles/${r.id}`}
-                              disabled={r.isSystem}
-                              title={
-                                r.isSystem
-                                  ? "System roles cannot be edited"
-                                  : "Edit role"
-                              }
+                              title="View role details"
+                              data-testid="view-role-btn"
                             >
                               <IconEye size={16} />
-                            </ActionIcon>
-
-                            <ActionIcon
-                              variant="light"
-                              color="red"
-                              onClick={() => handleDelete(r)}
-                              disabled={r.isSystem}
-                              title={
-                                r.isSystem
-                                  ? "System roles cannot be deleted"
-                                  : "Delete role"
-                              }
-                            >
-                              <IconTrash size={16} />
                             </ActionIcon>
                           </Group>
                         </Table.Td>
