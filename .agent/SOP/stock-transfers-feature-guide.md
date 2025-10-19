@@ -1019,26 +1019,66 @@ All tests pass with proper:
 
 ---
 
+## Transfer Templates
+
+Transfer templates allow users to save frequently-used transfer configurations for quick reuse.
+
+**Key Features:**
+- Create templates with predefined source/destination branches and product lists
+- Edit templates to update products and quantities
+- Duplicate templates for similar routes
+- Archive obsolete templates (soft delete - preserves history, can restore)
+- Filter templates: active-only (default), archived-only, all
+
+**Template Archival:**
+- Archive templates when they become obsolete (seasonal routes, discontinued products, workflow changes)
+- Archived templates are hidden from active list and cannot be used to create new transfers
+- All historical data preserved with audit trail (archivedAt, archivedByUserId)
+- Restore archived templates anytime if needed
+- Permission required: `stock:write`
+
+**Database Fields:**
+- `isArchived` (Boolean, default false)
+- `archivedAt` (DateTime, nullable)
+- `archivedByUserId` (String, nullable, FK → User)
+- Index: `[tenantId, isArchived]` for filtering performance
+
+**User Documentation:** See [docs/stock-transfers/transfer-templates.md](../../docs/stock-transfers/transfer-templates.md)
+
+---
+
 ## Future Enhancements
 
-*(From Implementation Plan - Out of Scope for v1)*
+*(From Implementation Plan - Out of Scope)*
 
 1. Multi-product FIFO optimization
-2. Transfer templates
+2. ~~Transfer templates~~ ✅ **IMPLEMENTED** (with archival support)
 3. Recurring transfers
 4. Multi-level approval workflow
 5. In-transit tracking with logistics providers
 6. Cost override capability
-7. Transfer reversal
+7. ~~Transfer reversal~~ ✅ **IMPLEMENTED**
 8. Bulk receive via barcode scanning
-9. Transfer analytics dashboards
+9. ~~Transfer analytics dashboards~~ ✅ **IMPLEMENTED**
 10. Email notifications
-11. Transfer prioritization
-12. Partial shipment support
+11. ~~Transfer prioritization~~ ✅ **IMPLEMENTED**
+12. ~~Partial shipment support~~ ✅ **IMPLEMENTED**
 
 ---
 
 ## Change Log
+
+### 2025-10-19 - Transfer Template Archival (Phase 5)
+- ✅ Implemented transfer template soft delete (archive/restore)
+- ✅ Added `isArchived`, `archivedAt`, `archivedByUserId` fields to StockTransferTemplate model
+- ✅ Backend: Archive and restore API endpoints with validation
+- ✅ Frontend: Archive filter dropdown (active-only, archived-only, all)
+- ✅ Frontend: Archive/restore buttons with confirmation modals
+- ✅ Frontend: Template edit functionality (bonus feature)
+- ✅ E2E Tests: 11 comprehensive Playwright tests
+- ✅ Documentation: User guide and SOP updates
+- ✅ Route consistency: Moved to `/stock-transfers/templates`
+- Migration: `20251019182901_add_transfer_template_archival`
 
 ### 2025-10-13 - Phases 6, 7, 8 Completion & Production Ready
 - ✅ Completed Phase 6: Advanced Filtering & Sorting (Backend)

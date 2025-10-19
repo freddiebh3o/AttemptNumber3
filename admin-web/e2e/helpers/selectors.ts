@@ -114,6 +114,8 @@ export const SELECTORS = {
     NEW_BUTTON: 'template-new-button',
     DUPLICATE_BUTTON: 'duplicate-template-', // Suffix with template ID
     DELETE_BUTTON: 'template-delete-button',
+    ARCHIVE_BUTTON: 'archive-template-btn',
+    RESTORE_BUTTON: 'restore-template-btn',
     USE_BUTTON: 'use-template-button',
 
     // Form
@@ -125,6 +127,8 @@ export const SELECTORS = {
     // Display
     CARD: 'template-card-', // Suffix with template ID
     TABLE: 'templates-table',
+    ARCHIVED_BADGE: 'template-archived-badge',
+    ARCHIVED_FILTER_SELECT: 'template-archived-filter-select',
   },
 
   /**

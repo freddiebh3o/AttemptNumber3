@@ -297,15 +297,16 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  branchMemberships         UserBranchMembership[]
-  stockLedgerEvents         StockLedger[]
-  transfersRequested        StockTransfer[]          @relation("TransferRequester")
-  transfersReviewed         StockTransfer[]          @relation("TransferReviewer")
-  transfersShipped          StockTransfer[]          @relation("TransferShipper")
-  transferTemplatesCreated  StockTransferTemplate[]
-  approvalLevelsAsRequired  TransferApprovalLevel[]  @relation("ApprovalLevelRequiredUser")
-  approvalRecordsAsRequired TransferApprovalRecord[] @relation("ApprovalRecordRequiredUser")
-  approvalRecordsAsApprover TransferApprovalRecord[] @relation("ApprovalRecordApprover")
+  branchMemberships          UserBranchMembership[]
+  stockLedgerEvents          StockLedger[]
+  transfersRequested         StockTransfer[]          @relation("TransferRequester")
+  transfersReviewed          StockTransfer[]          @relation("TransferReviewer")
+  transfersShipped           StockTransfer[]          @relation("TransferShipper")
+  transferTemplatesCreated   StockTransferTemplate[]
+  transferTemplatesArchived  StockTransferTemplate[]  @relation("TemplateArchivedBy")
+  approvalLevelsAsRequired   TransferApprovalLevel[]  @relation("ApprovalLevelRequiredUser")
+  approvalRecordsAsRequired  TransferApprovalRecord[] @relation("ApprovalRecordRequiredUser")
+  approvalRecordsAsApprover  TransferApprovalRecord[] @relation("ApprovalRecordApprover")
 
   // Back-relation for AuditEvent where this user is the actor.
   auditEvents AuditEvent[]
@@ -486,11 +487,17 @@ model StockTransferTemplate {
 
   createdByUserId String
 
+  // Archival (soft delete)
+  isArchived       Boolean   @default(false)
+  archivedAt       DateTime?
+  archivedByUserId String?
+
   // Relations
   tenant            Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   sourceBranch      Branch                      @relation("TemplateSource", fields: [sourceBranchId], references: [id], onDelete: Cascade)
   destinationBranch Branch                      @relation("TemplateDestination", fields: [destinationBranchId], references: [id], onDelete: Cascade)
   createdByUser     User                        @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
+  archivedByUser    User?                       @relation("TemplateArchivedBy", fields: [archivedByUserId], references: [id], onDelete: Restrict)
   items             StockTransferTemplateItem[]
 
   createdAt DateTime @default(now())
@@ -500,6 +507,7 @@ model StockTransferTemplate {
   @@index([sourceBranchId])
   @@index([destinationBranchId])
   @@index([createdByUserId])
+  @@index([tenantId, isArchived])
 }
 
 /// Line items for stock transfer templates

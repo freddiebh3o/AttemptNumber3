@@ -19,6 +19,7 @@ import { notifications } from "@mantine/notifications";
 import {
   createTransferTemplateApiRequest,
   getTransferTemplateApiRequest,
+  updateTransferTemplateApiRequest,
 } from "../../api/stockTransferTemplates";
 import { listBranchesApiRequest } from "../../api/branches";
 import { listProductsApiRequest } from "../../api/products";
@@ -29,6 +30,7 @@ interface CreateTemplateModalProps {
   onClose: () => void;
   onSuccess: () => void;
   editTemplateId?: string;
+  mode?: "create" | "edit" | "duplicate";
 }
 
 interface TemplateItem {
@@ -42,6 +44,7 @@ export default function CreateTemplateModal({
   onClose,
   onSuccess,
   editTemplateId,
+  mode = "create",
 }: CreateTemplateModalProps) {
   const branchMemberships = useAuthStore((s) => s.branchMembershipsCurrentTenant);
 
@@ -103,9 +106,9 @@ export default function CreateTemplateModal({
     void loadData();
   }, [opened]);
 
-  // Load template data if editing (for duplication)
+  // Load template data if editing or duplicating
   useEffect(() => {
-    if (!opened || !editTemplateId) return;
+    if (!opened || !editTemplateId || mode === "create") return;
 
     async function loadTemplate() {
       if (!editTemplateId) return; // TypeScript guard
@@ -235,12 +238,8 @@ export default function CreateTemplateModal({
       }
     }
 
-    // Note: If in edit mode, we're actually viewing a template for duplication
-    // The backend doesn't support direct updates, so we always create a new template
     setIsSubmitting(true);
     try {
-      const idempotencyKey = `create-template-${Date.now()}`;
-
       const payload = {
         name: templateName.trim(),
         description: description.trim() || undefined,
@@ -250,10 +249,15 @@ export default function CreateTemplateModal({
           productId: item.productId,
           defaultQty: item.defaultQty,
         })),
-        idempotencyKeyOptional: idempotencyKey,
+        idempotencyKeyOptional: `${mode}-template-${Date.now()}`,
       };
 
-      const response = await createTransferTemplateApiRequest(payload);
+      let response;
+      if (mode === "edit" && editTemplateId) {
+        response = await updateTransferTemplateApiRequest(editTemplateId, payload);
+      } else {
+        response = await createTransferTemplateApiRequest(payload);
+      }
 
       if (response.success) {
         onSuccess();
@@ -277,7 +281,13 @@ export default function CreateTemplateModal({
     <Modal
       opened={opened}
       onClose={onClose}
-      title={editTemplateId ? "Duplicate Transfer Template" : "Create Transfer Template"}
+      title={
+        mode === "edit"
+          ? "Edit Transfer Template"
+          : mode === "duplicate"
+          ? "Duplicate Transfer Template"
+          : "Create Transfer Template"
+      }
       size="xl"
     >
       <Stack gap="md">
@@ -405,7 +415,11 @@ export default function CreateTemplateModal({
             Cancel
           </Button>
           <Button onClick={handleSubmit} loading={isSubmitting} disabled={isLoading}>
-            {editTemplateId ? "Duplicate Template" : "Create Template"}
+            {mode === "edit"
+              ? "Save Changes"
+              : mode === "duplicate"
+              ? "Duplicate Template"
+              : "Create Template"}
           </Button>
         </Group>
       </Stack>

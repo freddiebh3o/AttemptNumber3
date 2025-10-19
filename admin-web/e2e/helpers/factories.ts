@@ -570,7 +570,51 @@ export const TransferTemplateFactory = {
   },
 
   /**
-   * Delete a transfer template via API
+   * Archive a transfer template via API (soft delete)
+   *
+   * @param page - Playwright page object (must be authenticated)
+   * @param templateId - Template ID to archive
+   *
+   * @example
+   * ```typescript
+   * await TransferTemplateFactory.archive(page, templateId);
+   * ```
+   */
+  async archive(page: Page, templateId: string): Promise<void> {
+    const response = await makeAuthenticatedRequest(page, 'DELETE', `/api/stock-transfer-templates/${templateId}`);
+
+    if (!response.ok()) {
+      const errorText = await response.text();
+      // Ignore "already archived" errors for idempotency in cleanup
+      if (errorText.includes('already archived')) {
+        return;
+      }
+      throw new Error(`Failed to archive template: ${response.status()} - ${errorText}`);
+    }
+  },
+
+  /**
+   * Restore an archived transfer template via API
+   *
+   * @param page - Playwright page object (must be authenticated)
+   * @param templateId - Template ID to restore
+   *
+   * @example
+   * ```typescript
+   * await TransferTemplateFactory.restore(page, templateId);
+   * ```
+   */
+  async restore(page: Page, templateId: string): Promise<void> {
+    const response = await makeAuthenticatedRequest(page, 'POST', `/api/stock-transfer-templates/${templateId}/restore`);
+
+    if (!response.ok()) {
+      const errorText = await response.text();
+      throw new Error(`Failed to restore template: ${response.status()} - ${errorText}`);
+    }
+  },
+
+  /**
+   * Delete a transfer template via API (alias for archive for backward compatibility)
    *
    * @param page - Playwright page object (must be authenticated)
    * @param templateId - Template ID to delete
@@ -581,12 +625,7 @@ export const TransferTemplateFactory = {
    * ```
    */
   async delete(page: Page, templateId: string): Promise<void> {
-    const response = await makeAuthenticatedRequest(page, 'DELETE', `/api/stock-transfer-templates/${templateId}`);
-
-    if (!response.ok()) {
-      const errorText = await response.text();
-      throw new Error(`Failed to delete template: ${response.status()} - ${errorText}`);
-    }
+    return this.archive(page, templateId);
   },
 };
 

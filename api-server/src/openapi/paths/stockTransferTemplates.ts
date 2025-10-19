@@ -39,6 +39,9 @@ const StockTransferTemplateSchema = z.object({
   sourceBranchId: z.string(),
   destinationBranchId: z.string(),
   createdByUserId: z.string(),
+  isArchived: z.boolean(),
+  archivedAt: z.string().nullable(),
+  archivedByUserId: z.string().nullable(),
   items: z.array(StockTransferTemplateItemSchema),
   sourceBranch: BranchSummary,
   destinationBranch: BranchSummary,
@@ -115,6 +118,7 @@ registry.registerPath({
       q: z.string().optional(),
       sourceBranchId: z.string().optional(),
       destinationBranchId: z.string().optional(),
+      archivedFilter: z.enum(['active-only', 'archived-only', 'all']).optional(),
       limit: z.string().optional(),
       cursor: z.string().optional(),
     }),
@@ -191,12 +195,12 @@ registry.registerPath({
   },
 });
 
-// Delete template
+// Archive template (soft delete)
 registry.registerPath({
   method: 'delete',
   path: '/api/stock-transfer-templates/{templateId}',
   tags: ['Stock Transfer Templates'],
-  summary: 'Delete template',
+  summary: 'Archive template (soft delete)',
   request: {
     params: z.object({ templateId: z.string() }),
   },
@@ -207,7 +211,7 @@ registry.registerPath({
         'application/json': {
           schema: z.object({
             success: z.literal(true),
-            data: z.object({ success: z.boolean() }),
+            data: StockTransferTemplateSchema,
           }),
         },
       },
@@ -232,6 +236,30 @@ registry.registerPath({
         },
       },
     },
+  },
+  responses: {
+    200: {
+      description: 'Success',
+      content: {
+        'application/json': {
+          schema: z.object({
+            success: z.literal(true),
+            data: StockTransferTemplateSchema,
+          }),
+        },
+      },
+    },
+  },
+});
+
+// Restore archived template
+registry.registerPath({
+  method: 'post',
+  path: '/api/stock-transfer-templates/{templateId}/restore',
+  tags: ['Stock Transfer Templates'],
+  summary: 'Restore archived template',
+  request: {
+    params: z.object({ templateId: z.string() }),
   },
   responses: {
     200: {

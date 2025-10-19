@@ -123,6 +123,7 @@ export async function listTransferTemplates(params: {
     q?: string; // Search by name or description
     sourceBranchId?: string;
     destinationBranchId?: string;
+    archivedFilter?: 'active-only' | 'archived-only' | 'all';
     limit?: number;
     cursor?: string;
     includeTotal?: boolean;
@@ -134,6 +135,15 @@ export async function listTransferTemplates(params: {
   const where: Prisma.StockTransferTemplateWhereInput = {
     tenantId,
   };
+
+  // Archive filter (default: active-only)
+  const archivedFilter = filters?.archivedFilter ?? 'active-only';
+  if (archivedFilter === 'active-only') {
+    where.isArchived = false;
+  } else if (archivedFilter === 'archived-only') {
+    where.isArchived = true;
+  }
+  // If 'all', don't add any isArchived filter
 
   // Search by name or description
   if (filters?.q) {
@@ -406,9 +416,67 @@ export async function updateTransferTemplate(params: {
 }
 
 /**
- * Delete stock transfer template
+ * Archive stock transfer template (soft delete)
  */
 export async function deleteTransferTemplate(params: {
+  tenantId: string;
+  templateId: string;
+  userId: string;
+}) {
+  const { tenantId, templateId, userId } = params;
+
+  // Check if template exists
+  const template = await prismaClientInstance.stockTransferTemplate.findFirst({
+    where: { id: templateId, tenantId },
+    select: { id: true, isArchived: true },
+  });
+
+  if (!template) throw Errors.notFound('Template not found');
+
+  if (template.isArchived) {
+    throw Errors.validation('Template is already archived');
+  }
+
+  // Archive template (soft delete)
+  const updated = await prismaClientInstance.stockTransferTemplate.update({
+    where: { id: templateId },
+    data: {
+      isArchived: true,
+      archivedAt: new Date(),
+      archivedByUserId: userId,
+    },
+    include: {
+      items: {
+        include: {
+          product: {
+            select: {
+              id: true,
+              productName: true,
+              productSku: true,
+              productPricePence: true,
+            },
+          },
+        },
+      },
+      sourceBranch: {
+        select: { id: true, branchName: true, branchSlug: true },
+      },
+      destinationBranch: {
+        select: { id: true, branchName: true, branchSlug: true },
+      },
+      createdByUser: {
+        select: { id: true, userEmailAddress: true },
+      },
+    },
+  });
+
+  return updated;
+}
+
+/**
+ * Restore archived stock transfer template
+ */
+export async function restoreTransferTemplate(params: {
   tenantId: string;
   templateId: string;
 }) {
@@ -417,17 +485,49 @@ export async function deleteTransferTemplate(params: {
   // Check if template exists
   const template = await prismaClientInstance.stockTransferTemplate.findFirst({
     where: { id: templateId, tenantId },
-    select: { id: true },
+    select: { id: true, isArchived: true },
   });
 
   if (!template) throw Errors.notFound('Template not found');
 
-  // Delete template (cascade will delete items)
-  await prismaClientInstance.stockTransferTemplate.delete({
+  if (!template.isArchived) {
+    throw Errors.validation('Template is not archived');
+  }
+
+  // Restore template
+  const updated = await prismaClientInstance.stockTransferTemplate.update({
     where: { id: templateId },
+    data: {
+      isArchived: false,
+      archivedAt: null,
+      archivedByUserId: null,
+    },
+    include: {
+      items: {
+        include: {
+          product: {
+            select: {
+              id: true,
+              productName: true,
+              productSku: true,
+              productPricePence: true,
+            },
+          },
+        },
+      },
+      sourceBranch: {
+        select: { id: true, branchName: true, branchSlug: true },
+      },
+      destinationBranch: {
+        select: { id: true, branchName: true, branchSlug: true },
+      },
+      createdByUser: {
+        select: { id: true, userEmailAddress: true },
+      },
+    },
   });
 
-  return { success: true };
+  return updated;
 }
 
 /**

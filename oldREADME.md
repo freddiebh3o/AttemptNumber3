@@ -467,27 +467,7 @@ If you need initial data in the new environment:
 * [ ] Document URLs and secrets.
 
 ## Future fetures
-- Go through current list of e2e tests and make sure that clean up isn't producing errors. If it is, just remove the clean up. 
 
-- Look into RAG/tools model for chat bot on website. 
-
-### Features to complete by Monday
-* Stock transfer - Whats left 
-  1. **Multi-product FIFO optimization**: Batch consume across products in single transaction
-  2. **Transfer templates**: Save common transfer configurations
-  3. **Recurring transfers**: Auto-create transfers on schedule
-  4. **Transfer approval delegation**: Multi-level approval workflow
-  5. **In-transit tracking**: Integration with logistics providers (tracking numbers)
-  6. **Cost override**: Allow manual cost adjustment on receive
-  7. **Transfer reversal**: Reverse completed transfer (return stock)
-  8. **Bulk receive**: Scan barcodes to receive all items at once
-  9. **Transfer analytics**: Dashboards for transfer velocity, branch dependencies
-  10. **Email notifications**: Notify users on status changes
-  11. **Transfer prioritization**: Mark urgent transfers, prioritize in queue
-  12. **Partial shipment**: Ship less than approved (if stock insufficient)
-
-
-### The rest
 * Feature flag to determine what type of stock management you want to use? 
   * FIFO -> First in first out 
   * LIFO -> Last in first out 

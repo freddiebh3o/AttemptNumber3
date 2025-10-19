@@ -85,6 +85,7 @@ stockTransferTemplatesRouter.get(
       const q = req.query.q as string | undefined;
       const sourceBranchId = req.query.sourceBranchId as string | undefined;
       const destinationBranchId = req.query.destinationBranchId as string | undefined;
+      const archivedFilter = req.query.archivedFilter as 'active-only' | 'archived-only' | 'all' | undefined;
       const limitStr = req.query.limit as string | undefined;
       const cursor = req.query.cursor as string | undefined;
 
@@ -94,6 +95,7 @@ stockTransferTemplatesRouter.get(
           ...(q !== undefined ? { q } : {}),
           ...(sourceBranchId !== undefined ? { sourceBranchId } : {}),
           ...(destinationBranchId !== undefined ? { destinationBranchId } : {}),
+          ...(archivedFilter !== undefined ? { archivedFilter } : {}),
           ...(limitStr !== undefined ? { limit: parseInt(limitStr) } : {}),
           ...(cursor !== undefined ? { cursor } : {}),
         },
@@ -164,7 +166,7 @@ stockTransferTemplatesRouter.patch(
   }
 );
 
-// DELETE /api/stock-transfer-templates/:templateId - Delete template
+// DELETE /api/stock-transfer-templates/:templateId - Archive template (soft delete)
 stockTransferTemplatesRouter.delete(
   '/:templateId',
   requireAuthenticatedUserMiddleware,
@@ -181,6 +183,7 @@ stockTransferTemplatesRouter.delete(
       const result = await templateService.deleteTransferTemplate({
         tenantId: req.currentTenantId,
         templateId,
+        userId: req.currentUserId,
       });
       return res.status(200).json(createStandardSuccessResponse(result));
     } catch (e) {
@@ -210,6 +213,31 @@ stockTransferTemplatesRouter.post(
         userId: req.currentUserId,
         templateId,
         ...(newName !== undefined ? { newName } : {}),
+      });
+      return res.status(200).json(createStandardSuccessResponse(template));
+    } catch (e) {
+      return next(e);
+    }
+  }
+);
+
+// POST /api/stock-transfer-templates/:templateId/restore - Restore archived template
+stockTransferTemplatesRouter.post(
+  '/:templateId/restore',
+  requireAuthenticatedUserMiddleware,
+  requirePermission('stock:write'),
+  async (req, res, next) => {
+    try {
+      assertAuthed(req);
+      const { templateId } = req.params;
+
+      if (!templateId) {
+        throw new Error('Template ID is required');
+      }
+
+      const template = await templateService.restoreTransferTemplate({
+        tenantId: req.currentTenantId,
+        templateId,
       });
       return res.status(200).json(createStandardSuccessResponse(template));
     } catch (e) {

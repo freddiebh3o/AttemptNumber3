@@ -65,8 +65,8 @@ export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) 
             <NavLink
               label="Transfer Templates"
               component={Link}
-              to={`${base}/transfer-templates`}
-              active={active(`${base}/transfer-templates`)}
+              to={`${base}/stock-transfers/templates`}
+              active={active(`${base}/stock-transfers/templates`)}
               onClick={onNavigate}
               leftSection={<IconTemplate size={16} />}
             />

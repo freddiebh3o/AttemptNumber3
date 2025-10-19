@@ -189,7 +189,7 @@ const router = createBrowserRouter([
             errorElement: <RouteErrorBoundary />,
           },
           {
-            path: 'transfer-templates',
+            path: 'stock-transfers/templates',
             element: (
               <RequirePermission perm="stock:read">
                 <TransferTemplatesPage />

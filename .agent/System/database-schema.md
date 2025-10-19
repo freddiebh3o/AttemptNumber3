@@ -986,5 +986,28 @@ enum TransferPriority {
 
 ---
 
-**Last Updated:** 2025-10-14
-**Document Version:** 1.2 (Added Phase 4: Analytics tables, priority field, partial shipment tracking)
+### StockTransferTemplate Archival (Phase 5)
+
+**New Fields:**
+- `isArchived` - Boolean, DEFAULT false
+- `archivedAt` - DateTime (nullable)
+- `archivedByUserId` - String (nullable), FK → User
+
+**New Relation:**
+- `archivedByUser` → User? (nullable)
+
+**Updated Index:**
+- Added: `@@index([tenantId, isArchived])` - Supports filtering archived/active templates
+
+**Purpose:** Soft delete pattern for transfer templates
+- Archived templates hidden from active template list by default
+- Cannot be used to create new transfers when archived
+- Preserves historical data and references
+- Can be restored by setting `isArchived = false`
+
+**Migration:** `20251019182901_add_transfer_template_archival`
+
+---
+
+**Last Updated:** 2025-10-19
+**Document Version:** 1.3 (Added Phase 5: Transfer template archival/soft delete)

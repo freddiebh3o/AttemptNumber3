@@ -436,13 +436,13 @@ describe('[ST-010] Stock Transfer Templates Service', () => {
     });
   });
 
-  describe('[AC-010-5] deleteTransferTemplate', () => {
-    it('should delete template and its items', async () => {
+  describe('[AC-010-5] deleteTransferTemplate (Archive)', () => {
+    it('should archive template (soft delete)', async () => {
       const created = await templateService.createTransferTemplate({
         tenantId: testTenant.id,
         userId: user.id,
         data: {
-          name: 'Template to Delete',
+          name: 'Template to Archive',
           sourceBranchId: sourceBranch.id,
           destinationBranchId: destinationBranch.id,
           items: [
@@ -452,24 +452,22 @@ describe('[ST-010] Stock Transfer Templates Service', () => {
         },
       });
 
-      await templateService.deleteTransferTemplate({
+      const archived = await templateService.deleteTransferTemplate({
         tenantId: testTenant.id,
         templateId: created.id,
+        userId: user.id,
       });
 
-      // Template should be deleted
-      await expect(
-        templateService.getTransferTemplate({
-          tenantId: testTenant.id,
-          templateId: created.id,
-        })
-      ).rejects.toThrow('Template not found');
+      // Template should be archived
+      expect(archived.isArchived).toBe(true);
+      expect(archived.archivedAt).toBeDefined();
+      expect(archived.archivedByUserId).toBe(user.id);
 
-      // Template items should be deleted (cascade)
+      // Template items should still exist (not cascade deleted)
       const items = await prisma.stockTransferTemplateItem.findMany({
         where: { templateId: created.id },
       });
-      expect(items).toHaveLength(0);
+      expect(items).toHaveLength(2);
     });
 
     it('should reject if template does not exist', async () => {
@@ -477,8 +475,38 @@ describe('[ST-010] Stock Transfer Templates Service', () => {
         templateService.deleteTransferTemplate({
           tenantId: testTenant.id,
           templateId: 'non-existent-id',
+          userId: user.id,
         })
       ).rejects.toThrow('Template not found');
+    });
+
+    it('should reject if template is already archived', async () => {
+      const created = await templateService.createTransferTemplate({
+        tenantId: testTenant.id,
+        userId: user.id,
+        data: {
+          name: 'Template',
+          sourceBranchId: sourceBranch.id,
+          destinationBranchId: destinationBranch.id,
+          items: [{ productId: product1.id, defaultQty: 10 }],
+        },
+      });
+
+      // Archive once
+      await templateService.deleteTransferTemplate({
+        tenantId: testTenant.id,
+        templateId: created.id,
+        userId: user.id,
+      });
+
+      // Try to archive again
+      await expect(
+        templateService.deleteTransferTemplate({
+          tenantId: testTenant.id,
+          templateId: created.id,
+          userId: user.id,
+        })
+      ).rejects.toThrow('Template is already archived');
     });
   });
 
@@ -545,6 +573,226 @@ describe('[ST-010] Stock Transfer Templates Service', () => {
           tenantId: testTenant.id,
           userId: user.id,
           templateId: 'non-existent-id',
+        })
+      ).rejects.toThrow('Template not found');
+    });
+  });
+
+  describe('[AC-010-7] restoreTransferTemplate', () => {
+    it('should restore archived template', async () => {
+      const created = await templateService.createTransferTemplate({
+        tenantId: testTenant.id,
+        userId: user.id,
+        data: {
+          name: 'Template to Restore',
+          sourceBranchId: sourceBranch.id,
+          destinationBranchId: destinationBranch.id,
+          items: [{ productId: product1.id, defaultQty: 10 }],
+        },
+      });
+
+      // Archive the template
+      await templateService.deleteTransferTemplate({
+        tenantId: testTenant.id,
+        templateId: created.id,
+        userId: user.id,
+      });
+
+      // Restore the template
+      const restored = await templateService.restoreTransferTemplate({
+        tenantId: testTenant.id,
+        templateId: created.id,
+      });
+
+      expect(restored.isArchived).toBe(false);
+      expect(restored.archivedAt).toBeNull();
+      expect(restored.archivedByUserId).toBeNull();
+    });
+
+    it('should reject if template does not exist', async () => {
+      await expect(
+        templateService.restoreTransferTemplate({
+          tenantId: testTenant.id,
+          templateId: 'non-existent-id',
+        })
+      ).rejects.toThrow('Template not found');
+    });
+
+    it('should reject if template is not archived', async () => {
+      const created = await templateService.createTransferTemplate({
+        tenantId: testTenant.id,
+        userId: user.id,
+        data: {
+          name: 'Active Template',
+          sourceBranchId: sourceBranch.id,
+          destinationBranchId: destinationBranch.id,
+          items: [{ productId: product1.id, defaultQty: 10 }],
+        },
+      });
+
+      await expect(
+        templateService.restoreTransferTemplate({
+          tenantId: testTenant.id,
+          templateId: created.id,
+        })
+      ).rejects.toThrow('Template is not archived');
+    });
+  });
+
+  describe('[AC-010-8] Archival Filtering', () => {
+    beforeEach(async () => {
+      // Create 3 templates: 2 active, 1 archived
+      const template1 = await templateService.createTransferTemplate({
+        tenantId: testTenant.id,
+        userId: user.id,
+        data: {
+          name: 'Active Template 1',
+          sourceBranchId: sourceBranch.id,
+          destinationBranchId: destinationBranch.id,
+          items: [{ productId: product1.id, defaultQty: 10 }],
+        },
+      });
+
+      const template2 = await templateService.createTransferTemplate({
+        tenantId: testTenant.id,
+        userId: user.id,
+        data: {
+          name: 'Active Template 2',
+          sourceBranchId: sourceBranch.id,
+          destinationBranchId: destinationBranch.id,
+          items: [{ productId: product1.id, defaultQty: 20 }],
+        },
+      });
+
+      const template3 = await templateService.createTransferTemplate({
+        tenantId: testTenant.id,
+        userId: user.id,
+        data: {
+          name: 'Archived Template',
+          sourceBranchId: sourceBranch.id,
+          destinationBranchId: destinationBranch.id,
+          items: [{ productId: product1.id, defaultQty: 30 }],
+        },
+      });
+
+      // Archive template3
+      await templateService.deleteTransferTemplate({
+        tenantId: testTenant.id,
+        templateId: template3.id,
+        userId: user.id,
+      });
+    });
+
+    it('should exclude archived templates by default (active-only)', async () => {
+      const result = await templateService.listTransferTemplates({
+        tenantId: testTenant.id,
+      });
+
+      expect(result.items).toHaveLength(2);
+      expect(result.items.every((t) => !t.isArchived)).toBe(true);
+      expect(result.items.some((t) => t.name === 'Archived Template')).toBe(false);
+    });
+
+    it('should show only archived templates with archivedFilter=archived-only', async () => {
+      const result = await templateService.listTransferTemplates({
+        tenantId: testTenant.id,
+        filters: { archivedFilter: 'archived-only' },
+      });
+
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]?.isArchived).toBe(true);
+      expect(result.items[0]?.name).toBe('Archived Template');
+    });
+
+    it('should show all templates with archivedFilter=all', async () => {
+      const result = await templateService.listTransferTemplates({
+        tenantId: testTenant.id,
+        filters: { archivedFilter: 'all' },
+      });
+
+      expect(result.items).toHaveLength(3);
+      const archivedCount = result.items.filter((t) => t.isArchived).length;
+      const activeCount = result.items.filter((t) => !t.isArchived).length;
+      expect(archivedCount).toBe(1);
+      expect(activeCount).toBe(2);
+    });
+
+    it('should allow getTemplate to retrieve archived templates', async () => {
+      // Find the archived template
+      const archivedList = await templateService.listTransferTemplates({
+        tenantId: testTenant.id,
+        filters: { archivedFilter: 'archived-only' },
+      });
+
+      const archivedTemplate = archivedList.items[0];
+      expect(archivedTemplate).toBeDefined();
+
+      // Should be able to get the archived template by ID
+      const retrieved = await templateService.getTransferTemplate({
+        tenantId: testTenant.id,
+        templateId: archivedTemplate!.id,
+      });
+
+      expect(retrieved.id).toBe(archivedTemplate!.id);
+      expect(retrieved.isArchived).toBe(true);
+      expect(retrieved.name).toBe('Archived Template');
+    });
+  });
+
+  describe('[AC-010-9] Multi-tenant Isolation for Archival', () => {
+    it('should not allow archiving another tenant\'s template', async () => {
+      // Create template for tenant1
+      const template = await templateService.createTransferTemplate({
+        tenantId: testTenant.id,
+        userId: user.id,
+        data: {
+          name: 'Tenant1 Template',
+          sourceBranchId: sourceBranch.id,
+          destinationBranchId: destinationBranch.id,
+          items: [{ productId: product1.id, defaultQty: 10 }],
+        },
+      });
+
+      // Create second tenant
+      const tenant2 = await createTestTenant();
+
+      // Try to archive with wrong tenant ID
+      await expect(
+        templateService.deleteTransferTemplate({
+          tenantId: tenant2.id,
+          templateId: template.id,
+          userId: user.id,
+        })
+      ).rejects.toThrow('Template not found');
+    });
+
+    it('should not allow restoring another tenant\'s template', async () => {
+      // Create and archive template for tenant1
+      const template = await templateService.createTransferTemplate({
+        tenantId: testTenant.id,
+        userId: user.id,
+        data: {
+          name: 'Tenant1 Template',
+          sourceBranchId: sourceBranch.id,
+          destinationBranchId: destinationBranch.id,
+          items: [{ productId: product1.id, defaultQty: 10 }],
+        },
+      });
+
+      await templateService.deleteTransferTemplate({
+        tenantId: testTenant.id,
+        templateId: template.id,
+        userId: user.id,
+      });
+
+      // Create second tenant
+      const tenant2 = await createTestTenant();
+
+      // Try to restore with wrong tenant ID
+      await expect(
+        templateService.restoreTransferTemplate({
+          tenantId: tenant2.id,
+          templateId: template.id,
         })
       ).rejects.toThrow('Template not found');
     });

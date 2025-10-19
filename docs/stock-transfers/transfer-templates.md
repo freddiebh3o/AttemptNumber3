@@ -4,7 +4,7 @@
 - What templates are and when to use them
 - How to create a template
 - Using templates to create transfers quickly
-- Managing your templates
+- Managing your templates (edit, duplicate, archive, restore)
 
 ---
 
@@ -79,17 +79,26 @@ Templates are saved transfer configurations that you can reuse. Instead of selec
 
 1. Go to **Stock Management** → **Transfer Templates**
 2. See list of all your templates showing:
-   - Template name
+   - Template name and description
    - Source → Destination branches
-   - Number of products
-   - When created
+   - Number of products included
+   - Archive status badge (if archived)
+
+### Filtering Templates
+
+Use the **Show Templates** dropdown to filter what you see:
+- **Active templates only** (default) - Shows only templates you can currently use
+- **Archived templates only** - Shows templates you've archived
+- **All templates (active + archived)** - Shows everything
+
+**Tip:** Use filters to find old templates you've archived or to clean up your active template list.
 
 ### Editing a Template
 
-1. Click on a template to open it
-2. Click **Edit Template** button
+1. Find the template in the list
+2. Click the blue **Edit** button (pencil icon)
 3. Modify:
-   - Template name
+   - Template name or description
    - Source or destination branches
    - Add/remove products
    - Change default quantities
@@ -101,25 +110,55 @@ Templates are saved transfer configurations that you can reuse. Instead of selec
 
 If you want a similar template with small changes:
 
-1. Open the template
-2. Click **Duplicate** button
-3. System creates a copy with "(Copy)" added to the name
-4. Edit the copy as needed
-5. Save
+1. Find the template in the list
+2. Click the cyan **Duplicate** button (copy icon)
+3. Modal opens with all the template's data pre-filled
+4. Change the name and adjust as needed
+5. Click **Duplicate Template** to save
 
 **Example:**
 - Original: "Weekly Store #5 Restock"
-- Duplicate: "Weekly Store #5 Restock (Copy)"
-- Rename to: "Weekly Store #6 Restock"
-- Adjust branch and products
+- Duplicate it and rename to: "Weekly Store #6 Restock"
+- Adjust the destination branch and products
+- Save as a new template
 
-### Deleting a Template
+### Archiving a Template
 
-1. Open the template
-2. Click **Delete Template** button
-3. Confirm deletion
+When a template becomes obsolete (seasonal route ended, branches closed, workflow changed), archive it instead of deleting:
 
-**Note:** This doesn't affect transfers created from this template - only the template itself is deleted.
+1. Find the template in the list
+2. Click the red **Archive** button (archive icon)
+3. Read the confirmation message
+4. Click **Archive Template** to confirm
+
+**What happens when you archive:**
+- Template is hidden from the active templates list
+- Template cannot be used to create new transfers
+- All historical data is preserved
+- You can restore it anytime if needed
+
+**When to archive:**
+- Seasonal templates at end of season
+- Templates for discontinued products
+- Old workflow templates replaced by new ones
+- Branch-specific templates when branches close
+
+**Tip:** Archive instead of delete - you never know when you might need that old template again!
+
+### Restoring an Archived Template
+
+If you need an archived template again:
+
+1. Change filter to **Archived templates only** or **All templates**
+2. Find the archived template (marked with "Archived" badge)
+3. Click the green **Restore** button (restore icon)
+4. Confirm restoration
+5. Template returns to your active templates list and can be used again
+
+**Common reasons to restore:**
+- Seasonal template needed again
+- Workflow change reversed
+- Branch reopened
 
 ---
 
@@ -148,8 +187,9 @@ Group similar templates:
 
 **Review templates regularly:**
 - Update product lists when items change
-- Remove obsolete templates
-- Adjust default quantities based on trends
+- Archive obsolete templates (don't delete - you might need them later)
+- Adjust default quantities based on usage trends
+- Use the archive filter to clean up your active template list seasonally
 
 ---
 
@@ -173,6 +213,18 @@ A: You need `stock:write` permission (Editor role or higher).
 **Q: Can I change the branches when using a template?**
 A: Yes. The template provides defaults, but you can change anything before creating the transfer.
 
+**Q: What's the difference between archiving and deleting?**
+A: Archiving hides the template but keeps all data so you can restore it. The system uses soft delete (archive) instead of permanently removing templates.
+
+**Q: Can I see who archived a template and when?**
+A: Yes, this information is tracked in the system audit logs (admin access required).
+
+**Q: What happens to transfers I created from an archived template?**
+A: Nothing - existing transfers are completely unaffected. Only the template itself is archived.
+
+**Q: Can viewers archive templates?**
+A: No, you need `stock:write` permission (Editor role or higher) to archive or restore templates.
+
 ---
 
 ## Example Workflow
@@ -191,9 +243,14 @@ A: Yes. The template provides defaults, but you can change anything before creat
    - Create transfer
 
 3. **Monthly**: Review template
-   - Add new products that are selling well
+   - Edit template to add new products that are selling well
    - Remove slow-moving items
    - Update default quantities based on trends
+
+4. **End of Season**: Archive template
+   - If this was a seasonal route, archive it for next year
+   - Filter to "Archived templates only" to review what you've archived
+   - Next season, restore the template and update products/quantities
 
 ---
 

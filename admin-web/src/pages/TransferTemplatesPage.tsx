@@ -24,11 +24,15 @@ import {
   IconCopy,
   IconTrash,
   IconLink,
+  IconArchive,
+  IconArchiveOff,
+  IconEdit,
 } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import {
   listTransferTemplatesApiRequest,
   deleteTransferTemplateApiRequest,
+  restoreTransferTemplateApiRequest,
 } from "../api/stockTransferTemplates";
 import type { StockTransferTemplate } from "../api/stockTransferTemplates";
 import { listBranchesApiRequest } from "../api/branches";
@@ -54,6 +58,7 @@ export default function TransferTemplatesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sourceBranchFilter, setSourceBranchFilter] = useState("");
   const [destinationBranchFilter, setDestinationBranchFilter] = useState("");
+  const [archivedFilter, setArchivedFilter] = useState<"active-only" | "archived-only" | "all">("active-only");
 
   // Branch data for filters
   const [branches, setBranches] = useState<Array<{ value: string; label: string }>>([]);
@@ -61,9 +66,13 @@ export default function TransferTemplatesPage() {
   // Modals
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editTemplateId, setEditTemplateId] = useState<string | undefined>(undefined);
+  const [modalMode, setModalMode] = useState<"create" | "edit" | "duplicate">("create");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [templateToDelete, setTemplateToDelete] = useState<StockTransferTemplate | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
+  const [templateToRestore, setTemplateToRestore] = useState<StockTransferTemplate | null>(null);
+  const [isRestoring, setIsRestoring] = useState(false);
 
   if (errorForBoundary) throw errorForBoundary;
 
@@ -95,6 +104,7 @@ export default function TransferTemplatesPage() {
         q: searchQuery.trim() || undefined,
         sourceBranchId: sourceBranchFilter || undefined,
         destinationBranchId: destinationBranchFilter || undefined,
+        archivedFilter,
         limit: 100,
       });
 
@@ -122,10 +132,14 @@ export default function TransferTemplatesPage() {
     const qpSearch = searchParams.get("q");
     const qpSource = searchParams.get("sourceBranchId");
     const qpDest = searchParams.get("destinationBranchId");
+    const qpArchived = searchParams.get("archived") as "active-only" | "archived-only" | "all";
 
     if (qpSearch) setSearchQuery(qpSearch);
     if (qpSource) setSourceBranchFilter(qpSource);
     if (qpDest) setDestinationBranchFilter(qpDest);
+    if (qpArchived && ["active-only", "archived-only", "all"].includes(qpArchived)) {
+      setArchivedFilter(qpArchived);
+    }
 
     void fetchTemplates();
   }, [tenantSlug]);
@@ -136,6 +150,7 @@ export default function TransferTemplatesPage() {
     if (searchQuery.trim()) params.set("q", searchQuery.trim());
     if (sourceBranchFilter) params.set("sourceBranchId", sourceBranchFilter);
     if (destinationBranchFilter) params.set("destinationBranchId", destinationBranchFilter);
+    if (archivedFilter !== "active-only") params.set("archived", archivedFilter);
     setSearchParams(params, { replace: false });
 
     void fetchTemplates();
@@ -145,6 +160,7 @@ export default function TransferTemplatesPage() {
     setSearchQuery("");
     setSourceBranchFilter("");
     setDestinationBranchFilter("");
+    setArchivedFilter("active-only");
     setSearchParams(new URLSearchParams(), { replace: false });
     void fetchTemplates();
   }
@@ -152,14 +168,26 @@ export default function TransferTemplatesPage() {
   function handleCreateSuccess() {
     setCreateModalOpen(false);
     setEditTemplateId(undefined);
+    const messages = {
+      create: "Template created successfully",
+      edit: "Template updated successfully",
+      duplicate: "Template duplicated successfully",
+    };
     notifications.show({
       color: "green",
-      message: editTemplateId ? "Template duplicated successfully" : "Template created successfully",
+      message: messages[modalMode],
     });
     void fetchTemplates();
   }
 
+  function handleEditClick(templateId: string) {
+    setModalMode("edit");
+    setEditTemplateId(templateId);
+    setCreateModalOpen(true);
+  }
+
   function handleDuplicateClick(templateId: string) {
+    setModalMode("duplicate");
     setEditTemplateId(templateId);
     setCreateModalOpen(true);
   }
@@ -174,7 +202,7 @@ export default function TransferTemplatesPage() {
 
     setIsDeleting(true);
     try {
-      const idempotencyKey = `delete-template-${templateToDelete.id}-${Date.now()}`;
+      const idempotencyKey = `archive-template-${templateToDelete.id}-${Date.now()}`;
       const response = await deleteTransferTemplateApiRequest(
         templateToDelete.id,
         idempotencyKey
@@ -183,7 +211,7 @@ export default function TransferTemplatesPage() {
       if (response.success) {
         notifications.show({
           color: "green",
-          message: "Template deleted successfully",
+          message: "Template archived successfully",
         });
         setDeleteConfirmOpen(false);
         setTemplateToDelete(null);
@@ -192,10 +220,45 @@ export default function TransferTemplatesPage() {
     } catch (error: any) {
       notifications.show({
         color: "red",
-        message: error?.message ?? "Failed to delete template",
+        message: error?.message ?? "Failed to archive template",
       });
     } finally {
       setIsDeleting(false);
+    }
+  }
+
+  function openRestoreConfirm(template: StockTransferTemplate) {
+    setTemplateToRestore(template);
+    setRestoreConfirmOpen(true);
+  }
+
+  async function handleRestoreConfirm() {
+    if (!templateToRestore) return;
+
+    setIsRestoring(true);
+    try {
+      const idempotencyKey = `restore-template-${templateToRestore.id}-${Date.now()}`;
+      const response = await restoreTransferTemplateApiRequest(
+        templateToRestore.id,
+        idempotencyKey
+      );
+
+      if (response.success) {
+        notifications.show({
+          color: "green",
+          message: "Template restored successfully",
+        });
+        setRestoreConfirmOpen(false);
+        setTemplateToRestore(null);
+        void fetchTemplates();
+      }
+    } catch (error: any) {
+      notifications.show({
+        color: "red",
+        message: error?.message ?? "Failed to restore template",
+      });
+    } finally {
+      setIsRestoring(false);
     }
   }
 
@@ -255,6 +318,7 @@ export default function TransferTemplatesPage() {
             <Button
               leftSection={<IconPlus size={16} />}
               onClick={() => {
+                setModalMode("create");
                 setEditTemplateId(undefined);
                 setCreateModalOpen(true);
               }}
@@ -285,7 +349,7 @@ export default function TransferTemplatesPage() {
                 onChange={(v) => setSourceBranchFilter(v || "")}
                 clearable
                 searchable
-                style={{ flex: 1 }}
+                style={{ minWidth: 180 }}
               />
 
               <Select
@@ -296,7 +360,20 @@ export default function TransferTemplatesPage() {
                 onChange={(v) => setDestinationBranchFilter(v || "")}
                 clearable
                 searchable
-                style={{ flex: 1 }}
+                style={{ minWidth: 180 }}
+              />
+
+              <Select
+                label="Show Templates"
+                data={[
+                  { value: "active-only", label: "Active templates only" },
+                  { value: "archived-only", label: "Archived templates only" },
+                  { value: "all", label: "All templates (active + archived)" },
+                ]}
+                value={archivedFilter}
+                onChange={(value) => setArchivedFilter(value as "active-only" | "archived-only" | "all")}
+                style={{ minWidth: 220 }}
+                data-testid="template-archived-filter-select"
               />
 
               <Button onClick={applyFilters}>Apply Filters</Button>
@@ -363,7 +440,14 @@ export default function TransferTemplatesPage() {
                   return (
                     <Table.Tr key={template.id}>
                       <Table.Td>
-                        <Text fw={500}>{template.name}</Text>
+                        <Group gap="xs">
+                          <Text fw={500}>{template.name}</Text>
+                          {template.isArchived && (
+                            <Badge color="gray" variant="light" data-testid="template-archived-badge">
+                              Archived
+                            </Badge>
+                          )}
+                        </Group>
                       </Table.Td>
                       <Table.Td>
                         <Text size="sm" c="dimmed">
@@ -390,29 +474,57 @@ export default function TransferTemplatesPage() {
                       </Table.Td>
                       <Table.Td>
                         <Group gap="xs" wrap="nowrap">
-                          <Tooltip label="Duplicate template">
-                            <ActionIcon
-                              variant="light"
-                              color="blue"
-                              onClick={() => handleDuplicateClick(template.id)}
-                              disabled={!canWriteStock}
-                              data-testid={`duplicate-template-${template.id}`}
-                            >
-                              <IconCopy size={16} />
-                            </ActionIcon>
-                          </Tooltip>
+                          {!template.isArchived ? (
+                            <>
+                              <Tooltip label="Edit template">
+                                <ActionIcon
+                                  variant="light"
+                                  color="blue"
+                                  onClick={() => handleEditClick(template.id)}
+                                  disabled={!canWriteStock}
+                                  data-testid="edit-template-btn"
+                                >
+                                  <IconEdit size={16} />
+                                </ActionIcon>
+                              </Tooltip>
 
-                          <Tooltip label="Delete template">
-                            <ActionIcon
-                              variant="light"
-                              color="red"
-                              onClick={() => openDeleteConfirm(template)}
-                              disabled={!canWriteStock}
-                              data-testid={`delete-template-${template.id}`}
-                            >
-                              <IconTrash size={16} />
-                            </ActionIcon>
-                          </Tooltip>
+                              <Tooltip label="Duplicate template">
+                                <ActionIcon
+                                  variant="light"
+                                  color="cyan"
+                                  onClick={() => handleDuplicateClick(template.id)}
+                                  disabled={!canWriteStock}
+                                  data-testid={`duplicate-template-${template.id}`}
+                                >
+                                  <IconCopy size={16} />
+                                </ActionIcon>
+                              </Tooltip>
+
+                              <Tooltip label="Archive template">
+                                <ActionIcon
+                                  variant="light"
+                                  color="red"
+                                  onClick={() => openDeleteConfirm(template)}
+                                  disabled={!canWriteStock}
+                                  data-testid="archive-template-btn"
+                                >
+                                  <IconArchive size={16} />
+                                </ActionIcon>
+                              </Tooltip>
+                            </>
+                          ) : (
+                            <Tooltip label="Restore template">
+                              <ActionIcon
+                                variant="light"
+                                color="green"
+                                onClick={() => openRestoreConfirm(template)}
+                                disabled={!canWriteStock}
+                                data-testid="restore-template-btn"
+                              >
+                                <IconArchiveOff size={16} />
+                              </ActionIcon>
+                            </Tooltip>
+                          )}
                         </Group>
                       </Table.Td>
                     </Table.Tr>
@@ -433,9 +545,10 @@ export default function TransferTemplatesPage() {
         }}
         onSuccess={handleCreateSuccess}
         editTemplateId={editTemplateId}
+        mode={modalMode}
       />
 
-      {/* Delete Confirmation Modal */}
+      {/* Archive Confirmation Modal */}
       <Modal
         opened={deleteConfirmOpen}
         onClose={() => {
@@ -444,17 +557,17 @@ export default function TransferTemplatesPage() {
             setTemplateToDelete(null);
           }
         }}
-        title="Delete Template"
+        title="Archive Template"
         centered
       >
         <Stack gap="md">
           <Text>
-            Are you sure you want to delete the template{" "}
+            Are you sure you want to archive the template{" "}
             <strong>{templateToDelete?.name}</strong>?
           </Text>
           <Text size="sm" c="dimmed">
-            This action cannot be undone. Existing transfers created from this template will not be
-            affected.
+            This template will be hidden from your active template list and cannot be used to create new transfers.
+            All historical data will be preserved and the template can be restored at any time.
           </Text>
 
           <Group justify="flex-end" gap="xs">
@@ -462,7 +575,39 @@ export default function TransferTemplatesPage() {
               Cancel
             </Button>
             <Button color="red" onClick={handleDeleteConfirm} loading={isDeleting}>
-              Delete Template
+              Archive Template
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* Restore Confirmation Modal */}
+      <Modal
+        opened={restoreConfirmOpen}
+        onClose={() => {
+          if (!isRestoring) {
+            setRestoreConfirmOpen(false);
+            setTemplateToRestore(null);
+          }
+        }}
+        title="Restore Template"
+        centered
+      >
+        <Stack gap="md">
+          <Text>
+            Are you sure you want to restore the template{" "}
+            <strong>{templateToRestore?.name}</strong>?
+          </Text>
+          <Text size="sm" c="dimmed">
+            The template will be restored and visible in the active templates list. You will be able to use it to create new transfers.
+          </Text>
+
+          <Group justify="flex-end" gap="xs">
+            <Button variant="light" onClick={() => setRestoreConfirmOpen(false)} disabled={isRestoring}>
+              Cancel
+            </Button>
+            <Button color="green" onClick={handleRestoreConfirm} loading={isRestoring}>
+              Restore Template
             </Button>
           </Group>
         </Stack>
