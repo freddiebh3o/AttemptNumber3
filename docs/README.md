@@ -79,6 +79,16 @@ Welcome to the platform documentation! This guide will help you learn how to use
 
 ---
 
+### Settings & Administration
+
+**Organization configuration (Owner role):**
+
+- **[Theme & Branding](settings/theme-branding.md)** - Customize colors, logo, and visual appearance
+
+**Learn:** Theme presets, custom colors, logo upload, typography, branding management
+
+---
+
 ## 🔍 Finding Help
 
 ### Quick Answers
@@ -209,13 +219,15 @@ The AI has access to all this documentation and your real-time inventory data.
 1. All ADMIN guides above
 2. [Roles & Permissions](branches-users/roles-permissions.md)
 3. [Reversing Transfers](stock-transfers/reversing-transfers.md)
-4. All analytics guides
+4. [Theme & Branding](settings/theme-branding.md)
+5. All analytics guides
 
 **What you can do:**
 - Everything ADMIN can do
 - Create and edit roles and permissions
 - Manage organization settings
-- Customize theme
+- Customize theme and branding
+- Upload organization logo
 - Reverse completed transfers
 
 ---

@@ -833,6 +833,266 @@
 - Read operations not logged
 - Only state changes appear
 
+## Using Activity Logs for Troubleshooting
+
+### What Are Activity Logs?
+
+Activity logs track every change made to entities in the system. They're your audit trail for understanding **who** changed **what** and **when**.
+
+### Where to Find Activity Logs
+
+**Most entities have an Activity tab:**
+- Products → open product → **Activity** tab
+- Branches → open branch → **Activity** tab
+- Users → open user → **Activity** tab
+- Roles → open role → **Activity** tab
+- Stock Transfers → open transfer → **Activity** tab
+- Theme Settings → **Activity** tab
+
+**Organization-wide audit:**
+- Analytics → Audit Log (requires `users:manage` permission)
+
+### What Activity Logs Show
+
+**For each change:**
+- **When** - Date and time of change
+- **Who** - User who made the change
+- **What** - Which field(s) changed
+- **Before/After** - Previous and new values
+- **Action** - Type of change (CREATE, UPDATE, DELETE, STOCK_RECEIVE, etc.)
+- **Correlation ID** - Unique identifier for request tracing
+
+### Common Use Cases
+
+**1. "Who changed the price?"**
+```
+Steps:
+1. Open the product
+2. Click Activity tab
+3. Look for UPDATE action with "productPricePence" changed
+4. See who made the change and when
+```
+
+**2. "What happened to this transfer?"**
+```
+Steps:
+1. Open the transfer
+2. Click Activity tab
+3. Review timeline:
+   - TRANSFER_REQUEST (created)
+   - TRANSFER_APPROVE (approved)
+   - TRANSFER_SHIP (shipped)
+   - TRANSFER_RECEIVE (received)
+4. See who performed each action
+```
+
+**3. "Why is stock wrong?"**
+```
+Steps:
+1. Open the product
+2. Click Activity tab
+3. Filter to stock-related actions:
+   - STOCK_RECEIVE
+   - STOCK_ADJUST
+   - STOCK_CONSUME
+4. Identify unexpected adjustments
+5. Contact user who made adjustment
+```
+
+**4. "Did someone archive this user?"**
+```
+Steps:
+1. Open the user (change filter to show archived users)
+2. Click Activity tab
+3. Look for DELETE action (archive)
+4. See who archived and when
+5. Can restore if needed
+```
+
+### Filtering Activity Logs
+
+**By Date Range:**
+1. Click **Filters** button
+2. Set **From Date** and **To Date**
+3. Click **Apply**
+4. Shows only changes in that timeframe
+
+**By User (Actor):**
+1. Click **Filters** button
+2. Select specific user from dropdown
+3. Click **Apply**
+4. Shows only changes by that user
+
+**By Action Type:**
+1. Click **Filters** button (if available)
+2. Select action type (CREATE, UPDATE, DELETE, etc.)
+3. Click **Apply**
+
+### Understanding Before/After Values
+
+**Before Value:**
+- State before the change
+- `null` if field didn't exist (new creation)
+
+**After Value:**
+- State after the change
+- `null` if field was deleted/cleared
+
+**Example:**
+```
+Action: UPDATE
+Field: productPricePence
+Before: 1999 (£19.99)
+After: 2499 (£24.99)
+Who: alice@acme.com
+When: 2025-01-15 14:30
+```
+
+### Using Correlation IDs
+
+**What is a Correlation ID?**
+- Unique identifier (UUID) for each API request
+- Links all related actions together
+- Used for debugging and tracing
+
+**When to use:**
+1. Copy correlation ID from activity log entry
+2. Share with admin when reporting issues
+3. Admin can search logs for complete request details
+4. Traces request through entire system
+
+**Example:**
+```
+Correlation ID: 550e8400-e29b-41d4-a716-446655440000
+
+Admin can search logs to see:
+- Which API endpoint was called
+- Request body sent
+- Response returned
+- Any errors encountered
+- Full request trace
+```
+
+### Activity Log Best Practices
+
+**✅ Do:**
+- Check activity logs before contacting admin
+- Filter by date to find recent changes
+- Note correlation ID when reporting issues
+- Review before/after values to understand changes
+- Use logs to verify your own actions were successful
+
+**❌ Don't:**
+- Ignore unusual activity (could indicate unauthorized access)
+- Delete items thinking you can hide from logs (all actions tracked)
+- Forget activity logs exist (they're your first troubleshooting stop)
+
+---
+
+## Session Management
+
+### Understanding Session Expiration
+
+**What is a session?**
+- Your logged-in state maintained by the platform
+- Stored in browser cookies
+- Expires after period of inactivity or 24 hours (whichever comes first)
+
+**Why sessions expire:**
+- Security: Prevent unauthorized access if you leave computer unlocked
+- Compliance: Reduce exposure window for sensitive data
+- Resource management: Free up server resources
+
+### Issue: "Your Session Has Expired" Error
+
+**Symptoms:**
+- Suddenly logged out mid-task
+- Error message: "Your session has expired. Please sign in again."
+- Redirected to sign-in page
+
+**When this happens:**
+1. Your session cookie expired (inactive for too long)
+2. Platform automatically signs you out
+3. Redirects you to sign-in page
+4. **Remembers your intended destination**
+
+**What to do:**
+
+✅ **Sign in again:**
+1. Enter your credentials on the sign-in page
+2. Platform signs you in
+3. **Automatically redirects you back** to the page you were on
+4. Continue your work
+
+✅ **Your work is preserved if:**
+- You were viewing data (just refresh)
+- You weren't mid-form (forms may be cleared)
+
+❌ **Your work is lost if:**
+- You were filling out a form (not yet saved)
+- You were mid-edit (changes not saved)
+
+**Prevention:**
+
+✅ **Save frequently:**
+- Click "Save" button often when editing
+- Don't leave forms open for extended periods
+- Complete tasks promptly
+
+✅ **Stay active:**
+- Sessions renew with activity
+- Moving between pages counts as activity
+- Idle for 30+ minutes risks expiration
+
+### Issue: Session Expired While Filling Out Form
+
+**Problem:** Lost form data after session expired
+
+**Solutions:**
+
+✅ **Work in shorter sessions:**
+- Complete forms within 15-20 minutes
+- Don't leave browser idle mid-form
+
+✅ **Draft in external tool first:**
+- Write long descriptions in Word/Notes
+- Copy into platform when ready
+- Reduces time spent in form
+
+✅ **Save incrementally (if possible):**
+- Some forms auto-save as you type
+- Others require manual "Save" clicks
+- Save early, save often
+
+### Issue: Signed Out on Multiple Devices
+
+**Problem:** Signed in on desktop, then signed in on laptop - desktop session ended
+
+**This is normal behavior:**
+- Platform allows one active session per user per tenant
+- Signing in on new device ends previous session
+- Security feature to prevent session hijacking
+
+**Solutions:**
+
+✅ **Sign out before switching devices:**
+- Cleanly end session on first device
+- Then sign in on second device
+
+✅ **Complete work on one device:**
+- Avoid switching mid-task
+- Finish forms before moving to another computer
+
+### Issue: Session Persists Too Long
+
+**Problem:** Want to sign out automatically for security
+
+**This is configurable by admins:**
+- Contact your admin about session timeout policies
+- They can adjust duration based on security needs
+
+---
+
 ## Getting More Help
 
 **If issue persists:**

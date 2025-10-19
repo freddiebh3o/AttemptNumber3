@@ -848,9 +848,380 @@ await prisma.$transaction([
 
 ---
 
-## Phase 4 Additions (2025-10-14)
+## Stock Transfer Tables
 
-### TransferMetrics (Analytics)
+### 17. StockTransfer
+
+**Purpose:** Inter-branch stock transfer workflow with multi-level approval support.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | String (CUID) | PK | Unique transfer identifier |
+| `tenantId` | String | FK → Tenant, NOT NULL | Tenant ownership |
+| `transferNumber` | String | NOT NULL | Auto-generated identifier (e.g., "TRF-2025-001") |
+| `sourceBranchId` | String | FK → Branch, NOT NULL | Branch sending stock |
+| `destinationBranchId` | String | FK → Branch, NOT NULL | Branch receiving stock |
+| `status` | Enum | DEFAULT REQUESTED | Transfer workflow status (see below) |
+| `priority` | Enum | DEFAULT NORMAL | Transfer priority level (see below) |
+| `requestedByUserId` | String | FK → User, NOT NULL | User who initiated request |
+| `reviewedByUserId` | String | FK → User, NULLABLE | User who approved/rejected |
+| `shippedByUserId` | String | FK → User, NULLABLE | User who shipped items |
+| `requestedAt` | DateTime | DEFAULT now() | Request creation timestamp |
+| `reviewedAt` | DateTime | NULLABLE | Approval/rejection timestamp |
+| `shippedAt` | DateTime | NULLABLE | Shipment timestamp |
+| `completedAt` | DateTime | NULLABLE | Final completion timestamp |
+| `requestNotes` | String (Text) | NULLABLE | Requester notes/reason |
+| `reviewNotes` | String (Text) | NULLABLE | Reviewer notes (e.g., rejection reason) |
+| `isReversal` | Boolean | DEFAULT false | True if this is a reversal transfer |
+| `reversalOfId` | String | FK → StockTransfer, NULLABLE | Links to original transfer (if reversal) |
+| `reversedById` | String | FK → StockTransfer, NULLABLE | Links to reversal transfer (if reversed) |
+| `reversalReason` | String (Text) | NULLABLE | Reason for reversal |
+| `requiresMultiLevelApproval` | Boolean | DEFAULT false | Multi-level approval required |
+| `createdAt` | DateTime | DEFAULT now() | Record creation timestamp |
+| `updatedAt` | DateTime | AUTO UPDATE | Last modification timestamp |
+
+**Enum: StockTransferStatus**
+- `REQUESTED` - Initial state, awaiting approval
+- `APPROVED` - Approved, ready to ship
+- `REJECTED` - Rejected by reviewer
+- `IN_TRANSIT` - Shipped from source, in transit
+- `PARTIALLY_RECEIVED` - Some items received at destination
+- `COMPLETED` - All items received, transfer complete
+- `CANCELLED` - Cancelled before completion
+
+**Enum: TransferPriority**
+- `LOW` - Seasonal overstock, can wait
+- `NORMAL` - Standard priority (default)
+- `HIGH` - Promotional event, expedited
+- `URGENT` - Stock-out situation, immediate
+
+**Unique Constraints:**
+- `@@unique([tenantId, transferNumber])` - Transfer number unique per tenant
+- `@@unique([reversalOfId])` - One reversal per transfer
+
+**Indexes:**
+- `@@index([tenantId, status, priority, requestedAt])` - List transfers with priority sort
+- `@@index([sourceBranchId, status])` - Outbound transfers per branch
+- `@@index([destinationBranchId, status])` - Inbound transfers per branch
+- `@@index([requestedByUserId])` - User activity
+- `@@index([reversedById])` - Find reversed transfers
+
+**Relations:**
+- `tenant` → Tenant (onDelete: Cascade)
+- `sourceBranch` → Branch (onDelete: Restrict)
+- `destinationBranch` → Branch (onDelete: Restrict)
+- `requestedByUser` → User (onDelete: Restrict)
+- `reviewedByUser` → User? (onDelete: SetNull)
+- `shippedByUser` → User? (onDelete: SetNull)
+- `items` → StockTransferItem[] (line items)
+- `reversalOf` → StockTransfer? (original transfer)
+- `reversedBy` → StockTransfer? (reversal transfer)
+- `approvalRecords` → TransferApprovalRecord[] (multi-level approvals)
+
+**Notes:**
+- Transfer number auto-generated on creation
+- Multi-level approval triggered by TransferApprovalRule evaluation
+- Reversal creates new transfer with opposite direction and restores FIFO lots
+- Partial shipments tracked via `shipmentBatches` in StockTransferItem
+
+---
+
+### 18. StockTransferItem
+
+**Purpose:** Line items for stock transfers with partial shipment and FIFO lot tracking.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | String (CUID) | PK | Unique item identifier |
+| `transferId` | String | FK → StockTransfer, NOT NULL | Parent transfer reference |
+| `productId` | String | FK → Product, NOT NULL | Product being transferred |
+| `qtyRequested` | Int | NOT NULL | Initial quantity requested |
+| `qtyApproved` | Int | NULLABLE | Approved quantity (may differ from requested) |
+| `qtyShipped` | Int | DEFAULT 0 | Total quantity shipped (sum of batches) |
+| `qtyReceived` | Int | DEFAULT 0 | Total quantity received (incremental) |
+| `lotsConsumed` | JSON | NULLABLE | Array of `{lotId, qty, unitCostPence}` |
+| `avgUnitCostPence` | Int | NULLABLE | Weighted average cost of shipped items |
+| `shipmentBatches` | JSON | NULLABLE | Partial shipment tracking (see below) |
+| `createdAt` | DateTime | DEFAULT now() | Record creation timestamp |
+| `updatedAt` | DateTime | AUTO UPDATE | Last modification timestamp |
+
+**Unique Constraints:**
+- `@@unique([transferId, productId])` - One entry per product per transfer
+
+**Indexes:**
+- `@@index([productId])` - Product transfer history
+
+**Relations:**
+- `transfer` → StockTransfer (onDelete: Cascade)
+- `product` → Product (onDelete: Restrict)
+
+**shipmentBatches JSON Structure:**
+```json
+[
+  {
+    "batchNumber": 1,
+    "qty": 70,
+    "shippedAt": "2025-01-15T14:00:00Z",
+    "shippedByUserId": "cuid123",
+    "lotsConsumed": [
+      { "lotId": "lot1", "qty": 50, "unitCostPence": 1200 },
+      { "lotId": "lot2", "qty": 20, "unitCostPence": 1150 }
+    ]
+  },
+  {
+    "batchNumber": 2,
+    "qty": 30,
+    "shippedAt": "2025-01-18T10:00:00Z",
+    "shippedByUserId": "cuid456",
+    "lotsConsumed": [
+      { "lotId": "lot3", "qty": 30, "unitCostPence": 1180 }
+    ]
+  }
+]
+```
+
+**Notes:**
+- `qtyApproved` may be less than `qtyRequested` (partial approval)
+- `qtyShipped` may be less than `qtyApproved` (partial shipment)
+- `lotsConsumed` populated on ship (FIFO consumption from source branch)
+- `avgUnitCostPence` calculated as weighted average of consumed lots
+- Partial shipments tracked via `shipmentBatches` array
+
+---
+
+### 19. StockTransferTemplate
+
+**Purpose:** Reusable transfer configurations for common branch-to-branch transfers.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | String (CUID) | PK | Unique template identifier |
+| `tenantId` | String | FK → Tenant, NOT NULL | Tenant ownership |
+| `name` | String | NOT NULL | Template name (e.g., "Weekly Retail Restock") |
+| `description` | String (Text) | NULLABLE | Template purpose description |
+| `sourceBranchId` | String | FK → Branch, NOT NULL | Default source branch |
+| `destinationBranchId` | String | FK → Branch, NOT NULL | Default destination branch |
+| `createdByUserId` | String | FK → User, NOT NULL | User who created template |
+| `isArchived` | Boolean | DEFAULT false | Archival (soft delete) flag |
+| `archivedAt` | DateTime | NULLABLE | Archival timestamp |
+| `archivedByUserId` | String | FK → User, NULLABLE | User who archived template |
+| `createdAt` | DateTime | DEFAULT now() | Record creation timestamp |
+| `updatedAt` | DateTime | AUTO UPDATE | Last modification timestamp |
+
+**Indexes:**
+- `@@index([tenantId])` - Tenant templates
+- `@@index([sourceBranchId])` - Templates by source
+- `@@index([destinationBranchId])` - Templates by destination
+- `@@index([createdByUserId])` - User activity
+- `@@index([tenantId, isArchived])` - Filter active/archived templates
+
+**Relations:**
+- `tenant` → Tenant (onDelete: Cascade)
+- `sourceBranch` → Branch (onDelete: Cascade)
+- `destinationBranch` → Branch (onDelete: Cascade)
+- `createdByUser` → User (onDelete: Restrict)
+- `archivedByUser` → User? (onDelete: Restrict)
+- `items` → StockTransferTemplateItem[] (default products and quantities)
+
+**Notes:**
+- Archived templates hidden from active template list by default
+- Cannot be used to create new transfers when archived
+- Preserves historical data and references
+- Can be restored by setting `isArchived = false`
+
+---
+
+### 20. StockTransferTemplateItem
+
+**Purpose:** Default product quantities for transfer templates.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | String (CUID) | PK | Unique item identifier |
+| `templateId` | String | FK → StockTransferTemplate, NOT NULL | Parent template reference |
+| `productId` | String | FK → Product, NOT NULL | Product reference |
+| `defaultQty` | Int | NOT NULL | Default quantity for this product |
+| `createdAt` | DateTime | DEFAULT now() | Record creation timestamp |
+| `updatedAt` | DateTime | AUTO UPDATE | Last modification timestamp |
+
+**Unique Constraints:**
+- `@@unique([templateId, productId])` - One entry per product per template
+
+**Indexes:**
+- `@@index([productId])` - Product template usage
+
+**Relations:**
+- `template` → StockTransferTemplate (onDelete: Cascade)
+- `product` → Product (onDelete: Cascade)
+
+**Notes:**
+- Default quantities can be edited when creating transfer from template
+- Useful for recurring transfer patterns (e.g., weekly restocking)
+
+---
+
+### 21. TransferApprovalRule
+
+**Purpose:** Multi-level approval workflow configuration with conditional triggers.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | String (CUID) | PK | Unique rule identifier |
+| `tenantId` | String | FK → Tenant, NOT NULL | Tenant ownership |
+| `name` | String | NOT NULL | Rule name (e.g., "High-Value Transfer Approval") |
+| `description` | String (Text) | NULLABLE | Rule purpose description |
+| `isActive` | Boolean | DEFAULT true | Rule enabled/disabled |
+| `approvalMode` | Enum | DEFAULT SEQUENTIAL | Approval workflow mode (see below) |
+| `priority` | Int | DEFAULT 0 | Rule evaluation priority (higher first) |
+| `isArchived` | Boolean | DEFAULT false | Archival (soft delete) flag |
+| `archivedAt` | DateTime | NULLABLE | Archival timestamp |
+| `archivedByUserId` | String | NULLABLE | User who archived rule |
+| `createdAt` | DateTime | DEFAULT now() | Record creation timestamp |
+| `updatedAt` | DateTime | AUTO UPDATE | Last modification timestamp |
+
+**Enum: ApprovalMode**
+- `SEQUENTIAL` - Approvals must happen in order (Level 1 → 2 → 3)
+- `PARALLEL` - All levels can approve simultaneously
+- `HYBRID` - Level 1 must approve first, then 2+ parallel
+
+**Indexes:**
+- `@@index([tenantId, isActive])` - Active rules
+- `@@index([tenantId, priority])` - Rule evaluation order
+- `@@index([tenantId, isArchived])` - Filter active/archived rules
+
+**Relations:**
+- `tenant` → Tenant (onDelete: Cascade)
+- `conditions` → TransferApprovalCondition[] (trigger conditions)
+- `levels` → TransferApprovalLevel[] (approval hierarchy)
+
+**Notes:**
+- Rules evaluated in priority order (highest first)
+- First matching rule determines approval workflow
+- Conditions must all match (AND logic) for rule to apply
+- Inactive rules skipped during evaluation
+
+---
+
+### 22. TransferApprovalCondition
+
+**Purpose:** Conditions that trigger approval rules (e.g., value threshold, branch-specific).
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | String (CUID) | PK | Unique condition identifier |
+| `ruleId` | String | FK → TransferApprovalRule, NOT NULL | Parent rule reference |
+| `conditionType` | Enum | NOT NULL | Condition type (see below) |
+| `threshold` | Int | NULLABLE | Numeric threshold (for QTY/VALUE conditions) |
+| `branchId` | String | FK → Branch, NULLABLE | Branch reference (for branch conditions) |
+| `createdAt` | DateTime | DEFAULT now() | Record creation timestamp |
+| `updatedAt` | DateTime | AUTO UPDATE | Last modification timestamp |
+
+**Enum: ApprovalRuleConditionType**
+- `TOTAL_QTY_THRESHOLD` - Total quantity > X
+- `TOTAL_VALUE_THRESHOLD` - Total value (pence) > X
+- `SOURCE_BRANCH` - Transfer from specific branch
+- `DESTINATION_BRANCH` - Transfer to specific branch
+- `PRODUCT_CATEGORY` - Product has category X (future)
+
+**Indexes:**
+- `@@index([ruleId])` - Conditions per rule
+- `@@index([branchId])` - Branch-specific rules
+
+**Relations:**
+- `rule` → TransferApprovalRule (onDelete: Cascade)
+- `branch` → Branch? (onDelete: Cascade)
+
+**Notes:**
+- All conditions in a rule must match (AND logic)
+- Threshold-based conditions use `threshold` field
+- Branch-based conditions use `branchId` field
+- Future enhancement: product category conditions
+
+---
+
+### 23. TransferApprovalLevel
+
+**Purpose:** Approval hierarchy levels required by a rule (e.g., Manager → Director).
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | String (CUID) | PK | Unique level identifier |
+| `ruleId` | String | FK → TransferApprovalRule, NOT NULL | Parent rule reference |
+| `level` | Int | NOT NULL | Level number (1, 2, 3, etc.) |
+| `name` | String | NOT NULL | Level display name (e.g., "Manager", "Director") |
+| `requiredRoleId` | String | FK → Role, NULLABLE | Role required to approve (e.g., OWNER) |
+| `requiredUserId` | String | FK → User, NULLABLE | Specific user required (e.g., Finance Director) |
+| `createdAt` | DateTime | DEFAULT now() | Record creation timestamp |
+| `updatedAt` | DateTime | AUTO UPDATE | Last modification timestamp |
+
+**Unique Constraints:**
+- `@@unique([ruleId, level])` - One level per number per rule
+
+**Indexes:**
+- `@@index([ruleId])` - Levels per rule
+- `@@index([requiredRoleId])` - Role-based approval queries
+- `@@index([requiredUserId])` - User-based approval queries
+
+**Relations:**
+- `rule` → TransferApprovalRule (onDelete: Cascade)
+- `role` → Role? (onDelete: SetNull)
+- `user` → User? (onDelete: SetNull)
+
+**Notes:**
+- Either `requiredRoleId` OR `requiredUserId` specified (not both)
+- Role-based: Any user with role can approve (e.g., any OWNER)
+- User-based: Only specific user can approve (e.g., CFO)
+- Levels evaluated in ascending order for SEQUENTIAL mode
+
+---
+
+### 24. TransferApprovalRecord
+
+**Purpose:** Records approval status for each level of a transfer's approval workflow.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | String (CUID) | PK | Unique record identifier |
+| `transferId` | String | FK → StockTransfer, NOT NULL | Parent transfer reference |
+| `level` | Int | NOT NULL | Approval level number |
+| `levelName` | String | NOT NULL | Level display name (e.g., "Manager") |
+| `status` | Enum | DEFAULT PENDING | Approval status (see below) |
+| `requiredRoleId` | String | FK → Role, NULLABLE | Role required for this level |
+| `requiredUserId` | String | FK → User, NULLABLE | User required for this level |
+| `approvedByUserId` | String | FK → User, NULLABLE | User who actually approved |
+| `approvedAt` | DateTime | NULLABLE | Approval timestamp |
+| `notes` | String (Text) | NULLABLE | Approver notes/comments |
+| `createdAt` | DateTime | DEFAULT now() | Record creation timestamp |
+| `updatedAt` | DateTime | AUTO UPDATE | Last modification timestamp |
+
+**Enum: ApprovalStatus**
+- `PENDING` - Awaiting approval
+- `APPROVED` - Approved
+- `REJECTED` - Rejected
+- `SKIPPED` - Not required (rule didn't match)
+
+**Indexes:**
+- `@@index([transferId, level])` - Approval records per transfer
+- `@@index([status])` - Pending approvals
+- `@@index([requiredRoleId])` - Role-based approval queries
+- `@@index([requiredUserId])` - User-based approval queries
+- `@@index([approvedByUserId])` - User activity
+
+**Relations:**
+- `transfer` → StockTransfer (onDelete: Cascade)
+- `requiredRole` → Role? (onDelete: SetNull)
+- `requiredUser` → User? (onDelete: SetNull)
+- `approvedByUser` → User? (onDelete: SetNull)
+
+**Notes:**
+- Created when transfer triggers multi-level approval rule
+- One record per level required by matched rule
+- Status changes from PENDING → APPROVED/REJECTED
+- Audit trail preserved even if rule/role/user deleted
+
+---
+
+### 25. TransferMetrics
 
 **Purpose:** Pre-computed daily metrics for transfer analytics dashboard.
 
@@ -876,7 +1247,7 @@ await prisma.$transaction([
 - `@@unique([tenantId, metricDate])` - One metric record per tenant per day
 
 **Indexes:**
-- `@@index([tenantId, metricDate])`
+- `@@index([tenantId, metricDate])` - Time-series queries
 
 **Relations:**
 - `tenant` → Tenant (onDelete: Cascade)
@@ -885,10 +1256,11 @@ await prisma.$transaction([
 - Populated by nightly aggregation job
 - Enables fast dashboard queries without real-time aggregation
 - Daily granularity balances detail vs. storage
+- Timing metrics measured in seconds
 
 ---
 
-### TransferRouteMetrics (Branch Dependencies)
+### 26. TransferRouteMetrics
 
 **Purpose:** Track transfer volume and completion times between specific branches.
 
@@ -909,7 +1281,7 @@ await prisma.$transaction([
 - `@@unique([tenantId, sourceBranchId, destinationBranchId, metricDate])` - One metric per route per day
 
 **Indexes:**
-- `@@index([tenantId, metricDate])`
+- `@@index([tenantId, metricDate])` - Time-series queries
 
 **Relations:**
 - `tenant` → Tenant (onDelete: Cascade)
@@ -920,94 +1292,163 @@ await prisma.$transaction([
 - Enables branch dependency visualization
 - Shows high-volume routes and bottlenecks
 - Supports network graph or Sankey diagram rendering
+- Daily aggregation per unique route
 
 ---
 
-### StockTransfer Updates (Phase 4)
+## AI Chatbot Tables
 
-**New Field:**
-- `priority` - TransferPriority enum (LOW, NORMAL, HIGH, URGENT), DEFAULT NORMAL
+### 27. ChatConversation
 
-**Updated Index:**
-- Old: `@@index([tenantId, status, createdAt])`
-- New: `@@index([tenantId, status, priority, requestedAt])`
-- Reason: Supports queries sorted by priority then date
+**Purpose:** Multi-turn chat conversations for AI chatbot assistant.
 
-**New Enum:**
-```typescript
-enum TransferPriority {
-  LOW      // Seasonal overstock, can wait
-  NORMAL   // Standard priority (default)
-  HIGH     // Promotional event, expedited
-  URGENT   // Stock-out situation, immediate
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | String (CUID) | PK | Unique conversation identifier |
+| `userId` | String | FK → User, NOT NULL | User who owns conversation |
+| `tenantId` | String | FK → Tenant, NOT NULL | Tenant context |
+| `title` | String | NULLABLE | Auto-generated from first message |
+| `createdAt` | DateTime | DEFAULT now() | Conversation creation timestamp |
+| `updatedAt` | DateTime | AUTO UPDATE | Last modification timestamp |
+
+**Indexes:**
+- `@@index([userId, tenantId])` - User conversations per tenant
+- `@@index([userId, createdAt])` - Recent conversations
+
+**Relations:**
+- `user` → User (onDelete: Cascade)
+- `tenant` → Tenant (onDelete: Cascade)
+- `messages` → ChatMessage[] (conversation messages)
+
+**Notes:**
+- Stores conversation threading for multi-turn interactions
+- Title auto-generated from first user message
+- Conversation scoped to tenant for data isolation
+
+---
+
+### 28. ChatMessage
+
+**Purpose:** Individual messages within a chat conversation (user and assistant).
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | String (CUID) | PK | Unique message identifier |
+| `conversationId` | String | FK → ChatConversation, NOT NULL | Parent conversation reference |
+| `role` | String | NOT NULL | Message role: 'user', 'assistant', 'system' |
+| `content` | JSON | NOT NULL | UIMessage parts array from Vercel AI SDK |
+| `createdAt` | DateTime | DEFAULT now() | Message creation timestamp |
+
+**Indexes:**
+- `@@index([conversationId])` - Messages per conversation
+- `@@index([conversationId, createdAt])` - Chronological message order
+
+**Relations:**
+- `conversation` → ChatConversation (onDelete: Cascade)
+
+**content JSON Structure (Vercel AI SDK UIMessage):**
+```json
+{
+  "parts": [
+    { "type": "text", "text": "Show me recent transfers" },
+    {
+      "type": "tool-call",
+      "toolCallId": "call_123",
+      "toolName": "searchTransfers",
+      "args": { "limit": 10 }
+    },
+    {
+      "type": "tool-result",
+      "toolCallId": "call_123",
+      "toolName": "searchTransfers",
+      "result": { "transfers": [...] }
+    }
+  ]
 }
 ```
 
----
-
-### StockTransferItem Updates (Phase 4)
-
-**New Field:**
-- `shipmentBatches` - JSON (nullable)
-- Stores array of partial shipment records:
-  ```json
-  [
-    {
-      "batchNumber": 1,
-      "qty": 70,
-      "shippedAt": "2025-01-15T14:00:00Z",
-      "shippedByUserId": "cuid123",
-      "lotsConsumed": [
-        { "lotId": "lot1", "qty": 50, "unitCostPence": 1200 },
-        { "lotId": "lot2", "qty": 20, "unitCostPence": 1150 }
-      ]
-    },
-    {
-      "batchNumber": 2,
-      "qty": 30,
-      "shippedAt": "2025-01-18T10:00:00Z",
-      "shippedByUserId": "cuid456",
-      "lotsConsumed": [
-        { "lotId": "lot3", "qty": 30, "unitCostPence": 1180 }
-      ]
-    }
-  ]
-  ```
-
-**Purpose:** Track multiple shipment batches when source ships less than approved quantity.
+**Notes:**
+- Role enum: `user` (user input), `assistant` (AI response), `system` (system prompts)
+- Content stored as UIMessage parts array from Vercel AI SDK v5
+- Tool calls and results tracked for debugging and analytics
 
 ---
 
-### AuditAction Enum Updates (Phase 4)
+### 29. DocumentChunk
 
-**New Actions:**
-- `TRANSFER_PRIORITY_CHANGE` - Transfer priority updated
-- `TRANSFER_SHIP_PARTIAL` - Partial shipment created
+**Purpose:** Embedded documentation sections for RAG (Retrieval-Augmented Generation).
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | String (CUID) | PK | Unique chunk identifier |
+| `documentId` | String | NOT NULL | File path (e.g., "docs/stock-transfers/overview.md") |
+| `sectionId` | String | NOT NULL | Heading anchor (e.g., "## Step 1: Navigate to Transfers") |
+| `title` | String | NOT NULL | Chunk title (e.g., "Creating Transfers - Step 1: Navigate") |
+| `content` | String (Text) | NOT NULL | Actual markdown content chunk |
+| `embedding` | vector(1536) | NOT NULL | Vector embedding for semantic search |
+| `metadata` | JSON | NULLABLE | Metadata (category, tags, relatedDocs) |
+| `createdAt` | DateTime | DEFAULT now() | Record creation timestamp |
+| `updatedAt` | DateTime | AUTO UPDATE | Last modification timestamp |
+
+**Indexes:**
+- `@@index([documentId])` - Chunks per document
+
+**Notes:**
+- Vector embedding generated using OpenAI `text-embedding-3-small` (1536 dimensions)
+- Enables semantic search for relevant documentation
+- Chunks created during documentation ingestion pipeline
+- Metadata example: `{"category": "stock-transfers", "tags": ["transfer", "create"], "relatedDocs": [...]}`
+- PostgreSQL pgvector extension required
 
 ---
 
-### StockTransferTemplate Archival (Phase 5)
+### 30. ChatAnalytics
 
-**New Fields:**
-- `isArchived` - Boolean, DEFAULT false
-- `archivedAt` - DateTime (nullable)
-- `archivedByUserId` - String (nullable), FK → User
+**Purpose:** Aggregated daily metrics for AI chatbot usage tracking.
 
-**New Relation:**
-- `archivedByUser` → User? (nullable)
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | String (CUID) | PK | Unique metric record identifier |
+| `tenantId` | String | FK → Tenant, NOT NULL | Tenant ownership |
+| `date` | Date | NOT NULL | Date for this metric snapshot |
+| `totalConversations` | Int | DEFAULT 0 | New conversations started on this date |
+| `totalMessages` | Int | DEFAULT 0 | Total messages sent (user + assistant) |
+| `uniqueUsers` | Int | DEFAULT 0 | Distinct users who chatted |
+| `toolCalls` | JSON | NULLABLE | Tool usage counts (see below) |
+| `avgMessagesPerConversation` | Float | NULLABLE | Average conversation length |
+| `avgResponseTimeMs` | Int | NULLABLE | Average assistant response time (milliseconds) |
+| `createdAt` | DateTime | DEFAULT now() | Record creation timestamp |
+| `updatedAt` | DateTime | AUTO UPDATE | Last modification timestamp |
 
-**Updated Index:**
-- Added: `@@index([tenantId, isArchived])` - Supports filtering archived/active templates
+**Unique Constraints:**
+- `@@unique([tenantId, date])` - One metric record per tenant per day
 
-**Purpose:** Soft delete pattern for transfer templates
-- Archived templates hidden from active template list by default
-- Cannot be used to create new transfers when archived
-- Preserves historical data and references
-- Can be restored by setting `isArchived = false`
+**Indexes:**
+- `@@index([tenantId, date])` - Time-series queries
 
-**Migration:** `20251019182901_add_transfer_template_archival`
+**Relations:**
+- `tenant` → Tenant (onDelete: Cascade)
+
+**toolCalls JSON Structure:**
+```json
+{
+  "searchProducts": 45,
+  "searchTransfers": 32,
+  "createTransfer": 8,
+  "approveTransfer": 5,
+  "receiveStock": 12,
+  "checkStockLevels": 28
+}
+```
+
+**Notes:**
+- Populated by nightly aggregation job
+- Tracks chatbot adoption and usage patterns
+- Tool usage helps identify most valuable AI features
+- Response time monitoring for performance optimization
 
 ---
 
 **Last Updated:** 2025-10-19
-**Document Version:** 1.3 (Added Phase 5: Transfer template archival/soft delete)
+**Document Version:** 2.0
+**Total Tables:** 41 (16 core + 10 stock transfer + 4 AI chatbot + 11 supporting)

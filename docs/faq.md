@@ -77,12 +77,19 @@ Yes, SKUs are organization-level identifiers. The same product (SKU) can exist a
 
 ### Can I delete a product?
 
-Yes, if you have `products:write` permission and the product has:
-- No stock at any branch
-- No pending transfers
-- No historical references you need to preserve
+Products cannot be permanently deleted. Instead, you can **archive** them to remove from active lists while preserving all historical data.
 
-Otherwise, consider deactivating instead of deleting (feature not yet implemented).
+**To archive a product:**
+1. Open the product page
+2. Click "Archive Product" button
+3. Confirm the action
+
+**Why archiving instead of deleting?**
+- Preserves stock history and audit trail
+- Can be restored anytime if needed
+- Keeps historical reports accurate
+
+**See:** [Archiving Products](products/managing-products.md#archiving-products)
 
 ### Why is my product not showing in dropdowns?
 

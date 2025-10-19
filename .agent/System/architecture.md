@@ -9,6 +9,8 @@
 - Role-based access control (RBAC) with custom roles per tenant
 - Product catalog management with optimistic locking
 - Multi-branch inventory tracking with FIFO stock consumption
+- Stock transfer system with multi-level approval workflows
+- AI chatbot assistant with RAG (Retrieval-Augmented Generation)
 - Audit logging for compliance and traceability
 - Tenant-specific theming and branding
 - Session-based authentication with JWT tokens
@@ -37,6 +39,9 @@
 | **CORS** | cors | ^2.8.5 | Cross-origin resource sharing |
 | **File Upload** | Multer | ^2.0.2 | Multipart/form-data handling |
 | **Testing** | Jest + Supertest | ^29.7.0 | Acceptance testing |
+| **AI/LLM** | Vercel AI SDK | ^5.0.72 | AI integration and streaming |
+| **AI/LLM** | OpenAI SDK | ^2.0.52 | OpenAI API client |
+| **Vector DB** | pgvector | ^0.2.1 | PostgreSQL vector extension |
 
 **Key Dependencies:**
 - `@prisma/client` - Generated Prisma client for type-safe database access
@@ -45,6 +50,9 @@
 - `dotenv` - Environment variable management
 - `uuid` - Generate unique identifiers
 - `bcryptjs` - Password hashing
+- `ai` - Vercel AI SDK for LLM integration
+- `@ai-sdk/openai` - OpenAI provider for AI SDK
+- `pgvector` - PostgreSQL vector similarity search
 
 ### Frontend (Admin Web)
 **Location:** `admin-web/`
@@ -439,9 +447,94 @@ model Product {
 }
 ```
 
-#### 2. Soft vs Hard Deletes
-- **Hard deletes** - Most entities use `onDelete: Cascade`
-- **Soft deletes** - None currently (future consideration for audit trails)
+#### 2. Archival Pattern (Soft Delete)
+
+**Strategy:** Critical entities use soft delete (archival) rather than hard delete to preserve audit trails and allow restoration.
+
+**Implementation:**
+- `isArchived` - Boolean flag (default: false)
+- `archivedAt` - Timestamp when archived (nullable)
+- `archivedByUserId` - User who performed archival (nullable)
+
+**Entities Using Archival:**
+```prisma
+model Product {
+  isArchived       Boolean   @default(false)
+  archivedAt       DateTime?
+  archivedByUserId String?
+  archivedBy       User?     @relation("ProductArchivedBy", fields: [archivedByUserId], ...)
+  @@index([tenantId, isArchived])
+}
+
+model Branch {
+  isArchived       Boolean   @default(false)
+  archivedAt       DateTime?
+  archivedByUserId String?
+  // Similar pattern
+}
+
+model StockTransferTemplate {
+  isArchived       Boolean   @default(false)
+  archivedAt       DateTime?
+  archivedByUserId String?
+  // Similar pattern
+}
+
+model TransferApprovalRule {
+  isArchived Boolean @default(false)
+  // No archivedAt/archivedBy for rules (simpler pattern)
+}
+
+model Role {
+  isArchived       Boolean   @default(false)
+  archivedAt       DateTime?
+  archivedByUserId String?
+  // Custom roles only (system roles cannot be archived)
+}
+
+model UserTenantMembership {
+  isArchived Boolean @default(false)
+  // User removal from tenant
+}
+```
+
+**UI Patterns:**
+- **Active-only filter** (default): `WHERE isArchived = false`
+- **Archived-only view**: `WHERE isArchived = true`
+- **Show all**: No filter on isArchived
+
+**Restore Workflow:**
+```typescript
+// Archive entity
+await prisma.product.update({
+  where: { id: productId },
+  data: {
+    isArchived: true,
+    archivedAt: new Date(),
+    archivedByUserId: currentUserId,
+  },
+});
+
+// Restore entity
+await prisma.product.update({
+  where: { id: productId },
+  data: {
+    isArchived: false,
+    archivedAt: null,
+    archivedByUserId: null,
+  },
+});
+```
+
+**Benefits:**
+- Preserves audit trails
+- Allows restoration of accidentally deleted data
+- Maintains referential integrity
+- Historical reporting remains intact
+
+**Other Entities:**
+- **Hard deletes** - Most entities use `onDelete: Cascade` (e.g., StockLedger, AuditEvent)
+- Append-only tables never delete (e.g., StockLedger, AuditEvent)
 
 #### 3. FIFO Stock Management
 
@@ -497,6 +590,266 @@ model Product {
 - `@@index([tenantId, branchId, productId, receivedAt])` - FIFO lot scanning
 - `@@index([tenantId, createdAt])` - Audit log pagination
 - `@@index([correlationId])` - Request tracing
+
+---
+
+## Feature Flags System
+
+### Overview
+
+The system implements per-tenant feature flags using a JSON column in the `Tenant` table. This allows features to be enabled/disabled on a tenant-by-tenant basis without code changes.
+
+**Technology:**
+- Storage: JSON column in PostgreSQL (`Tenant.featureFlags`)
+- Backend: Propagated in auth response
+- Frontend: React hooks (`useFeatureFlag`)
+
+### Implementation
+
+**Database Schema:**
+```prisma
+model Tenant {
+  id           String  @id @default(cuid())
+  tenantSlug   String  @unique
+  tenantName   String
+  featureFlags Json?   // {"barcodeScanningEnabled": false, ...}
+  ...
+}
+```
+
+**Example Feature Flags:**
+```json
+{
+  "barcodeScanningEnabled": false,
+  "barcodeScanningMode": null
+}
+```
+
+**Current Flags:**
+- `barcodeScanningEnabled` - Enable/disable barcode scanning UI
+- `barcodeScanningMode` - Scanning mode: `null`, `"camera"`, `"manual"`
+
+### Flag Propagation Flow
+
+```
+1. User authenticates → GET /api/auth/me
+2. Backend loads tenant with featureFlags
+3. Auth response includes featureFlags:
+   {
+     user: {...},
+     tenant: {...},
+     featureFlags: {
+       barcodeScanningEnabled: false,
+       barcodeScanningMode: null
+     }
+   }
+4. Frontend stores in auth store (Zustand)
+5. Components check flags via useFeatureFlag hook
+```
+
+### Frontend Usage
+
+**Hook:**
+```typescript
+import { useFeatureFlag } from '@/hooks/useFeatureFlag';
+
+function ProductPage() {
+  const barcodeScanningEnabled = useFeatureFlag('barcodeScanningEnabled');
+
+  return (
+    <div>
+      {barcodeScanningEnabled && (
+        <Button onClick={openScanner}>Scan Barcode</Button>
+      )}
+    </div>
+  );
+}
+```
+
+**Store:**
+```typescript
+// stores/auth.ts
+interface AuthStore {
+  featureFlags: Record<string, any>;
+  // ...
+}
+
+const useAuthStore = create<AuthStore>((set) => ({
+  featureFlags: {},
+  // ...
+}));
+```
+
+### Benefits
+
+- **No code deployment** - Toggle features without deploying
+- **Gradual rollout** - Enable for specific tenants first
+- **A/B testing** - Test features with subset of users
+- **Emergency disable** - Quickly disable problematic features
+- **Tenant-specific** - Different tenants can have different features
+
+### Adding New Flags
+
+1. **Add to Tenant.featureFlags** - No schema change needed (JSON)
+2. **Update auth response** - Include in GET /api/auth/me
+3. **Use in frontend** - `useFeatureFlag('newFeature')`
+4. **Set via admin** - Update tenant's featureFlags JSON
+
+---
+
+## Barcode Scanning
+
+### Overview
+
+The system supports barcode scanning for products to streamline stock receiving and product lookup. Scanning is controlled per-tenant via feature flags.
+
+**Supported Barcode Formats:**
+- **EAN-13** - 13-digit European Article Number (most common)
+- **UPC-A** - 12-digit Universal Product Code
+- **CODE-128** - Variable-length alphanumeric
+- **QR Code** - 2D matrix barcode
+
+**Use Cases:**
+- Product lookup during stock receiving
+- Quick product search in stock transfers
+- Bulk receiving workflow (scan to receive)
+- Product verification
+
+### Database Schema
+
+```prisma
+model Product {
+  id          String  @id @default(cuid())
+  tenantId    String
+  productName String
+  productSku  String
+  barcode     String?  // Barcode value
+  barcodeType String?  // "EAN13", "UPCA", "CODE128", "QR"
+  ...
+  @@unique([tenantId, barcode])  // Barcode unique per tenant
+  @@index([barcode])             // Fast barcode lookup
+}
+```
+
+**Uniqueness:**
+- Barcodes are unique per tenant (not globally)
+- Same barcode can exist in different tenants
+- Prevents duplicate barcodes within one organization
+
+### API Endpoint
+
+**GET /api/products/by-barcode/:barcode**
+
+```typescript
+// Request
+GET /api/products/by-barcode/5012345678901?branchId=branch_123
+
+// Response
+{
+  "success": true,
+  "data": {
+    "id": "product_abc",
+    "productName": "Coffee Beans 1kg",
+    "productSku": "COFFEE-001",
+    "barcode": "5012345678901",
+    "barcodeType": "EAN13",
+    "productPricePence": 1500,
+    "stock": {
+      "branchId": "branch_123",
+      "qtyOnHand": 45,
+      "qtyAvailable": 40
+    }
+  }
+}
+```
+
+**Features:**
+- Tenant-scoped lookup (automatic via auth)
+- Optional branch stock level
+- Returns full product details
+- 404 if barcode not found
+
+### Frontend Implementation
+
+**Scanner Modal UI:**
+```
+┌──────────────────────────────────┐
+│  Scan Product Barcode            │
+├──────────────────────────────────┤
+│  [Camera View]                   │
+│  ┌────────────────────────────┐  │
+│  │                            │  │
+│  │   [Scanning frame]         │  │
+│  │                            │  │
+│  └────────────────────────────┘  │
+│                                  │
+│  Or enter manually:              │
+│  [____________] [Lookup]         │
+│                                  │
+│  [Cancel] [Switch to Manual]    │
+└──────────────────────────────────┘
+```
+
+**Modes:**
+- **Camera mode** - Uses device camera to scan barcode
+- **Manual mode** - Type barcode manually (fallback)
+- **Toggle** - Switch between modes
+
+**Workflow:**
+```typescript
+1. User clicks "Scan Barcode" button
+2. Check feature flag (barcodeScanningEnabled)
+3. Open scanner modal
+4. User scans barcode OR enters manually
+5. Call GET /api/products/by-barcode/{barcode}
+6. Display product info
+7. User confirms → add to transfer/receipt
+```
+
+### Bulk Receive Workflow
+
+**Use Case:** Receive multiple products quickly by scanning
+
+```
+1. Navigate to Receive Stock page
+2. Select branch
+3. Click "Scan to Receive"
+4. Scan product barcode → Product added
+5. Enter quantity → Item saved
+6. Scan next product → Repeat
+7. Submit all items → Create stock receipt
+```
+
+**Benefits:**
+- 10x faster than manual entry
+- Reduces SKU lookup errors
+- Improves warehouse efficiency
+- Real-time stock level feedback
+
+### Feature Flag Control
+
+```json
+{
+  "barcodeScanningEnabled": true,
+  "barcodeScanningMode": "camera"
+}
+```
+
+**Modes:**
+- `null` - Disabled
+- `"camera"` - Enable camera scanning
+- `"manual"` - Manual entry only (no camera)
+
+### Technical Details
+
+**Frontend Library:** (To be determined based on implementation)
+- Options: `react-zxing`, `quagga2`, `zxing-js`
+- Requirements: Camera access, barcode detection
+
+**Browser Support:**
+- Camera API requires HTTPS (except localhost)
+- Fallback to manual entry if camera unavailable
+- Progressive enhancement
 
 ---
 
@@ -734,13 +1087,303 @@ jobs:
 
 ---
 
-## Related Documentation
+## AI Integration
 
-- [Database Schema Reference](./database_schema.md)
-- [RBAC System Design](./rbac_system.md)
-- [Stock Management System](./stock_management.md)
+### Overview
+
+The system includes an AI chatbot assistant powered by OpenAI GPT-4o that helps users query and interact with the inventory management system through natural language. The AI integration uses the Vercel AI SDK v5 for streaming responses and tool calling.
+
+**Key Features:**
+- Natural language queries for stock transfers, products, inventory, and analytics
+- RAG (Retrieval-Augmented Generation) for documentation search
+- Multi-turn conversation persistence
+- 23 specialized tools across 8 categories
+- Branch membership-based security filtering
+- Real-time data access
+- Usage analytics tracking
+
+### Architecture
+
+```
+┌─────────────────────────────────────────┐
+│         Frontend (useChat hook)         │
+│  - React component with chat UI         │
+│  - Streaming message display            │
+└─────────────────────────────────────────┘
+                  ↓ POST /api/chat
+┌─────────────────────────────────────────┐
+│         Chat Router (Express)           │
+│  - Authentication middleware            │
+│  - Request validation                   │
+└─────────────────────────────────────────┘
+                  ↓
+┌─────────────────────────────────────────┐
+│         Chat Service                    │
+│  - Build system message (context)       │
+│  - RAG: Search documentation            │
+│  - Stream response from OpenAI          │
+│  - Save conversation history            │
+└─────────────────────────────────────────┘
+                  ↓
+┌─────────────────────────────────────────┐
+│         OpenAI GPT-4o                   │
+│  - 23 tools (8 categories)              │
+│  - Tool calling (function calling)      │
+│  - Streaming text generation            │
+└─────────────────────────────────────────┘
+                  ↓
+┌─────────────────────────────────────────┐
+│         AI Tools                        │
+│  - Transfer, Product, Stock Tools       │
+│  - Branch, User, Template Tools         │
+│  - Approval, Analytics Tools            │
+│  - All call existing service functions  │
+└─────────────────────────────────────────┘
+                  ↓
+┌─────────────────────────────────────────┐
+│         Service Layer                   │
+│  - Business logic                       │
+│  - Security enforcement                 │
+│  - Branch membership filtering          │
+└─────────────────────────────────────────┘
+                  ↓
+┌─────────────────────────────────────────┐
+│         PostgreSQL Database             │
+│  - ChatConversation (threading)         │
+│  - ChatMessage (history)                │
+│  - DocumentChunk (RAG vectors)          │
+│  - ChatAnalytics (usage tracking)       │
+└─────────────────────────────────────────┘
+```
+
+### RAG (Retrieval-Augmented Generation)
+
+**Purpose:** Enable the AI to answer "how-to" questions using actual project documentation
+
+**Components:**
+1. **Document Ingestion** - Parse markdown docs into sections, generate embeddings
+2. **Vector Storage** - Store embeddings in PostgreSQL with pgvector extension
+3. **Semantic Search** - Find relevant docs using cosine similarity
+4. **Context Injection** - Include relevant docs in system message
+
+**Technology:**
+- Embedding model: `text-embedding-3-small` (OpenAI)
+- Vector dimensions: 1536
+- Database: PostgreSQL with pgvector extension
+- Similarity metric: Cosine similarity (1 - cosine distance)
+
+**Workflow:**
+```typescript
+// 1. Ingest documentation (one-time or when docs change)
+await ingestDocument('docs/stock-transfers/overview.md');
+// - Parses markdown by headings (## and ###)
+// - Generates embeddings for each section
+// - Stores in DocumentChunk table with vector column
+
+// 2. Search at query time
+const relevantDocs = await searchDocumentation(userQuery, limit=3, threshold=0.7);
+// - Generates embedding for user query
+// - Finds top K chunks with similarity > 0.7
+// - Returns documentation sections
+
+// 3. Inject into system message
+const systemMessage = buildSystemMessage({
+  ...,
+  relevantDocs, // Included in AI's context
+});
+```
+
+**Ingestion Script:**
+```bash
+cd api-server
+npm run ingest-docs  # Runs scripts/ingestDocs.ts
+```
+
+### AI Tools
+
+The chatbot has 23 specialized tools across 8 categories:
+
+| Category | Tools | Purpose |
+|----------|-------|---------|
+| **Stock Transfers** | searchTransfers, getTransferDetails, getApprovalStatus | Query and monitor transfer requests |
+| **Products** | searchProducts, getProductDetails, checkStockLevels | Product catalog and inventory queries |
+| **Stock Management** | receiveStock, adjustStock, getStockMovements, getLotDetails | Inventory operations and FIFO tracking |
+| **Branches** | listBranches, getBranchStats | Branch information and performance |
+| **Users** | searchUsers, getUserDetails, listRoles, getRolePermissions | User management and permissions |
+| **Templates** | listTemplates, getTemplateDetails | Transfer template management |
+| **Approvals** | getApprovalRules, explainApprovalRequirements | Approval workflow queries |
+| **Analytics** | getTransferMetrics, getPerformanceMetrics, getValueReports | Business intelligence and reporting |
+
+**Tool Design Pattern:**
+```typescript
+// All tools follow the same pattern:
+export function productTools({ userId, tenantId }: { userId: string; tenantId: string }) {
+  return {
+    searchProducts: tool({
+      description: 'Search products by name or SKU',
+      inputSchema: z.object({
+        query: z.string().describe('Search query'),
+        limit: z.number().optional().default(5),
+      }),
+      execute: async ({ query, limit }) => {
+        // SECURITY: Call existing service function (no direct DB queries)
+        const products = await productService.searchProducts({
+          tenantId,
+          userId,
+          query,
+          limit,
+        });
+        return products; // Service handles branch filtering and permissions
+      },
+    }),
+  };
+}
+```
+
+**Security Model:**
+- Tools never query database directly
+- All tools call existing service functions
+- Service layer enforces tenant isolation and branch membership filtering
+- Tools inherit security from service layer (single source of truth)
+
+### Conversation Persistence
+
+**Multi-Turn Conversations:**
+- Each conversation has a unique ID
+- Messages stored in chronological order
+- Conversation title auto-generated from first message
+- Users can only access their own conversations
+
+**Models:**
+- `ChatConversation` - Conversation metadata (id, tenantId, userId, title, createdAt, updatedAt)
+- `ChatMessage` - Individual messages (id, conversationId, role, content, createdAt)
+
+**Workflow:**
+1. User starts conversation → Create `ChatConversation` + first `ChatMessage`
+2. User sends message → Add `ChatMessage` with role='user'
+3. AI responds → Add `ChatMessage` with role='assistant' (includes tool calls)
+4. User continues → Resume conversation by ID
+
+**Data Model:**
+```typescript
+interface ConversationWithMessages {
+  id: string;
+  tenantId: string;
+  userId: string;
+  title: string; // First 50 chars of first message
+  createdAt: Date;
+  updatedAt: Date;
+  messages: ChatMessage[];
+}
+
+interface ChatMessage {
+  id: string;
+  conversationId: string;
+  role: 'user' | 'assistant' | 'system';
+  content: any; // JSON (parts array from AI SDK v5)
+  createdAt: Date;
+}
+```
+
+### Analytics Tracking
+
+**Metrics Collected:**
+- Daily conversations started
+- Daily messages sent (user + assistant)
+- Unique users per day
+- Tool usage counts (which tools used how often)
+- Average messages per conversation
+
+**Model:**
+```typescript
+interface ChatAnalytics {
+  id: string;
+  tenantId: string;
+  date: Date; // Date only (no time)
+  totalConversations: number;
+  totalMessages: number;
+  uniqueUsers: number;
+  toolCalls: Record<string, number>; // JSON: { "searchTransfers": 42, ... }
+  avgMessagesPerConversation: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+**Aggregation:**
+- Daily metrics aggregated per tenant
+- Tool calls tracked in JSON column
+- Analytics updated in `onFinish` callback of streaming response
+
+### OpenAI Integration
+
+**Model:** `gpt-4o` (GPT-4 Omni)
+
+**Configuration:**
+- Temperature: 0.7 (balanced creativity vs consistency)
+- Max steps: 10 (prevents infinite tool calling loops)
+- Streaming: Yes (Server-Sent Events for real-time response)
+
+**Environment Variables:**
+```bash
+OPENAI_API_KEY=sk-...  # Required
+```
+
+**Request Flow:**
+1. Build system message with user context + RAG docs
+2. Convert UI messages to model format (AI SDK v5)
+3. Call `streamText()` with tools
+4. AI decides which tools to call (function calling)
+5. Tools execute and return results
+6. AI synthesizes final response
+7. Stream response to client via SSE
+8. Save conversation + analytics in `onFinish` callback
+
+### Streaming Pattern
+
+**Technology:** Server-Sent Events (SSE) via Vercel AI SDK
+
+**Backend:**
+```typescript
+const result = await streamText({
+  model: openai('gpt-4o'),
+  system: systemMessage,
+  messages: modelMessages,
+  tools: { ...transferTools, ...productTools, ... },
+});
+
+// Convert to UI stream format and pipe to response
+const uiMessageStream = result.toUIMessageStream();
+pipeUIMessageStreamToResponse({ response: res, stream: uiMessageStream });
+```
+
+**Frontend:**
+```typescript
+import { useChat } from 'ai/react';
+
+const { messages, input, handleSubmit, isLoading } = useChat({
+  api: '/api/chat',
+  // Handles SSE stream automatically
+});
+```
+
+**Benefits:**
+- Real-time response (no waiting for full completion)
+- Better UX for long responses
+- Shows tool calling progress
+- Lower perceived latency
 
 ---
 
-**Last Updated:** 2025-10-11
+## Related Documentation
+
+- [Database Schema Reference](./database-schema.md)
+- [RBAC System Design](./rbac-system.md)
+- [Stock Management System](./stock-management.md)
+- [AI Chatbot System](./Domain/ai-chatbot.md)
+- [Stock Transfer System](./Domain/transfers.md)
+
+---
+
+**Last Updated:** 2025-10-19
 **Document Version:** 1.0

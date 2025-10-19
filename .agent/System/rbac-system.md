@@ -63,6 +63,7 @@ The system implements a comprehensive Role-Based Access Control (RBAC) system wi
 | `stock:read` | View branch stock, lots, and movements | ALL |
 | `stock:write` | Receive and adjust stock | OWNER, ADMIN |
 | `stock:allocate` | Allocate/consume stock for orders | OWNER, ADMIN, EDITOR |
+| `reports:view` | View analytics reports and dashboards | OWNER, ADMIN |
 
 ### Permission Naming Convention
 
@@ -98,6 +99,7 @@ The system implements a comprehensive Role-Based Access Control (RBAC) system wi
   'users:manage', 'roles:manage', 'tenant:manage',
   'theme:manage', 'uploads:write',
   'branches:manage', 'stock:read', 'stock:write', 'stock:allocate',
+  'reports:view',
 ]
 ```
 
@@ -118,6 +120,7 @@ The system implements a comprehensive Role-Based Access Control (RBAC) system wi
   'users:manage',
   'theme:manage', 'uploads:write',
   'branches:manage', 'stock:read', 'stock:write', 'stock:allocate',
+  'reports:view',
 ]
 ```
 
@@ -169,7 +172,6 @@ The system implements a comprehensive Role-Based Access Control (RBAC) system wi
 **Use Cases:**
 - View product catalog
 - View inventory levels
-- Reporting/analytics (future)
 - External stakeholders (e.g., accountants)
 
 ---
@@ -937,5 +939,5 @@ if (role.isSystem) {
 
 ---
 
-**Last Updated:** 2025-10-11
-**Document Version:** 1.0
+**Last Updated:** 2025-10-19
+**Document Version:** 1.1
