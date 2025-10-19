@@ -84,12 +84,14 @@ chatRouter.get(
   requireAuthenticatedUserMiddleware,
   async (req, res, next) => {
     try {
-      const { conversationId } = req.params;
+      const conversationId = req.params.conversationId as string;
+      const userId = req.currentUserId as string;
+      const tenantId = req.currentTenantId as string;
 
       const conversation = await conversationService.getConversation({
         conversationId,
-        userId: req.currentUserId!,
-        tenantId: req.currentTenantId!,
+        userId,
+        tenantId,
       });
 
       if (!conversation) {
@@ -121,12 +123,14 @@ chatRouter.delete(
   requireAuthenticatedUserMiddleware,
   async (req, res, next) => {
     try {
-      const { conversationId } = req.params;
+      const conversationId = req.params.conversationId as string;
+      const userId = req.currentUserId as string;
+      const tenantId = req.currentTenantId as string;
 
       await conversationService.deleteConversation({
         conversationId,
-        userId: req.currentUserId!,
-        tenantId: req.currentTenantId!,
+        userId,
+        tenantId,
       });
 
       return res.json({
@@ -147,8 +151,10 @@ chatRouter.patch(
   requireAuthenticatedUserMiddleware,
   async (req, res, next) => {
     try {
-      const { conversationId } = req.params;
+      const conversationId = req.params.conversationId as string;
       const { title } = req.body;
+      const userId = req.currentUserId as string;
+      const tenantId = req.currentTenantId as string;
 
       if (!title || typeof title !== 'string') {
         return res.status(400).json({
@@ -163,8 +169,8 @@ chatRouter.patch(
 
       const updated = await conversationService.updateConversationTitle({
         conversationId,
-        userId: req.currentUserId!,
-        tenantId: req.currentTenantId!,
+        userId,
+        tenantId,
         title,
       });
 

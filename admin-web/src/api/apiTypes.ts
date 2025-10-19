@@ -1,4 +1,12 @@
 // admin-web/src/api/apiTypes.ts
+//
+// This file contains ONLY generic API envelope types that are not endpoint-specific.
+// All endpoint-specific types (ProductRecord, MeResponseData, PermissionKey, etc.)
+// should be imported from the auto-generated OpenAPI types at src/types/openapi.d.ts
+// via components["schemas"]["TypeName"].
+//
+// See: https://github.com/drwpow/openapi-typescript for usage patterns.
+
 export type StandardSuccessResponse<T> = { success: true; data: T; error: null }
 
 export type StandardError = {
@@ -8,50 +16,7 @@ export type StandardError = {
   developerMessage?: string
   correlationId?: string | null
 }
+
 export type StandardErrorResponse = { success: false; data: null; error: StandardError }
 
 export type ApiEnvelope<T> = StandardSuccessResponse<T> | StandardErrorResponse
-
-// ----- RBAC types -----
-export type PermissionKey =
-  | 'products:read'
-  | 'products:write'
-  | 'users:manage'
-  | 'roles:manage'
-  | 'tenant:manage'
-  | 'theme:manage'
-  | 'uploads:write'
-
-export type RoleBrief = {
-  id: string
-  name: string // free-form (e.g. "OWNER", "ADMIN", or custom)
-}
-
-export type MeResponseData = {
-  user: {
-    id: string
-    userEmailAddress: string
-  }
-  tenantMemberships: Array<{
-    tenantSlug: string
-    role: RoleBrief
-  }>
-  currentTenant: {
-    tenantId: string
-    tenantSlug: string
-    role: RoleBrief
-  } | null
-  permissionsCurrentTenant: PermissionKey[]
-}
-
-// ----- Products -----
-export type ProductRecord = {
-  id: string
-  tenantId: string
-  productName: string
-  productSku: string
-  productPricePence: number
-  entityVersion: number
-  createdAt: string
-  updatedAt: string
-}

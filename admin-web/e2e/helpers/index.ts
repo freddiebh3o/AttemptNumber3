@@ -16,7 +16,7 @@
  */
 
 // Auth helpers
-export { signIn, signOut, switchUser, TEST_USERS, type TestUser } from './auth';
+export { signIn, signOut, switchUser, TEST_USERS, type TestUser, type TestUserCredentials } from './auth';
 
 // API helpers
 export { getApiUrl, getCookieHeader, makeAuthenticatedRequest } from './api-helpers';

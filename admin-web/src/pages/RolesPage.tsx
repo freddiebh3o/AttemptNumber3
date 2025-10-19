@@ -48,7 +48,6 @@ import {
 } from "@tabler/icons-react";
 import {
   listRolesApiRequest,
-  deleteRoleApiRequest,
   listPermissionsApiRequest,
   type PermissionRecord,
   type PermissionKey,
@@ -667,25 +666,6 @@ export default function RolesPage() {
   }
 
   // actions
-  async function handleDelete(role: RoleRecord) {
-    try {
-      const res = await deleteRoleApiRequest(
-        role.id,
-        `delete-${role.id}-${Date.now()}`
-      );
-      if (res.success) {
-        notifications.show({ color: "green", message: "Role deleted" });
-        resetToFirstPageAndFetch();
-      }
-    } catch (e: any) {
-      const msg =
-        e?.details?.error?.errorCode === "CONFLICT"
-          ? e?.details?.error?.userFacingMessage ?? "Role is in use by users"
-          : e?.message ?? "Delete failed";
-      notifications.show({ color: "red", message: msg });
-    }
-  }
-
   async function copyShareableLink() {
     const href = window.location.href;
     try {

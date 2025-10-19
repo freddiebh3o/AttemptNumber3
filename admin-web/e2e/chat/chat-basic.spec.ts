@@ -16,7 +16,7 @@
  *   cd admin-web && npm run test:accept -- chat/chat-basic.spec.ts
  */
 import { test, expect } from '@playwright/test';
-import { signIn, TEST_USERS, openChatModal } from '../helpers';
+import { signIn, TEST_USERS } from '../helpers';
 
 test.describe('AI Chat Assistant', () => {
   test.beforeEach(async ({ context, page }) => {

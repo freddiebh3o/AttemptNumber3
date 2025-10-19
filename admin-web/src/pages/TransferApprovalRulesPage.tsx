@@ -26,7 +26,6 @@ import {
 import {
   IconRefresh,
   IconPlus,
-  IconTrash,
   IconLink,
   IconEdit,
   IconChevronDown,

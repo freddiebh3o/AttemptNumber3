@@ -24,7 +24,7 @@ export async function recordConversationStarted({
   userId: string;
   date: Date;
 }): Promise<void> {
-  const dateOnly = new Date(date.toISOString().split('T')[0]);
+  const dateOnly = new Date(date.toISOString().split('T')[0]!);
 
   // Upsert analytics record for the day
   await prismaClientInstance.chatAnalytics.upsert({
@@ -60,7 +60,7 @@ export async function recordMessages({
   date: Date;
   count: number;
 }): Promise<void> {
-  const dateOnly = new Date(date.toISOString().split('T')[0]);
+  const dateOnly = new Date(date.toISOString().split('T')[0]!);
 
   await prismaClientInstance.chatAnalytics.upsert({
     where: {
@@ -94,7 +94,7 @@ export async function recordToolUsage({
   date: Date;
   toolName: string;
 }): Promise<void> {
-  const dateOnly = new Date(date.toISOString().split('T')[0]);
+  const dateOnly = new Date(date.toISOString().split('T')[0]!);
 
   // Get current analytics record
   const analytics = await prismaClientInstance.chatAnalytics.findUnique({
@@ -146,7 +146,7 @@ export async function updateUniqueUsersCount({
   tenantId: string;
   date: Date;
 }): Promise<void> {
-  const dateOnly = new Date(date.toISOString().split('T')[0]);
+  const dateOnly = new Date(date.toISOString().split('T')[0]!);
   const nextDay = new Date(dateOnly);
   nextDay.setDate(nextDay.getDate() + 1);
 
@@ -196,7 +196,7 @@ export async function updateAverageMetrics({
   tenantId: string;
   date: Date;
 }): Promise<void> {
-  const dateOnly = new Date(date.toISOString().split('T')[0]);
+  const dateOnly = new Date(date.toISOString().split('T')[0]!);
   const nextDay = new Date(dateOnly);
   nextDay.setDate(nextDay.getDate() + 1);
 

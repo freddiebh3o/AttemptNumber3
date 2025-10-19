@@ -1,6 +1,6 @@
 // admin-web/e2e/features/feature-flags.spec.ts
 import { test, expect } from '@playwright/test';
-import { signIn, Factories } from '../helpers';
+import { signIn, Factories, type TestUserCredentials } from '../helpers';
 
 /**
  * Feature Flags Tests
@@ -19,12 +19,12 @@ import { signIn, Factories } from '../helpers';
 const TEST_USERS_ACME = {
   owner: { email: 'owner@acme.test', password: 'Password123!', tenant: 'acme' },
   editor: { email: 'editor@acme.test', password: 'Password123!', tenant: 'acme' },
-};
+} satisfies Record<string, TestUserCredentials>;
 
 const TEST_USERS_GLOBEX = {
   // mixed@both.test has membership in both tenants
   viewer: { email: 'mixed@both.test', password: 'Password123!', tenant: 'globex' },
-};
+} satisfies Record<string, TestUserCredentials>;
 
 // Check API server health before tests
 test.beforeAll(async () => {

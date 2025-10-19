@@ -29,11 +29,11 @@ export const Errors = {
       ...(dev !== undefined && { developerMessage: dev }),
     });
   },
-  authRequired() {
+  authRequired(userMsg = "Please sign in to continue.") {
     return new HttpError({
       httpStatusCode: 401,
       errorCode: "AUTH_REQUIRED",
-      userFacingMessage: "Please sign in to continue.",
+      userFacingMessage: userMsg,
     });
   },
   permissionDenied() {

@@ -25,7 +25,7 @@ import { notifications } from "@mantine/notifications";
 import {
   listProductsApiRequest,
 } from "../api/products";
-import type { ProductRecord } from "../api/apiTypes";
+import type { components } from "../types/openapi";
 import {
   IconRefresh,
   IconArrowsSort,
@@ -93,7 +93,7 @@ export default function ProductsPage() {
   // Data & paging state
   const [isLoadingProductsList, setIsLoadingProductsList] = useState(false);
   const [productsListRecords, setProductsListRecords] = useState<
-    ProductRecord[] | null
+    components["schemas"]["ProductRecord"][] | null
   >(null);
   const [errorForBoundary, setErrorForBoundary] = useState<
     (Error & { httpStatusCode?: number; correlationId?: string }) | null
