@@ -78,6 +78,36 @@ await prisma.tenant.update({
 });
 ```
 
+## Managing Feature Flags via UI
+
+### Features Page (`/settings/features`)
+
+Tenants can manage their own feature flags through the **System > Features** page in the admin UI.
+
+**Requirements:**
+- User must have `theme:manage` permission (owner/admin roles)
+- Accessible via sidebar: System > Features
+
+**Available Settings:**
+1. **AI Chat Assistant**
+   - Toggle: Enable/disable chat assistant feature
+   - Input: OpenAI API Key (optional, password-masked)
+   - Help text: "Leave blank to use system default"
+
+2. **Barcode Scanning**
+   - Toggle: Enable/disable barcode scanning feature
+   - Help text: "Allow users to scan product barcodes with camera"
+
+**API Endpoints Used:**
+```typescript
+GET /api/tenants/:tenantSlug/feature-flags
+PUT /api/tenants/:tenantSlug/feature-flags
+```
+
+**Validation:**
+- OpenAI API key must start with `sk-` if provided
+- Partial updates supported (only changed fields are updated)
+
 ## Frontend Usage
 
 ### 1. Accessing Feature Flags
@@ -90,11 +120,15 @@ import { useFeatureFlag } from '@/hooks/useFeatureFlag';
 
 function MyComponent() {
   const barcodeScanningEnabled = useFeatureFlag('barcodeScanningEnabled');
+  const chatAssistantEnabled = useFeatureFlag('chatAssistantEnabled');
 
   return (
     <>
       {barcodeScanningEnabled && (
         <Button>Scan Barcode</Button>
+      )}
+      {chatAssistantEnabled && (
+        <ChatTriggerButton />
       )}
     </>
   );
@@ -236,6 +270,30 @@ test('should hide feature when flag disabled', async ({ page }) => {
 
 ## Current Feature Flags
 
+### `chatAssistantEnabled` (boolean)
+- **Default**: `false`
+- **Purpose**: Controls whether the AI Chat Assistant feature is available for the tenant
+- **Affects**:
+  - Visibility of chat trigger button in the UI
+  - Access to `/api/chat` endpoint
+  - Whether tenant's OpenAI API key is used (if provided)
+- **UI Management**: Configurable via **System > Features** page (requires `theme:manage` permission)
+- **Cost Control**: When enabled, tenant can provide their own OpenAI API key to control costs
+- **Related Flags**: Works with `openaiApiKey` (string | null) for tenant-specific API keys
+- **Test Tenant**: Can be enabled per tenant via Features page
+
+### `openaiApiKey` (string | null)
+- **Default**: `null`
+- **Purpose**: Tenant-specific OpenAI API key for the AI Chat Assistant
+- **Validation**: Must start with `sk-` if provided
+- **Fallback**: If not provided, uses server's `OPENAI_API_KEY` environment variable
+- **Security**: Stored in plaintext (MVP), password-masked in UI
+- **UI Management**: Configurable via **System > Features** page (requires `theme:manage` permission)
+- **Cost Allocation**:
+  - If provided: All chat costs billed to tenant's OpenAI account
+  - If null: All chat costs billed to server's OpenAI account
+- **Related Documentation**: [AI Chatbot System - Tenant-Specific API Keys](../System/Domain/ai-chatbot.md#tenant-specific-api-keys)
+
 ### `barcodeScanningEnabled` (boolean)
 - **Default**: `false`
 - **Purpose**: Controls whether barcode scanning features are available
@@ -243,6 +301,7 @@ test('should hide feature when flag disabled', async ({ page }) => {
   - "Scan to Receive" button on stock transfer detail page
   - Barcode fields on product edit page
   - Barcode API endpoints (optional enforcement)
+- **UI Management**: Configurable via **System > Features** page (requires `theme:manage` permission)
 - **Test Tenant**: ACME (`barcodeScanningEnabled: true`)
 
 ### `barcodeScanningMode` (string | null)
@@ -369,6 +428,6 @@ const mode = featureFlags.barcodeScanningMode as 'camera' | 'hardware' | 'both' 
 
 ---
 
-**Last Updated**: 2025-01-14
-**Version**: 1.0
-**Status**: Phase 1 Complete
+**Last Updated**: 2025-10-20
+**Version**: 1.1
+**Status**: Phase 2 Complete (UI Management Added)

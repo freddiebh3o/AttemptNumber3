@@ -1,6 +1,7 @@
 // api-server/src/services/chat/chatService.ts
 import { streamText, convertToModelMessages, stepCountIs, pipeUIMessageStreamToResponse } from 'ai';
 import { openai } from '@ai-sdk/openai';
+import { createOpenAI } from '@ai-sdk/openai';
 import type { Response } from 'express';
 import { prismaClientInstance } from '../../db/prismaClient.js';
 import { getPermissionKeysForUserInTenant } from '../permissionService.js';
@@ -21,6 +22,8 @@ import {
   type ConversationWithMessages,
 } from './conversationService.js';
 import { recordConversationStarted, recordMessages, recordToolUsage } from './analyticsService.js';
+import { getOpenAIApiKey } from './apiKeyService.js';
+import { Errors } from '../../utils/httpErrors.js';
 
 /**
  * Stream chat response to client
@@ -182,9 +185,21 @@ export async function streamChatResponse({
   // Convert messages to model format (removes UI-specific fields)
   const modelMessages = convertToModelMessages(messages);
 
+  // Get tenant-specific or server-fallback OpenAI API key
+  const apiKey = await getOpenAIApiKey({ tenantId });
+
+  if (!apiKey) {
+    throw Errors.internal(
+      'OpenAI API key not configured. Please configure an OpenAI API key in your tenant settings or contact your system administrator.'
+    );
+  }
+
+  // Create OpenAI client with tenant-specific API key
+  const openaiClient = createOpenAI({ apiKey });
+
   // Stream response from OpenAI with all Phase 2 tools (20 tools across 8 categories)
   const result = await streamText({
-    model: openai('gpt-4o'),
+    model: openaiClient('gpt-4o'),
     system: systemMessage,
     messages: modelMessages,
     tools: {

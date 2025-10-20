@@ -29,6 +29,7 @@ import TransferTemplatesPage from './pages/TransferTemplatesPage'
 import TransferApprovalRulesPage from './pages/TransferApprovalRulesPage'
 import TransferAnalyticsPage from './pages/TransferAnalyticsPage'
 import { ChatAnalyticsPage } from './pages/ChatAnalyticsPage'
+import FeatureSettingsPage from './pages/FeatureSettingsPage'
 
 const router = createBrowserRouter([
   {
@@ -116,14 +117,23 @@ const router = createBrowserRouter([
             ),
             errorElement: <RouteErrorBoundary />,
           },
-          { 
-            path: 'settings/theme', 
+          {
+            path: 'settings/theme',
             element: (
               <RequirePermission perm="theme:manage">
                 <ThemePage />
               </RequirePermission>
-            ), 
-            errorElement: <RouteErrorBoundary /> 
+            ),
+            errorElement: <RouteErrorBoundary />
+          },
+          {
+            path: 'settings/features',
+            element: (
+              <RequirePermission perm="theme:manage">
+                <FeatureSettingsPage />
+              </RequirePermission>
+            ),
+            errorElement: <RouteErrorBoundary />
           },
           {
             path: 'roles',

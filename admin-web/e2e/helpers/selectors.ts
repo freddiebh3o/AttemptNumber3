@@ -174,6 +174,17 @@ export const SELECTORS = {
   },
 
   /**
+   * Feature settings selectors
+   */
+  FEATURES: {
+    NAV_LINK: 'nav-features',
+    TOGGLE_CHAT_ASSISTANT: 'toggle-chat-assistant',
+    INPUT_OPENAI_API_KEY: 'input-openai-api-key',
+    TOGGLE_BARCODE_SCANNING: 'toggle-barcode-scanning',
+    BTN_SAVE_FEATURES: 'btn-save-features',
+  },
+
+  /**
    * Common UI element selectors
    */
   COMMON: {

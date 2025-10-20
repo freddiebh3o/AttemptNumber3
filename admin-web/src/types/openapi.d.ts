@@ -18,6 +18,7 @@ export interface paths {
                     q?: string;
                     sourceBranchId?: string;
                     destinationBranchId?: string;
+                    archivedFilter?: "active-only" | "archived-only" | "all";
                     limit?: string;
                     cursor?: string;
                 };
@@ -45,6 +46,9 @@ export interface paths {
                                     sourceBranchId: string;
                                     destinationBranchId: string;
                                     createdByUserId: string;
+                                    isArchived: boolean;
+                                    archivedAt: string | null;
+                                    archivedByUserId: string | null;
                                     items: {
                                         id: string;
                                         templateId: string;
@@ -127,6 +131,9 @@ export interface paths {
                                 sourceBranchId: string;
                                 destinationBranchId: string;
                                 createdByUserId: string;
+                                isArchived: boolean;
+                                archivedAt: string | null;
+                                archivedByUserId: string | null;
                                 items: {
                                     id: string;
                                     templateId: string;
@@ -205,6 +212,9 @@ export interface paths {
                                 sourceBranchId: string;
                                 destinationBranchId: string;
                                 createdByUserId: string;
+                                isArchived: boolean;
+                                archivedAt: string | null;
+                                archivedByUserId: string | null;
                                 items: {
                                     id: string;
                                     templateId: string;
@@ -243,7 +253,7 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        /** Delete template */
+        /** Archive template (soft delete) */
         delete: {
             parameters: {
                 query?: never;
@@ -265,7 +275,46 @@ export interface paths {
                             /** @enum {boolean} */
                             success: true;
                             data: {
-                                success: boolean;
+                                id: string;
+                                tenantId: string;
+                                name: string;
+                                description: string | null;
+                                sourceBranchId: string;
+                                destinationBranchId: string;
+                                createdByUserId: string;
+                                isArchived: boolean;
+                                archivedAt: string | null;
+                                archivedByUserId: string | null;
+                                items: {
+                                    id: string;
+                                    templateId: string;
+                                    productId: string;
+                                    defaultQty: number;
+                                    product: {
+                                        id: string;
+                                        productName: string;
+                                        productSku: string;
+                                        productPricePence: number;
+                                    };
+                                    createdAt: string;
+                                    updatedAt: string;
+                                }[];
+                                sourceBranch: {
+                                    id: string;
+                                    branchName: string;
+                                    branchSlug: string;
+                                };
+                                destinationBranch: {
+                                    id: string;
+                                    branchName: string;
+                                    branchSlug: string;
+                                };
+                                createdByUser: {
+                                    id: string;
+                                    userEmailAddress: string;
+                                };
+                                createdAt: string;
+                                updatedAt: string;
                             };
                         };
                     };
@@ -316,6 +365,9 @@ export interface paths {
                                 sourceBranchId: string;
                                 destinationBranchId: string;
                                 createdByUserId: string;
+                                isArchived: boolean;
+                                archivedAt: string | null;
+                                archivedByUserId: string | null;
                                 items: {
                                     id: string;
                                     templateId: string;
@@ -398,6 +450,92 @@ export interface paths {
                                 sourceBranchId: string;
                                 destinationBranchId: string;
                                 createdByUserId: string;
+                                isArchived: boolean;
+                                archivedAt: string | null;
+                                archivedByUserId: string | null;
+                                items: {
+                                    id: string;
+                                    templateId: string;
+                                    productId: string;
+                                    defaultQty: number;
+                                    product: {
+                                        id: string;
+                                        productName: string;
+                                        productSku: string;
+                                        productPricePence: number;
+                                    };
+                                    createdAt: string;
+                                    updatedAt: string;
+                                }[];
+                                sourceBranch: {
+                                    id: string;
+                                    branchName: string;
+                                    branchSlug: string;
+                                };
+                                destinationBranch: {
+                                    id: string;
+                                    branchName: string;
+                                    branchSlug: string;
+                                };
+                                createdByUser: {
+                                    id: string;
+                                    userEmailAddress: string;
+                                };
+                                createdAt: string;
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stock-transfer-templates/{templateId}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore archived template */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    templateId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                id: string;
+                                tenantId: string;
+                                name: string;
+                                description: string | null;
+                                sourceBranchId: string;
+                                destinationBranchId: string;
+                                createdByUserId: string;
+                                isArchived: boolean;
+                                archivedAt: string | null;
+                                archivedByUserId: string | null;
                                 items: {
                                     id: string;
                                     templateId: string;
@@ -2482,6 +2620,185 @@ export interface paths {
             };
         };
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tenants/{tenantSlug}/feature-flags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tenantSlug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Tenant feature flags */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: components["schemas"]["TenantFeatureFlagsResponseData"];
+                            error: unknown;
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        "X-RateLimit-Limit": string;
+                        "X-RateLimit-Remaining": string;
+                        "X-RateLimit-Reset": string;
+                        "Retry-After": string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Internal Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tenantSlug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["TenantFeatureFlagsPutBody"];
+                };
+            };
+            responses: {
+                /** @description Updated tenant feature flags */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: components["schemas"]["TenantFeatureFlagsResponseData"];
+                            error: unknown;
+                        };
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        "X-RateLimit-Limit": string;
+                        "X-RateLimit-Remaining": string;
+                        "X-RateLimit-Reset": string;
+                        "Retry-After": string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Internal Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
         post?: never;
         delete?: never;
         options?: never;
@@ -7343,6 +7660,19 @@ export interface components {
             facets?: {
                 actors: components["schemas"]["ActorRef"][];
             };
+        };
+        TenantFeatureFlagsResponseData: {
+            /** @default false */
+            chatAssistantEnabled: boolean;
+            /** @default null */
+            openaiApiKey: string | null;
+            /** @default false */
+            barcodeScanningEnabled: boolean;
+        };
+        TenantFeatureFlagsPutBody: {
+            chatAssistantEnabled?: boolean;
+            openaiApiKey?: string | null;
+            barcodeScanningEnabled?: boolean;
         };
         HealthResponseData: {
             serviceName: string;

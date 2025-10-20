@@ -81,11 +81,12 @@ Welcome to the platform documentation! This guide will help you learn how to use
 
 ### Settings & Administration
 
-**Organization configuration (Owner role):**
+**Organization configuration (Owner/Admin roles):**
 
 - **[Theme & Branding](settings/theme-branding.md)** - Customize colors, logo, and visual appearance
+- **[Feature Settings](settings/feature-settings.md)** - Enable/disable features, configure AI Chat Assistant
 
-**Learn:** Theme presets, custom colors, logo upload, typography, branding management
+**Learn:** Theme presets, custom colors, logo upload, typography, branding management, feature flags, AI API keys
 
 ---
 
@@ -220,7 +221,8 @@ The AI has access to all this documentation and your real-time inventory data.
 2. [Roles & Permissions](branches-users/roles-permissions.md)
 3. [Reversing Transfers](stock-transfers/reversing-transfers.md)
 4. [Theme & Branding](settings/theme-branding.md)
-5. All analytics guides
+5. [Feature Settings](settings/feature-settings.md)
+6. All analytics guides
 
 **What you can do:**
 - Everything ADMIN can do
@@ -275,6 +277,7 @@ The AI has access to all this documentation and your real-time inventory data.
 2. [Product cleanup](products/managing-products.md) - Archive obsolete products
 3. [Generate analytics](analytics/transfer-metrics.md) for the month
 4. Review and update [roles](branches-users/roles-permissions.md) if needed
+5. Review [feature settings](settings/feature-settings.md) - Adjust feature availability
 
 **For Finance:**
 1. [Stock valuation report](analytics/stock-analytics.md)
@@ -490,9 +493,10 @@ REQUESTED → APPROVED → IN_TRANSIT → COMPLETED
 
 This documentation reflects the current platform state as of the latest release. New features and improvements are added regularly.
 
-**Last updated:** 2025-10-16
+**Last updated:** 2025-10-20
 
 **Recent additions:**
+- Feature Settings documentation
 - Analytics & Reports guides
 - Getting Started section
 - FAQ and troubleshooting

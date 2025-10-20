@@ -13,6 +13,7 @@ import { IconSun, IconMoon, IconMessageCircle } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 import { signOutApiRequest } from '../../api/auth';
 import { useAuthStore } from '../../stores/auth';
+import { useFeatureFlag } from '../../hooks/useFeatureFlag';
 
 export default function HeaderBar({
   opened,
@@ -25,6 +26,7 @@ export default function HeaderBar({
 }) {
   const navigate = useNavigate();
   const clearAuth = useAuthStore((s) => s.clear);
+  const chatAssistantEnabled = useFeatureFlag('chatAssistantEnabled');
 
   const { setColorScheme } = useMantineColorScheme();
   const computedColorScheme = useComputedColorScheme('light');
@@ -68,19 +70,21 @@ export default function HeaderBar({
           </ActionIcon>
         </Tooltip>
 
-        {/* AI Chat Assistant */}
-        <Tooltip label="AI Assistant" withArrow>
-          <ActionIcon
-            variant="default"
-            size="lg"
-            radius="md"
-            onClick={onChatClick}
-            aria-label="Open AI chat assistant"
-            data-testid="chat-trigger-button"
-          >
-            <IconMessageCircle size={18} />
-          </ActionIcon>
-        </Tooltip>
+        {/* AI Chat Assistant - Only show if feature enabled for tenant */}
+        {chatAssistantEnabled && (
+          <Tooltip label="AI Assistant" withArrow>
+            <ActionIcon
+              variant="default"
+              size="lg"
+              radius="md"
+              onClick={onChatClick}
+              aria-label="Open AI chat assistant"
+              data-testid="chat-trigger-button"
+            >
+              <IconMessageCircle size={18} />
+            </ActionIcon>
+          </Tooltip>
+        )}
 
         <Button variant="light" onClick={handleSignOut}>
           Sign out

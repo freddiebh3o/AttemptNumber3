@@ -16,10 +16,12 @@ import {
   IconSettings,
   IconPackageExport,
   IconMessageCircle,
+  IconToggleLeft,
 } from "@tabler/icons-react";
 import { useThemeStore } from "../../stores/theme";
 import { useAuthStore } from "../../stores/auth";
 import { usePermissions } from "../../hooks/usePermissions"; // <-- add
+import { useFeatureFlag } from "../../hooks/useFeatureFlag";
 import TenantSwitcher from './TenantSwitcher';
 
 export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
@@ -27,6 +29,7 @@ export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) 
   const { pathname } = useLocation();
   const tenantKey = tenantSlug ?? "default";
   const { logoUrl } = useThemeStore((s) => s.getFor(tenantKey));
+  const chatAssistantEnabled = useFeatureFlag('chatAssistantEnabled');
 
   const base = `/${tenantSlug ?? ""}`;
   const active = (to: string) => pathname === to;
@@ -150,6 +153,17 @@ export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) 
                 leftSection={<IconPalette size={16} />}
               />
             )}
+            {hasPerm("theme:manage") && (
+              <NavLink
+                label="Features"
+                component={Link}
+                to={`${base}/settings/features`}
+                active={active(`${base}/settings/features`)}
+                onClick={onNavigate}
+                leftSection={<IconToggleLeft size={16} />}
+                data-testid="nav-features"
+              />
+            )}
             {hasPerm("users:manage") && (
               <NavLink
                 label="Audit log"
@@ -160,7 +174,7 @@ export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) 
                 leftSection={<IconHistory size={16} />}
               />
             )}
-            {hasPerm("reports:view") && (
+            {hasPerm("reports:view") && chatAssistantEnabled && (
               <NavLink
                 label="Chat Analytics"
                 component={Link}

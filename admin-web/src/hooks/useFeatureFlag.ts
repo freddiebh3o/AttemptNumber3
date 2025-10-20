@@ -7,8 +7,9 @@ import { useAuthStore } from "../stores/auth";
  * @returns The value of the feature flag (defaults to false if not found)
  */
 export function useFeatureFlag(flagKey: string): boolean {
-  const featureFlags = useAuthStore((s) => s.currentTenant?.featureFlags ?? {});
-  return featureFlags[flagKey] ?? false;
+  // Use a stable selector that returns a primitive value instead of an object
+  // This prevents infinite re-renders caused by new object references
+  return useAuthStore((s) => s.currentTenant?.featureFlags?.[flagKey] ?? false);
 }
 
 /**

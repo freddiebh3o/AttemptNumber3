@@ -1016,16 +1016,92 @@ data: [DONE]
 
 ## Configuration
 
+### Tenant-Specific API Keys
+
+**Overview:**
+Tenants can provide their own OpenAI API keys for the AI Chat Assistant, allowing them to:
+- Use their own API budget instead of the server's
+- Control their AI feature costs directly
+- Enable/disable the chat assistant feature independently
+
+**API Key Priority (Fallback Chain):**
+1. **Tenant's OpenAI API Key** (if `chatAssistantEnabled: true` and `openaiApiKey` is set)
+2. **Server's Default API Key** (from `OPENAI_API_KEY` environment variable)
+3. **No API Key** - Chat assistant returns error
+
+**Implementation:**
+```typescript
+// Service: getOpenAIApiKey({ tenantId })
+// File: api-server/src/services/chat/apiKeyService.ts
+
+// 1. Load tenant's feature flags
+const tenant = await prisma.tenant.findUnique({
+  where: { id: tenantId },
+  select: { featureFlags: true },
+});
+
+const flags = tenant.featureFlags as TenantFeatureFlags;
+
+// 2. Check if tenant has chat assistant enabled with custom key
+if (flags?.chatAssistantEnabled && flags?.openaiApiKey) {
+  return flags.openaiApiKey; // Use tenant's key
+}
+
+// 3. Fall back to server's default key
+return process.env.OPENAI_API_KEY || null;
+```
+
+**Feature Flags Structure:**
+```typescript
+interface TenantFeatureFlags {
+  chatAssistantEnabled: boolean;      // Enable/disable chat assistant for tenant
+  openaiApiKey: string | null;        // Tenant's OpenAI API key (plaintext)
+  barcodeScanningEnabled: boolean;    // Enable/disable barcode scanning
+}
+
+// Stored in: Tenant.featureFlags (JSON column)
+```
+
+**UI Management:**
+- Tenants can configure feature flags via the **Features** page (`/settings/features`)
+- Requires `theme:manage` permission (owner/admin roles)
+- API key format validated (must start with `sk-`)
+- API key displayed as password-masked input for security
+
+**API Endpoints:**
+```typescript
+// Get tenant feature flags
+GET /api/tenants/:tenantSlug/feature-flags
+// Returns: { chatAssistantEnabled, openaiApiKey, barcodeScanningEnabled }
+
+// Update tenant feature flags
+PUT /api/tenants/:tenantSlug/feature-flags
+// Body: { chatAssistantEnabled?, openaiApiKey?, barcodeScanningEnabled? }
+// Partial updates supported
+```
+
+**Security Considerations:**
+- API keys stored in plaintext in database (acceptable for MVP)
+- Future enhancement: Encrypt keys at rest using AES-256
+- API key format validated on save (must start with `sk-`)
+- Only users with `theme:manage` permission can view/edit keys
+
+**Cost Allocation:**
+- If tenant provides API key: All chat costs billed to tenant's OpenAI account
+- If tenant uses server key: All chat costs billed to server's OpenAI account
+- No usage tracking per tenant (future enhancement)
+
 ### Environment Variables
 
 **Required:**
 ```bash
-OPENAI_API_KEY=sk-...  # OpenAI API key
+OPENAI_API_KEY=sk-...  # Server's default OpenAI API key (fallback)
 ```
 
 **Priority:**
 - `.env` file values override system environment variables
 - Configured in `api-server/src/app.ts`: `config({ override: true })`
+- Tenant-specific keys take priority over server's default key
 
 ### Model Configuration
 

@@ -70,16 +70,40 @@ test.describe('Feature Flags: ACME Tenant (Barcode Scanning Enabled)', () => {
       barcodeType: 'EAN13',
     });
 
-    // Create stock transfer with shipped status
-    const transferId = await Factories.transfer.createAndShip(page, {
-      sourceBranchId: sourceBranch.id,
-      destinationBranchId: destBranch.id,
-      productId,
-      quantity: 5,
-      unitCostPence: 100,
-    });
+    let transferId: string | undefined;
 
     try {
+      // Add stock to source branch first
+      await Factories.stock.addStock(page, {
+        productId,
+        branchId: sourceBranch.id,
+        qtyDelta: 5,
+        unitCostPence: 100,
+        reason: 'E2E test: Setup for transfer',
+      });
+
+      // Create transfer
+      transferId = await Factories.transfer.create(page, {
+        sourceBranchId: sourceBranch.id,
+        destinationBranchId: destBranch.id,
+        items: [{ productId, qty: 5 }],
+      });
+
+      // Approve transfer
+      await Factories.transfer.approve(page, transferId);
+
+      // Get transfer details to get item IDs for shipping
+      const transfer = await Factories.transfer.getById(page, transferId);
+
+      // Ship transfer (but DON'T receive it - we want IN_TRANSIT status)
+      await Factories.transfer.ship(page, {
+        transferId,
+        items: transfer.items.map((item: any) => ({
+          itemId: item.id,
+          qtyToShip: item.qtyRequested,
+        })),
+      });
+
       // Navigate to transfer detail page
       await page.goto(`/${TEST_USERS_ACME.owner.tenant}/stock-transfers/${transferId}`);
       await page.waitForLoadState('networkidle');
@@ -96,7 +120,9 @@ test.describe('Feature Flags: ACME Tenant (Barcode Scanning Enabled)', () => {
       const manualButton = page.getByRole('button', { name: /manual receive/i });
       await expect(manualButton).toBeVisible();
     } finally {
-      await Factories.transfer.delete(page, transferId);
+      if (transferId) {
+        await Factories.transfer.delete(page, transferId);
+      }
       await Factories.product.delete(page, productId);
     }
   });

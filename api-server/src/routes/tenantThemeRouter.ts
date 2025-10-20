@@ -18,6 +18,11 @@ import { Errors } from '../utils/httpErrors.js';
 import { validateRequestQueryWithZod } from '../middleware/zodValidation.js';
 import { getTenantThemeActivityForCurrentTenantService } from '../services/theme/tenantThemeActivityService.js';
 import { getAuditContext } from '../utils/auditContext.js';
+import {
+  getTenantFeatureFlagsService,
+  updateTenantFeatureFlagsService,
+  ensureTenantIdForSlugAndSession as ensureTenantIdForFlags,
+} from '../services/tenantFeatureFlagsService.js';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -80,6 +85,12 @@ const activityQuerySchema = z.object({
   includeFacets: z.coerce.boolean().optional(),
   includeTotal: z.coerce.boolean().optional(),
 });
+
+const featureFlagsPutBodySchema = z.object({
+  chatAssistantEnabled: z.boolean().optional(),
+  openaiApiKey: z.string().nullable().optional(),
+  barcodeScanningEnabled: z.boolean().optional(),
+}).strict();
 
 // --- Router ---
 
@@ -209,6 +220,45 @@ tenantThemeRouter.get(
       });
 
       return res.json(createStandardSuccessResponse(data));
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
+/** GET /api/tenants/:tenantSlug/feature-flags */
+tenantThemeRouter.get(
+  '/:tenantSlug/feature-flags',
+  requireAuthenticatedUserMiddleware,
+  requirePermission('theme:manage'),
+  validateRequestParamsWithZod(paramsSchema),
+  async (req, res, next) => {
+    try {
+      const { tenantSlug } = req.validatedParams as z.infer<typeof paramsSchema>;
+      const tenantId = await ensureTenantIdForFlags(tenantSlug, req.currentTenantId);
+      const payload = await getTenantFeatureFlagsService({ tenantId });
+      return res.json(createStandardSuccessResponse(payload));
+    } catch (err) {
+      return next(err);
+    }
+  }
+);
+
+/** PUT /api/tenants/:tenantSlug/feature-flags */
+tenantThemeRouter.put(
+  '/:tenantSlug/feature-flags',
+  idempotencyMiddleware(60),
+  requireAuthenticatedUserMiddleware,
+  requirePermission('theme:manage'),
+  validateRequestParamsWithZod(paramsSchema),
+  validateRequestBodyWithZod(featureFlagsPutBodySchema),
+  async (req, res, next) => {
+    try {
+      const { tenantSlug } = req.validatedParams as z.infer<typeof paramsSchema>;
+      const updates = req.validatedBody as z.infer<typeof featureFlagsPutBodySchema>;
+      const tenantId = await ensureTenantIdForFlags(tenantSlug, req.currentTenantId);
+      const payload = await updateTenantFeatureFlagsService({ tenantId, updates });
+      return res.json(createStandardSuccessResponse(payload));
     } catch (err) {
       return next(err);
     }

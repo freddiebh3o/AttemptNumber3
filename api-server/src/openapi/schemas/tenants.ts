@@ -84,3 +84,16 @@ export const ZodTenantThemeActivityResponseData = z.object({
     actors: z.array(ZodActorRef),
   }).optional(),
 }).openapi('TenantThemeActivityResponseData');
+
+// Feature Flags schemas
+export const ZodTenantFeatureFlagsPutBody = z.object({
+  chatAssistantEnabled: z.boolean().optional(),
+  openaiApiKey: z.string().nullable().optional(),
+  barcodeScanningEnabled: z.boolean().optional(),
+}).strict().openapi('TenantFeatureFlagsPutBody');
+
+export const ZodTenantFeatureFlagsResponseData = z.object({
+  chatAssistantEnabled: z.boolean().default(false),
+  openaiApiKey: z.string().nullable().default(null),
+  barcodeScanningEnabled: z.boolean().default(false),
+}).openapi('TenantFeatureFlagsResponseData');
