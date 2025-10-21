@@ -11,6 +11,12 @@
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/core/health.test.ts
 
 
+## FEATURES: AUTH (1 suite - NEW)
+
+### All tests and commands
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/auth/authService.test.ts
+
+
 ## MIDDLEWARE (8 suites)
 
 ### Failing suites
@@ -85,23 +91,33 @@
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/stock/stockLotRestoration.test.ts
 
 
-## FEATURES: BRANCHES (1 suite)
+## FEATURES: BRANCHES (3 suites)
 
 ### All tests and commands
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/branches/branchService.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/branches/branchRoutes.test.ts
+
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/branches/branchArchival.test.ts
 
 
-## FEATURES: TENANT USERS (2 suites)
+## FEATURES: TENANT USERS (3 suites)
 
 ### All tests and commands
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/tenantUsers/tenantUserService.test.ts
+
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/tenantUsers/tenantUserRoutes.test.ts
 
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/tenantUsers/tenantUserArchival.test.ts
 
 
-## FEATURES: ROLES (1 suite)
+## FEATURES: ROLES (3 suites)
 
 ### All tests and commands
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/roles/roleService.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/roles/roleRoutes.test.ts
+
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/roles/roleArchival.test.ts
 
 
@@ -175,7 +191,7 @@
 
 ## SUMMARY
 
-**Total Suites:** 51 (was 45 - added 6 new permission tests: uploads, auditLogs, stockTransfers, transferTemplates, transferApprovals, transferAnalytics)
+**Total Suites:** 57 (was 51 - added 6 new feature tests: branchService, branchRoutes, tenantUserService, roleService, roleRoutes, authService)
 
 **Previously Failing Suites (9 total):**
 1. core/auth.test.ts (3 failures)
