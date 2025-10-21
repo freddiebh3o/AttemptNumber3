@@ -11,7 +11,7 @@
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/core/health.test.ts
 
 
-## MIDDLEWARE (5 suites)
+## MIDDLEWARE (8 suites)
 
 ### Failing suites
 - session.test.ts (previously had 1 failure)
@@ -26,6 +26,12 @@
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/middleware/session.test.ts
 
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/middleware/rateLimit.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/middleware/requestId.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/middleware/zodValidation.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/middleware/httpLogging.test.ts
 
 
 ## PERMISSIONS (3 suites - NEW: RBAC Permission Matrix Tests)
@@ -153,7 +159,7 @@
 
 ## SUMMARY
 
-**Total Suites:** 39 (was 37 - now includes chatRouter and chatRoutes separately)
+**Total Suites:** 42 (was 39 - added 3 new middleware tests: requestId, zodValidation, httpLogging)
 
 **Previously Failing Suites (9 total):**
 1. core/auth.test.ts (3 failures)
