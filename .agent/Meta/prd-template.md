@@ -39,8 +39,7 @@
 - [ ] Service layer functions created
 - [ ] OpenAPI schemas defined
 - [ ] API endpoints implemented
-- [ ] Backend tests written and passing
-- [ ] Confirm all tests pass before moving to frontend
+- [ ] Backend tests written (NEVER RUN THE ACTUAL TEST)
 
 ### Frontend Implementation
 
@@ -49,7 +48,7 @@
 - [ ] UI components implemented with **data-testid attributes**
 - [ ] Page/route integration
 - [ ] Navigation links added
-- [ ] E2E tests written and passing
+- [ ] E2E tests written (NEVER RUN THE ACTUAL TEST)
 
 ### Documentation
 
@@ -157,6 +156,13 @@
 - ✅ File references (links to files that will be modified)
 - ✅ Testing requirements per phase
 - ✅ Documentation update reminders
+- ✅ Always include instruction to analyse existing tests, to see if there are any that conflict with or become outdated by the new feature
+- ✅ Always refer to the following documents when writing tests 
+    - Backend:
+        - api-server\__tests__\TEST_TEMPLATE.md
+        - api-server\__tests__\scriptsList.md -> File with scripts to run each test suite. Will need updating if any new tests are created or old tests are changed 
+    - frontend: 
+        - admin-web\e2e\GUIDELINES.md
 
 ### What to EXCLUDE:
 - ❌ Code snippets (reference files instead)
