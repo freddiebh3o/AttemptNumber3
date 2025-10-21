@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  postgres-test:
+    image: pgvector/pgvector:pg16
+    container_name: bmad-test-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: testpassword
+      POSTGRES_DB: testdb
+      # Increase connection limit for parallel tests
+      POSTGRES_MAX_CONNECTIONS: 200
+    ports:
+      - "5433:5432"
+    volumes:
+      # Persistent volume for faster subsequent runs
+      - postgres-test-data:/var/lib/postgresql/data
+      # Init script to enable pgvector extension
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=200"
+      - "-c"
+      - "shared_buffers=256MB"
+      - "-c"
+      - "effective_cache_size=1GB"
+
+volumes:
+  postgres-test-data:
+    driver: local
