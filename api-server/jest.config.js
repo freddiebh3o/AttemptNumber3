@@ -22,5 +22,7 @@ export default {
   ],
   coverageDirectory: 'coverage',
   verbose: true,
-  maxWorkers: 1, // Run tests serially to avoid database conflicts
+  maxWorkers: 4, // Enable parallel tests with Docker test database
+  globalSetup: './__tests__/setup/globalSetup.ts',
+  globalTeardown: './__tests__/setup/globalTeardown.ts',
 };

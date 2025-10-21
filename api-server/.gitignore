@@ -19,6 +19,7 @@ pnpm-debug.log*
 # --- Coverage / test output ---
 coverage/
 .nyc_output/
+test-results/
 
 # --- OS / editor cruft ---
 .DS_Store
