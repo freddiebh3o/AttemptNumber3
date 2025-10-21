@@ -71,6 +71,27 @@ describe('[ST-007] Stock Transfer Service', () => {
     await addUserToBranch(userSource.id, testTenant.id, sourceBranch.id);
     await addUserToBranch(userSource.id, testTenant.id, destinationBranch.id);
 
+    // Pre-create ProductStock rows to prevent upsert race conditions when tests run in parallel
+    await prisma.productStock.createMany({
+      data: [
+        {
+          tenantId: testTenant.id,
+          branchId: sourceBranch.id,
+          productId: product1.id,
+          qtyOnHand: 0,
+          qtyAllocated: 0,
+        },
+        {
+          tenantId: testTenant.id,
+          branchId: sourceBranch.id,
+          productId: product2.id,
+          qtyOnHand: 0,
+          qtyAllocated: 0,
+        },
+      ],
+      skipDuplicates: true,
+    });
+
     // Add stock to source branch for testing
     await receiveStock(
       { currentTenantId: testTenant.id, currentUserId: userSource.id },

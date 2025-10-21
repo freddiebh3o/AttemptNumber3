@@ -10,6 +10,14 @@ import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
+/**
+ * Generate a unique ID combining timestamp and random string
+ * This prevents collisions when tests run in parallel
+ */
+function generateUniqueId(): string {
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+}
+
 interface CreateUserOptions {
   email?: string;
   password?: string;
@@ -48,7 +56,7 @@ interface CreateBranchOptions {
 export async function createTestUser(
   options: CreateUserOptions = {}
 ): Promise<User> {
-  const email = options.email || `test-${Date.now()}@example.com`;
+  const email = options.email || `test-${generateUniqueId()}@example.com`;
   const password = options.password || 'password123';
 
   const passwordHash = await bcrypt.hash(password, 10);
@@ -67,9 +75,9 @@ export async function createTestUser(
 export async function createTestTenant(
   options: CreateTenantOptions = {}
 ): Promise<Tenant> {
-  const timestamp = Date.now();
-  const name = options.name || `Test Tenant ${timestamp}`;
-  const slug = options.slug || `test-tenant-${timestamp}`;
+  const uniqueId = generateUniqueId();
+  const name = options.name || `Test Tenant ${uniqueId}`;
+  const slug = options.slug || `test-tenant-${uniqueId}`;
 
   return await prisma.tenant.create({
     data: {
@@ -85,7 +93,7 @@ export async function createTestTenant(
 export async function createTestRole(
   options: CreateRoleOptions
 ): Promise<Role> {
-  const name = options.name || `Test Role ${Date.now()}`;
+  const name = options.name || `Test Role ${generateUniqueId()}`;
   const { tenantId, permissionIds = [], isSystem = false } = options;
 
   const role = await prisma.role.create({
@@ -119,7 +127,7 @@ export async function createTestRoleWithPermissions(params: {
   permissionKeys: readonly string[];
   isSystem?: boolean;
 }): Promise<Role> {
-  const name = params.name || `Test Role ${Date.now()}`;
+  const name = params.name || `Test Role ${generateUniqueId()}`;
   const { tenantId, permissionKeys, isSystem = false } = params;
 
   // Get permission IDs from keys
@@ -140,9 +148,9 @@ export async function createTestRoleWithPermissions(params: {
 export async function createTestProduct(
   options: CreateProductOptions
 ): Promise<Product> {
-  const timestamp = Date.now();
-  const name = options.name || `Test Product ${timestamp}`;
-  const sku = options.sku || `TEST-SKU-${timestamp}`;
+  const uniqueId = generateUniqueId();
+  const name = options.name || `Test Product ${uniqueId}`;
+  const sku = options.sku || `TEST-SKU-${uniqueId}`;
   const { tenantId, barcode } = options;
 
   return await prisma.product.create({
@@ -163,9 +171,9 @@ export async function createTestProduct(
 export async function createTestBranch(
   options: CreateBranchOptions
 ): Promise<Branch> {
-  const timestamp = Date.now();
-  const name = options.name || `Test Branch ${timestamp}`;
-  const slug = options.slug || `test-branch-${timestamp}`;
+  const uniqueId = generateUniqueId();
+  const name = options.name || `Test Branch ${uniqueId}`;
+  const slug = options.slug || `test-branch-${uniqueId}`;
   const { tenantId, isActive = true } = options;
 
   return await prisma.branch.create({
@@ -309,8 +317,8 @@ export async function createTestApprovalRule(options: {
     requiredUserId?: string;
   }>;
 }): Promise<TransferApprovalRule> {
-  const timestamp = Date.now();
-  const name = options.name || `Test Approval Rule ${timestamp}`;
+  const uniqueId = generateUniqueId();
+  const name = options.name || `Test Approval Rule ${uniqueId}`;
   const description = options.description;
   const isActive = options.isActive !== undefined ? options.isActive : true;
   const approvalMode = options.approvalMode || 'SEQUENTIAL';
@@ -374,7 +382,7 @@ export async function createTestQuantityApprovalRule(params: {
 }): Promise<TransferApprovalRule> {
   return await createTestApprovalRule({
     tenantId: params.tenantId,
-    name: params.name || `Quantity Rule (>${params.threshold} units) ${Date.now()}`,
+    name: params.name || `Quantity Rule (>${params.threshold} units) ${generateUniqueId()}`,
     isActive: params.isActive !== undefined ? params.isActive : true,
     approvalMode: 'SEQUENTIAL',
     priority: 1,
@@ -405,7 +413,7 @@ export async function createTestValueApprovalRule(params: {
 }): Promise<TransferApprovalRule> {
   return await createTestApprovalRule({
     tenantId: params.tenantId,
-    name: params.name || `Value Rule (>£${params.thresholdPence / 100}) ${Date.now()}`,
+    name: params.name || `Value Rule (>£${params.thresholdPence / 100}) ${generateUniqueId()}`,
     isActive: params.isActive !== undefined ? params.isActive : true,
     approvalMode: 'SEQUENTIAL',
     priority: 1,
@@ -436,7 +444,7 @@ export async function createTestBranchApprovalRule(params: {
 }): Promise<TransferApprovalRule> {
   return await createTestApprovalRule({
     tenantId: params.tenantId,
-    name: params.name || `Branch Rule ${Date.now()}`,
+    name: params.name || `Branch Rule ${generateUniqueId()}`,
     isActive: params.isActive !== undefined ? params.isActive : true,
     approvalMode: 'SEQUENTIAL',
     priority: 1,

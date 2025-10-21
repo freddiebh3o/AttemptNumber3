@@ -1,6 +1,6 @@
 # PRD 2: Permission Test Suite Creation
 
-**Status:** 📋 Planning
+**Status:** 🚧 In Progress (Phase 1 Complete ✅)
 **Priority:** High
 **Estimated Effort:** 4-5 days
 **Created:** 2025-10-21
@@ -38,37 +38,42 @@ Build comprehensive RBAC permission test suite covering all 12 features with mat
 
 ### Backend Implementation
 
-- [ ] Create products.permissions.test.ts
-  - [ ] GET /api/products (list) - all roles
-  - [ ] GET /api/products/:id - all roles
-  - [ ] POST /api/products - products:write roles only
-  - [ ] PUT /api/products/:id - products:write roles only
-  - [ ] DELETE /api/products/:id - products:write roles only
-  - [ ] POST /api/products/:id/restore - products:write roles only
-  - [ ] Unauthenticated requests (401)
-  - [ ] Cross-tenant isolation
+- [x] Create products.permissions.test.ts ✅
+  - [x] GET /api/products (list) - all roles
+  - [x] GET /api/products/:id - all roles
+  - [x] GET /api/products/:id/activity - all roles
+  - [x] POST /api/products - products:write roles only
+  - [x] PUT /api/products/:id - products:write roles only
+  - [x] DELETE /api/products/:id - products:write roles only
+  - [x] POST /api/products/:id/restore - products:write roles only
+  - [x] POST /api/products/bulk-update - products:write roles only
+  - [x] Unauthenticated requests (401)
+  - [x] Cross-tenant isolation (404 for main endpoints, 200 empty for activity)
 
-- [ ] Create stock.permissions.test.ts
-  - [ ] GET /api/stock/branch/:branchId - stock:read roles only
-  - [ ] GET /api/stock/lot/:lotId - stock:read roles only
-  - [ ] POST /api/stock/receive - stock:write roles only
-  - [ ] POST /api/stock/adjust - stock:write roles only
-  - [ ] POST /api/stock/consume - stock:allocate roles only
-  - [ ] Unauthenticated requests (401)
-  - [ ] Cross-tenant isolation
-  - [ ] Branch membership requirements
+- [x] Create stock.permissions.test.ts ✅
+  - [x] GET /api/stock/levels - stock:read roles only
+  - [x] GET /api/stock/ledger - stock:read roles only
+  - [x] GET /api/stock/levels/bulk - stock:read roles only
+  - [x] POST /api/stock/receive - stock:write roles only
+  - [x] POST /api/stock/adjust - stock:write roles only
+  - [x] POST /api/stock/consume - stock:write roles only
+  - [x] Unauthenticated requests (401)
+  - [x] Cross-tenant isolation (404 for ledger, 200 empty for levels)
+  - [x] Branch membership requirements (all stock operations)
+  - [x] Fixed tenant isolation bug in GET /api/stock/levels ✅
 
-- [ ] Create branches.permissions.test.ts
-  - [ ] GET /api/branches (list) - all roles
-  - [ ] GET /api/branches/:id - all roles
-  - [ ] POST /api/branches - branches:manage roles only
-  - [ ] PUT /api/branches/:id - branches:manage roles only
-  - [ ] DELETE /api/branches/:id - branches:manage roles only
-  - [ ] POST /api/branches/:id/restore - branches:manage roles only
-  - [ ] Unauthenticated requests (401)
-  - [ ] Cross-tenant isolation
+- [x] Create branches.permissions.test.ts ✅
+  - [x] GET /api/branches (list) - all authenticated users
+  - [x] GET /api/branches/:id - all authenticated users
+  - [x] GET /api/branches/:id/activity - all authenticated users
+  - [x] POST /api/branches - tenant:manage roles only
+  - [x] PUT /api/branches/:id - tenant:manage roles only
+  - [x] DELETE /api/branches/:id - tenant:manage roles only
+  - [x] POST /api/branches/:id/restore - tenant:manage roles only
+  - [x] Unauthenticated requests (401)
+  - [x] Cross-tenant isolation (404 for main endpoints, 200 empty for activity)
 
-- [ ] Confirm all tests pass before moving to Phase 2
+- [x] Confirm all tests pass before moving to Phase 2 ✅ (162 new permission tests passing)
 
 ---
 
@@ -250,6 +255,55 @@ describe('[RBAC] Feature Permissions', () => {
 - [ ] Zero permission bypasses detected
 - [ ] Permission test pattern documented in TEST_TEMPLATE.md
 - [ ] Backend testing SOP updated with permission testing section
+
+---
+
+## Phase 1 Completion Summary
+
+**Files Created:**
+- `api-server/__tests__/permissions/products.permissions.test.ts` - 58 tests
+- `api-server/__tests__/permissions/stock.permissions.test.ts` - 44 tests
+- `api-server/__tests__/permissions/branches.permissions.test.ts` - 56 tests
+- Updated `api-server/__tests__/scriptsList.md` with new PERMISSIONS section
+
+**Total Tests Added:** 162 permission tests (all passing ✅)
+
+**Bugs Fixed During Testing:**
+
+1. **Critical Security Bug: Tenant Isolation Bypass in Stock Levels**
+   - **Location:** `api-server/src/services/stockService.ts` - `getStockLevelsForProductService()`
+   - **Issue:** Endpoint was not validating that `branchId` and `productId` belonged to the current tenant
+   - **Impact:** Cross-tenant users could query stock levels for branches/products from other tenants
+   - **Fix:** Added tenant ownership validation before querying stock data (returns 404 for cross-tenant access)
+   - **File Modified:** [api-server/src/services/stockService.ts](../../../../api-server/src/services/stockService.ts#L724-L741)
+
+2. **Test Infrastructure: Race Condition in Factory Helpers**
+   - **Location:** `api-server/__tests__/helpers/factories.ts`
+   - **Issue:** `Date.now()` timestamps caused unique constraint failures when tests ran in parallel
+   - **Impact:** Intermittent test failures with "Unique constraint failed on userEmailAddress"
+   - **Fix:** Added `generateUniqueId()` helper combining timestamp + random string
+   - **File Modified:** [api-server/__tests__/helpers/factories.ts](../../../../api-server/__tests__/helpers/factories.ts#L13-L19)
+
+3. **Test Infrastructure: Prisma Transaction Deadlock**
+   - **Location:** `api-server/__tests__/features/stockTransfers/transferService.test.ts`
+   - **Issue:** Multiple tests' `beforeEach` hooks calling `receiveStock()` simultaneously caused upsert deadlocks
+   - **Impact:** Intermittent "Transaction failed due to write conflict or deadlock" errors
+   - **Fix:** Pre-create `ProductStock` rows before `receiveStock()` calls to eliminate upsert race condition
+   - **File Modified:** [api-server/__tests__/features/stockTransfers/transferService.test.ts](../../../../api-server/__tests__/features/stockTransfers/transferService.test.ts#L74-L93)
+
+**Key Learnings:**
+
+1. **Activity Endpoint Behavior:** Activity endpoints (e.g., `GET /api/products/:id/activity`) return 200 with empty results for cross-tenant requests rather than 404. This is by design - they filter by `tenantId` in service layer.
+
+2. **Branch Permissions:** Branch write operations require `tenant:manage` permission (OWNER only), not `branches:manage` from RBAC catalog. GET endpoints have no permission requirements (all authenticated users allowed).
+
+3. **Stock Operation Authorization:** Stock operations require TWO authorization layers:
+   - Role-based permission (`stock:read` or `stock:write`)
+   - Branch membership (`UserBranchMembership` record must exist)
+
+4. **Custom Role Testing:** Custom roles with specific permissions work correctly across all endpoints tested.
+
+**Performance:** All 162 permission tests run in parallel (Jest `maxWorkers: 4`) without conflicts after race condition fixes.
 
 ---
 

@@ -28,6 +28,16 @@
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/middleware/rateLimit.test.ts
 
 
+## PERMISSIONS (3 suites - NEW: RBAC Permission Matrix Tests)
+
+### All tests and commands
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/permissions/products.permissions.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/permissions/stock.permissions.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/permissions/branches.permissions.test.ts
+
+
 ## FEATURES: PRODUCTS (4 suites)
 
 ### Failing suites

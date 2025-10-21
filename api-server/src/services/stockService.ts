@@ -721,6 +721,25 @@ export async function getStockLevelsForProductService(params: {
 }) {
   const { currentTenantId, branchId, productId } = params;
 
+  // Validate that branch and product belong to the current tenant
+  const [branch, product] = await Promise.all([
+    prismaClientInstance.branch.findUnique({
+      where: { id: branchId },
+      select: { id: true, tenantId: true },
+    }),
+    prismaClientInstance.product.findUnique({
+      where: { id: productId },
+      select: { id: true, tenantId: true },
+    }),
+  ]);
+
+  if (!branch || branch.tenantId !== currentTenantId) {
+    throw Errors.notFound('Branch not found');
+  }
+  if (!product || product.tenantId !== currentTenantId) {
+    throw Errors.notFound('Product not found');
+  }
+
   const [productStock, lots] = await Promise.all([
     prismaClientInstance.productStock.findUnique({
       where: {
