@@ -34,7 +34,7 @@
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/middleware/httpLogging.test.ts
 
 
-## PERMISSIONS (3 suites - NEW: RBAC Permission Matrix Tests)
+## PERMISSIONS (12 suites - NEW: RBAC Permission Matrix Tests)
 
 ### All tests and commands
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/permissions/products.permissions.test.ts
@@ -42,6 +42,22 @@
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/permissions/stock.permissions.test.ts
 
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/permissions/branches.permissions.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/permissions/tenantUsers.permissions.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/permissions/roles.permissions.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/permissions/theme.permissions.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/permissions/auditLogs.permissions.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/permissions/stockTransfers.permissions.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/permissions/transferTemplates.permissions.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/permissions/transferApprovals.permissions.test.ts (FIXED - ready to verify)
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/permissions/transferAnalytics.permissions.test.ts (FIXED - endpoints updated)
 
 
 ## FEATURES: PRODUCTS (4 suites)
@@ -159,7 +175,7 @@
 
 ## SUMMARY
 
-**Total Suites:** 42 (was 39 - added 3 new middleware tests: requestId, zodValidation, httpLogging)
+**Total Suites:** 51 (was 45 - added 6 new permission tests: uploads, auditLogs, stockTransfers, transferTemplates, transferApprovals, transferAnalytics)
 
 **Previously Failing Suites (9 total):**
 1. core/auth.test.ts (3 failures)
@@ -194,4 +210,7 @@ node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.confi
 
 # All middleware tests
 node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/middleware/
+
+# All permission tests
+node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/permissions/
 ```

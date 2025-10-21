@@ -2,6 +2,7 @@
 import { Router } from 'express';
 import { Prisma, AuditAction, AuditEntityType } from '@prisma/client';
 import { prismaClientInstance } from '../db/prismaClient.js';
+import { Errors } from '../utils/httpErrors.js';
 
 const router = Router();
 
@@ -23,9 +24,7 @@ function parseEnum<T extends Record<string, string>>(
 function requireTenant(req: any) {
   const tenantId = req.currentTenantId as string | undefined;
   if (!tenantId) {
-    const err: any = new Error('Not authenticated');
-    err.httpStatusCode = 401;
-    throw err;
+    throw Errors.authRequired();
   }
   return tenantId;
 }
