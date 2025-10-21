@@ -11,6 +11,8 @@ import {
   addUserToBranch,
 } from '../../../helpers/factories.js';
 
+const TOOL_CALL_OPTIONS = { toolCallId: 'test', messages: [] as any[] };
+
 describe('[CHAT-TEMPLATE-001] AI Chat Template Tools', () => {
   let testTenant: Awaited<ReturnType<typeof createTestTenant>>;
   let testUser: Awaited<ReturnType<typeof createTestUser>>;
@@ -105,11 +107,12 @@ describe('[CHAT-TEMPLATE-001] AI Chat Template Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.listTemplates.execute({});
+      const result = await tools.listTemplates.execute!({ limit: 20 }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
-      expect(result.templates.length).toBeGreaterThanOrEqual(2);
-      expect(result.templates.some((t) => t.name === 'Weekly Restock')).toBe(true);
-      expect(result.templates.some((t) => t.name === 'Emergency Stock')).toBe(true);
+      expect(result.templates?.length).toBeGreaterThanOrEqual(2);
+      expect(result.templates?.some((t) => t.name === 'Weekly Restock')).toBe(true);
+      expect(result.templates?.some((t) => t.name === 'Emergency Stock')).toBe(true);
     });
 
     it('should filter by source branch', async () => {
@@ -118,11 +121,13 @@ describe('[CHAT-TEMPLATE-001] AI Chat Template Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.listTemplates.execute({
+      const result = await tools.listTemplates.execute!({
         sourceBranchId: sourceBranch.id,
-      });
+        limit: 20,
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
-      expect(result.templates.every((t) => t.sourceBranch === 'Main Warehouse')).toBe(true);
+      expect(result.templates?.every((t) => t.sourceBranch === 'Main Warehouse')).toBe(true);
     });
 
     it('should filter by destination branch', async () => {
@@ -131,11 +136,13 @@ describe('[CHAT-TEMPLATE-001] AI Chat Template Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.listTemplates.execute({
+      const result = await tools.listTemplates.execute!({
         destinationBranchId: destinationBranch.id,
-      });
+        limit: 20,
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
-      expect(result.templates.every((t) => t.destinationBranch === 'Store A')).toBe(true);
+      expect(result.templates?.every((t) => t.destinationBranch === 'Store A')).toBe(true);
     });
 
     it('should search by name or description', async () => {
@@ -144,11 +151,13 @@ describe('[CHAT-TEMPLATE-001] AI Chat Template Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.listTemplates.execute({
+      const result = await tools.listTemplates.execute!({
         query: 'Emergency',
-      });
+        limit: 20,
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
-      expect(result.templates.some((t) => t.name === 'Emergency Stock')).toBe(true);
+      expect(result.templates?.some((t) => t.name === 'Emergency Stock')).toBe(true);
     });
 
     it('should show item count for each template', async () => {
@@ -157,12 +166,13 @@ describe('[CHAT-TEMPLATE-001] AI Chat Template Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.listTemplates.execute({});
+      const result = await tools.listTemplates.execute!({ limit: 20 }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
-      const weeklyTemplate = result.templates.find((t) => t.name === 'Weekly Restock');
+      const weeklyTemplate = result.templates?.find((t) => t.name === 'Weekly Restock');
       expect(weeklyTemplate?.itemCount).toBe(2);
 
-      const emergencyTemplate = result.templates.find((t) => t.name === 'Emergency Stock');
+      const emergencyTemplate = result.templates?.find((t) => t.name === 'Emergency Stock');
       expect(emergencyTemplate?.itemCount).toBe(1);
     });
 
@@ -172,9 +182,10 @@ describe('[CHAT-TEMPLATE-001] AI Chat Template Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.listTemplates.execute({});
+      const result = await tools.listTemplates.execute!({ limit: 20 }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
-      expect(result.templates.every((t) => t.createdBy === testUser.userEmailAddress)).toBe(true);
+      expect(result.templates?.every((t) => t.createdBy === testUser.userEmailAddress)).toBe(true);
     });
 
     it('should respect limit parameter', async () => {
@@ -183,11 +194,12 @@ describe('[CHAT-TEMPLATE-001] AI Chat Template Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.listTemplates.execute({
+      const result = await tools.listTemplates.execute!({
         limit: 1,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
-      expect(result.templates.length).toBeLessThanOrEqual(1);
+      expect(result.templates?.length).toBeLessThanOrEqual(1);
     });
 
     it('should cap limit at 20', async () => {
@@ -196,11 +208,12 @@ describe('[CHAT-TEMPLATE-001] AI Chat Template Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.listTemplates.execute({
+      const result = await tools.listTemplates.execute!({
         limit: 50,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
-      expect(result.templates.length).toBeLessThanOrEqual(20);
+      expect(result.templates?.length).toBeLessThanOrEqual(20);
     });
 
     it('should return empty result when no templates found', async () => {
@@ -209,9 +222,11 @@ describe('[CHAT-TEMPLATE-001] AI Chat Template Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.listTemplates.execute({
+      const result = await tools.listTemplates.execute!({
         query: 'NonExistentTemplate12345',
-      });
+        limit: 20,
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       expect(result.templates).toEqual([]);
       expect(result.count).toBe(0);
@@ -226,9 +241,10 @@ describe('[CHAT-TEMPLATE-001] AI Chat Template Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getTemplateDetails.execute({
+      const result = await tools.getTemplateDetails.execute!({
         templateId: template1.id,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       expect(result.id).toBe(template1.id);
       expect(result.name).toBe('Weekly Restock');
@@ -241,12 +257,13 @@ describe('[CHAT-TEMPLATE-001] AI Chat Template Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getTemplateDetails.execute({
+      const result = await tools.getTemplateDetails.execute!({
         templateId: template1.id,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
-      expect(result.sourceBranch.name).toBe('Main Warehouse');
-      expect(result.destinationBranch.name).toBe('Store A');
+      expect(result.sourceBranch?.name).toBe('Main Warehouse');
+      expect(result.destinationBranch?.name).toBe('Store A');
     });
 
     it('should list all items with products and quantities', async () => {
@@ -255,18 +272,19 @@ describe('[CHAT-TEMPLATE-001] AI Chat Template Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getTemplateDetails.execute({
+      const result = await tools.getTemplateDetails.execute!({
         templateId: template1.id,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
-      expect(result.items.length).toBe(2);
+      expect(result.items?.length).toBe(2);
 
-      const item1 = result.items.find((i) => i.sku === 'WID-001');
+      const item1 = result.items?.find((i) => i.sku === 'WID-001');
       expect(item1?.product).toBe('Widget Alpha');
       expect(item1?.defaultQty).toBe(100);
       expect(item1?.price).toBe('£15.00');
 
-      const item2 = result.items.find((i) => i.sku === 'WID-002');
+      const item2 = result.items?.find((i) => i.sku === 'WID-002');
       expect(item2?.product).toBe('Widget Beta');
       expect(item2?.defaultQty).toBe(50);
       expect(item2?.price).toBe('£20.00');
@@ -278,9 +296,10 @@ describe('[CHAT-TEMPLATE-001] AI Chat Template Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getTemplateDetails.execute({
+      const result = await tools.getTemplateDetails.execute!({
         templateId: template1.id,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       // (100 * £15) + (50 * £20) = £1500 + £1000 = £2500
       expect(result.totalValue).toBe('£2500.00');
@@ -292,9 +311,10 @@ describe('[CHAT-TEMPLATE-001] AI Chat Template Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getTemplateDetails.execute({
+      const result = await tools.getTemplateDetails.execute!({
         templateId: template1.id,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       expect(result.itemCount).toBe(2);
     });
@@ -305,9 +325,10 @@ describe('[CHAT-TEMPLATE-001] AI Chat Template Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getTemplateDetails.execute({
+      const result = await tools.getTemplateDetails.execute!({
         templateId: template1.id,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       expect(result.createdBy).toBe(testUser.userEmailAddress);
       expect(result.createdAt).toBeDefined();
@@ -320,9 +341,10 @@ describe('[CHAT-TEMPLATE-001] AI Chat Template Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getTemplateDetails.execute({
+      const result = await tools.getTemplateDetails.execute!({
         templateId: 'non-existent-id',
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       expect(result.error).toBe('Unable to get template details');
     });
@@ -345,9 +367,10 @@ describe('[CHAT-TEMPLATE-001] AI Chat Template Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getTemplateDetails.execute({
+      const result = await tools.getTemplateDetails.execute!({
         templateId: templateWithoutDesc.id,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       expect(result.description).toBe('No description');
     });
@@ -393,9 +416,10 @@ describe('[CHAT-TEMPLATE-001] AI Chat Template Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.listTemplates.execute({});
+      const result = await tools.listTemplates.execute!({ limit: 20 }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
-      expect(result.templates.some((t) => t.id === otherTemplate.id)).toBe(false);
+      expect(result.templates?.some((t) => t.id === otherTemplate.id)).toBe(false);
     });
 
     it('should not get template details from other tenants', async () => {
@@ -437,9 +461,10 @@ describe('[CHAT-TEMPLATE-001] AI Chat Template Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getTemplateDetails.execute({
+      const result = await tools.getTemplateDetails.execute!({
         templateId: otherTemplate.id,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       expect(result.error).toBe('Unable to get template details');
     });
@@ -452,11 +477,12 @@ describe('[CHAT-TEMPLATE-001] AI Chat Template Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.listTemplates.execute({
+      const result = await tools.listTemplates.execute!({
         limit: 1,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
-      if (result.count >= 1) {
+      if (result.count && result.count >= 1) {
         expect(result.hasMore).toBeDefined();
       }
     });

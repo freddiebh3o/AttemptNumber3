@@ -13,7 +13,7 @@ import {
   getStatusDistribution,
   getBottlenecks,
   getProductFrequency,
-} from '../../../src/services/analytics/transferAnalyticsService';
+} from '../../../src/services/analytics/transferAnalyticsService.js';
 import {
   createTestTenant,
   createTestUser,
@@ -22,8 +22,8 @@ import {
   createTestRoleWithPermissions,
   addUserToTenant,
   addUserToBranch,
-} from '../../helpers/factories';
-import { ROLE_DEFS } from '../../../src/rbac/catalog';
+} from '../../helpers/factories.js';
+import { ROLE_DEFS } from '../../../src/rbac/catalog.js';
 
 const prisma = new PrismaClient();
 
@@ -356,7 +356,11 @@ describe('Transfer Analytics Service', () => {
         endDate,
       });
 
-      expect(data).toEqual([]);
+      // Should fill in date range with zero values (for proper chart display)
+      expect(data).toEqual([
+        { date: '2020-01-01', created: 0, approved: 0, shipped: 0, completed: 0 },
+        { date: '2020-01-02', created: 0, approved: 0, shipped: 0, completed: 0 },
+      ]);
     });
   });
 
@@ -407,8 +411,8 @@ describe('Transfer Analytics Service', () => {
 
       // Check descending order
       for (let i = 0; i < dependencies.length - 1; i++) {
-        expect(dependencies[i].transferCount).toBeGreaterThanOrEqual(
-          dependencies[i + 1].transferCount
+        expect(dependencies[i]?.transferCount).toBeGreaterThanOrEqual(
+          dependencies[i + 1]?.transferCount ?? 0
         );
       }
     });

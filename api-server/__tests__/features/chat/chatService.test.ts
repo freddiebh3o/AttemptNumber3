@@ -1,5 +1,4 @@
 // api-server/__tests__/services/chat.test.ts
-import * as chatService from '../../../src/services/chat/chatService.js';
 import * as transferService from '../../../src/services/stockTransfers/stockTransferService.js';
 import { receiveStock } from '../../../src/services/stockService.js';
 import { transferTools } from '../../../src/services/chat/tools/transferTools.js';
@@ -13,8 +12,10 @@ import {
   createTestMembership,
   addUserToBranch,
 } from '../../helpers/factories.js';
-import { prismaClientInstance as prisma } from '../../../src/db/prismaClient.js';
-import type { Response } from 'express';
+
+
+// Helper for tool execute calls in tests
+const TOOL_CALL_OPTIONS = { toolCallId: 'test', messages: [] as any[] };
 
 describe('[CHAT-001] AI Chat Service', () => {
   let testTenant: Awaited<ReturnType<typeof createTestTenant>>;
@@ -101,6 +102,7 @@ describe('[CHAT-001] AI Chat Service', () => {
           { branchId: sourceBranch.id, branchName: 'Main Warehouse' },
         ],
         tenantId: testTenant.id,
+        tenantSlug: testTenant.tenantSlug,
       });
 
       expect(systemMessage).toContain('test@example.com');
@@ -115,6 +117,7 @@ describe('[CHAT-001] AI Chat Service', () => {
         permissions: [],
         branchMemberships: [],
         tenantId: testTenant.id,
+        tenantSlug: testTenant.tenantSlug,
       });
 
       expect(systemMessage).toContain('IMPORTANT SECURITY RULES');
@@ -128,6 +131,7 @@ describe('[CHAT-001] AI Chat Service', () => {
         permissions: [],
         branchMemberships: [],
         tenantId: testTenant.id,
+        tenantSlug: testTenant.tenantSlug,
       });
 
       expect(systemMessage).toContain('None');
@@ -140,6 +144,7 @@ describe('[CHAT-001] AI Chat Service', () => {
         permissions: [],
         branchMemberships: [],
         tenantId: testTenant.id,
+        tenantSlug: testTenant.tenantSlug,
       });
 
       expect(systemMessage).toContain('ADMIN');
@@ -180,10 +185,13 @@ describe('[CHAT-001] AI Chat Service', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.searchTransfers.execute({});
+      const result = await tools.searchTransfers.execute!({ limit: 10 }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
       expect(result.transfers.length).toBeGreaterThan(0);
-      expect(result.count).toBeGreaterThan(0);
+      expect(result.showing).toBeGreaterThan(0);
     });
 
     it('should filter by status', async () => {
@@ -192,9 +200,11 @@ describe('[CHAT-001] AI Chat Service', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.searchTransfers.execute({
+      const result = await tools.searchTransfers.execute!({
         status: 'REQUESTED',
-      });
+        limit: 10,
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       expect(result.transfers.every((t) => t.status === 'REQUESTED')).toBe(true);
     });
@@ -205,11 +215,13 @@ describe('[CHAT-001] AI Chat Service', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.searchTransfers.execute({
+      const result = await tools.searchTransfers.execute!({
         priority: 'URGENT',
-      });
+        limit: 10,
+      }, TOOL_CALL_OPTIONS)
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
-      expect(result.transfers.every((t) => t.priority === 'URGENT')).toBe(true);
+      expect(result.transfers.every((t: any) => t.priority === 'URGENT')).toBe(true);
     });
 
     it('should filter by direction (inbound)', async () => {
@@ -218,12 +230,14 @@ describe('[CHAT-001] AI Chat Service', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.searchTransfers.execute({
+      const result = await tools.searchTransfers.execute!({
         branchId: destinationBranch.id,
         direction: 'inbound',
-      });
+        limit: 10,
+      }, TOOL_CALL_OPTIONS)
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
-      expect(result.transfers.every((t) => t.destinationBranch !== 'Unknown')).toBe(true);
+      expect(result.transfers.every((t: any) => t.destinationBranch !== 'Unknown')).toBe(true);
     });
 
     it('should filter by direction (outbound)', async () => {
@@ -232,12 +246,14 @@ describe('[CHAT-001] AI Chat Service', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.searchTransfers.execute({
+      const result = await tools.searchTransfers.execute!({
         branchId: sourceBranch.id,
         direction: 'outbound',
-      });
+        limit: 10,
+      }, TOOL_CALL_OPTIONS) 
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
-      expect(result.transfers.every((t) => t.sourceBranch !== 'Unknown')).toBe(true);
+      expect(result.transfers.every((t: any) => t.sourceBranch !== 'Unknown')).toBe(true);
     });
 
     it('should limit results (max 10)', async () => {
@@ -246,9 +262,10 @@ describe('[CHAT-001] AI Chat Service', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.searchTransfers.execute({
+      const result = await tools.searchTransfers.execute!({
         limit: 20, // Request 20, but should cap at 10
-      });
+      }, TOOL_CALL_OPTIONS) 
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       expect(result.transfers.length).toBeLessThanOrEqual(10);
     });
@@ -301,11 +318,12 @@ describe('[CHAT-001] AI Chat Service', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.searchTransfers.execute({});
+      const result = await tools.searchTransfers.execute!({ limit: 10 }, TOOL_CALL_OPTIONS)
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       // Owner should only see transfers where they are member of source OR destination
       // They are member of sourceBranch and destinationBranch, but NOT thirdBranch
-      result.transfers.forEach((t) => {
+      result.transfers.forEach((t: any) => {
         const isOwnerBranch =
           t.sourceBranch === sourceBranch.branchName ||
           t.sourceBranch === destinationBranch.branchName ||
@@ -334,9 +352,10 @@ describe('[CHAT-001] AI Chat Service', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getTransferDetails.execute({
+      const result = await tools.getTransferDetails.execute!({
         transferId: transfer.id,
-      });
+      }, TOOL_CALL_OPTIONS)
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       expect(result.transferNumber).toBe(transfer.transferNumber);
       expect(result.status).toBe('REQUESTED');
@@ -359,9 +378,10 @@ describe('[CHAT-001] AI Chat Service', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getTransferDetails.execute({
+      const result = await tools.getTransferDetails.execute!({
         transferNumber: transfer.transferNumber,
-      });
+      }, TOOL_CALL_OPTIONS)
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       expect(result.transferNumber).toBe(transfer.transferNumber);
     });
@@ -372,9 +392,10 @@ describe('[CHAT-001] AI Chat Service', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getTransferDetails.execute({
+      const result = await tools.getTransferDetails.execute!({
         transferId: 'non-existent-id',
-      });
+      }, TOOL_CALL_OPTIONS)
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       expect(result.error).toBeDefined();
       expect(result.message).toContain('not found');
@@ -430,9 +451,10 @@ describe('[CHAT-001] AI Chat Service', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getTransferDetails.execute({
+      const result = await tools.getTransferDetails.execute!({
         transferId: transfer.id,
-      });
+      }, TOOL_CALL_OPTIONS)
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       expect(result.error).toBeDefined();
       expect(result.message).toContain('permission');
@@ -456,9 +478,10 @@ describe('[CHAT-001] AI Chat Service', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getApprovalStatus.execute({
+      const result = await tools.getApprovalStatus.execute!({
         transferId: transfer.id,
-      });
+      }, TOOL_CALL_OPTIONS)
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       expect(result.requiresMultiLevelApproval).toBe(false);
       expect(result.status).toBe('REQUESTED');
@@ -471,9 +494,10 @@ describe('[CHAT-001] AI Chat Service', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getApprovalStatus.execute({
+      const result = await tools.getApprovalStatus.execute!({
         transferId: 'non-existent-id',
-      });
+      }, TOOL_CALL_OPTIONS)
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       expect(result.error).toBeDefined();
     });
@@ -522,9 +546,10 @@ describe('[CHAT-001] AI Chat Service', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getApprovalStatus.execute({
+      const result = await tools.getApprovalStatus.execute!({
         transferId: transfer.id,
-      });
+      }, TOOL_CALL_OPTIONS)
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       expect(result.error).toBeDefined();
     });
@@ -549,10 +574,11 @@ describe('[CHAT-001] AI Chat Service', () => {
         },
       });
 
-      const result = await tools.searchTransfers.execute({});
+      const result = await tools.searchTransfers.execute!({ limit: 10 }, TOOL_CALL_OPTIONS)
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       // viewerUser should see this transfer (member of destination)
-      expect(result.count).toBeGreaterThan(0);
+      expect(result.showing).toBeGreaterThan(0);
     });
 
     it('should not show transfers for branches user is not member of', async () => {
@@ -604,10 +630,11 @@ describe('[CHAT-001] AI Chat Service', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.searchTransfers.execute({});
+      const result = await tools.searchTransfers.execute!({ limit: 10 }, TOOL_CALL_OPTIONS)
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       // Verify all transfers are for branches viewer is member of
-      result.transfers.forEach((t) => {
+      result.transfers.forEach((t: any) => {
         const isRelevant =
           t.sourceBranch === destinationBranch.branchName ||
           t.destinationBranch === destinationBranch.branchName;
@@ -673,11 +700,12 @@ describe('[CHAT-001] AI Chat Service', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.searchTransfers.execute({});
+      const result = await tools.searchTransfers.execute!({ limit: 10 }, TOOL_CALL_OPTIONS)
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       // Verify all transfers belong to testTenant
       const otherTenantTransfers = result.transfers.filter(
-        (t) => !t.sourceBranch.includes(sourceBranch.branchName.substring(0, 10))
+        (t: any) => !t.sourceBranch.includes(sourceBranch.branchName.substring(0, 10))
       );
       expect(otherTenantTransfers.length).toBe(0);
     });

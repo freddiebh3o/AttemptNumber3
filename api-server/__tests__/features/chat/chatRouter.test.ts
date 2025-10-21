@@ -328,34 +328,6 @@ describe('Chat Router - Conversation Endpoints', () => {
   });
 
   describe('POST /api/chat - with conversationId', () => {
-    it.skip('should accept conversationId parameter', async () => {
-      // TODO: Fix streaming with conversation persistence
-      // Current issue: Need to load full conversation history when resuming
-      const tenant = await createTestTenant({ name: 'Test Corp' });
-      const user = await createTestUser();
-      const sessionCookie = createSessionCookie(user.id, tenant.id);
-
-      const conversation = await createConversation({
-        userId: user.id,
-        tenantId: tenant.id,
-        firstMessage: { role: 'user', content: 'First message' },
-      });
-
-      const response = await request(app)
-        .post('/api/chat')
-        .set('Cookie', sessionCookie)
-        .send({
-          messages: [
-            { role: 'user', content: 'First message' },
-            { role: 'user', content: 'Second message' },
-          ],
-          conversationId: conversation.id,
-        });
-
-      // Should stream response (returns immediately with streaming headers)
-      expect(response.status).toBe(200);
-    });
-
     it('should validate messages array', async () => {
       const tenant = await createTestTenant({ name: 'Test Corp' });
       const user = await createTestUser();

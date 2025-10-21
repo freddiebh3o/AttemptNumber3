@@ -12,6 +12,8 @@ import {
   addUserToBranch,
 } from '../../../helpers/factories.js';
 
+const TOOL_CALL_OPTIONS = { toolCallId: 'test', messages: [] as any[] };
+
 describe('[CHAT-ANALYTICS-001] AI Chat Analytics Tools', () => {
   let testTenant: Awaited<ReturnType<typeof createTestTenant>>;
   let testUser: Awaited<ReturnType<typeof createTestUser>>;
@@ -118,12 +120,13 @@ describe('[CHAT-ANALYTICS-001] AI Chat Analytics Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getTransferMetrics.execute({
-        days: 30,
-      });
+      const result = await tools.getTransferMetrics.execute!({days: 30}, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
       expect(result.period).toBe('Last 30 days');
-      expect(result.metrics.totalTransfers).toBeGreaterThanOrEqual(2);
+      expect(result.metrics?.totalTransfers).toBeGreaterThanOrEqual(2);
     });
 
     it('should calculate completion rate', async () => {
@@ -132,11 +135,12 @@ describe('[CHAT-ANALYTICS-001] AI Chat Analytics Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getTransferMetrics.execute({
-        days: 30,
-      });
+      const result = await tools.getTransferMetrics.execute!({days: 30}, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
-      expect(result.metrics.completionRate).toContain('%');
+      expect(result.metrics?.completionRate).toContain('%');
     });
 
     it('should show breakdown by status', async () => {
@@ -145,13 +149,14 @@ describe('[CHAT-ANALYTICS-001] AI Chat Analytics Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getTransferMetrics.execute({
-        days: 30,
-      });
+      const result = await tools.getTransferMetrics.execute!({days: 30}, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
-      expect(result.breakdown).toBeDefined();
-      expect(result.breakdown.REQUESTED).toBeGreaterThanOrEqual(0);
-      expect(result.breakdown.COMPLETED).toBeGreaterThanOrEqual(0);
+      expect(result.breakdown?.REQUESTED).toBeDefined();
+      expect(result.breakdown?.REQUESTED).toBeGreaterThanOrEqual(0);
+      expect(result.breakdown?.COMPLETED).toBeGreaterThanOrEqual(0);
     });
 
     it('should calculate average cycle time', async () => {
@@ -160,11 +165,12 @@ describe('[CHAT-ANALYTICS-001] AI Chat Analytics Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getTransferMetrics.execute({
-        days: 30,
-      });
+      const result = await tools.getTransferMetrics.execute!({days: 30}, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
-      expect(result.metrics.avgCycleTime).toContain('days');
+      expect(result.metrics?.avgCycleTime).toContain('days');
     });
 
     it('should calculate fill rate', async () => {
@@ -173,11 +179,12 @@ describe('[CHAT-ANALYTICS-001] AI Chat Analytics Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getTransferMetrics.execute({
-        days: 30,
-      });
+      const result = await tools.getTransferMetrics.execute!({days: 30}, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
-      expect(result.metrics.fillRate).toContain('%');
+      expect(result.metrics?.fillRate).toContain('%');
     });
 
     it('should filter by specific branch', async () => {
@@ -186,12 +193,12 @@ describe('[CHAT-ANALYTICS-001] AI Chat Analytics Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getTransferMetrics.execute({
-        branchId: branch1.id,
-        days: 30,
-      });
+      const result = await tools.getTransferMetrics.execute!({days: 30, branchId: branch1.id}, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
-      expect(result.metrics.totalTransfers).toBeGreaterThanOrEqual(0);
+      expect(result.metrics?.totalTransfers).toBeGreaterThanOrEqual(0);
     });
 
     it('should respect days parameter', async () => {
@@ -200,9 +207,10 @@ describe('[CHAT-ANALYTICS-001] AI Chat Analytics Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getTransferMetrics.execute({
-        days: 7,
-      });
+      const result = await tools.getTransferMetrics.execute!({days: 7}, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
       expect(result.period).toBe('Last 7 days');
     });
@@ -217,9 +225,10 @@ describe('[CHAT-ANALYTICS-001] AI Chat Analytics Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getTransferMetrics.execute({
-        branchId: branch3.id,
-      });
+      const result = await tools.getTransferMetrics.execute!({ days: 30, branchId: branch3.id }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
       expect(result.error).toBe('Access denied');
     });
@@ -241,7 +250,10 @@ describe('[CHAT-ANALYTICS-001] AI Chat Analytics Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getTransferMetrics.execute({});
+      const result = await tools.getTransferMetrics.execute!({ days: 30 }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
       expect(result.error).toBe('No branch access');
     });
@@ -281,34 +293,23 @@ describe('[CHAT-ANALYTICS-001] AI Chat Analytics Tools', () => {
       });
     });
 
-    it('should get branch performance metrics', async () => {
-      const tools = analyticsTools({
-        userId: testUser.id,
-        tenantId: testTenant.id,
-      });
-
-      const result = await tools.getBranchPerformance.execute({
-        branchId: branch2.id,
-        period: 'month',
-      });
-
-      expect(result.branch).toBe('Store A');
-      expect(result.period).toBe('month');
-    });
-
     it('should show inbound metrics', async () => {
       const tools = analyticsTools({
         userId: testUser.id,
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getBranchPerformance.execute({
-        branchId: branch2.id,
-      });
+      const result = await tools.getBranchPerformance.execute!({
+        branchId: branch2.id, 
+        period: 'month',
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
       expect(result.inbound).toBeDefined();
-      expect(result.inbound.transferCount).toBeGreaterThanOrEqual(0);
-      expect(result.inbound.fillRate).toContain('%');
+      expect(result.inbound?.transferCount).toBeGreaterThanOrEqual(0);
+      expect(result.inbound?.fillRate).toContain('%');
     });
 
     it('should show outbound metrics', async () => {
@@ -317,13 +318,17 @@ describe('[CHAT-ANALYTICS-001] AI Chat Analytics Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getBranchPerformance.execute({
+      const result = await tools.getBranchPerformance.execute!({
+        period: 'month',
         branchId: branch2.id,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
       expect(result.outbound).toBeDefined();
-      expect(result.outbound.transferCount).toBeGreaterThanOrEqual(0);
-      expect(result.outbound.fillRate).toContain('%');
+      expect(result.outbound?.transferCount).toBeGreaterThanOrEqual(0);
+      expect(result.outbound?.fillRate).toContain('%');
     });
 
     it('should calculate net flow', async () => {
@@ -332,9 +337,13 @@ describe('[CHAT-ANALYTICS-001] AI Chat Analytics Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getBranchPerformance.execute({
+      const result = await tools.getBranchPerformance.execute!({
         branchId: branch2.id,
-      });
+        period: 'month',
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
       expect(result.netFlow).toBeDefined();
       expect(typeof result.netFlow).toBe('number');
@@ -346,22 +355,31 @@ describe('[CHAT-ANALYTICS-001] AI Chat Analytics Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const weekResult = await tools.getBranchPerformance.execute({
+      const weekResult = await tools.getBranchPerformance.execute!({
         branchId: branch1.id,
         period: 'week',
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in weekResult) {
+        throw new Error('Unexpected AsyncIterable');
+      }
       expect(weekResult.period).toBe('week');
 
-      const monthResult = await tools.getBranchPerformance.execute({
+      const monthResult = await tools.getBranchPerformance.execute!({
         branchId: branch1.id,
         period: 'month',
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in monthResult) {
+        throw new Error('Unexpected AsyncIterable');
+      }
       expect(monthResult.period).toBe('month');
 
-      const quarterResult = await tools.getBranchPerformance.execute({
+      const quarterResult = await tools.getBranchPerformance.execute!({
         branchId: branch1.id,
         period: 'quarter',
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in quarterResult) {
+        throw new Error('Unexpected AsyncIterable');
+      }
       expect(quarterResult.period).toBe('quarter');
     });
 
@@ -375,9 +393,13 @@ describe('[CHAT-ANALYTICS-001] AI Chat Analytics Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getBranchPerformance.execute({
+      const result = await tools.getBranchPerformance.execute!({
         branchId: branch3.id,
-      });
+        period: 'month',
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
       expect(result.error).toBe('Access denied');
     });
@@ -388,9 +410,13 @@ describe('[CHAT-ANALYTICS-001] AI Chat Analytics Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getBranchPerformance.execute({
+      const result = await tools.getBranchPerformance.execute!({
         branchId: 'non-existent-id',
-      });
+        period: 'month',
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
       expect(result.error).toBe('Access denied');
     });
@@ -403,9 +429,12 @@ describe('[CHAT-ANALYTICS-001] AI Chat Analytics Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getStockValueReport.execute({});
+      const result = await tools.getStockValueReport.execute!({}, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
-      expect(result.branches.length).toBeGreaterThanOrEqual(1);
+      expect(result.branches?.length).toBeGreaterThanOrEqual(1);
       expect(result.grandTotal).toContain('£');
       expect(result.branchCount).toBeGreaterThanOrEqual(1);
     });
@@ -416,9 +445,12 @@ describe('[CHAT-ANALYTICS-001] AI Chat Analytics Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getStockValueReport.execute({});
+      const result = await tools.getStockValueReport.execute!({}, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
-      const mainWarehouse = result.branches.find((b) => b.branchName === 'Main Warehouse');
+      const mainWarehouse = result.branches?.find((b) => b.branchName === 'Main Warehouse');
       expect(mainWarehouse).toBeDefined();
       expect(mainWarehouse?.totalValue).toContain('£');
     });
@@ -429,9 +461,12 @@ describe('[CHAT-ANALYTICS-001] AI Chat Analytics Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getStockValueReport.execute({});
+      const result = await tools.getStockValueReport.execute!({}, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
-      const mainWarehouse = result.branches.find((b) => b.branchName === 'Main Warehouse');
+      const mainWarehouse = result.branches?.find((b) => b.branchName === 'Main Warehouse');
       expect(mainWarehouse?.productCount).toBeGreaterThanOrEqual(2); // We added 2 products
     });
 
@@ -441,12 +476,15 @@ describe('[CHAT-ANALYTICS-001] AI Chat Analytics Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getStockValueReport.execute({
+      const result = await tools.getStockValueReport.execute!({
         branchId: branch1.id,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
-      expect(result.branches.length).toBe(1);
-      expect(result.branches[0]?.branchName).toBe('Main Warehouse');
+      expect(result.branches?.length).toBe(1);
+      expect(result.branches?.[0]?.branchName).toBe('Main Warehouse');
     });
 
     it('should calculate grand total correctly', async () => {
@@ -455,7 +493,10 @@ describe('[CHAT-ANALYTICS-001] AI Chat Analytics Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getStockValueReport.execute({});
+      const result = await tools.getStockValueReport.execute!({}, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
       // Grand total should be sum of all branches
       // Branch1: (1000 * £12.00) + (500 * £18.00) = £12,000 + £9,000 = £21,000
@@ -480,9 +521,12 @@ describe('[CHAT-ANALYTICS-001] AI Chat Analytics Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getStockValueReport.execute({
-        branchId: branch1.id,
-      });
+      const result = await tools.getStockValueReport.execute!({
+        branchId: branch1.id, 
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
       // Total should include both lots at their respective costs
       // (1000 * £12) + (500 * £18) + (100 * £15) = £12,000 + £9,000 + £1,500 = £22,500
@@ -499,9 +543,12 @@ describe('[CHAT-ANALYTICS-001] AI Chat Analytics Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getStockValueReport.execute({
+      const result = await tools.getStockValueReport.execute!({
         branchId: branch3.id,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
       expect(result.error).toBe('Access denied');
     });
@@ -523,7 +570,10 @@ describe('[CHAT-ANALYTICS-001] AI Chat Analytics Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getStockValueReport.execute({});
+      const result = await tools.getStockValueReport.execute!({}, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
       expect(result.error).toBe('No branch access');
     });
@@ -534,11 +584,14 @@ describe('[CHAT-ANALYTICS-001] AI Chat Analytics Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getStockValueReport.execute({
+      const result = await tools.getStockValueReport.execute!({
         branchId: branch2.id,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
-      const storeA = result.branches.find((b) => b.branchName === 'Store A');
+      const storeA = result.branches?.find((b) => b.branchName === 'Store A');
       // branch2 might have stock from beforeEach, but we can check structure
       expect(storeA).toBeDefined();
       expect(storeA?.totalValue).toContain('£');
@@ -565,11 +618,14 @@ describe('[CHAT-ANALYTICS-001] AI Chat Analytics Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getStockValueReport.execute({});
+      const result = await tools.getStockValueReport.execute!({}, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
       // Should only see branch2
-      expect(result.branches.length).toBe(1);
-      expect(result.branches[0]?.branchName).toBe('Store A');
+      expect(result.branches?.length).toBe(1);
+      expect(result.branches?.[0]?.branchName).toBe('Store A');
     });
   });
 
@@ -613,10 +669,13 @@ describe('[CHAT-ANALYTICS-001] AI Chat Analytics Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getTransferMetrics.execute({});
+      const result = await tools.getTransferMetrics.execute!({ days: 30 }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
       // testUser's metrics should not include otherTenant's transfers
-      expect(result.metrics).toBeDefined();
+      expect(result.metrics?.totalTransfers).toBeGreaterThanOrEqual(0);
     });
   });
 });

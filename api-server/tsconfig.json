@@ -1,13 +1,12 @@
 {
   "compilerOptions": {
-    "rootDir": "src",
     "outDir": "dist",
     "target": "ES2022",
     "lib": ["ES2022"],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
 
-    "types": ["node"],
+    "types": ["node", "jest"],
 
     "sourceMap": true,
     "declaration": true,
@@ -24,6 +23,6 @@
 
     "skipLibCheck": true,
   },
-  "include": ["src/**/*.ts", "src/types/express.d.ts"],
+  "include": ["src/**/*.ts", "__tests__/**/*.ts", "src/types/express.d.ts"],
   "exclude": ["dist", "prisma"]
 }

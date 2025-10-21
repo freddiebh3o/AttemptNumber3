@@ -322,7 +322,7 @@ export async function createTestApprovalRule(options: {
     data: {
       tenantId,
       name,
-      description,
+      description: description ?? null,
       isActive,
       approvalMode,
       priority,
@@ -335,8 +335,8 @@ export async function createTestApprovalRule(options: {
       data: options.conditions.map((condition) => ({
         ruleId: rule.id,
         conditionType: condition.conditionType,
-        threshold: condition.threshold,
-        branchId: condition.branchId,
+        threshold: condition.threshold ?? null,
+        branchId: condition.branchId ?? null,
       })),
     });
   }
@@ -348,8 +348,8 @@ export async function createTestApprovalRule(options: {
         ruleId: rule.id,
         level: level.level,
         name: level.name,
-        requiredRoleId: level.requiredRoleId,
-        requiredUserId: level.requiredUserId,
+        requiredRoleId: level.requiredRoleId ?? null,
+        requiredUserId: level.requiredUserId ?? null,
       })),
     });
   }
@@ -380,7 +380,7 @@ export async function createTestQuantityApprovalRule(params: {
     priority: 1,
     conditions: [
       {
-        conditionType: 'QUANTITY_THRESHOLD',
+        conditionType: 'TOTAL_QTY_THRESHOLD',
         threshold: params.threshold,
       },
     ],
@@ -411,7 +411,7 @@ export async function createTestValueApprovalRule(params: {
     priority: 1,
     conditions: [
       {
-        conditionType: 'VALUE_THRESHOLD',
+        conditionType: 'TOTAL_VALUE_THRESHOLD',
         threshold: params.thresholdPence,
       },
     ],
@@ -442,7 +442,7 @@ export async function createTestBranchApprovalRule(params: {
     priority: 1,
     conditions: [
       {
-        conditionType: 'BRANCH_SOURCE',
+        conditionType: 'SOURCE_BRANCH',
         branchId: params.branchId,
       },
     ],

@@ -327,6 +327,8 @@ describe('[ST-003] Authentication', () => {
           tenantSlug: tenant2.tenantSlug,
         });
 
+      console.log(response.body, 'response123')
+
       // Assert
       expect(response.status).toBe(200);
       expect(response.body).toMatchObject({

@@ -6,7 +6,7 @@
 - auth.test.ts (previously had 3 failures)
 
 ### All tests and commands
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/core/auth.test.ts
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/core/auth.test.ts (ALL PASSING)
 
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/core/health.test.ts
 
@@ -119,8 +119,6 @@
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/chat/chatService.test.ts
 
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/chat/chatRouter.test.ts
-
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/chat/chatRoutes.test.ts
 
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/chat/chatIntegration.test.ts
 

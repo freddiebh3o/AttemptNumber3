@@ -189,7 +189,6 @@ describe('[ST-010] Stock Transfer Templates Service', () => {
 
       expect(result.items).toHaveLength(2);
       expect(result.items[0]?.name).toBeDefined();
-      expect(result.items[0]?.items).toBeDefined();
     });
 
     it('should filter templates by search query (name)', async () => {

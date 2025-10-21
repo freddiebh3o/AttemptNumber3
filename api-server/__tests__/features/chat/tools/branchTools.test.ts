@@ -12,6 +12,8 @@ import {
   addUserToBranch,
 } from '../../../helpers/factories.js';
 
+const TOOL_CALL_OPTIONS = { toolCallId: 'test', messages: [] as any[] };
+
 describe('[CHAT-BRANCH-001] AI Chat Branch Tools', () => {
   let testTenant: Awaited<ReturnType<typeof createTestTenant>>;
   let testUser: Awaited<ReturnType<typeof createTestUser>>;
@@ -75,12 +77,17 @@ describe('[CHAT-BRANCH-001] AI Chat Branch Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.listBranches.execute({
+      const result = await tools.listBranches.execute!({
         includeInactive: false,
-      });
+        limit: 10,
+      }, TOOL_CALL_OPTIONS);
 
-      expect(result.branches.length).toBeGreaterThanOrEqual(2);
-      expect(result.branches.every((b) => b.isActive === true)).toBe(true);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
+
+      expect(result.branches?.length).toBeGreaterThanOrEqual(2);
+      expect(result.branches?.every((b) => b.isActive === true)).toBe(true);
     });
 
     it('should include inactive branches when requested', async () => {
@@ -89,11 +96,16 @@ describe('[CHAT-BRANCH-001] AI Chat Branch Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.listBranches.execute({
-        includeInactive: true,
-      });
+      const result = await tools.listBranches.execute!({
+        includeInactive: true,  
+        limit: 10,
+      }, TOOL_CALL_OPTIONS);
 
-      expect(result.branches.some((b) => b.name === 'Inactive Warehouse')).toBe(true);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
+
+      expect(result.branches?.some((b) => b.name === 'Inactive Warehouse')).toBe(true);
     });
 
     it('should show member count for each branch', async () => {
@@ -102,9 +114,16 @@ describe('[CHAT-BRANCH-001] AI Chat Branch Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.listBranches.execute({});
+      const result = await tools.listBranches.execute!({
+        includeInactive: false,
+        limit: 10,
+      }, TOOL_CALL_OPTIONS);
 
-      const mainWarehouse = result.branches.find((b) => b.name === 'Main Warehouse');
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
+
+      const mainWarehouse = result.branches?.find((b) => b.name === 'Main Warehouse');
       expect(mainWarehouse?.memberCount).toBeGreaterThanOrEqual(1);
     });
 
@@ -114,11 +133,16 @@ describe('[CHAT-BRANCH-001] AI Chat Branch Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.listBranches.execute({
+      const result = await tools.listBranches.execute!({
+        includeInactive: false,
         limit: 1,
-      });
+      }, TOOL_CALL_OPTIONS);
 
-      expect(result.branches.length).toBeLessThanOrEqual(1);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
+
+      expect(result.branches?.length).toBeLessThanOrEqual(1);
     });
 
     it('should cap limit at 20', async () => {
@@ -127,11 +151,16 @@ describe('[CHAT-BRANCH-001] AI Chat Branch Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.listBranches.execute({
+      const result = await tools.listBranches.execute!({
+        includeInactive: false,
         limit: 50,
-      });
+      }, TOOL_CALL_OPTIONS);
 
-      expect(result.branches.length).toBeLessThanOrEqual(20);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
+
+      expect(result.branches?.length).toBeLessThanOrEqual(20);
     });
 
     it('should sort branches by name', async () => {
@@ -140,13 +169,20 @@ describe('[CHAT-BRANCH-001] AI Chat Branch Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.listBranches.execute({});
+      const result = await tools.listBranches.execute!({
+        includeInactive: false,
+        limit: 10,
+      }, TOOL_CALL_OPTIONS);
+
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      } 
 
       // Check if branches are sorted alphabetically
-      for (let i = 1; i < result.branches.length; i++) {
-        const prev = result.branches[i - 1]!.name;
-        const curr = result.branches[i]!.name;
-        expect(prev.localeCompare(curr)).toBeLessThanOrEqual(0);
+      for (let i = 1; i < result.branches!.length; i++) {
+        const prev = result.branches?.[i - 1]!.name;
+        const curr = result.branches?.[i]!.name;
+        expect(prev!.localeCompare(curr!)).toBeLessThanOrEqual(0);
       }
     });
   });
@@ -182,9 +218,13 @@ describe('[CHAT-BRANCH-001] AI Chat Branch Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getBranchDetails.execute({
+      const result = await tools.getBranchDetails.execute!({
         branchId: branch1.id,
-      });
+      }, TOOL_CALL_OPTIONS);
+
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
       expect(result.id).toBe(branch1.id);
       expect(result.name).toBe('Main Warehouse');
@@ -197,9 +237,12 @@ describe('[CHAT-BRANCH-001] AI Chat Branch Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getBranchDetails.execute({
+      const result = await tools.getBranchDetails.execute!({
         branchName: 'Main Warehouse',
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
       expect(result.id).toBe(branch1.id);
       expect(result.name).toBe('Main Warehouse');
@@ -211,11 +254,14 @@ describe('[CHAT-BRANCH-001] AI Chat Branch Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getBranchDetails.execute({
+      const result = await tools.getBranchDetails.execute!({
         branchId: branch1.id,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
-      expect(result.stats.memberCount).toBeGreaterThanOrEqual(1);
+      expect(result.stats?.memberCount).toBeGreaterThanOrEqual(1);
     });
 
     it('should include product count', async () => {
@@ -224,11 +270,15 @@ describe('[CHAT-BRANCH-001] AI Chat Branch Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getBranchDetails.execute({
+      const result = await tools.getBranchDetails.execute!({
         branchId: branch1.id,
-      });
+      }, TOOL_CALL_OPTIONS);
 
-      expect(result.stats.productCount).toBeGreaterThanOrEqual(1);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
+
+      expect(result.stats?.productCount).toBeGreaterThanOrEqual(1);
     });
 
     it('should include products with stock count', async () => {
@@ -237,11 +287,15 @@ describe('[CHAT-BRANCH-001] AI Chat Branch Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getBranchDetails.execute({
+      const result = await tools.getBranchDetails.execute!({
         branchId: branch1.id,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
-      expect(result.stats.productsWithStock).toBeGreaterThanOrEqual(1);
+      expect(result.stats?.productsWithStock).toBeGreaterThanOrEqual(1);
+
     });
 
     it('should calculate total stock value', async () => {
@@ -250,13 +304,16 @@ describe('[CHAT-BRANCH-001] AI Chat Branch Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getBranchDetails.execute({
+      const result = await tools.getBranchDetails.execute!({
         branchId: branch1.id,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
-      expect(result.stats.totalStockValue).toContain('£');
+      expect(result.stats?.totalStockValue).toContain('£');
       // 1000 units * £15.00 = £15,000.00
-      expect(result.stats.totalStockValue).toBe('£15000.00');
+      expect(result.stats?.totalStockValue).toBe('£15000.00');
     });
 
     it('should show recent transfers (last 30 days)', async () => {
@@ -265,11 +322,14 @@ describe('[CHAT-BRANCH-001] AI Chat Branch Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getBranchDetails.execute({
+      const result = await tools.getBranchDetails.execute!({
         branchId: branch1.id,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
-      expect(result.stats.recentTransfers).toBeGreaterThanOrEqual(1);
+      expect(result.stats?.recentTransfers).toBeGreaterThanOrEqual(1);
     });
 
     it('should return error if branch not found', async () => {
@@ -278,9 +338,12 @@ describe('[CHAT-BRANCH-001] AI Chat Branch Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getBranchDetails.execute({
+      const result = await tools.getBranchDetails.execute!({
         branchId: 'non-existent-id',
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
       expect(result.error).toBe('Unable to get branch details');
     });
@@ -291,7 +354,11 @@ describe('[CHAT-BRANCH-001] AI Chat Branch Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getBranchDetails.execute({});
+      const result = await tools.getBranchDetails.execute!({
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
       expect(result.error).toBe('Branch not found');
     });
@@ -302,12 +369,15 @@ describe('[CHAT-BRANCH-001] AI Chat Branch Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getBranchDetails.execute({
+      const result = await tools.getBranchDetails.execute!({
         branchId: branch2.id,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
-      expect(result.stats.productsWithStock).toBe(0);
-      expect(result.stats.totalStockValue).toBe('£0.00');
+      expect(result.stats?.productsWithStock).toBe(0);
+      expect(result.stats?.totalStockValue).toBe('£0.00');
     });
   });
 
@@ -324,9 +394,16 @@ describe('[CHAT-BRANCH-001] AI Chat Branch Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.listBranches.execute({});
+      const result = await tools.listBranches.execute!({
+        includeInactive: false,
+        limit: 10,
+      }, TOOL_CALL_OPTIONS);
 
-      expect(result.branches.some((b) => b.id === otherBranch.id)).toBe(false);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
+
+      expect(result.branches?.some((b) => b.id === otherBranch.id)).toBe(false);
     });
 
     it('should not get details for branches from other tenants', async () => {
@@ -340,11 +417,14 @@ describe('[CHAT-BRANCH-001] AI Chat Branch Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getBranchDetails.execute({
+      const result = await tools.getBranchDetails.execute!({
         branchId: otherBranch.id,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
-      expect(result.error).toBe('Unable to get branch details');
+      expect(result.message).toBe('Branch not found for this tenant.');
     });
   });
 
@@ -367,10 +447,17 @@ describe('[CHAT-BRANCH-001] AI Chat Branch Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.listBranches.execute({});
+      const result = await tools.listBranches.execute!({
+        includeInactive: false,
+        limit: 10,
+      }, TOOL_CALL_OPTIONS);
 
       // User should still see branches (no permission required)
-      expect(result.branches.length).toBeGreaterThanOrEqual(2);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
+
+      expect(result.branches?.length).toBeGreaterThanOrEqual(2);
     });
 
     it('should get branch details even for users with no branch memberships', async () => {
@@ -391,9 +478,12 @@ describe('[CHAT-BRANCH-001] AI Chat Branch Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getBranchDetails.execute({
+      const result = await tools.getBranchDetails.execute!({
         branchId: branch1.id,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
       // User should still see branch details (no permission required)
       expect(result.id).toBe(branch1.id);
@@ -415,9 +505,13 @@ describe('[CHAT-BRANCH-001] AI Chat Branch Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.listBranches.execute({
+      const result = await tools.listBranches.execute!({
+        includeInactive: false,
         limit: 20,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected AsyncIterable');
+      }
 
       expect(result.hasMore).toBe(true);
     });

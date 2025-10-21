@@ -9,8 +9,8 @@ import {
   createStockTransfer,
   reviewStockTransfer,
   shipStockTransfer,
-} from '../../../src/services/stockTransfers/stockTransferService';
-import { receiveStock } from '../../../src/services/stockService';
+} from '../../../src/services/stockTransfers/stockTransferService.js';
+import { receiveStock } from '../../../src/services/stockService.js';
 import {
   createTestTenant,
   createTestUser,
@@ -19,8 +19,8 @@ import {
   createTestRoleWithPermissions,
   addUserToTenant,
   addUserToBranch,
-} from '../../helpers/factories';
-import { ROLE_DEFS } from '../../../src/rbac/catalog';
+} from '../../helpers/factories.js';
+import { ROLE_DEFS } from '../../../src/rbac/catalog.js';
 
 const prisma = new PrismaClient();
 
@@ -89,7 +89,7 @@ describe('Partial Shipment', () => {
         tenantId,
         userId,
         transferId: transfer.id,
-        decision: 'APPROVE',
+        action: 'approve',
       });
 
       // Ship without items array (backward compatible)
@@ -100,7 +100,7 @@ describe('Partial Shipment', () => {
       });
 
       expect(shipped.status).toBe(StockTransferStatus.IN_TRANSIT);
-      expect(shipped.items[0].qtyShipped).toBe(50);
+      expect(shipped.items[0]?.qtyShipped).toBe(50);
     });
 
     test('should ship partial quantities when items array provided', async () => {
@@ -119,22 +119,22 @@ describe('Partial Shipment', () => {
         tenantId,
         userId,
         transferId: transfer.id,
-        decision: 'APPROVE',
+        action: 'approve',
       });
 
-      const itemId = transfer.items[0].id;
+      const itemId = transfer.items[0]?.id;
 
       // Ship partial (70 of 100)
       const shipped = await shipStockTransfer({
         tenantId,
         userId,
         transferId: transfer.id,
-        items: [{ itemId, qtyToShip: 70 }],
+        items: [{ itemId: itemId!, qtyToShip: 70 }],
       });
 
       expect(shipped.status).toBe(StockTransferStatus.APPROVED); // Still APPROVED (not fully shipped)
-      expect(shipped.items[0].qtyShipped).toBe(70);
-      expect(shipped.items[0].qtyApproved).toBe(100);
+      expect(shipped.items[0]?.qtyShipped).toBe(70);
+      expect(shipped.items[0]?.qtyApproved).toBe(100);
     });
 
     test('should validate qtyToShip <= (qtyApproved - qtyShipped)', async () => {
@@ -153,10 +153,10 @@ describe('Partial Shipment', () => {
         tenantId,
         userId,
         transferId: transfer.id,
-        decision: 'APPROVE',
+        action: 'approve',
       });
 
-      const itemId = transfer.items[0].id;
+      const itemId = transfer.items[0]?.id;
 
       // Try to ship more than approved
       await expect(
@@ -164,7 +164,7 @@ describe('Partial Shipment', () => {
           tenantId,
           userId,
           transferId: transfer.id,
-          items: [{ itemId, qtyToShip: 150 }], // More than 100 approved
+          items: [{ itemId: itemId!, qtyToShip: 150 }], // More than 100 approved
         })
       ).rejects.toThrow();
     });
@@ -200,10 +200,10 @@ describe('Partial Shipment', () => {
         tenantId,
         userId,
         transferId: transfer.id,
-        decision: 'APPROVE',
+        action: 'approve',
       });
 
-      const itemId = transfer.items[0].id;
+      const itemId = transfer.items[0]?.id;
 
       // Try to ship 50 (but only 30 available)
       await expect(
@@ -211,7 +211,7 @@ describe('Partial Shipment', () => {
           tenantId,
           userId,
           transferId: transfer.id,
-          items: [{ itemId, qtyToShip: 50 }],
+          items: [{ itemId: itemId!, qtyToShip: 50 }],
         })
       ).rejects.toThrow();
     });
@@ -232,10 +232,10 @@ describe('Partial Shipment', () => {
         tenantId,
         userId,
         transferId: transfer.id,
-        decision: 'APPROVE',
+        action: 'approve',
       });
 
-      const itemId = transfer.items[0].id;
+      const itemId = transfer.items[0]?.id;
 
       // Try to ship 0 units
       await expect(
@@ -243,7 +243,7 @@ describe('Partial Shipment', () => {
           tenantId,
           userId,
           transferId: transfer.id,
-          items: [{ itemId, qtyToShip: 0 }],
+          items: [{ itemId: itemId!, qtyToShip: 0 }],
         })
       ).rejects.toThrow();
     });
@@ -264,10 +264,10 @@ describe('Partial Shipment', () => {
         tenantId,
         userId,
         transferId: transfer.id,
-        decision: 'APPROVE',
+        action: 'approve',
       });
 
-      const itemId = transfer.items[0].id;
+      const itemId = transfer.items[0]?.id;
 
       // Try to ship more than approved
       await expect(
@@ -275,7 +275,7 @@ describe('Partial Shipment', () => {
           tenantId,
           userId,
           transferId: transfer.id,
-          items: [{ itemId, qtyToShip: 60 }], // > 50 approved
+          items: [{ itemId: itemId!, qtyToShip: 60 }], // > 50 approved
         })
       ).rejects.toThrow();
     });
@@ -296,31 +296,31 @@ describe('Partial Shipment', () => {
         tenantId,
         userId,
         transferId: transfer.id,
-        decision: 'APPROVE',
+        action: 'approve',
       });
 
-      const itemId = transfer.items[0].id;
+      const itemId = transfer.items[0]?.id;
 
       // Ship partial
       const shipped = await shipStockTransfer({
         tenantId,
         userId,
         transferId: transfer.id,
-        items: [{ itemId, qtyToShip: 70 }],
+        items: [{ itemId: itemId!, qtyToShip: 70 }],
       });
 
       // Check shipment batches
       const item = shipped.items[0];
-      expect(item.shipmentBatches).toBeDefined();
-      expect(Array.isArray(item.shipmentBatches)).toBe(true);
-      expect(item.shipmentBatches).toHaveLength(1);
+      expect(item?.shipmentBatches).toBeDefined();
+      expect(Array.isArray(item?.shipmentBatches)).toBe(true);
+      expect(item?.shipmentBatches).toHaveLength(1);
 
-      const batch = (item.shipmentBatches as any[])[0];
+      const batch = (item?.shipmentBatches as any[])[0];
       expect(batch.batchNumber).toBe(1);
       expect(batch.qty).toBe(70);
-      expect(batch.shippedByUserId).toBe(userId);
-      expect(batch.shippedAt).toBeDefined();
-      expect(Array.isArray(batch.lotsConsumed)).toBe(true);
+      expect(batch?.shippedByUserId).toBe(userId);
+      expect(batch?.shippedAt).toBeDefined();
+      expect(Array.isArray(batch?.lotsConsumed)).toBe(true);
     });
 
     test('should support multiple shipments (accumulative qtyShipped)', async () => {
@@ -339,20 +339,20 @@ describe('Partial Shipment', () => {
         tenantId,
         userId,
         transferId: transfer.id,
-        decision: 'APPROVE',
+        action: 'approve',
       });
 
-      const itemId = transfer.items[0].id;
+      const itemId = transfer.items[0]?.id;
 
       // First shipment: 40 units
       const shipped1 = await shipStockTransfer({
         tenantId,
         userId,
         transferId: transfer.id,
-        items: [{ itemId, qtyToShip: 40 }],
+        items: [{ itemId: itemId!, qtyToShip: 40 }],
       });
 
-      expect(shipped1.items[0].qtyShipped).toBe(40);
+      expect(shipped1.items[0]?.qtyShipped).toBe(40);
       expect(shipped1.status).toBe(StockTransferStatus.APPROVED); // Still partial
 
       // Second shipment: 30 units
@@ -360,10 +360,10 @@ describe('Partial Shipment', () => {
         tenantId,
         userId,
         transferId: transfer.id,
-        items: [{ itemId, qtyToShip: 30 }],
+        items: [{ itemId: itemId!, qtyToShip: 30 }],
       });
 
-      expect(shipped2.items[0].qtyShipped).toBe(70); // Accumulative
+      expect(shipped2.items[0]?.qtyShipped).toBe(70); // Accumulative
       expect(shipped2.status).toBe(StockTransferStatus.APPROVED); // Still partial
 
       // Third shipment: 30 units (completes the transfer)
@@ -371,10 +371,10 @@ describe('Partial Shipment', () => {
         tenantId,
         userId,
         transferId: transfer.id,
-        items: [{ itemId, qtyToShip: 30 }],
+        items: [{ itemId: itemId!, qtyToShip: 30 }],
       });
 
-      expect(shipped3.items[0].qtyShipped).toBe(100); // All shipped
+      expect(shipped3.items[0]?.qtyShipped).toBe(100); // All shipped
       expect(shipped3.status).toBe(StockTransferStatus.IN_TRANSIT); // Now fully shipped
     });
 
@@ -394,21 +394,21 @@ describe('Partial Shipment', () => {
         tenantId,
         userId,
         transferId: transfer.id,
-        decision: 'APPROVE',
+        action: 'approve',
       });
 
-      const itemId = transfer.items[0].id;
+      const itemId = transfer.items[0]?.id;
 
       // Ship all approved quantity
       const shipped = await shipStockTransfer({
         tenantId,
         userId,
         transferId: transfer.id,
-        items: [{ itemId, qtyToShip: 50 }],
+        items: [{ itemId: itemId!, qtyToShip: 50 }],
       });
 
       expect(shipped.status).toBe(StockTransferStatus.IN_TRANSIT);
-      expect(shipped.items[0].qtyShipped).toBe(50);
+      expect(shipped.items[0]?.qtyShipped).toBe(50);
     });
 
     test('should stay APPROVED when partial shipment', async () => {
@@ -427,22 +427,22 @@ describe('Partial Shipment', () => {
         tenantId,
         userId,
         transferId: transfer.id,
-        decision: 'APPROVE',
+        action: 'approve',
       });
 
-      const itemId = transfer.items[0].id;
+      const itemId = transfer.items[0]?.id;
 
       // Ship partial
       const shipped = await shipStockTransfer({
         tenantId,
         userId,
         transferId: transfer.id,
-        items: [{ itemId, qtyToShip: 60 }],
+        items: [{ itemId: itemId!, qtyToShip: 60 }],
       });
 
       expect(shipped.status).toBe(StockTransferStatus.APPROVED); // NOT IN_TRANSIT
-      expect(shipped.items[0].qtyShipped).toBe(60);
-      expect(shipped.items[0].qtyApproved).toBe(100);
+      expect(shipped.items[0]?.qtyShipped).toBe(60);
+      expect(shipped.items[0]?.qtyApproved).toBe(100);
     });
 
     test('should create CONSUMPTION ledger entries', async () => {
@@ -461,17 +461,17 @@ describe('Partial Shipment', () => {
         tenantId,
         userId,
         transferId: transfer.id,
-        decision: 'APPROVE',
+        action: 'approve',
       });
 
-      const itemId = transfer.items[0].id;
+      const itemId = transfer.items[0]?.id;
 
       // Ship partial
       await shipStockTransfer({
         tenantId,
         userId,
         transferId: transfer.id,
-        items: [{ itemId, qtyToShip: 50 }],
+        items: [{ itemId: itemId!, qtyToShip: 50 }],
       });
 
       // Check ledger (note: other tests also consume from this product, so we check >= not exact match)
@@ -505,17 +505,17 @@ describe('Partial Shipment', () => {
         tenantId,
         userId,
         transferId: transfer.id,
-        decision: 'APPROVE',
+        action: 'approve',
       });
 
-      const itemId = transfer.items[0].id;
+      const itemId = transfer.items[0]?.id;
 
       // Ship partial
       await shipStockTransfer({
         tenantId,
         userId,
         transferId: transfer.id,
-        items: [{ itemId, qtyToShip: 70 }],
+        items: [{ itemId: itemId!, qtyToShip: 70 }],
       });
 
       // Check audit event
@@ -574,26 +574,26 @@ describe('Partial Shipment', () => {
         tenantId,
         userId,
         transferId: transfer.id,
-        decision: 'APPROVE',
+        action: 'approve',
       });
 
-      const itemId = transfer.items[0].id;
+      const itemId = transfer.items[0]?.id;
 
       // Ship 80 units (should drain lot1 completely and 30 from lot2)
       const shipped = await shipStockTransfer({
         tenantId,
         userId,
         transferId: transfer.id,
-        items: [{ itemId, qtyToShip: 80 }],
+        items: [{ itemId: itemId!, qtyToShip: 80 }],
       });
 
       // Check lots consumed (stored in the shipment batch)
       const item = shipped.items[0];
-      expect(item.shipmentBatches).toBeDefined();
-      expect(Array.isArray(item.shipmentBatches)).toBe(true);
-      expect((item.shipmentBatches as any[]).length).toBe(1); // One shipment batch
+      expect(item?.shipmentBatches).toBeDefined();
+      expect(Array.isArray(item?.shipmentBatches)).toBe(true);
+      expect((item?.shipmentBatches as any[]).length).toBe(1); // One shipment batch
 
-      const batch = (item.shipmentBatches as any[])[0];
+      const batch = (item?.shipmentBatches as any[])[0];
       expect(batch.lotsConsumed).toBeDefined();
       expect(Array.isArray(batch.lotsConsumed)).toBe(true);
       expect(batch.lotsConsumed.length).toBe(2); // Consumed from 2 lots
@@ -649,31 +649,31 @@ describe('Partial Shipment', () => {
         tenantId,
         userId,
         transferId: transfer.id,
-        decision: 'APPROVE',
+        action: 'approve',
       });
 
-      const itemId = transfer.items[0].id;
+      const itemId = transfer.items[0]?.id;
 
       // Ship in 2 batches
       await shipStockTransfer({
         tenantId,
         userId,
         transferId: transfer.id,
-        items: [{ itemId, qtyToShip: 50 }], // All from first lot (400p)
+        items: [{ itemId: itemId!, qtyToShip: 50 }], // All from first lot (400p)
       });
 
       const shipped2 = await shipStockTransfer({
         tenantId,
         userId,
         transferId: transfer.id,
-        items: [{ itemId, qtyToShip: 30 }], // 30 from second lot (600p)
+        items: [{ itemId: itemId!, qtyToShip: 30 }], // 30 from second lot (600p)
       });
 
       // Weighted avg = (50*400 + 30*600) / 80 = (20000 + 18000) / 80 = 475
       const item = shipped2.items[0];
-      expect(item.avgUnitCostPence).toBeDefined();
-      expect(item.avgUnitCostPence).toBeGreaterThan(400);
-      expect(item.avgUnitCostPence).toBeLessThan(600);
+      expect(item?.avgUnitCostPence).toBeDefined();
+      expect(item?.avgUnitCostPence).toBeGreaterThan(400);
+      expect(item?.avgUnitCostPence).toBeLessThan(600);
     });
 
     test('should track batch numbers sequentially', async () => {
@@ -692,35 +692,35 @@ describe('Partial Shipment', () => {
         tenantId,
         userId,
         transferId: transfer.id,
-        decision: 'APPROVE',
+        action: 'approve',
       });
 
-      const itemId = transfer.items[0].id;
+      const itemId = transfer.items[0]?.id;
 
       // Ship in 3 batches
       const shipped1 = await shipStockTransfer({
         tenantId,
         userId,
         transferId: transfer.id,
-        items: [{ itemId, qtyToShip: 30 }],
+        items: [{ itemId: itemId!, qtyToShip: 30 }],
       });
 
       const shipped2 = await shipStockTransfer({
         tenantId,
         userId,
         transferId: transfer.id,
-        items: [{ itemId, qtyToShip: 30 }],
+        items: [{ itemId: itemId!, qtyToShip: 30 }],
       });
 
       const shipped3 = await shipStockTransfer({
         tenantId,
         userId,
         transferId: transfer.id,
-        items: [{ itemId, qtyToShip: 40 }],
+        items: [{ itemId: itemId!, qtyToShip: 40 }],
       });
 
       // Check batch numbers
-      const batches3 = (shipped3.items[0].shipmentBatches as any[]);
+      const batches3 = (shipped3.items[0]?.shipmentBatches as any[]);
       expect(batches3).toHaveLength(3);
       expect(batches3[0].batchNumber).toBe(1);
       expect(batches3[1].batchNumber).toBe(2);
@@ -745,20 +745,20 @@ describe('Partial Shipment', () => {
         tenantId,
         userId,
         transferId: transfer.id,
-        decision: 'APPROVE',
+        action: 'approve',
       });
 
-      const itemId = transfer.items[0].id;
+      const itemId = transfer.items[0]?.id;
 
       // Ship
       const shipped = await shipStockTransfer({
         tenantId,
         userId,
         transferId: transfer.id,
-        items: [{ itemId, qtyToShip: 50 }],
+        items: [{ itemId: itemId!, qtyToShip: 50 }],
       });
 
-      const batch = (shipped.items[0].shipmentBatches as any[])[0];
+      const batch = (shipped.items[0]?.shipmentBatches as any[])[0];
       expect(batch).toHaveProperty('batchNumber');
       expect(batch).toHaveProperty('qty');
       expect(batch).toHaveProperty('shippedAt');
@@ -783,34 +783,34 @@ describe('Partial Shipment', () => {
         tenantId,
         userId,
         transferId: transfer.id,
-        decision: 'APPROVE',
+        action: 'approve',
       });
 
-      const itemId = transfer.items[0].id;
+      const itemId = transfer.items[0]?.id;
 
       // Multiple shipments
       await shipStockTransfer({
         tenantId,
         userId,
         transferId: transfer.id,
-        items: [{ itemId, qtyToShip: 25 }],
+        items: [{ itemId: itemId!, qtyToShip: 25 }],
       });
 
       await shipStockTransfer({
         tenantId,
         userId,
         transferId: transfer.id,
-        items: [{ itemId, qtyToShip: 25 }],
+        items: [{ itemId: itemId!, qtyToShip: 25 }],
       });
 
       const shipped3 = await shipStockTransfer({
         tenantId,
         userId,
         transferId: transfer.id,
-        items: [{ itemId, qtyToShip: 50 }],
+        items: [{ itemId: itemId!, qtyToShip: 50 }],
       });
 
-      const batches = (shipped3.items[0].shipmentBatches as any[]);
+      const batches = (shipped3.items[0]?.shipmentBatches as any[]);
       expect(batches[0].batchNumber).toBe(1);
       expect(batches[1].batchNumber).toBe(2);
       expect(batches[2].batchNumber).toBe(3);
@@ -832,30 +832,30 @@ describe('Partial Shipment', () => {
         tenantId,
         userId,
         transferId: transfer.id,
-        decision: 'APPROVE',
+        action: 'approve',
       });
 
-      const itemId = transfer.items[0].id;
+      const itemId = transfer.items[0]?.id;
 
       // First batch
       const shipped1 = await shipStockTransfer({
         tenantId,
         userId,
         transferId: transfer.id,
-        items: [{ itemId, qtyToShip: 40 }],
+        items: [{ itemId: itemId!, qtyToShip: 40 }],
       });
 
-      const batch1 = (shipped1.items[0].shipmentBatches as any[])[0];
+      const batch1 = (shipped1.items[0]?.shipmentBatches as any[])[0];
 
       // Second batch
       const shipped2 = await shipStockTransfer({
         tenantId,
         userId,
         transferId: transfer.id,
-        items: [{ itemId, qtyToShip: 60 }],
+        items: [{ itemId: itemId!, qtyToShip: 60 }],
       });
 
-      const batches2 = (shipped2.items[0].shipmentBatches as any[]);
+      const batches2 = (shipped2.items[0]?.shipmentBatches as any[]);
       expect(batches2).toHaveLength(2);
 
       // First batch should still exist with same data
@@ -881,21 +881,21 @@ describe('Partial Shipment', () => {
         tenantId,
         userId,
         transferId: transfer.id,
-        decision: 'APPROVE',
+        action: 'approve',
       });
 
-      const itemId = transfer.items[0].id;
+      const itemId = transfer.items[0]?.id;
 
       // Ship exact approved quantity
       const shipped = await shipStockTransfer({
         tenantId,
         userId,
         transferId: transfer.id,
-        items: [{ itemId, qtyToShip: 50 }],
+        items: [{ itemId: itemId!, qtyToShip: 50 }],
       });
 
       expect(shipped.status).toBe(StockTransferStatus.IN_TRANSIT);
-      expect(shipped.items[0].qtyShipped).toBe(50);
+      expect(shipped.items[0]?.qtyShipped).toBe(50);
     });
 
     test('should handle shipping 1 unit at a time across many batches', async () => {
@@ -914,10 +914,10 @@ describe('Partial Shipment', () => {
         tenantId,
         userId,
         transferId: transfer.id,
-        decision: 'APPROVE',
+        action: 'approve',
       });
 
-      const itemId = transfer.items[0].id;
+      const itemId = transfer.items[0]?.id;
 
       // Ship 1 unit at a time (5 batches)
       for (let i = 0; i < 5; i++) {
@@ -925,7 +925,7 @@ describe('Partial Shipment', () => {
           tenantId,
           userId,
           transferId: transfer.id,
-          items: [{ itemId, qtyToShip: 1 }],
+          items: [{ itemId: itemId!, qtyToShip: 1 }],
         });
       }
 
@@ -936,8 +936,8 @@ describe('Partial Shipment', () => {
       });
 
       expect(finalTransfer!.status).toBe(StockTransferStatus.IN_TRANSIT);
-      expect(finalTransfer!.items[0].qtyShipped).toBe(5);
-      expect((finalTransfer!.items[0].shipmentBatches as any[]).length).toBe(5);
+      expect(finalTransfer!.items[0]?.qtyShipped).toBe(5);
+      expect((finalTransfer!.items[0]?.shipmentBatches as any[]).length).toBe(5);
     });
 
     test('should reject shipment if no stock available', async () => {
@@ -959,10 +959,10 @@ describe('Partial Shipment', () => {
         tenantId,
         userId,
         transferId: transfer.id,
-        decision: 'APPROVE',
+        action: 'approve',
       });
 
-      const itemId = transfer.items[0].id;
+      const itemId = transfer.items[0]?.id;
 
       // Try to ship (should fail - no stock)
       await expect(
@@ -970,7 +970,7 @@ describe('Partial Shipment', () => {
           tenantId,
           userId,
           transferId: transfer.id,
-          items: [{ itemId, qtyToShip: 50 }],
+          items: [{ itemId: itemId!, qtyToShip: 50 }],
         })
       ).rejects.toThrow();
     });
@@ -1020,7 +1020,7 @@ describe('Partial Shipment', () => {
         tenantId,
         userId,
         transferId: transfer.id,
-        decision: 'APPROVE',
+        action: 'approve',
       });
 
       const itemAId = transfer.items.find(i => i.productId === productA.id)!.id;

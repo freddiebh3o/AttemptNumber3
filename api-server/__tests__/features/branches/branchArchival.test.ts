@@ -367,7 +367,7 @@ describe('Branch Archival', () => {
       });
 
       expect(auditEvents.length).toBeGreaterThan(0);
-      expect(auditEvents[0].actorUserId).toBe(ownerUserId);
+      expect(auditEvents[0]?.actorUserId).toBe(ownerUserId);
     });
 
     it('should create audit event when restoring branch', async () => {

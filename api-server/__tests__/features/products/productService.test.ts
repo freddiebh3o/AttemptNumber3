@@ -453,10 +453,10 @@ describe('[ST-007] Product Service', () => {
         auditContextOptional: { actorUserId: testUser.id },
       });
 
-      expect(restored.isArchived).toBe(false);
-      expect(restored.archivedAt).toBeNull();
-      expect(restored.archivedByUserId).toBeNull();
-      expect(restored.productName).toBe('To Restore');
+      expect(restored?.isArchived).toBe(false);
+      expect(restored?.archivedAt).toBeNull();
+      expect(restored?.archivedByUserId).toBeNull();
+      expect(restored?.productName).toBe('To Restore');
     });
 
     it('should throw error when restoring non-archived product', async () => {

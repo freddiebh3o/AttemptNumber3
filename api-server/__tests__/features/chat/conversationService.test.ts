@@ -31,8 +31,8 @@ describe('Conversation Service', () => {
       expect(conversation.tenantId).toBe(tenant.id);
       expect(conversation.title).toBe('Hello, what is a stock transfer?');
       expect(conversation.messages).toHaveLength(1);
-      expect(conversation.messages[0].role).toBe('user');
-      expect(conversation.messages[0].content).toBe('Hello, what is a stock transfer?');
+      expect(conversation.messages[0]?.role).toBe('user');
+      expect(conversation.messages[0]?.content).toBe('Hello, what is a stock transfer?');
     });
 
     it('should generate title from parts array content', async () => {
@@ -178,8 +178,8 @@ describe('Conversation Service', () => {
 
       expect(conversations.length).toBeGreaterThanOrEqual(3);
       // Should be sorted by updatedAt desc (most recent first)
-      expect(new Date(conversations[0].updatedAt).getTime())
-        .toBeGreaterThanOrEqual(new Date(conversations[1].updatedAt).getTime());
+      expect(new Date(conversations[0]?.updatedAt ?? '').getTime())
+        .toBeGreaterThanOrEqual(new Date(conversations[1]?.updatedAt ?? '').getTime());
     });
 
     it('should only return conversations for specific user', async () => {
@@ -268,7 +268,7 @@ describe('Conversation Service', () => {
       });
 
       expect(updated!.messages).toHaveLength(2);
-      expect(updated!.messages[1].role).toBe('assistant');
+      expect(updated!.messages[1]?.role).toBe('assistant');
     });
 
     it('should not add message to conversation from different user', async () => {

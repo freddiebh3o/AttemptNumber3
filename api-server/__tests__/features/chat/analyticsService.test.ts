@@ -322,8 +322,8 @@ describe('Analytics Service', () => {
       });
 
       expect(analytics).toHaveLength(3);
-      expect(analytics[0].totalConversations).toBe(1);
-      expect(analytics[0].totalMessages).toBe(5);
+      expect(analytics[0]?.totalConversations).toBe(1);
+      expect(analytics[0]?.totalMessages).toBe(5);
     });
 
     it('should return empty array for date range with no data', async () => {
@@ -393,10 +393,10 @@ describe('Analytics Service', () => {
       });
 
       expect(summary.topTools).toHaveLength(5);
-      expect(summary.topTools[0].name).toBe('searchProducts');
-      expect(summary.topTools[0].count).toBe(10);
-      expect(summary.topTools[4].name).toBe('getProductStock');
-      expect(summary.topTools[4].count).toBe(2);
+      expect(summary.topTools[0]?.name).toBe('searchProducts');
+      expect(summary.topTools[0]?.count).toBe(10);
+      expect(summary.topTools[4]?.name).toBe('getProductStock');
+      expect(summary.topTools[4]?.count).toBe(2);
     });
 
     it('should handle empty analytics', async () => {

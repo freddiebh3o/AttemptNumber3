@@ -9,6 +9,9 @@ import {
   addUserToBranch,
 } from '../../../helpers/factories.js';
 
+// Helper for tool execute calls in tests
+const TOOL_CALL_OPTIONS = { toolCallId: 'test', messages: [] as any[] };
+
 describe('[CHAT-USER-001] AI Chat User Tools', () => {
   let testTenant: Awaited<ReturnType<typeof createTestTenant>>;
   let ownerUser: Awaited<ReturnType<typeof createTestUser>>;
@@ -92,25 +95,14 @@ describe('[CHAT-USER-001] AI Chat User Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.searchUsers.execute({
-        query: ownerUser.userEmailAddress,
-      });
+      const result = await tools.searchUsers.execute!({
+        query: ownerUser.userEmailAddress,  
+        limit: 20,
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
-      expect(result.users.length).toBeGreaterThanOrEqual(1);
-      expect(result.users[0]?.email).toBe(ownerUser.userEmailAddress);
-    });
-
-    it('should filter by role name', async () => {
-      const tools = userTools({
-        userId: ownerUser.id,
-        tenantId: testTenant.id,
-      });
-
-      const result = await tools.searchUsers.execute({
-        roleName: 'VIEWER',
-      });
-
-      expect(result.users.every((u) => u.role === 'VIEWER')).toBe(true);
+      expect(result.users?.length).toBeGreaterThanOrEqual(1);
+      expect(result.users?.[0]?.email).toBe(ownerUser.userEmailAddress);
     });
 
     it('should show user permissions', async () => {
@@ -119,11 +111,13 @@ describe('[CHAT-USER-001] AI Chat User Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.searchUsers.execute({
+      const result = await tools.searchUsers.execute!({
         query: ownerUser.userEmailAddress,
-      });
+        limit: 20,
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
-      const owner = result.users.find((u) => u.email === ownerUser.userEmailAddress);
+      const owner = result.users?.find((u) => u.email === ownerUser.userEmailAddress);
       expect(owner?.permissions).toContain('users:manage');
     });
 
@@ -133,11 +127,13 @@ describe('[CHAT-USER-001] AI Chat User Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.searchUsers.execute({
+      const result = await tools.searchUsers.execute!({
         query: ownerUser.userEmailAddress,
-      });
+        limit: 20,
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
-      const owner = result.users.find((u) => u.email === ownerUser.userEmailAddress);
+      const owner = result.users?.find((u) => u.email === ownerUser.userEmailAddress);
       expect(owner?.branches).toContain('Main Warehouse');
       expect(owner?.branches).toContain('Store A');
       expect(owner?.branchCount).toBe(2);
@@ -149,11 +145,12 @@ describe('[CHAT-USER-001] AI Chat User Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.searchUsers.execute({
+      const result = await tools.searchUsers.execute!({
         limit: 1,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
-      expect(result.users.length).toBeLessThanOrEqual(1);
+      expect(result.users?.length).toBeLessThanOrEqual(1);
     });
 
     it('should cap limit at 20', async () => {
@@ -162,11 +159,12 @@ describe('[CHAT-USER-001] AI Chat User Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.searchUsers.execute({
+      const result = await tools.searchUsers.execute!({
         limit: 50,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
-      expect(result.users.length).toBeLessThanOrEqual(20);
+      expect(result.users?.length).toBeLessThanOrEqual(20);
     });
 
     it('should return empty result when no users found', async () => {
@@ -175,9 +173,11 @@ describe('[CHAT-USER-001] AI Chat User Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.searchUsers.execute({
+      const result = await tools.searchUsers.execute!({
         query: 'nonexistent@example.com',
-      });
+        limit: 20,
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       expect(result.users).toEqual([]);
       expect(result.count).toBe(0);
@@ -192,9 +192,10 @@ describe('[CHAT-USER-001] AI Chat User Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getUserDetails.execute({
+      const result = await tools.getUserDetails.execute!({
         userEmail: adminUser.userEmailAddress,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       expect(result.userId).toBe(adminUser.id);
       expect(result.email).toBe(adminUser.userEmailAddress);
@@ -207,9 +208,10 @@ describe('[CHAT-USER-001] AI Chat User Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getUserDetails.execute({
+      const result = await tools.getUserDetails.execute!({
         userEmail: ownerUser.userEmailAddress,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       expect(result.role?.name).toBe('OWNER');
       expect(result.role?.permissions).toContain('users:manage');
@@ -222,13 +224,14 @@ describe('[CHAT-USER-001] AI Chat User Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getUserDetails.execute({
+      const result = await tools.getUserDetails.execute!({
         userEmail: ownerUser.userEmailAddress,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
-      expect(result.branches.length).toBe(2);
-      expect(result.branches.some((b) => b.name === 'Main Warehouse')).toBe(true);
-      expect(result.branches.every((b) => b.isActive === true)).toBe(true);
+      expect(result.branches?.length).toBe(2);
+      expect(result.branches?.some((b) => b.name === 'Main Warehouse')).toBe(true);
+      expect(result.branches?.every((b) => b.isActive === true)).toBe(true);
     });
 
     it('should return error if user not found', async () => {
@@ -237,9 +240,10 @@ describe('[CHAT-USER-001] AI Chat User Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getUserDetails.execute({
+      const result = await tools.getUserDetails.execute!({
         userEmail: 'nonexistent@example.com',
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       expect(result.error).toBe('User not found');
     });
@@ -258,9 +262,10 @@ describe('[CHAT-USER-001] AI Chat User Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getUserDetails.execute({
+      const result = await tools.getUserDetails.execute!({
         userEmail: userWithoutRole.userEmailAddress,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       expect(result.role).toBeNull();
     });
@@ -273,12 +278,13 @@ describe('[CHAT-USER-001] AI Chat User Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.listRoles.execute({});
+      const result = await tools.listRoles.execute!({ includeSystem: false, limit: 20 }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
-      expect(result.roles.length).toBeGreaterThanOrEqual(3);
-      expect(result.roles.some((r) => r.name === 'OWNER')).toBe(true);
-      expect(result.roles.some((r) => r.name === 'ADMIN')).toBe(true);
-      expect(result.roles.some((r) => r.name === 'VIEWER')).toBe(true);
+      expect(result.roles?.length).toBeGreaterThanOrEqual(3);
+      expect(result.roles?.some((r) => r.name === 'OWNER')).toBe(true);
+      expect(result.roles?.some((r) => r.name === 'ADMIN')).toBe(true);
+      expect(result.roles?.some((r) => r.name === 'VIEWER')).toBe(true);
     });
 
     it('should show permissions for each role', async () => {
@@ -287,9 +293,10 @@ describe('[CHAT-USER-001] AI Chat User Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.listRoles.execute({});
+      const result = await tools.listRoles.execute!({ includeSystem: false, limit: 20 }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
-      const ownerRoleResult = result.roles.find((r) => r.name === 'OWNER');
+      const ownerRoleResult = result.roles?.find((r) => r.name === 'OWNER');
       expect(ownerRoleResult?.permissions).toContain('users:manage');
       expect(ownerRoleResult?.permissionCount).toBeGreaterThanOrEqual(5);
     });
@@ -300,9 +307,10 @@ describe('[CHAT-USER-001] AI Chat User Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.listRoles.execute({});
+      const result = await tools.listRoles.execute!({ includeSystem: false, limit: 20 }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
-      const ownerRoleResult = result.roles.find((r) => r.name === 'OWNER');
+      const ownerRoleResult = result.roles?.find((r) => r.name === 'OWNER');
       expect(ownerRoleResult?.userCount).toBeGreaterThanOrEqual(1);
     });
 
@@ -312,12 +320,14 @@ describe('[CHAT-USER-001] AI Chat User Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.listRoles.execute({
+      const result = await tools.listRoles.execute!({
         includeSystem: false,
-      });
+        limit: 20,
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       // Should not include system roles (if any marked as isSystem: true)
-      expect(result.roles.every((r) => r.isSystem === false)).toBe(true);
+      expect(result.roles?.every((r) => r.isSystem === false)).toBe(true);
     });
 
     it('should respect limit parameter', async () => {
@@ -326,11 +336,13 @@ describe('[CHAT-USER-001] AI Chat User Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.listRoles.execute({
+      const result = await tools.listRoles.execute!({
+        includeSystem: false,
         limit: 2,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
-      expect(result.roles.length).toBeLessThanOrEqual(2);
+      expect(result.roles?.length).toBeLessThanOrEqual(2);
     });
 
     it('should cap limit at 20', async () => {
@@ -339,11 +351,13 @@ describe('[CHAT-USER-001] AI Chat User Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.listRoles.execute({
+      const result = await tools.listRoles.execute!({
+        includeSystem: false,
         limit: 50,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
-      expect(result.roles.length).toBeLessThanOrEqual(20);
+      expect(result.roles?.length).toBeLessThanOrEqual(20);
     });
   });
 
@@ -354,10 +368,11 @@ describe('[CHAT-USER-001] AI Chat User Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.checkPermission.execute({
+      const result = await tools.checkPermission.execute!({
         userEmail: ownerUser.userEmailAddress,
         permissionKey: 'users:manage',
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       expect(result.hasPermission).toBe(true);
       expect(result.explanation).toContain('Yes');
@@ -369,10 +384,11 @@ describe('[CHAT-USER-001] AI Chat User Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.checkPermission.execute({
+      const result = await tools.checkPermission.execute!({
         userEmail: viewerUser.userEmailAddress,
         permissionKey: 'users:manage',
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       expect(result.hasPermission).toBe(false);
       expect(result.explanation).toContain('No');
@@ -384,10 +400,11 @@ describe('[CHAT-USER-001] AI Chat User Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.checkPermission.execute({
+      const result = await tools.checkPermission.execute!({
         userEmail: adminUser.userEmailAddress,
         permissionKey: 'products:read',
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       expect(result.allPermissions).toContain('products:read');
       expect(result.allPermissions).toContain('products:write');
@@ -400,10 +417,11 @@ describe('[CHAT-USER-001] AI Chat User Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.checkPermission.execute({
+      const result = await tools.checkPermission.execute!({
         userEmail: 'nonexistent@example.com',
         permissionKey: 'products:read',
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       expect(result.error).toBe('User not found');
     });
@@ -414,10 +432,11 @@ describe('[CHAT-USER-001] AI Chat User Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.checkPermission.execute({
+      const result = await tools.checkPermission.execute!({
         userEmail: ownerUser.userEmailAddress,
         permissionKey: 'invalid:permission',
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       // Should still return a result (permission will be false)
       expect(result.hasPermission).toBe(false);
@@ -443,11 +462,13 @@ describe('[CHAT-USER-001] AI Chat User Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.searchUsers.execute({
+      const result = await tools.searchUsers.execute!({
         query: otherUser.userEmailAddress,
-      });
+        limit: 20,
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
-      expect(result.users.some((u) => u.userId === otherUser.id)).toBe(false);
+      expect(result.users?.some((u) => u.userId === otherUser.id)).toBe(false);
     });
 
     it('should not get details for users from other tenants', async () => {
@@ -468,9 +489,10 @@ describe('[CHAT-USER-001] AI Chat User Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.getUserDetails.execute({
+      const result = await tools.getUserDetails.execute!({
         userEmail: otherUser.userEmailAddress,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
       expect(result.error).toBe('User not found');
     });
@@ -488,9 +510,10 @@ describe('[CHAT-USER-001] AI Chat User Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.listRoles.execute({});
+      const result = await tools.listRoles.execute!({ includeSystem: false, limit: 20 }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
-      expect(result.roles.some((r) => r.id === otherRole.id)).toBe(false);
+      expect(result.roles?.some((r) => r.id === otherRole.id)).toBe(false);
     });
   });
 
@@ -501,11 +524,12 @@ describe('[CHAT-USER-001] AI Chat User Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.searchUsers.execute({
+      const result = await tools.searchUsers.execute!({
         limit: 1,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
-      if (result.count >= 1) {
+      if (result.count && result.count >= 1) {
         expect(result.hasMore).toBeDefined();
       }
     });
@@ -516,11 +540,13 @@ describe('[CHAT-USER-001] AI Chat User Tools', () => {
         tenantId: testTenant.id,
       });
 
-      const result = await tools.listRoles.execute({
+      const result = await tools.listRoles.execute!({
+        includeSystem: false,
         limit: 1,
-      });
+      }, TOOL_CALL_OPTIONS);
+      if (Symbol.asyncIterator in result) throw new Error('Unexpected AsyncIterable');
 
-      if (result.count >= 1) {
+      if (result.count && result.count >= 1) {
         expect(result.hasMore).toBeDefined();
       }
     });

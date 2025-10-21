@@ -891,6 +891,20 @@ describe('[ST-007] Stock Transfer Service', () => {
     });
 
     it('should preserve FIFO cost during reversal', async () => {
+      // Get the original lot BEFORE transfer (created in beforeEach: 1000 units at 1200 pence)
+      const originalLots = await prisma.stockLot.findMany({
+        where: {
+          tenantId: testTenant.id,
+          branchId: sourceBranch.id,
+          productId: product1.id,
+        },
+      });
+
+      expect(originalLots).toHaveLength(1);
+      const originalLot = originalLots[0]!;
+      expect(originalLot.qtyRemaining).toBe(1000);
+      expect(originalLot.unitCostPence).toBe(1200);
+
       // Create and complete a transfer
       const transfer = await transferService.createStockTransfer({
         tenantId: testTenant.id,
@@ -916,6 +930,7 @@ describe('[ST-007] Stock Transfer Service', () => {
       });
 
       const avgCost = shipped.items[0]?.avgUnitCostPence;
+      expect(avgCost).toBe(1200); // Should be the original cost
 
       await transferService.receiveStockTransfer({
         tenantId: testTenant.id,
@@ -923,6 +938,12 @@ describe('[ST-007] Stock Transfer Service', () => {
         transferId: transfer.id,
         receivedItems: [{ itemId: transfer.items[0]!.id, qtyReceived: 100 }],
       });
+
+      // Verify lot was consumed (should have 900 remaining)
+      const lotAfterShip = await prisma.stockLot.findUnique({
+        where: { id: originalLot.id },
+      });
+      expect(lotAfterShip?.qtyRemaining).toBe(900);
 
       // Reverse the transfer - userDestination initiates from destination branch
       const reversal = await transferService.reverseStockTransfer({
@@ -935,19 +956,13 @@ describe('[ST-007] Stock Transfer Service', () => {
       // Reversal should preserve cost
       expect(reversal.items[0]?.avgUnitCostPence).toBe(avgCost);
 
-      // Stock lot at original source should have same cost
-      const sourceLots = await prisma.stockLot.findMany({
-        where: {
-          tenantId: testTenant.id,
-          branchId: sourceBranch.id,
-          productId: product1.id,
-        },
-        orderBy: { receivedAt: 'desc' },
+      // The ORIGINAL lot should be restored (quantity increased back to 1000)
+      const restoredLot = await prisma.stockLot.findUnique({
+        where: { id: originalLot.id },
       });
 
-      // Should have reversal lot with preserved cost
-      const reversalLot = sourceLots.find((lot) => lot.qtyRemaining === 100);
-      expect(reversalLot?.unitCostPence).toBe(avgCost);
+      expect(restoredLot?.qtyRemaining).toBe(1000); // Back to original quantity
+      expect(restoredLot?.unitCostPence).toBe(1200); // Cost preserved
     });
 
     it('should reject reversing non-COMPLETED transfer', async () => {

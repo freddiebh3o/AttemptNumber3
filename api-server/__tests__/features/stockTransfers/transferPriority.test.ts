@@ -5,7 +5,7 @@
 
 import { describe, test, expect, beforeAll } from '@jest/globals';
 import { PrismaClient, StockTransferStatus, TransferPriority, AuditAction } from '@prisma/client';
-import { createStockTransfer, updateTransferPriority, listStockTransfers } from '../../../src/services/stockTransfers/stockTransferService';
+import { createStockTransfer, updateTransferPriority, listStockTransfers } from '../../../src/services/stockTransfers/stockTransferService.js';
 import {
   createTestTenant,
   createTestUser,
@@ -14,9 +14,8 @@ import {
   createTestRoleWithPermissions,
   addUserToTenant,
   addUserToBranch,
-} from '../../helpers/factories';
-import { ROLE_DEFS } from '../../../src/rbac/catalog';
-import { Errors } from '../../../src/utils/httpErrors';
+} from '../../helpers/factories.js';
+import { ROLE_DEFS } from '../../../src/rbac/catalog.js';
 
 const prisma = new PrismaClient();
 
@@ -266,7 +265,7 @@ describe('Transfer Priority', () => {
 
       expect(auditEvents.length).toBeGreaterThan(0);
       const latestEvent = auditEvents[auditEvents.length - 1];
-      expect(latestEvent.action).toBe(AuditAction.TRANSFER_PRIORITY_CHANGE);
+      expect(latestEvent?.action).toBe(AuditAction.TRANSFER_PRIORITY_CHANGE);
     });
 
     test('should require user to be in source or destination branch', async () => {
