@@ -23,7 +23,19 @@
       "Bash(timeout 120 npm run test:accept:*)",
       "Bash(npm run prisma:generate:*)",
       "Bash(del ai-chat.spec.ts ai-chat-phase2.spec.ts chat-analytics.spec.ts chat-suggestions.spec.ts)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(git mv auth.test.ts core/auth.test.ts)",
+      "Bash(git mv health.test.ts core/health.test.ts)",
+      "Bash(git mv services/stock.test.ts features/stock/stockService.test.ts)",
+      "Bash(git mv routes/stockRoutes.test.ts features/stock/stockRoutes.test.ts)",
+      "Bash(git mv services/stockLotRestoration.test.ts features/stock/stockLotRestoration.test.ts)",
+      "Bash(git mv routes/branchArchival.test.ts features/branches/branchArchival.test.ts)",
+      "Bash(git mv routes/tenantUserRoutes.test.ts features/tenantUsers/tenantUserRoutes.test.ts)",
+      "Bash(git mv routes/tenant-users-archival.test.ts features/tenantUsers/tenantUserArchival.test.ts)",
+      "Bash(git mv routes/roleArchival.test.ts features/roles/roleArchival.test.ts)",
+      "Bash(for file in transferService.test.ts partialShipment.test.ts transferPriority.test.ts)",
+      "Bash(do sed -i \"s|from ''../../src/|from ''../../../src/|g\" \"$file\")",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []

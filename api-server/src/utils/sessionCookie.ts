@@ -9,7 +9,7 @@ const sessionCookieNameFromEnvironmentVariable =
 const sessionJwtSecretFromEnvironmentVariable =
   process.env.SESSION_JWT_SECRET || 'dev-secret-change-me'
 
-  const sameSiteMode = process.env.COOKIE_SAMESITE_MODE === 'lax' ? 'lax' : 'none';
+const sameSiteMode = process.env.COOKIE_SAMESITE_MODE === 'lax' ? 'lax' : 'none';
 
 const toSeconds = (minutes: number) => minutes * 60
 

@@ -6,12 +6,13 @@
 import jwt from 'jsonwebtoken';
 import type { SuperTest, Test } from 'supertest';
 
-const SESSION_JWT_SECRET = process.env.SESSION_JWT_SECRET || 'test-secret-key';
+const SESSION_JWT_SECRET = process.env.SESSION_JWT_SECRET || 'test-secret-do-not-use-in-production';
 const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || 'mt_session';
 
 interface SessionPayload {
   currentUserId: string;
   currentTenantId: string;
+  issuedAtUnixSeconds: number;
 }
 
 /**
@@ -24,6 +25,7 @@ export function generateSessionToken(
   const payload: SessionPayload = {
     currentUserId: userId,
     currentTenantId: tenantId,
+    issuedAtUnixSeconds: Math.floor(Date.now() / 1000),
   };
 
   return jwt.sign(payload, SESSION_JWT_SECRET, {

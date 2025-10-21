@@ -1,105 +1,183 @@
-# AUTHENTICAION (1 SUITE - 1 Failing)
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/auth.test.ts (3 FAILURES)
+# Test Suite Commands (Updated Structure - October 2025)
+
+## CORE (2 suites)
+
+### Failing suites
+- auth.test.ts (previously had 3 failures)
+
+### All tests and commands
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/core/auth.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/core/health.test.ts
 
 
-# HEALTH (1 SUITE - 0 Failing)
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/health.test.ts (0 FAILURES)
+## MIDDLEWARE (5 suites)
+
+### Failing suites
+- session.test.ts (previously had 1 failure)
+
+### All tests and commands
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/middleware/errorHandler.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/middleware/permissions.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/middleware/idempotency.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/middleware/session.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/middleware/rateLimit.test.ts
 
 
-# MIDDLEWARE (5 suites - 1 Failing)
+## FEATURES: PRODUCTS (4 suites)
 
-## Failing suites
-- session.test.ts
+### Failing suites
+- productRoutes.test.ts (previously had 1 failure)
 
-## All tests and commands
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/middleware/errorHandler.test.ts (0 FAILURES)
+### All tests and commands
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/products/productService.test.ts
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/middleware/permissions.test.ts (0 FAILURES)
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/products/productRoutes.test.ts
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/middleware/idempotency.test.ts (0 FAILURES)
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/products/productArchival.test.ts
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/middleware/session.test.ts (1 FAILURE)
-
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/middleware/rateLimit.test.ts (0 FAILURES)
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/products/barcodes.test.ts
 
 
-# Services (19 suites - 4 Failing)
+## FEATURES: STOCK (3 suites)
 
-## Failing suites:
-- chat.test.ts
-- stockTransfers.test.ts
-- transferAnalytics.test.ts
-- userTools.test.ts
+### All tests and commands
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/stock/stockService.test.ts
 
-## All tests and commands 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/services/approvalRuleArchival.test.ts (0 Failures)
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/stock/stockRoutes.test.ts
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/services/chat.test.ts (2 Failures)
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/stock/stockLotRestoration.test.ts
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/services/partialShipment.test.ts (0 Failures)
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/services/product.test.ts (0 FAILURES)
+## FEATURES: BRANCHES (1 suite)
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/services/stock.test.ts (0 FAILURES)
+### All tests and commands
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/branches/branchArchival.test.ts
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/services/stockLotRestoration.test.ts (0 FAILURES)
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/services/stockTransfers.test.ts (1 FAILURE)
+## FEATURES: TENANT USERS (2 suites)
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/services/stockTransferTemplates.test.ts (0 FAILURES)
+### All tests and commands
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/tenantUsers/tenantUserRoutes.test.ts
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/services/tenantFeatureFlags.test.ts (0 FAILURES)
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/tenantUsers/tenantUserArchival.test.ts
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/services/transferAnalytics.test.ts (1 FAILURES)
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/services/transferPriority.test.ts (0 FAILURES)
+## FEATURES: ROLES (1 suite)
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/services/chat/analyticsService.test.ts (0 FAILURES)
+### All tests and commands
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/roles/roleArchival.test.ts
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/services/chat/analyticsTools.test.ts (0 FAILURES)
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/services/chat/branchTools.test.ts (0 FAILURES)
+## FEATURES: STOCK TRANSFERS (5 suites)
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/services/chat/conversationService.test.ts (0 FAILURES)
+### Failing suites
+- transferService.test.ts (previously had 1 failure)
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/services/chat/productTools.test.ts (0 FAILURES)
+### All tests and commands
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/stockTransfers/transferService.test.ts
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/services/chat/stockTools.test.ts (0 FAILURES)
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/stockTransfers/partialShipment.test.ts
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/services/chat/suggestionService.test.ts (0 FAILURES)
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/stockTransfers/transferPriority.test.ts
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/services/chat/templateTools.test.ts (0 FAILURES)
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/stockTransfers/templates/templateService.test.ts
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/services/chat/userTools.test.ts (1 FAILURES)
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/stockTransfers/approvals/approvalRuleArchival.test.ts
 
-# Routes (11 suites - 2 Failing)
 
-## Failing suites: 
-- chatRoutes.test.ts
-- productRoutes.test.ts
+## FEATURES: TRANSFER ANALYTICS (1 suite)
 
-## All tests and commands
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/routes/barcodeRoutes.test.ts (0 FAILURES)
+### Failing suites
+- analyticsService.test.ts (previously had 1 failure)
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/routes/branchArchival.test.ts (0 FAILURES)
+### All tests and commands
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/transferAnalytics/analyticsService.test.ts
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/routes/chatRouter.test.ts (0 FAILURES)
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/routes/chatRoutes.test.ts (1 FAILURES)
+## FEATURES: FEATURE FLAGS (2 suites)
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/routes/product-archival-activity.test.ts (0 FAILURES)
+### All tests and commands
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/featureFlags/featureFlagsService.test.ts
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/routes/productRoutes.test.ts (1 FAILURE)
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/featureFlags/featureFlagsRoutes.test.ts
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/routes/roleArchival.test.ts (0 FAILURES)
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/routes/stockRoutes.test.ts (0 FAILURES)
+## FEATURES: CHAT (13 suites)
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/routes/tenant-users-archival.test.ts (0 FAILURES)
+### Failing suites
+- chatService.test.ts (previously had 2 failures)
+- chatRoutes.test.ts (previously had 1 failure)
+- chatIntegration.test.ts (previously had 8 failures)
+- tools/userTools.test.ts (previously had 1 failure)
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/routes/tenantFeatureFlagsRoutes.test.ts (0 FAILURES)
+### All tests and commands
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/chat/chatService.test.ts
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/routes/tenantUserRoutes.test.ts (0 FAILURES)
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/chat/chatRouter.test.ts
 
-# Integration (1 suite - 1 Failing)
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/integration/chatIntegration.test.ts (8 FAILURES)
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/chat/chatRoutes.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/chat/chatIntegration.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/chat/conversationService.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/chat/suggestionService.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/chat/analyticsService.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/chat/tools/productTools.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/chat/tools/stockTools.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/chat/tools/branchTools.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/chat/tools/userTools.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/chat/tools/templateTools.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/chat/tools/analyticsTools.test.ts
+
+
+## SUMMARY
+
+**Total Suites:** 39 (was 37 - now includes chatRouter and chatRoutes separately)
+
+**Previously Failing Suites (9 total):**
+1. core/auth.test.ts (3 failures)
+2. middleware/session.test.ts (1 failure)
+3. features/chat/chatService.test.ts (2 failures)
+4. features/stockTransfers/transferService.test.ts (1 failure)
+5. features/transferAnalytics/analyticsService.test.ts (1 failure)
+6. features/chat/tools/userTools.test.ts (1 failure)
+7. features/chat/chatRoutes.test.ts (1 failure)
+8. features/products/productRoutes.test.ts (1 failure)
+9. features/chat/chatIntegration.test.ts (8 failures)
+
+**Run all tests:**
+```bash
+cd api-server
+npm run test:accept
+```
+
+**Run specific feature group:**
+```bash
+# All products tests
+node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/products/
+
+# All chat tests
+node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/chat/
+
+# All stock tests
+node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/stock/
+
+# All core tests
+node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/core/
+
+# All middleware tests
+node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/middleware/
+```

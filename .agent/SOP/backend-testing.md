@@ -2,17 +2,43 @@
 
 **Purpose:** Guide for writing backend tests using Jest, Supertest, and real database testing.
 
-**Last Updated:** 2025-10-13
+**Last Updated:** 2025-10-21
 
 ---
 
 ## Table of Contents
 
-1. [Setup](#setup)
-2. [Writing Tests](#writing-tests)
-3. [Test Helpers](#test-helpers)
-4. [Common Patterns](#common-patterns)
-5. [Best Practices](#best-practices)
+1. [Test Template Reference](#test-template-reference)
+2. [Setup](#setup)
+3. [Writing Tests](#writing-tests)
+4. [Test Helpers](#test-helpers)
+5. [Common Patterns](#common-patterns)
+6. [Best Practices](#best-practices)
+
+---
+
+## Test Template Reference
+
+**📋 NEW: Comprehensive Test Template Available**
+
+For standardized test patterns, naming conventions, and examples, see:
+
+**[Backend Test Template](../../api-server/__tests__/TEST_TEMPLATE.md)**
+
+This template covers:
+- ✅ Test naming conventions (avoid PRD phase numbers!)
+- ✅ Service test pattern
+- ✅ Route test pattern
+- ✅ Permission test pattern
+- ✅ Common patterns and anti-patterns
+- ✅ Test isolation strategies
+- ✅ Examples from the codebase
+
+**When to use the template:**
+- Writing a new test file
+- Refactoring existing tests
+- Reviewing test PRs
+- Onboarding new developers
 
 ---
 

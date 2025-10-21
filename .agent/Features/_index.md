@@ -186,6 +186,41 @@ Comprehensive testing infrastructure with 299 passing tests covering backend (Je
 
 ## In Progress Features
 
+### Backend Test Refactoring
+**Path:** `InProgress/backend-test-refactoring/`
+**Status:** 📋 Planning
+**Started:** 2025-10-21
+
+**Overview:**
+Comprehensive refactoring of 39 backend test files into a feature-based, hierarchical organization with complete RBAC coverage and standardized test patterns. This will establish a maintainable test structure, create comprehensive permission test coverage, and fill gaps in middleware and feature testing.
+
+**Phases:**
+- **PRD 1: Test Template & Structure** - 📋 Planned (standardized template + new directory structure + move 39 tests)
+- **PRD 2: Permission Test Suite** - 📋 Planned (12 comprehensive RBAC permission test files)
+- **PRD 3: New Middleware Tests** - 📋 Planned (3 missing middleware test files)
+- **PRD 4: New Feature Tests Part 1** - 📋 Planned (8 core feature test files)
+- **PRD 5: New Feature Tests Part 2** - 📋 Planned (12 advanced feature test files)
+
+**Documentation:**
+- [Master PRD](./InProgress/backend-test-refactoring/prd.md) - Overall refactoring plan and progress tracking
+- [PRD 1](./InProgress/backend-test-refactoring/prd-1-test-template-and-structure.md) - Test template & directory structure
+- [PRD 2](./InProgress/backend-test-refactoring/prd-2-permission-test-suite.md) - Permission test suite
+- [PRD 3](./InProgress/backend-test-refactoring/prd-3-new-middleware-tests.md) - New middleware tests
+- [PRD 4](./InProgress/backend-test-refactoring/prd-4-new-feature-tests-part1.md) - Core feature tests
+- [PRD 5](./InProgress/backend-test-refactoring/prd-5-new-feature-tests-part2.md) - Advanced feature tests
+
+**Expected Outcomes:**
+- 39 existing test files reorganized into feature-based structure
+- 12 new permission test files (comprehensive RBAC coverage)
+- 3 new middleware test files (100% middleware coverage)
+- 20 new feature test files (service + route coverage)
+- Total: ~74 well-organized test files with 400+ passing backend tests (up from 227)
+
+**Next Steps:**
+- Begin PRD 1 implementation (test template + directory structure + file moves)
+
+---
+
 ### Stock Transfers v2 Enhancements
 **Path:** `InProgress/stock-transfers-v2/`
 **Status:** ⏳ In Progress
@@ -634,7 +669,8 @@ database-expert working on "suppliers" feature creates:
 - Session Expiration Handler
 - Testing Implementation
 
-**In Progress:** 2
+**In Progress:** 3
+- Backend Test Refactoring (5 PRDs - 📋 Planning)
 - Stock Transfers v2 (Phase 1 ✅, Phase 2 ⏳, Phase 3 ✅, Phase 4 📋)
 - Feature Flags System (Phase 1 ✅, Phases 2-3 📋)
 
@@ -667,6 +703,6 @@ database-expert working on "suppliers" feature creates:
 
 ---
 
-**Last Updated:** 2025-01-14
-**Total Features:** 3 completed, 2 in progress (Stock Transfers v2 + Feature Flags), 0 planned
-**Next Review:** Complete Phase 2 of Stock Transfers v2 and move Feature Flags to Completed when all phases done
+**Last Updated:** 2025-10-21
+**Total Features:** 3 completed, 3 in progress (Backend Test Refactoring + Stock Transfers v2 + Feature Flags), 0 planned
+**Next Review:** Begin PRD 1 of Backend Test Refactoring; Complete Phase 2 of Stock Transfers v2; Move Feature Flags to Completed when all phases done
