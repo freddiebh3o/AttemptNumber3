@@ -35,7 +35,7 @@ model Role {
   isSystem    Boolean @default(false) // seed defaults can mark true
 
   // archival (soft delete)
-  isArchived       Boolean  @default(false)
+  isArchived       Boolean   @default(false)
   archivedAt       DateTime?
   archivedByUserId String?
 
@@ -297,16 +297,16 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  branchMemberships          UserBranchMembership[]
-  stockLedgerEvents          StockLedger[]
-  transfersRequested         StockTransfer[]          @relation("TransferRequester")
-  transfersReviewed          StockTransfer[]          @relation("TransferReviewer")
-  transfersShipped           StockTransfer[]          @relation("TransferShipper")
-  transferTemplatesCreated   StockTransferTemplate[]
-  transferTemplatesArchived  StockTransferTemplate[]  @relation("TemplateArchivedBy")
-  approvalLevelsAsRequired   TransferApprovalLevel[]  @relation("ApprovalLevelRequiredUser")
-  approvalRecordsAsRequired  TransferApprovalRecord[] @relation("ApprovalRecordRequiredUser")
-  approvalRecordsAsApprover  TransferApprovalRecord[] @relation("ApprovalRecordApprover")
+  branchMemberships         UserBranchMembership[]
+  stockLedgerEvents         StockLedger[]
+  transfersRequested        StockTransfer[]          @relation("TransferRequester")
+  transfersReviewed         StockTransfer[]          @relation("TransferReviewer")
+  transfersShipped          StockTransfer[]          @relation("TransferShipper")
+  transferTemplatesCreated  StockTransferTemplate[]
+  transferTemplatesArchived StockTransferTemplate[]  @relation("TemplateArchivedBy")
+  approvalLevelsAsRequired  TransferApprovalLevel[]  @relation("ApprovalLevelRequiredUser")
+  approvalRecordsAsRequired TransferApprovalRecord[] @relation("ApprovalRecordRequiredUser")
+  approvalRecordsAsApprover TransferApprovalRecord[] @relation("ApprovalRecordApprover")
 
   // Back-relation for AuditEvent where this user is the actor.
   auditEvents AuditEvent[]

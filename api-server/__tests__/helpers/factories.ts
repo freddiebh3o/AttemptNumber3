@@ -4,8 +4,8 @@
  */
 
 import { PrismaClient } from '@prisma/client';
-import type { User, Tenant, Role, Product, Branch, TransferApprovalRule } from '@prisma/client';
-import type { ApprovalRuleConditionType, ApprovalMode } from '@prisma/client';
+import type { User, Tenant, Role, Product, Branch, TransferApprovalRule, AuditEvent } from '@prisma/client';
+import type { ApprovalRuleConditionType, ApprovalMode, AuditAction, AuditEntityType } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -455,5 +455,40 @@ export async function createTestBranchApprovalRule(params: {
       },
     ],
     levels: params.approvalLevels,
+  });
+}
+
+/**
+ * Create a test audit event
+ */
+export async function createTestAuditEvent(options: {
+  tenantId: string;
+  entityType: AuditEntityType;
+  entityId: string;
+  action: AuditAction;
+  actorUserId?: string;
+  entityName?: string;
+  beforeJson?: any;
+  afterJson?: any;
+  diffJson?: any;
+  correlationId?: string;
+  ip?: string;
+  userAgent?: string;
+}): Promise<AuditEvent> {
+  return await prisma.auditEvent.create({
+    data: {
+      tenantId: options.tenantId,
+      entityType: options.entityType,
+      entityId: options.entityId,
+      action: options.action,
+      actorUserId: options.actorUserId ?? null,
+      entityName: options.entityName ?? null,
+      beforeJson: options.beforeJson ?? null,
+      afterJson: options.afterJson ?? null,
+      diffJson: options.diffJson ?? null,
+      correlationId: options.correlationId ?? null,
+      ip: options.ip ?? null,
+      userAgent: options.userAgent ?? null,
+    },
   });
 }

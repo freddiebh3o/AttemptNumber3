@@ -121,7 +121,31 @@
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/roles/roleArchival.test.ts
 
 
-## FEATURES: STOCK TRANSFERS (5 suites)
+## FEATURES: THEME (2 suites - NEW: PRD-5 Phase 1)
+
+### All tests and commands
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/theme/themeService.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/theme/themeRoutes.test.ts
+
+
+## FEATURES: UPLOADS (2 suites - NEW: PRD-5 Phase 2)
+
+### All tests and commands
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/uploads/uploadService.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/uploads/uploadRoutes.test.ts
+
+
+## FEATURES: AUDIT LOGS (2 suites - NEW: PRD-5 Phase 3)
+
+### All tests and commands
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/auditLogs/auditLogService.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/auditLogs/auditLogRoutes.test.ts
+
+
+## FEATURES: STOCK TRANSFERS (10 suites - EXPANDED: PRD-5 Phase 4-6)
 
 ### Failing suites
 - transferService.test.ts (previously had 1 failure)
@@ -129,22 +153,34 @@
 ### All tests and commands
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/stockTransfers/transferService.test.ts
 
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/stockTransfers/transferRoutes.test.ts 
+
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/stockTransfers/partialShipment.test.ts
 
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/stockTransfers/transferPriority.test.ts
 
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/stockTransfers/templates/templateService.test.ts
 
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/stockTransfers/templates/templateRoutes.test.ts
+
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/stockTransfers/approvals/approvalRuleArchival.test.ts
 
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/stockTransfers/approvals/approvalRulesService.test.ts
 
-## FEATURES: TRANSFER ANALYTICS (1 suite)
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/stockTransfers/approvals/approvalEvaluation.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/stockTransfers/approvals/approvalRulesRoutes.test.ts
+
+
+## FEATURES: TRANSFER ANALYTICS (2 suites - EXPANDED: PRD-5 Phase 7)
 
 ### Failing suites
 - analyticsService.test.ts (previously had 1 failure)
 
 ### All tests and commands
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/transferAnalytics/analyticsService.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/transferAnalytics/analyticsRoutes.test.ts
 
 
 ## FEATURES: FEATURE FLAGS (2 suites)
@@ -191,7 +227,23 @@
 
 ## SUMMARY
 
-**Total Suites:** 57 (was 51 - added 6 new feature tests: branchService, branchRoutes, tenantUserService, roleService, roleRoutes, authService)
+**Total Suites:** 69 (was 57 - added 12 new test files from PRD-5)
+
+**PRD-5 New Test Files (12 total):**
+1. features/theme/themeService.test.ts (Phase 1)
+2. features/theme/themeRoutes.test.ts (Phase 1)
+3. features/uploads/uploadService.test.ts (Phase 2)
+4. features/uploads/uploadRoutes.test.ts (Phase 2)
+5. features/auditLogs/auditLogService.test.ts (Phase 3)
+6. features/auditLogs/auditLogRoutes.test.ts (Phase 3)
+7. features/stockTransfers/transferRoutes.test.ts (Phase 4)
+8. features/stockTransfers/templates/templateRoutes.test.ts (Phase 5)
+9. features/stockTransfers/approvals/approvalRulesService.test.ts (Phase 6)
+10. features/stockTransfers/approvals/approvalEvaluation.test.ts (Phase 6)
+11. features/stockTransfers/approvals/approvalRulesRoutes.test.ts (Phase 6)
+12. features/transferAnalytics/analyticsRoutes.test.ts (Phase 7)
+
+**Note:** Some tests have TypeScript type errors that need fixing (primarily enum name mismatches in approval tests)
 
 **Previously Failing Suites (9 total):**
 1. core/auth.test.ts (3 failures)
