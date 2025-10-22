@@ -41,6 +41,7 @@ Remove the server-level OpenAI API key fallback for the AI Chat Assistant featur
 
 ### Backend Implementation
 
+- [ ] Update seed file so that the acme tenant automatically gets seeded with the OPENAI_API_KEY from the server .env file
 - [ ] Update `getOpenAIApiKey()` in [apiKeyService.ts](../../../api-server/src/services/chat/apiKeyService.ts):
   - Remove fallback to `process.env.OPENAI_API_KEY`
   - Only return tenant's `openaiApiKey` if `chatAssistantEnabled=true` AND key exists
