@@ -35,7 +35,8 @@
       "Bash(git mv routes/roleArchival.test.ts features/roles/roleArchival.test.ts)",
       "Bash(for file in transferService.test.ts partialShipment.test.ts transferPriority.test.ts)",
       "Bash(do sed -i \"s|from ''../../src/|from ''../../../src/|g\" \"$file\")",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(git mv:*)"
     ],
     "deny": [],
     "ask": []

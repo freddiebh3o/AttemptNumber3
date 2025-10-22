@@ -205,7 +205,7 @@ export default function BranchPage() {
           )}
         </Group>
         <Group>
-          <Button variant="default" onClick={() => navigate(-1)}>Cancel</Button>
+          <Button variant="default" onClick={() => navigate(-1)} data-testid="cancel-branch-button">Cancel</Button>
           {isEdit && isArchived && canManage && (
             <Button
               onClick={handleRestoreBranch}
@@ -228,7 +228,7 @@ export default function BranchPage() {
             </Button>
           )}
           {!isArchived && (
-            <Button onClick={handleSave} loading={busy} disabled={!canManage}>
+            <Button onClick={handleSave} loading={busy} disabled={!canManage} data-testid="save-branch-button">
               Save
             </Button>
           )}

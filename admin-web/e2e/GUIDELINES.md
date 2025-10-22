@@ -4,6 +4,7 @@ Comprehensive best practices, patterns, and conventions for writing maintainable
 
 ## Table of Contents
 
+- [Test Organization](#test-organization)
 - [Core Principles](#core-principles)
 - [Selector Strategy](#selector-strategy)
 - [Test Structure Patterns](#test-structure-patterns)
@@ -12,6 +13,133 @@ Comprehensive best practices, patterns, and conventions for writing maintainable
 - [Common Patterns](#common-patterns)
 - [Anti-Patterns to Avoid](#anti-patterns-to-avoid)
 - [Lessons Learned by Domain](#lessons-learned-by-domain)
+
+---
+
+## Test Organization
+
+### Directory Structure
+
+E2E tests are organized by feature area, mirroring the backend test structure for easy correlation:
+
+```
+admin-web/e2e/
+├── core/                       # Foundational tests
+│   ├── auth-flow.spec.ts      # Sign-in, sign-out, sessions
+│   └── signin.spec.ts         # Sign-in page elements
+│
+├── features/                   # Feature-based organization
+│   ├── products/              # Product management
+│   │   ├── product-crud.spec.ts
+│   │   ├── product-archival.spec.ts
+│   │   ├── product-barcodes.spec.ts
+│   │   ├── product-stock-levels.spec.ts
+│   │   ├── product-fifo.spec.ts
+│   │   └── product-activity.spec.ts
+│   │
+│   ├── stock/                 # Stock management
+│   │   ├── stock-adjustment.spec.ts
+│   │   └── stock-lot-restoration.spec.ts
+│   │
+│   ├── transfers/             # Stock transfers
+│   │   ├── transfer-crud.spec.ts
+│   │   ├── transfer-workflow.spec.ts
+│   │   ├── transfer-reversal.spec.ts
+│   │   ├── transfer-templates.spec.ts
+│   │   ├── transfer-approval-rules.spec.ts
+│   │   └── transfer-analytics.spec.ts
+│   │
+│   ├── branches/              # Branch management
+│   │   ├── branch-crud.spec.ts
+│   │   └── branch-archival.spec.ts
+│   │
+│   ├── users/                 # User management
+│   │   ├── user-crud.spec.ts
+│   │   ├── user-archival.spec.ts
+│   │   └── user-role-assignment.spec.ts
+│   │
+│   ├── roles/                 # Role & RBAC management
+│   │   ├── role-crud.spec.ts
+│   │   └── role-archival.spec.ts
+│   │
+│   ├── auditLogs/             # Audit trail
+│   │   └── audit-log-viewing.spec.ts
+│   │
+│   ├── theme/                 # Theme/branding
+│   │   └── theme-customization.spec.ts
+│   │
+│   ├── chat/                  # AI assistant
+│   │   ├── chat-basic.spec.ts
+│   │   ├── chat-advanced.spec.ts
+│   │   ├── chat-suggestions.spec.ts
+│   │   └── chat-analytics.spec.ts
+│   │
+│   └── settings/              # Settings & configuration
+│       ├── feature-flags.spec.ts
+│       └── feature-settings.spec.ts
+│
+├── permissions/                # Cross-feature RBAC tests
+│   └── rbac.spec.ts
+│
+└── helpers/                    # Shared utilities
+    ├── index.ts               # Central export
+    ├── auth.ts                # Sign-in/out helpers
+    ├── api-helpers.ts         # Direct API calls
+    ├── factories.ts           # Entity creation
+    ├── selectors.ts           # data-testid constants
+    └── chat.ts                # Chat interactions
+```
+
+### Where to Place New Tests
+
+**Use `core/` for:**
+- Authentication flows (sign-in, sign-out, session management)
+- Global navigation tests
+- Foundational UI components used across all features
+- Tests that don't belong to a specific feature
+
+**Use `features/{domain}/` for:**
+- Feature-specific CRUD operations
+- Feature workflows (e.g., transfer approval flow)
+- Domain-specific UI interactions
+- Archival/restoration tests for that domain
+
+**Use `permissions/` for:**
+- Cross-feature RBAC tests
+- Role-based UI visibility checks
+- Permission-based action enablement
+- Tests validating permissions across multiple features
+
+### Test File Naming Conventions
+
+- **Format:** `{feature}-{capability}.spec.ts`
+- **Examples:**
+  - `product-crud.spec.ts` - Create, read, update, delete
+  - `product-archival.spec.ts` - Archive and restore
+  - `product-barcodes.spec.ts` - Barcode-specific features
+  - `transfer-workflow.spec.ts` - Complete workflow tests
+  - `user-role-assignment.spec.ts` - Role assignment flows
+
+**Avoid generic names:**
+- ❌ `test.spec.ts`
+- ❌ `integration.spec.ts`
+- ✅ `branch-crud.spec.ts`
+- ✅ `audit-log-viewing.spec.ts`
+
+### Correlating with Backend Tests
+
+E2E tests should mirror backend test organization for easy correlation:
+
+| Backend Test | E2E Test |
+|--------------|----------|
+| `api-server/__tests__/features/products/productService.test.ts` | `admin-web/e2e/features/products/product-crud.spec.ts` |
+| `api-server/__tests__/features/stockTransfers/transferService.test.ts` | `admin-web/e2e/features/transfers/transfer-workflow.spec.ts` |
+| `api-server/__tests__/permissions/products.permissions.test.ts` | `admin-web/e2e/permissions/rbac.spec.ts` |
+
+This makes it easy to:
+- Understand what backend logic is covered by E2E tests
+- Identify gaps in E2E coverage
+- Maintain tests when backend changes
 
 ---
 

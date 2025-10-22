@@ -176,6 +176,45 @@ export const BranchFactory = {
   },
 
   /**
+   * Add current user to a branch
+   * This is required for the user to perform operations on the branch
+   *
+   * @param page - Playwright page object (must be authenticated as owner/admin with users:manage permission)
+   * @param branchId - Branch ID to add the user to
+   *
+   * @example
+   * ```typescript
+   * const branchId = await BranchFactory.create(page, { branchSlug: 'test', branchName: 'Test' });
+   * await BranchFactory.addCurrentUserToBranch(page, branchId);
+   * ```
+   */
+  async addCurrentUserToBranch(page: Page, branchId: string): Promise<void> {
+    // Get current user info
+    const meResponse = await makeAuthenticatedRequest(page, 'GET', '/api/auth/me');
+    if (!meResponse.ok()) {
+      throw new Error(`Failed to get current user: ${meResponse.status()}`);
+    }
+    const meData = await meResponse.json();
+    const userId = meData.data.user.id;
+    const currentBranchIds = meData.data.branchMembershipsCurrentTenant.map((b: any) => b.branchId);
+
+    // Add new branch to user's branch list
+    const newBranchIds = [...currentBranchIds, branchId];
+
+    const updateResponse = await makeAuthenticatedRequest(
+      page,
+      'PUT',
+      `/api/tenant-users/${userId}`,
+      { branchIds: newBranchIds }
+    );
+
+    if (!updateResponse.ok()) {
+      const errorText = await updateResponse.text();
+      throw new Error(`Failed to add user to branch: ${updateResponse.status()} - ${errorText}`);
+    }
+  },
+
+  /**
    * Archive a branch via API (soft delete)
    *
    * @param page - Playwright page object (must be authenticated)

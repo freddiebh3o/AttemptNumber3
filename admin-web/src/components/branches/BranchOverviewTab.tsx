@@ -20,6 +20,7 @@ export function BranchOverviewTab(props: {
         value={branchSlug}
         onChange={(e) => onChangeSlug(e.currentTarget.value)}
         placeholder="e.g. london-hq"
+        data-testid="branch-slug-input"
       />
       <TextInput
         label="Name"
@@ -27,11 +28,13 @@ export function BranchOverviewTab(props: {
         value={branchName}
         onChange={(e) => onChangeName(e.currentTarget.value)}
         placeholder="e.g. London HQ"
+        data-testid="branch-name-input"
       />
       <Switch
         label="Active"
         checked={isActive}
         onChange={(e) => onChangeIsActive(e.currentTarget.checked)}
+        data-testid="branch-active-switch"
       />
     </Stack>
   );

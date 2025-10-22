@@ -666,6 +666,7 @@ export default function BranchesPage() {
               }
               aria-expanded={showFilters}
               aria-controls={FILTER_PANEL_ID}
+              data-testid="branches-filter-button"
             >
               Filters
             </Button>
@@ -682,6 +683,7 @@ export default function BranchesPage() {
               leftSection={<IconPlus size={16} />}
               onClick={() => navigate(`/${tenantSlug}/branches/new`)}
               disabled={!canManageBranches}
+              data-testid="new-branch-button"
             >
               New branch
             </Button>
@@ -705,9 +707,11 @@ export default function BranchesPage() {
                 label="Search (name contains)"
                 placeholder="e.g. London"
                 value={values.q}
-                onChange={(e) =>
-                  setValues((prev) => ({ ...prev, q: e.currentTarget.value }))
-                }
+                onChange={(e) => {
+                  const value = e.currentTarget.value;
+                  setValues((prev) => ({ ...prev, q: value }));
+                }}
+                data-testid="branches-search-input"
               />
             </Grid.Col>
 
@@ -931,6 +935,7 @@ export default function BranchesPage() {
                   withColumnBorders
                   stickyHeader
                   aria-describedby={RANGE_ID}
+                  data-testid="branches-table"
                 >
                   <Table.Thead>
                     <Table.Tr>
