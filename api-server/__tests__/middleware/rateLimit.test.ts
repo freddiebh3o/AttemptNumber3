@@ -423,4 +423,87 @@ describe('[ST-012] Rate Limiter Middleware', () => {
       expect(typeof response.body.error?.correlationId).toBe('string');
     });
   });
+
+  describe('[AC-012-6] Rate Limit Bypass (disabled option)', () => {
+    it('should bypass rate limiting when disabled=true', async () => {
+      app.use((req, res, next) => {
+        req.currentUserId = 'rate-limit-test-user-disabled';
+        next();
+      });
+      app.use(
+        createFixedWindowRateLimiterMiddleware({
+          windowSeconds: 60,
+          limit: 1, // Very low limit
+          bucketScope: 'session',
+          disabled: true, // Rate limiting disabled
+        })
+      );
+      app.get('/test-disabled', (req, res) => res.json({ success: true }));
+
+      // Make many requests (all should succeed despite limit of 1)
+      for (let i = 0; i < 10; i++) {
+        const response = await request(app).get('/test-disabled');
+        expect(response.status).toBe(200);
+        expect(response.body.success).toBe(true);
+        // Should not have rate limit headers when disabled
+        expect(response.headers['x-ratelimit-limit']).toBeUndefined();
+        expect(response.headers['x-ratelimit-remaining']).toBeUndefined();
+      }
+    });
+
+    it('should apply rate limiting when disabled=false (default)', async () => {
+      app.use((req, res, next) => {
+        req.currentUserId = 'rate-limit-test-user-enabled';
+        next();
+      });
+      app.use(
+        createFixedWindowRateLimiterMiddleware({
+          windowSeconds: 60,
+          limit: 2,
+          bucketScope: 'session',
+          disabled: false, // Explicitly enabled
+        })
+      );
+      app.get('/test-enabled', (req, res) => res.json({ success: true }));
+
+      // First 2 requests succeed
+      const res1 = await request(app).get('/test-enabled');
+      expect(res1.status).toBe(200);
+
+      const res2 = await request(app).get('/test-enabled');
+      expect(res2.status).toBe(200);
+
+      // 3rd request is rate limited
+      const res3 = await request(app).get('/test-enabled');
+      expect(res3.status).toBe(429);
+      expect(res3.body.error?.errorCode).toBe('RATE_LIMITED');
+    });
+
+    it('should apply rate limiting when disabled is undefined (default behavior)', async () => {
+      app.use((req, res, next) => {
+        req.currentUserId = 'rate-limit-test-user-default';
+        next();
+      });
+      app.use(
+        createFixedWindowRateLimiterMiddleware({
+          windowSeconds: 60,
+          limit: 2,
+          bucketScope: 'session',
+          // disabled not specified (should default to rate limiting enabled)
+        })
+      );
+      app.get('/test-default', (req, res) => res.json({ success: true }));
+
+      // First 2 requests succeed
+      const res1 = await request(app).get('/test-default');
+      expect(res1.status).toBe(200);
+
+      const res2 = await request(app).get('/test-default');
+      expect(res2.status).toBe(200);
+
+      // 3rd request is rate limited
+      const res3 = await request(app).get('/test-default');
+      expect(res3.status).toBe(429);
+    });
+  });
 });

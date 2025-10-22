@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  postgres-e2e:
+    image: pgvector/pgvector:pg16
+    container_name: bmad-e2e-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: e2epassword
+      POSTGRES_DB: e2edb
+      # Higher connection limit for parallel E2E tests (323 tests across multiple workers)
+      POSTGRES_MAX_CONNECTIONS: 300
+    ports:
+      - "5434:5432"
+    volumes:
+      # Persistent volume for E2E test data
+      - postgres-e2e-data:/var/lib/postgresql/data
+      # Init script to enable pgvector extension
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=300"
+      - "-c"
+      - "shared_buffers=256MB"
+      - "-c"
+      - "effective_cache_size=1GB"
+      - "-c"
+      - "log_min_messages=warning"
+
+volumes:
+  postgres-e2e-data:
+    driver: local

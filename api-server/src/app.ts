@@ -62,18 +62,31 @@ export function createConfiguredExpressApplicationInstance() {
 
   app.use(httpLoggingMiddleware);
 
-  app.use(requestLoggingMiddleware());  
+  app.use(requestLoggingMiddleware());
 
   // --- Public docs (no rate limiting) ---
   app.get("/openapi.json", (_req, res) => res.json(openApiDocument));
   app.use("/docs", swaggerUi.serve, swaggerUi.setup(openApiDocument));
 
+  // --- Rate limiting configuration (with environment variable support) ---
+  const rateLimitDisabled = process.env.DISABLE_RATE_LIMIT === "true";
+  const authRateLimit = Number(process.env.RATE_LIMIT_AUTH) || 120;
+  const generalRateLimit = Number(process.env.RATE_LIMIT_GENERAL) || 600;
+
+  // Log rate limit configuration on startup
+  if (rateLimitDisabled) {
+    console.warn("⚠️  RATE LIMITING IS DISABLED - This should ONLY be used in test environments!");
+  } else {
+    console.log(`✓ Rate limiting enabled: auth=${authRateLimit}/min, general=${generalRateLimit}/min`);
+  }
+
   // --- Rate limiters (scoped) ---
   const authLimiter = createFixedWindowRateLimiterMiddleware({
     windowSeconds: 60,
-    limit: 120,                 // ↑ from 20 → 120; adjust to taste
+    limit: authRateLimit,
     bucketScope: "ip+session",
-    name: "auth",               // ← NEW
+    name: "auth",
+    disabled: rateLimitDisabled,
     // Skip lightweight reads that may happen frequently in the background
     skip: (req) =>
       req.method === "GET" &&
@@ -86,9 +99,10 @@ export function createConfiguredExpressApplicationInstance() {
 
   const generalLimiter = createFixedWindowRateLimiterMiddleware({
     windowSeconds: 60,
-    limit: 600, 
-    bucketScope: "ip+session", 
+    limit: generalRateLimit,
+    bucketScope: "ip+session",
     name: "general",
+    disabled: rateLimitDisabled,
   });
 
   // Mount specific first, then general

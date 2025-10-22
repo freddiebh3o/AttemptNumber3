@@ -13,6 +13,11 @@
     "test:accept:ui": "playwright test --ui",
     "test:accept:debug": "playwright test --debug",
     "test:accept:report": "playwright show-report",
+    "test:accept:setup": "cd ../api-server && npm run db:e2e:reset",
+    "test:accept:parallel": "playwright test --workers=4",
+    "test:accept:fast": "playwright test --workers=4 --retries=0",
+    "test:accept:shard": "playwright test",
+    "test:accept:workers": "playwright test --workers",
     "openapi:gen": "openapi-typescript http://localhost:4000/openapi.json -o src/types/openapi.d.ts"
   },
   "dependencies": {

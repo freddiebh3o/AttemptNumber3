@@ -18,25 +18,57 @@ Playwright-based end-to-end tests for the admin-web application, organized by do
 
 ### Prerequisites
 
-1. **API Server Running:**
-   ```bash
-   cd api-server
-   npm run dev
-   ```
+**E2E tests use a dedicated database (port 5434) separate from development (port 5432) and Jest tests (port 5433).**
 
-2. **Database Seeded:**
-   ```bash
-   cd api-server
-   npm run db:seed
-   ```
+**Complete Setup (Required before running E2E tests):**
+
+```bash
+# 0. Stop dev server if running (E2E server uses same port 4000)
+
+# 1. Start E2E database (one-time setup)
+cd api-server
+npm run db:e2e:reset    # Starts DB on port 5434, runs migrations, seeds data
+
+# 2. Start API server with E2E environment (keep running in separate terminal)
+npm run dev:e2e         # Runs on port 4000 with E2E database
+                         # Console shows: "⚠️ RATE LIMITING IS DISABLED"
+
+# 3. Run E2E tests (in separate terminal)
+cd admin-web
+npm run test:accept     # Headless mode
+npm run test:accept:ui  # Interactive UI mode (recommended)
+```
+
+**Database Ports:**
+- **5432** - Development database (for `npm run dev`)
+- **5433** - Jest test database (for backend unit tests)
+- **5434** - E2E test database (for Playwright tests) ← **You are here**
+
+**API Server Ports:**
+- **4000** - Development server OR E2E server (cannot run simultaneously)
+- **4001** - Jest test server (backend tests only)
+
+**Why a separate E2E database?**
+- Prevents connection pool exhaustion during parallel test execution
+- Isolates E2E test data from backend Jest tests
+- Allows rate limiting to be disabled for test performance (NEVER in production!)
 
 ### Run All Tests
 
 ```bash
 cd admin-web
-npm run test:accept              # Headless mode
+npm run test:accept              # Parallel (uses all CPU cores, ~2-5 min for 72 tests)
 npm run test:accept:ui           # Interactive UI mode (recommended for development)
+npm run test:accept:parallel     # Force 4 workers (predictable performance)
+npm run test:accept:fast         # 4 workers, no retries (fastest local run)
 ```
+
+**Parallel Execution (Phase 3):**
+- Tests run in parallel by default (uses all available CPU cores)
+- Local: Usually 4-8 workers depending on CPU
+- CI: 4 workers (balanced performance/resource usage)
+- Rate limiting is disabled in E2E environment to support parallel execution
+- ~2-5 minutes to run all 72 tests (vs ~15-20 minutes serial)
 
 ### Run Specific Domain
 
@@ -54,6 +86,31 @@ npm run test:accept:ui -- features/      # Feature tests only
 ```bash
 npm run test:accept:ui -- auth/signin.spec.ts
 npm run test:accept:ui -- products/product-crud.spec.ts
+```
+
+### Advanced: Sharding (CI/CD)
+
+**Split tests across multiple machines in CI:**
+
+```bash
+# Machine 1: Run 1st quarter of tests
+SHARD=1/4 npm run test:accept:shard
+
+# Machine 2: Run 2nd quarter of tests
+SHARD=2/4 npm run test:accept:shard
+
+# Machine 3: Run 3rd quarter of tests
+SHARD=3/4 npm run test:accept:shard
+
+# Machine 4: Run 4th quarter of tests
+SHARD=4/4 npm run test:accept:shard
+```
+
+**Custom worker count:**
+
+```bash
+npm run test:accept:workers=2    # Use 2 workers
+npm run test:accept:workers=8    # Use 8 workers
 ```
 
 ---
@@ -521,14 +578,26 @@ test.describe.configure({ mode: 'serial' });
 
 ## Troubleshooting
 
-### API Server Not Running
+### API Server Not Running (E2E Mode)
 
 **Error:** Tests timeout or fail to connect
 
 **Solution:**
 ```bash
 cd api-server
-npm run dev
+npm run dev:e2e  # NOT npm run dev (uses wrong database)
+```
+
+**Important:** E2E tests require the API server to run with `.env.test.e2e` config, not the development config!
+
+### E2E Database Not Running
+
+**Error:** "Database connection failed" or "ECONNREFUSED localhost:5434"
+
+**Solution:**
+```bash
+cd api-server
+npm run db:e2e:reset  # Start E2E database on port 5434
 ```
 
 ### Database Not Seeded
@@ -538,8 +607,19 @@ npm run dev
 **Solution:**
 ```bash
 cd api-server
-npm run db:seed
+npm run db:e2e:seed  # Seed E2E database (port 5434)
 ```
+
+### Rate Limit Errors (429)
+
+**Error:** "Too many requests" or 429 status codes during tests
+
+**Solution:**
+1. Verify API server is running with E2E config: `npm run dev:e2e`
+2. Check console shows: `⚠️ RATE LIMITING IS DISABLED`
+3. Verify `.env.test.e2e` has `DISABLE_RATE_LIMIT=true`
+
+**Why:** E2E tests run in parallel and would exceed rate limits. Rate limiting is disabled ONLY in test environment.
 
 ### Cookie Issues
 

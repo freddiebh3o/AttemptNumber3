@@ -75,15 +75,23 @@ __tests__/
 
 ---
 
-## Current Configuration
+## Test Databases Overview
 
-**Tests run against your DEVELOPMENT database by default.**
+**This project uses THREE separate databases for different purposes:**
 
-This is intentional and safe because:
-1. All test factories use `Date.now()` timestamps for unique data
-2. Tests create their own entities with unique values
-3. Your seed data is never modified or deleted
-4. `cleanDatabase()` is **DISABLED by default** to protect dev data
+| Database | Port | Purpose | Used By |
+|----------|------|---------|---------|
+| **Development** | 5432 | Local development | `npm run dev` |
+| **Jest Test** | 5433 | Backend unit/integration tests | `npm run test:accept` |
+| **E2E Test** | 5434 | Playwright E2E tests | Frontend E2E tests |
+
+**Jest tests use a DEDICATED test database (port 5433), NOT the development database.**
+
+This ensures:
+1. Jest tests are isolated from development data
+2. Tests can run in parallel without conflicts
+3. All test factories use `Date.now()` timestamps for unique data
+4. Your development data is never modified by tests
 
 ## How It Works
 
@@ -151,64 +159,134 @@ If you set up a separate test database:
 
 ## Running Tests
 
+### Prerequisites
+
+**Start the Jest test database (if not already running):**
+
 ```bash
-# Run all tests (safe - won't delete dev data)
+# Start Jest test database (Docker PostgreSQL on port 5433)
+npm run db:test:up
+
+# The database will:
+# - Start PostgreSQL container on port 5433
+# - Wait for database to be ready
+# - Run migrations
+# - Seed test data
+```
+
+### Run Tests
+
+```bash
+# Run all Jest tests
 npm run test:accept
 
-# Run specific test file
-npm run test:accept -- product.test.ts
+# Run in watch mode (automatically re-runs on file changes)
+npm run test:accept:watch
 
-# Run with cleanup enabled (separate test DB required!)
-ENABLE_TEST_DB_CLEANUP=true npm run test:accept
+# Run with coverage report
+npm run test:accept:coverage
+
+# Run specific test file
+npm run test:accept -- features/products/productService.test.ts
+
+# Run tests matching a pattern
+npm run test:accept -- --testNamePattern="should create product"
 ```
+
+### Stop Jest Test Database
+
+```bash
+# Stop the Jest test database (when done testing)
+npm run db:test:down
+
+# Reset the Jest test database (clear all data and re-seed)
+npm run db:test:reset
+```
+
+---
+
+## E2E Tests (Separate Database)
+
+**E2E tests are located in `admin-web/e2e/` and use a SEPARATE database (port 5434).**
+
+See **[admin-web/e2e/README.md](../../admin-web/e2e/README.md)** for complete E2E test instructions.
+
+**Quick E2E Setup:**
+
+```bash
+# 1. Start E2E database
+npm run db:e2e:reset
+
+# 2. Start API server with E2E config (separate terminal)
+npm run dev:e2e
+
+# 3. Run E2E tests (from admin-web directory)
+cd ../admin-web
+npm run test:accept
+```
+
+**Why separate databases?**
+- **Jest tests (port 5433):** Backend unit/integration tests
+- **E2E tests (port 5434):** Full-stack Playwright tests
+- Prevents connection pool conflicts during parallel E2E test execution
+
+---
 
 ## Troubleshooting
 
-### "Too many products/users in database"
-This is normal after many test runs. Either:
-1. Ignore it (tests still work)
-2. Re-seed your dev database: `npm run db:seed`
-3. Manually clean up old test data with timestamps in names
+### Jest Test Database Not Running
 
-### "Tests are failing"
-Check if tests assume a clean database state (counting rows, etc). Most tests should work regardless of existing data.
+**Error:** `ECONNREFUSED localhost:5433` or "Database connection failed"
 
-### "I accidentally enabled cleanup on dev database!"
-Don't panic:
-1. Stop the tests immediately
-2. Re-run your seed script: `npm run db:seed`
-3. Your data will be restored
-
-## Future: Separate Test Database
-
-To set up a proper isolated test environment:
-
-1. Create test database:
-```sql
-CREATE DATABASE my_app_test;
+**Solution:**
+```bash
+npm run db:test:up  # Start Jest test database on port 5433
 ```
 
-2. Add to `.env.test`:
-```
-DATABASE_URL="postgresql://user:pass@localhost:5432/my_app_test"
-ENABLE_TEST_DB_CLEANUP=true
+### "Database has too many test records"
+
+**Error:** Tests are slow or you see many records with timestamps in names
+
+**Solution:**
+```bash
+npm run db:test:reset  # Reset and re-seed the Jest test database
 ```
 
-3. Configure Jest to use test environment
+**Note:** This ONLY affects the Jest test database (port 5433), NOT development (5432) or E2E (5434)
 
-4. Tests will now run against separate database and cleanup safely
+### "Tests are failing randomly"
+
+**Possible Causes:**
+1. Database not running: `npm run db:test:up`
+2. Migrations not applied: `npm run db:test:reset`
+3. Test assumes clean state (count assertions, etc.)
+
+### Wrong Database Port
+
+**Error:** Tests connecting to wrong database
+
+**Solution:**
+- Jest tests use `.env.test` → connects to port **5433**
+- Development uses `.env` → connects to port **5432**
+- E2E tests use `.env.test.e2e` → connects to port **5434**
+
+Verify the correct environment file is being used.
+
+---
 
 ## Best Practices
 
 ✅ **DO**:
-- Run tests frequently - they're safe
-- Use factory defaults (let timestamps work)
-- Trust that unique data prevents conflicts
+- Start Jest test database before running tests: `npm run db:test:up`
+- Use factory defaults (let timestamps create unique data)
+- Run tests frequently - they use isolated test database
+- Use watch mode for TDD: `npm run test:accept:watch`
 
 ❌ **DON'T**:
-- Enable `ENABLE_TEST_DB_CLEANUP=true` on dev database
+- Run tests without starting the test database first
 - Hardcode test data values (defeats timestamp uniqueness)
 - Assume clean database state in new tests
+- Mix up database ports (5432=dev, 5433=Jest, 5434=E2E)
 
 ## Test Patterns
 

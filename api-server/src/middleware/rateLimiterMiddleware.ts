@@ -20,8 +20,9 @@ export function createFixedWindowRateLimiterMiddleware(options: {
   windowSeconds: number;
   limit: number;
   bucketScope: "ip" | "session" | "ip+session";
-  name?: string;                         
-  skip?: (req: Request) => boolean;     
+  name?: string;
+  skip?: (req: Request) => boolean;
+  disabled?: boolean; // NEW: Allow completely disabling rate limiting
 }) {
   const windowMs = options.windowSeconds * 1000;
 
@@ -30,6 +31,11 @@ export function createFixedWindowRateLimiterMiddleware(options: {
     response: Response,
     next: NextFunction
   ) {
+    // NEW: Early return if rate limiting is disabled (e.g., in test environments)
+    if (options.disabled) {
+      return next();
+    }
+
     // Skip OPTIONS (CORS preflight), health, and docs/openapi
     if (
       request.method === "OPTIONS" ||

@@ -81,18 +81,40 @@ test('should create product', async ({ page }) => {
 
 ### Prerequisites
 
-**API Server Must Be Running:**
+**E2E Database Setup (Required):**
+
+E2E tests use a **dedicated database** (separate from Jest tests and development) to prevent connection pool conflicts during parallel test execution.
+
 ```bash
+# 0. Stop dev server if running (E2E server uses same port 4000)
+
+# 1. Setup E2E database (one-time)
 cd api-server
-npm run dev
+npm run db:e2e:reset             # Start DB on port 5434, run migrations, seed data
+
+# 2. Start API server with E2E environment (keep running in separate terminal)
+npm run dev:e2e                  # Runs on port 4000 with E2E database
+
+# 3. Run Playwright tests
+cd admin-web
+npm run test:accept
 ```
 
-**Seed Data Required:**
-```bash
-cd api-server
-npm run db:seed        # Seed test data
-npm run seed:rbac      # Seed permissions
-```
+**Database Isolation:**
+- **Development DB:** Port 5432 (for `npm run dev`)
+- **Jest Test DB:** Port 5433 (for backend Jest tests)
+- **E2E Test DB:** Port 5434 (for Playwright E2E tests)
+
+**API Server Ports:**
+- **Port 4000:** Development server AND E2E test server (cannot run simultaneously)
+- **Port 4001:** Jest test server (backend tests only)
+
+**Note:** The E2E server uses `.env.test.e2e` which connects to the E2E database (port 5434) but runs the API server on port 4000. Stop the dev server before running E2E tests.
+
+**Why Separate Databases?**
+- Prevents connection pool exhaustion when running 323 E2E tests in parallel
+- Isolates E2E test data from backend Jest tests
+- Allows independent rate limit configuration for test environments
 
 ### Test User Credentials
 

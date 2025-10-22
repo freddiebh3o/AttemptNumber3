@@ -82,6 +82,16 @@ npm run db:studio                # Open Prisma Studio visual browser
 npm run db:seed                  # Seed demo data (tenants, users, products)
 npm run db:reset:dev             # Reset DB and re-seed (destructive!)
 
+# E2E Test Database (separate from Jest tests)
+npm run db:e2e:up                # Start E2E database (port 5434)
+npm run db:e2e:down              # Stop E2E database
+npm run db:e2e:reset             # Reset E2E database (down with volumes + up + migrate + seed)
+npm run db:e2e:wait              # Wait for E2E database readiness
+npm run db:e2e:migrate           # Run migrations against E2E database
+npm run db:e2e:seed              # Seed E2E test data
+npm run db:e2e:setup             # Complete setup (migrate + seed)
+npm run dev:e2e                  # Start API server with E2E database (port 4000, stop dev server first)
+
 # RBAC seeding
 npm run seed:rbac                # Seed permissions and default roles
 npm run seed:test-users          # Seed test users
@@ -116,14 +126,28 @@ npm run lint
 # Regenerate TypeScript types from OpenAPI spec
 npm run openapi:gen
 
-# Testing (Playwright E2E)
-npm run test:accept              # Run E2E tests (headless)
+# Testing (Playwright E2E) - supports parallel execution
+npm run test:accept:setup        # Setup E2E database (reset + migrate + seed)
+npm run test:accept              # Run E2E tests (parallel, uses all CPU cores)
 npm run test:accept:ui           # Interactive UI mode
 npm run test:accept:debug        # Debug mode with breakpoints
 npm run test:accept:report       # View last HTML report
+npm run test:accept:parallel     # Run with 4 workers explicitly
+npm run test:accept:fast         # Run with 4 workers, no retries (fastest)
+npm run test:accept:workers=N    # Run with N workers (e.g., npm run test:accept:workers=2)
+
+# Sharding (for CI/CD - split tests across machines)
+SHARD=1/4 npm run test:accept:shard  # Run 1st quarter of tests
+SHARD=2/4 npm run test:accept:shard  # Run 2nd quarter of tests
 ```
 
 **IMPORTANT:** After changing OpenAPI schemas in `api-server/src/openapi/`, restart the API server, then run `npm run openapi:gen` from `admin-web/` to update frontend types.
+
+**E2E Test Setup:** Before running Playwright E2E tests, ensure:
+1. Stop dev server if running (E2E server uses same port 4000)
+2. E2E database is running: `cd api-server && npm run db:e2e:reset`
+3. API server is running with E2E config: `cd api-server && npm run dev:e2e` (uses port 4000)
+4. Then run tests: `cd admin-web && npm run test:accept`
 
 ### Makefile (Root Level)
 
@@ -318,6 +342,9 @@ type CreateBody = paths['/api/products']['post']['requestBody']['content']['appl
 - `SERVER_PORT` - API port (default: `4000`)
 - `LOG_LEVEL` - Pino log level (`info`, `debug`, etc.)
 - `PRETTY_LOGS` - `true` for local dev, `false` for prod JSON logs
+- `DISABLE_RATE_LIMIT` - ⚠️ `true` to disable rate limiting (ONLY for test environments, NEVER in production!)
+- `RATE_LIMIT_AUTH` - Auth endpoints rate limit (requests per minute, default: `120`)
+- `RATE_LIMIT_GENERAL` - General API rate limit (requests per minute, default: `600`)
 
 **Admin Web:**
 - `VITE_API_BASE_URL` - API base URL (default: `http://localhost:4000`)

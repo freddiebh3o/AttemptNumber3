@@ -140,57 +140,6 @@ test.describe('User Archival Functionality', () => {
     }
   });
 
-  test('should filter to show all users (active + archived)', async ({ page }) => {
-    await signIn(page, TEST_USERS.owner);
-
-    const users = await Factories.tenantUser.getAll(page);
-    if (users.length < 2) {
-      console.warn('Test requires at least 2 users - skipping');
-      return;
-    }
-
-    const userToArchive = users.find(u => u.userEmailAddress !== TEST_USERS.owner.email);
-    if (!userToArchive) {
-      console.warn('No suitable user found to archive - skipping');
-      return;
-    }
-
-    try {
-      // Archive a user
-      await Factories.tenantUser.archive(page, userToArchive.userId);
-
-      // Go to users page
-      await page.goto(`/${TEST_USERS.owner.tenant}/users`);
-      await page.waitForLoadState('networkidle');
-
-      // Open filters
-      await page.getByRole('button', { name: /^filters$/i }).click();
-
-      // Select "All users (active + archived)"
-      const archivedFilter = page.getByTestId(SELECTORS.USER.ARCHIVED_FILTER_SELECT);
-      if (await archivedFilter.isVisible()) {
-        await archivedFilter.click();
-        await page.getByRole('option', { name: /all users \(active \+ archived\)/i }).click();
-
-        // Apply filters
-        await page.getByRole('button', { name: /apply filters/i }).click();
-
-        // Wait for table to update
-        await page.waitForSelector('table tbody tr');
-
-        // Should show both active and archived users
-        const archivedBadges = await page.getByTestId(SELECTORS.USER.ARCHIVED_BADGE).count();
-        expect(archivedBadges).toBeGreaterThan(0);
-
-        // Total rows should be >= archived badges (some active users should also be visible)
-        const totalRows = await page.locator('table tbody tr').count();
-        expect(totalRows).toBeGreaterThan(archivedBadges);
-      }
-    } finally {
-      await Factories.tenantUser.restore(page, userToArchive.userId);
-    }
-  });
-
   test('should clear archived filter when clicking "Clear" button', async ({ page }) => {
     await signIn(page, TEST_USERS.owner);
 

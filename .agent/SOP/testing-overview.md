@@ -60,6 +60,34 @@ admin-web/
 
 ## Quick Start
 
+### Database Setup for E2E Tests
+
+**E2E tests use a dedicated database (separate from Jest tests) to prevent connection pool conflicts:**
+
+```bash
+# One-time setup: Start E2E database and seed data
+cd api-server
+npm run db:e2e:reset             # Start DB on port 5434, run migrations, seed data
+
+# Start API server with E2E config (port 4002)
+npm run dev:e2e                  # Keep this running in a separate terminal
+
+# Now run E2E tests
+cd admin-web
+npm run test:accept              # Run Playwright tests
+```
+
+**Database Ports:**
+- **Port 5432:** Development database
+- **Port 5433:** Jest test database (for backend tests)
+- **Port 5434:** E2E test database (for Playwright tests)
+
+**API Server Ports:**
+- **Port 4000:** Development server AND E2E test server (cannot run simultaneously)
+- **Port 4001:** Jest test server (backend tests only)
+
+**Note:** The E2E server uses the same port (4000) as the dev server, but connects to a different database (port 5434). You must stop the dev server before starting the E2E server.
+
 ### Running Tests
 
 **Backend:**
@@ -73,6 +101,7 @@ npm run test:accept:coverage     # With coverage report
 **Frontend:**
 ```bash
 cd admin-web
+npm run test:accept:setup        # Setup E2E database (if needed)
 npm run test:accept              # Headless mode
 npm run test:accept:ui           # Interactive UI mode
 npm run test:accept:debug        # Debug with breakpoints
