@@ -432,15 +432,12 @@ test.describe('Barcode Scanning Workflow', () => {
 
     const timestamp = Date.now();
 
-    // Get branches
-    const branches = await Factories.branch.getAll(page);
-    if (branches.length < 2) {
-      console.warn('Skipping test: Need at least 2 branches');
-      return;
-    }
+    // Get seeded branches by slug (owner has UserBranchMembership for these)
+    const sourceBranchId = await Factories.branch.getBySlug(page, 'acme-warehouse');
+    const destBranchId = await Factories.branch.getBySlug(page, 'acme-retail-1');
 
-    const sourceBranch = branches[0];
-    const destBranch = branches[1];
+    const sourceBranch = { id: sourceBranchId };
+    const destBranch = { id: destBranchId };
 
     // Create product with barcode
     const productId = await Factories.product.create(page, {
@@ -519,15 +516,12 @@ test.describe('Barcode Scanning Workflow', () => {
 
     const timestamp = Date.now();
 
-    // Get branches
-    const branches = await Factories.branch.getAll(page);
-    if (branches.length < 2) {
-      console.warn('Skipping test: Need at least 2 branches');
-      return;
-    }
+    // Get seeded branches by slug (owner has UserBranchMembership for these)
+    const sourceBranchId = await Factories.branch.getBySlug(page, 'acme-warehouse');
+    const destBranchId = await Factories.branch.getBySlug(page, 'acme-retail-1');
 
-    const sourceBranch = branches[0];
-    const destBranch = branches[1];
+    const sourceBranch = { id: sourceBranchId };
+    const destBranch = { id: destBranchId };
 
     // Create product with barcode
     const productId = await Factories.product.create(page, {
@@ -595,15 +589,12 @@ test.describe('Barcode Scanning Workflow', () => {
     const timestamp = Date.now();
     const barcode = `MANUAL-ENTRY-${timestamp}`;
 
-    // Get branches
-    const branches = await Factories.branch.getAll(page);
-    if (branches.length < 2) {
-      console.warn('Skipping test: Need at least 2 branches');
-      return;
-    }
+    // Get seeded branches by slug (owner has UserBranchMembership for these)
+    const sourceBranchId = await Factories.branch.getBySlug(page, 'acme-warehouse');
+    const destBranchId = await Factories.branch.getBySlug(page, 'acme-retail-1');
 
-    const sourceBranch = branches[0];
-    const destBranch = branches[1];
+    const sourceBranch = { id: sourceBranchId };
+    const destBranch = { id: destBranchId };
 
     // Create product with barcode
     // Keep price low (500 pence = £5) to avoid triggering approval rules
@@ -695,15 +686,12 @@ test.describe('Barcode Scanning Workflow', () => {
     const timestamp = Date.now();
     const invalidBarcode = `INVALID-PRODUCT-${timestamp}`;
 
-    // Get branches
-    const branches = await Factories.branch.getAll(page);
-    if (branches.length < 2) {
-      console.warn('Skipping test: Need at least 2 branches');
-      return;
-    }
+    // Get seeded branches by slug (owner has UserBranchMembership for these)
+    const sourceBranchId = await Factories.branch.getBySlug(page, 'acme-warehouse');
+    const destBranchId = await Factories.branch.getBySlug(page, 'acme-retail-1');
 
-    const sourceBranch = branches[0];
-    const destBranch = branches[1];
+    const sourceBranch = { id: sourceBranchId };
+    const destBranch = { id: destBranchId };
 
     // Create two products
     const product1Id = await Factories.product.create(page, {
@@ -780,14 +768,12 @@ test.describe('Barcode Scanning Workflow', () => {
 
     const timestamp = Date.now();
 
-    const branches = await Factories.branch.getAll(page);
-    if (branches.length < 2) {
-      console.warn('Skipping test: Need at least 2 branches');
-      return;
-    }
+    // Get seeded branches by slug (owner has UserBranchMembership for these)
+    const sourceBranchId = await Factories.branch.getBySlug(page, 'acme-warehouse');
+    const destBranchId = await Factories.branch.getBySlug(page, 'acme-retail-1');
 
-    const sourceBranch = branches[0];
-    const destBranch = branches[1];
+    const sourceBranch = { id: sourceBranchId };
+    const destBranch = { id: destBranchId };
 
     const productId = await Factories.product.create(page, {
       productName: `Already Received Product ${timestamp}`,
@@ -832,14 +818,12 @@ test.describe('Barcode Scanning Workflow', () => {
 
     const timestamp = Date.now();
 
-    const branches = await Factories.branch.getAll(page);
-    if (branches.length < 2) {
-      console.warn('Skipping test: Need at least 2 branches');
-      return;
-    }
+    // Get seeded branches by slug (owner has UserBranchMembership for these)
+    const sourceBranchId = await Factories.branch.getBySlug(page, 'acme-warehouse');
+    const destBranchId = await Factories.branch.getBySlug(page, 'acme-retail-1');
 
-    const sourceBranch = branches[0];
-    const destBranch = branches[1];
+    const sourceBranch = { id: sourceBranchId };
+    const destBranch = { id: destBranchId };
 
     const productId = await Factories.product.create(page, {
       productName: `Over Receive Product ${timestamp}`,
@@ -922,14 +906,12 @@ test.describe('Permission Checks', () => {
 
     const timestamp = Date.now();
 
-    const branches = await Factories.branch.getAll(page);
-    if (branches.length < 2) {
-      console.warn('Skipping test: Need at least 2 branches');
-      return;
-    }
+    // Get seeded branches by slug (owner has UserBranchMembership for these)
+    const sourceBranchId = await Factories.branch.getBySlug(page, 'acme-warehouse');
+    const destBranchId = await Factories.branch.getBySlug(page, 'acme-retail-1');
 
-    const sourceBranch = branches[0];
-    const destBranch = branches[1];
+    const sourceBranch = { id: sourceBranchId };
+    const destBranch = { id: destBranchId };
 
     const productId = await Factories.product.create(page, {
       productName: `Owner Scan Test ${timestamp}`,

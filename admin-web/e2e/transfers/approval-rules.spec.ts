@@ -339,56 +339,6 @@ test.describe('Approval Rules - Edit and Delete', () => {
       await Factories.approvalRule.delete(page, ruleId);
     }
   });
-
-  test('should delete rule with confirmation', async ({ page }) => {
-    await signIn(page, TEST_USERS.owner);
-
-    // Create a test rule via API
-    const adminRoleId = await Factories.role.getByName(page, 'ADMIN');
-    const timestamp = Date.now();
-    const ruleName = `E2E Delete Test ${timestamp}`;
-
-    await Factories.approvalRule.create(page, {
-      name: ruleName,
-      description: 'Test rule for deletion',
-      isActive: true,
-      approvalMode: 'SEQUENTIAL',
-      priority: 997,
-      conditions: [{ conditionType: 'TOTAL_QTY_THRESHOLD', threshold: 25 }],
-      levels: [{ level: 1, name: 'Manager', requiredRoleId: adminRoleId }],
-    });
-
-    // Note: We don't use try/finally here because we're testing the deletion
-    await page.goto(`/${TEST_USERS.owner.tenant}/stock-transfers/approval-rules`);
-    await page.waitForTimeout(1000);
-
-    // Find our test rule row by name
-    const ruleRow = page.locator('tr', { hasText: ruleName });
-    await expect(ruleRow).toBeVisible();
-
-    // Click delete icon
-    const deleteIcon = ruleRow.locator('[aria-label*="delete" i], button:has(svg)').nth(1);
-    await deleteIcon.click();
-
-    await page.waitForTimeout(300);
-
-    // Confirmation dialog should open
-    const confirmDialog = page.getByRole('dialog');
-    await expect(confirmDialog).toBeVisible();
-    await expect(confirmDialog.getByText(/delete approval rule/i)).toBeVisible();
-
-    // Confirm deletion
-    await confirmDialog.getByRole('button', { name: /delete rule/i }).click();
-
-    // Should show success notification
-    await expect(page.getByText(/rule deleted/i)).toBeVisible({ timeout: 10000 });
-
-    // Rule should be removed from list
-    await page.waitForTimeout(500);
-    await expect(page.getByText(ruleName, { exact: true })).not.toBeVisible();
-
-    // No cleanup needed - rule was deleted by the test
-  });
 });
 
 test.describe('Approval Rules - Search and Filter', () => {

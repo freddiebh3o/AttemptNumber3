@@ -40,22 +40,25 @@ test.describe('Transfer Templates - List and Navigation', () => {
     await page.goto(`/${TEST_USERS.owner.tenant}/stock-transfers`);
     await page.waitForLoadState('networkidle');
 
-    // Expand Stock Management dropdown in sidebar
-    const stockManagementNav = page.getByRole('navigation').getByText(/stock management/i);
+    // Wait for navigation to load, then expand Stock Management dropdown
+    const stockManagementNav = page.getByRole('navigation').getByText(/^stock management$/i);
+    await expect(stockManagementNav).toBeVisible();
     await stockManagementNav.click();
     await page.waitForTimeout(300); // Wait for expansion animation
 
-    // Click on Transfer Templates link
-    await page.getByRole('link', { name: /transfer templates/i }).click();
+    // Wait for Transfer Templates link to be visible, then click it
+    const templatesLink = page.getByRole('link', { name: /^transfer templates$/i });
+    await expect(templatesLink).toBeVisible();
+    await templatesLink.click();
 
     // Should navigate to templates page
-    await expect(page).toHaveURL(/\/transfer-templates/);
+    await expect(page).toHaveURL(/\/stock-transfers\/templates/);
     await expect(page.getByRole('heading', { name: /transfer templates/i })).toBeVisible();
   });
 
   test('should display templates table', async ({ page }) => {
     await signIn(page, TEST_USERS.owner);
-    await page.goto(`/${TEST_USERS.owner.tenant}/transfer-templates`);
+    await page.goto(`/${TEST_USERS.owner.tenant}/stock-transfers/templates`);
 
     // Wait for page to load
     await page.waitForTimeout(1000);
@@ -69,7 +72,7 @@ test.describe('Transfer Templates - List and Navigation', () => {
 
   test('should show New Template button for editors', async ({ page }) => {
     await signIn(page, TEST_USERS.editor);
-    await page.goto(`/${TEST_USERS.editor.tenant}/transfer-templates`);
+    await page.goto(`/${TEST_USERS.editor.tenant}/stock-transfers/templates`);
 
     await expect(page.getByRole('button', { name: /new template/i })).toBeVisible();
   });
@@ -78,7 +81,7 @@ test.describe('Transfer Templates - List and Navigation', () => {
 test.describe('Transfer Templates - Create Template', () => {
   test('should open create template modal', async ({ page }) => {
     await signIn(page, TEST_USERS.owner);
-    await page.goto(`/${TEST_USERS.owner.tenant}/transfer-templates`);
+    await page.goto(`/${TEST_USERS.owner.tenant}/stock-transfers/templates`);
 
     // Click New Template button
     await page.getByRole('button', { name: /new template/i }).click();
@@ -97,7 +100,7 @@ test.describe('Transfer Templates - Create Template', () => {
 
   test('should create template with products', async ({ page }) => {
     await signIn(page, TEST_USERS.owner);
-    await page.goto(`/${TEST_USERS.owner.tenant}/transfer-templates`);
+    await page.goto(`/${TEST_USERS.owner.tenant}/stock-transfers/templates`);
 
     const timestamp = Date.now();
     const templateName = `E2E Create Test ${timestamp}`;
@@ -186,7 +189,7 @@ test.describe('Transfer Templates - Create Template', () => {
 
   test('should validate required fields', async ({ page }) => {
     await signIn(page, TEST_USERS.owner);
-    await page.goto(`/${TEST_USERS.owner.tenant}/transfer-templates`);
+    await page.goto(`/${TEST_USERS.owner.tenant}/stock-transfers/templates`);
 
     await page.getByRole('button', { name: /new template/i }).click();
 
@@ -206,7 +209,7 @@ test.describe('Transfer Templates - Create Template', () => {
 test.describe('Transfer Templates - Search and Filter', () => {
   test('should search templates by name', async ({ page }) => {
     await signIn(page, TEST_USERS.owner);
-    await page.goto(`/${TEST_USERS.owner.tenant}/transfer-templates`);
+    await page.goto(`/${TEST_USERS.owner.tenant}/stock-transfers/templates`);
 
     // Wait for table to load
     await page.waitForTimeout(1000);
@@ -227,7 +230,7 @@ test.describe('Transfer Templates - Search and Filter', () => {
 
   test('should filter by source branch', async ({ page }) => {
     await signIn(page, TEST_USERS.owner);
-    await page.goto(`/${TEST_USERS.owner.tenant}/transfer-templates`);
+    await page.goto(`/${TEST_USERS.owner.tenant}/stock-transfers/templates`);
 
     await page.waitForTimeout(1000);
 
@@ -283,7 +286,7 @@ test.describe('Transfer Templates - Duplicate Template', () => {
       });
 
       // Navigate to templates page
-      await page.goto(`/${TEST_USERS.owner.tenant}/transfer-templates`);
+      await page.goto(`/${TEST_USERS.owner.tenant}/stock-transfers/templates`);
       await page.waitForTimeout(1000);
 
       // Find the template we just created and click duplicate button
@@ -340,30 +343,28 @@ test.describe('Transfer Templates - Duplicate Template', () => {
 });
 
 test.describe('Transfer Templates - Delete Template', () => {
-  test('should delete template with confirmation', async ({ page }) => {
+  test('should archive template with confirmation and show archived badge', async ({ page }) => {
     await signIn(page, TEST_USERS.owner);
 
     const timestamp = Date.now();
-    const templateName = `E2E Delete Test ${timestamp}`;
+    const templateName = `E2E Archive Test ${timestamp}`;
 
-    // Create a template via API first
-    const sourceBranchId = await Factories.branch.getFirst(page);
-    const destBranchId = await Factories.branch.getSecond(page);
+    // Create a template via API first using seeded branches
+    const sourceBranchId = await Factories.branch.getBySlug(page, 'acme-warehouse');
+    const destBranchId = await Factories.branch.getBySlug(page, 'acme-retail-1');
     const productId = await Factories.product.getFirst(page);
 
     const templateId = await Factories.template.create(page, {
       name: templateName,
-      description: 'Template to be deleted',
+      description: 'Template to be archived',
       sourceBranchId,
       destinationBranchId: destBranchId,
       items: [{ productId, defaultQty: 5 }],
     });
 
-    let wasDeleted = false;
-
     try {
-      // Navigate to templates page
-      await page.goto(`/${TEST_USERS.owner.tenant}/transfer-templates`);
+      // Navigate to templates page (active-only filter by default)
+      await page.goto(`/${TEST_USERS.owner.tenant}/stock-transfers/templates`);
       await page.waitForTimeout(1000);
 
       // Find the template row
@@ -371,35 +372,52 @@ test.describe('Transfer Templates - Delete Template', () => {
       await expect(templateRow).toBeVisible();
       await page.waitForTimeout(500); // Wait for row to fully render
 
-      // Find and click the delete button using test ID (similar to duplicate button pattern)
-      const deleteButton = page.getByTestId(`delete-template-${templateId}`);
-      await expect(deleteButton).toBeVisible({ timeout: 5000 });
-      await deleteButton.click();
+      // Find and click the archive button scoped to this specific row
+      const archiveButton = templateRow.getByTestId('archive-template-btn');
+      await expect(archiveButton).toBeVisible({ timeout: 5000 });
+      await archiveButton.click();
 
       // Confirmation modal should open
       const confirmDialog = page.getByRole('dialog');
       await expect(confirmDialog).toBeVisible();
-      await expect(confirmDialog.getByRole('heading', { name: /delete template/i })).toBeVisible();
+      await expect(confirmDialog.getByRole('heading', { name: /archive template/i })).toBeVisible();
 
-      // Confirm deletion
-      await confirmDialog.getByRole('button', { name: /delete template/i }).click();
+      // Confirm archival
+      await confirmDialog.getByRole('button', { name: /archive template/i }).click();
 
       // Should show success notification
-      await expect(page.getByText(/template deleted/i)).toBeVisible({ timeout: 10000 });
+      await expect(page.getByText(/template archived successfully/i)).toBeVisible({ timeout: 10000 });
 
-      // Template should be removed from list
+      // Template should be removed from active list (since we're on active-only filter)
       await page.waitForTimeout(500);
-      await expect(page.getByText(templateName, { exact: true })).not.toBeVisible();
+      await expect(page.locator('tr', { hasText: templateName })).not.toBeVisible();
 
-      wasDeleted = true;
+      // Switch to "All templates" filter to see archived template
+      const archivedFilter = page.getByTestId('template-archived-filter-select');
+      await archivedFilter.click();
+      await page.getByRole('option', { name: /all templates/i }).click();
+      await page.waitForTimeout(300);
+
+      // Click "Apply Filters" button to apply the filter change
+      await page.getByRole('button', { name: /apply filters/i }).click();
+      await page.waitForTimeout(500);
+
+      // Template should now be visible with "Archived" badge
+      await expect(page.locator('tr', { hasText: templateName })).toBeVisible();
+
+      // Scope the archived badge to the specific template row to avoid strict mode violations
+      const archivedTemplateRow = page.locator('tr', { hasText: templateName });
+      await expect(archivedTemplateRow.getByTestId('template-archived-badge')).toBeVisible();
+
+      // Should show restore button instead of archive button in this row
+      await expect(archivedTemplateRow.getByTestId('restore-template-btn')).toBeVisible();
     } finally {
-      // Cleanup: delete template if test failed before deletion
-      if (!wasDeleted) {
-        try {
-          await Factories.template.delete(page, templateId);
-        } catch {
-          // Ignore cleanup errors
-        }
+      // Cleanup: restore and delete template
+      try {
+        await Factories.template.restore(page, templateId);
+        await Factories.template.archive(page, templateId);
+      } catch {
+        // Ignore cleanup errors
       }
     }
   });
@@ -509,17 +527,19 @@ test.describe('Transfer Templates - Use Template to Create Transfer', () => {
 });
 
 test.describe('Transfer Templates - Permissions', () => {
-  test('should hide New Template button for viewers', async ({ page }) => {
+  test('should disable New Template button for viewers', async ({ page }) => {
     await signIn(page, TEST_USERS.viewer);
-    await page.goto(`/${TEST_USERS.viewer.tenant}/transfer-templates`);
+    await page.goto(`/${TEST_USERS.viewer.tenant}/stock-transfers/templates`);
 
-    // Viewer should not see New Template button (stock:write permission required)
-    await expect(page.getByRole('button', { name: /new template/i })).not.toBeVisible();
+    // Viewer should see New Template button but it should be disabled (stock:write permission required)
+    const newTemplateButton = page.getByRole('button', { name: /new template/i });
+    await expect(newTemplateButton).toBeVisible();
+    await expect(newTemplateButton).toBeDisabled();
   });
 
   test('should hide action menus for viewers', async ({ page }) => {
     await signIn(page, TEST_USERS.viewer);
-    await page.goto(`/${TEST_USERS.viewer.tenant}/transfer-templates`);
+    await page.goto(`/${TEST_USERS.viewer.tenant}/stock-transfers/templates`);
 
     await page.waitForTimeout(1000);
 

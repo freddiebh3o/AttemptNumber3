@@ -42,15 +42,16 @@ test.describe('Analytics Dashboard Navigation', () => {
   test('should navigate to analytics dashboard from sidebar', async ({ page }) => {
     await signIn(page, TEST_USERS.admin); // Admin has reports:view permission
 
-    // Expand Stock Management dropdown in sidebar (if collapsed)
-    const stockManagementNav = page.getByRole('navigation').getByText(/stock management/i);
-    if (await stockManagementNav.isVisible()) {
-      await stockManagementNav.click();
-      await page.waitForTimeout(300); // Wait for expansion animation
-    }
+    // Wait for navigation to load, then expand Stock Management dropdown
+    const stockManagementNav = page.getByRole('navigation').getByText(/^stock management$/i);
+    await expect(stockManagementNav).toBeVisible();
+    await stockManagementNav.click();
+    await page.waitForTimeout(300); // Wait for expansion animation
 
-    // Navigate via Analytics link
-    await page.getByRole('link', { name: /analytics/i }).click();
+    // Wait for Analytics link to be visible, then click it
+    const analyticsLink = page.getByRole('link', { name: /^analytics$/i });
+    await expect(analyticsLink).toBeVisible();
+    await analyticsLink.click();
 
     // Should be on analytics page
     await expect(page).toHaveURL(`/${TEST_USERS.admin.tenant}/stock-transfers/analytics`);
@@ -136,15 +137,11 @@ test.describe('Analytics Filtering', () => {
   test('should filter by branch (overview metrics only)', async ({ page }) => {
     await signIn(page, TEST_USERS.owner);
 
-    // Get branches first
-    const branches = await Factories.branch.getAll(page);
-    if (branches.length === 0) {
-      console.warn('Skipping test: No branches available');
-      return;
-    }
+    // Get seeded branch that owner has access to
+    const sourceBranchId = await Factories.branch.getBySlug(page, 'acme-warehouse');
 
     // Navigate with branch filter in URL
-    await page.goto(`/${TEST_USERS.owner.tenant}/stock-transfers/analytics?branchId=${branches[0].id}`);
+    await page.goto(`/${TEST_USERS.owner.tenant}/stock-transfers/analytics?branchId=${sourceBranchId}`);
     await page.waitForLoadState('networkidle');
 
     // Wait for data to load
@@ -203,11 +200,9 @@ test.describe('Transfer Prioritization', () => {
     const productName = `Urgent Transfer Product ${timestamp}`;
     const productSku = `URGENT-SKU-${timestamp}`;
 
-    const branches = await Factories.branch.getAll(page);
-    if (branches.length < 2) {
-      console.warn('Skipping test: Need at least 2 branches');
-      return;
-    }
+    // Get seeded branches that owner has access to
+    const sourceBranchId = await Factories.branch.getBySlug(page, 'acme-warehouse');
+    const destBranchId = await Factories.branch.getBySlug(page, 'acme-retail-1');
 
     const productId = await Factories.product.create(page, {
       productName,
@@ -218,15 +213,15 @@ test.describe('Transfer Prioritization', () => {
     // Add stock to source
     await Factories.stock.addStock(page, {
       productId,
-      branchId: branches[0].id,
+      branchId: sourceBranchId,
       qtyDelta: 100,
       unitCostPence: 100,
     });
 
     // Create transfer with URGENT priority
     const transferId = await Factories.transfer.create(page, {
-      sourceBranchId: branches[0].id,
-      destinationBranchId: branches[1].id,
+      sourceBranchId: sourceBranchId,
+      destinationBranchId: destBranchId,
       items: [{ productId, qty: 10 }],
       priority: 'URGENT',
     });
@@ -249,11 +244,9 @@ test.describe('Transfer Prioritization', () => {
     const productName = `Priority Update Product ${timestamp}`;
     const productSku = `PRIORITY-SKU-${timestamp}`;
 
-    const branches = await Factories.branch.getAll(page);
-    if (branches.length < 2) {
-      console.warn('Skipping test: Need at least 2 branches');
-      return;
-    }
+    // Get seeded branches that owner has access to
+    const sourceBranchId = await Factories.branch.getBySlug(page, 'acme-warehouse');
+    const destBranchId = await Factories.branch.getBySlug(page, 'acme-retail-1');
 
     const productId = await Factories.product.create(page, {
       productName,
@@ -263,15 +256,15 @@ test.describe('Transfer Prioritization', () => {
 
     await Factories.stock.addStock(page, {
       productId,
-      branchId: branches[0].id,
+      branchId: sourceBranchId,
       qtyDelta: 100,
       unitCostPence: 100,
     });
 
     // Create transfer with NORMAL priority
     const transferId = await Factories.transfer.create(page, {
-      sourceBranchId: branches[0].id,
-      destinationBranchId: branches[1].id,
+      sourceBranchId: sourceBranchId,
+      destinationBranchId: destBranchId,
       items: [{ productId, qty: 10 }],
       priority: 'NORMAL',
     });
@@ -315,11 +308,9 @@ test.describe('Transfer Prioritization', () => {
     await signIn(page, TEST_USERS.owner);
 
     const timestamp = Date.now();
-    const branches = await Factories.branch.getAll(page);
-    if (branches.length < 2) {
-      console.warn('Skipping test: Need at least 2 branches');
-      return;
-    }
+    // Get seeded branches that owner has access to
+    const sourceBranchId = await Factories.branch.getBySlug(page, 'acme-warehouse');
+    const destBranchId = await Factories.branch.getBySlug(page, 'acme-retail-1');
 
     // Create products for each priority level
     const transferIds: string[] = [];
@@ -334,14 +325,14 @@ test.describe('Transfer Prioritization', () => {
 
       await Factories.stock.addStock(page, {
         productId,
-        branchId: branches[0].id,
+        branchId: sourceBranchId,
         qtyDelta: 10,
         unitCostPence: 100,
       });
 
       const transferId = await Factories.transfer.create(page, {
-        sourceBranchId: branches[0].id,
-        destinationBranchId: branches[1].id,
+        sourceBranchId: sourceBranchId,
+        destinationBranchId: destBranchId,
         items: [{ productId, qty: 5 }],
         priority,
       });
@@ -371,11 +362,9 @@ test.describe('Partial Shipment Workflow', () => {
     const productName = `Partial Ship Product ${timestamp}`;
     const productSku = `PARTIAL-SKU-${timestamp}`;
 
-    const branches = await Factories.branch.getAll(page);
-    if (branches.length < 2) {
-      console.warn('Skipping test: Need at least 2 branches');
-      return;
-    }
+    // Get seeded branches that owner has access to
+    const sourceBranchId = await Factories.branch.getBySlug(page, 'acme-warehouse');
+    const destBranchId = await Factories.branch.getBySlug(page, 'acme-retail-1');
 
     const productId = await Factories.product.create(page, {
       productName,
@@ -386,15 +375,15 @@ test.describe('Partial Shipment Workflow', () => {
     // Add stock to source
     await Factories.stock.addStock(page, {
       productId,
-      branchId: branches[0].id,
+      branchId: sourceBranchId,
       qtyDelta: 100,
       unitCostPence: 100,
     });
 
     // Create and approve transfer (use low qty to avoid triggering approval rules)
     const transferId = await Factories.transfer.create(page, {
-      sourceBranchId: branches[0].id,
-      destinationBranchId: branches[1].id,
+      sourceBranchId: sourceBranchId,
+      destinationBranchId: destBranchId,
       items: [{ productId, qty: 5 }],
     });
 
@@ -464,11 +453,9 @@ test.describe('Partial Shipment Workflow', () => {
     const productName = `Remaining Ship Product ${timestamp}`;
     const productSku = `REMAINING-SKU-${timestamp}`;
 
-    const branches = await Factories.branch.getAll(page);
-    if (branches.length < 2) {
-      console.warn('Skipping test: Need at least 2 branches');
-      return;
-    }
+    // Get seeded branches that owner has access to
+    const sourceBranchId = await Factories.branch.getBySlug(page, 'acme-warehouse');
+    const destBranchId = await Factories.branch.getBySlug(page, 'acme-retail-1');
 
     const productId = await Factories.product.create(page, {
       productName,
@@ -478,14 +465,14 @@ test.describe('Partial Shipment Workflow', () => {
 
     await Factories.stock.addStock(page, {
       productId,
-      branchId: branches[0].id,
+      branchId: sourceBranchId,
       qtyDelta: 100,
       unitCostPence: 100,
     });
 
     const transferId = await Factories.transfer.create(page, {
-      sourceBranchId: branches[0].id,
-      destinationBranchId: branches[1].id,
+      sourceBranchId: sourceBranchId,
+      destinationBranchId: destBranchId,
       items: [{ productId, qty: 10 }],
     });
 
@@ -546,11 +533,9 @@ test.describe('Partial Shipment Workflow', () => {
     const productName = `Batch History Product ${timestamp}`;
     const productSku = `BATCH-SKU-${timestamp}`;
 
-    const branches = await Factories.branch.getAll(page);
-    if (branches.length < 2) {
-      console.warn('Skipping test: Need at least 2 branches');
-      return;
-    }
+    // Get seeded branches that owner has access to
+    const sourceBranchId = await Factories.branch.getBySlug(page, 'acme-warehouse');
+    const destBranchId = await Factories.branch.getBySlug(page, 'acme-retail-1');
 
     const productId = await Factories.product.create(page, {
       productName,
@@ -560,14 +545,14 @@ test.describe('Partial Shipment Workflow', () => {
 
     await Factories.stock.addStock(page, {
       productId,
-      branchId: branches[0].id,
+      branchId: sourceBranchId,
       qtyDelta: 100,
       unitCostPence: 100,
     });
 
     const transferId = await Factories.transfer.create(page, {
-      sourceBranchId: branches[0].id,
-      destinationBranchId: branches[1].id,
+      sourceBranchId: sourceBranchId,
+      destinationBranchId: destBranchId,
       items: [{ productId, qty: 9 }],
     });
 
@@ -648,14 +633,14 @@ test.describe('Permission Checks', () => {
     // Should see "New Transfer" button
     await expect(page.getByRole('button', { name: /new transfer/i })).toBeVisible();
 
-    // Expand Stock Management dropdown in sidebar (if collapsed)
-    const stockManagementNav = page.getByRole('navigation').getByText(/stock management/i);
-    if (await stockManagementNav.isVisible()) {
-      await stockManagementNav.click();
-      await page.waitForTimeout(300); // Wait for expansion animation
-    }
+    // Wait for navigation to load, then expand Stock Management dropdown
+    const stockManagementNav = page.getByRole('navigation').getByText(/^stock management$/i);
+    await expect(stockManagementNav).toBeVisible();
+    await stockManagementNav.click();
+    await page.waitForTimeout(300); // Wait for expansion animation
 
     // Should see "Analytics" link in sidebar
-    await expect(page.getByRole('link', { name: /analytics/i })).toBeVisible();
+    const analyticsLink = page.getByRole('link', { name: /^analytics$/i });
+    await expect(analyticsLink).toBeVisible();
   });
 });

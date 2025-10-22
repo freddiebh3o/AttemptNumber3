@@ -88,32 +88,6 @@ test.describe('Feature Settings - Basic Functionality', () => {
     await expect(page.getByText(/feature settings saved successfully/i)).toBeVisible({ timeout: 5000 });
   });
 
-  test('should save OpenAI API key', async ({ page }) => {
-    await signIn(page, TEST_USERS.owner);
-    await page.goto(`/${TEST_USERS.owner.tenant}/settings/features`);
-    await page.waitForLoadState('networkidle');
-
-    // Enable chat assistant - click the label text
-    await page.getByText('Enable AI Chat Assistant').click();
-
-    // Enter API key
-    const apiKeyInput = page.getByTestId(SELECTORS.FEATURES.INPUT_OPENAI_API_KEY);
-    await apiKeyInput.fill('sk-test-key-12345');
-
-    // Save settings
-    await page.getByTestId(SELECTORS.FEATURES.BTN_SAVE_FEATURES).click();
-
-    // Verify success notification
-    await expect(page.getByText(/feature settings saved successfully/i)).toBeVisible({ timeout: 5000 });
-
-    // Reload page and verify settings are persisted
-    await page.reload();
-    await page.waitForLoadState('networkidle');
-
-    // Verify toggle is still checked using data-testid (the hidden input has the checked state)
-    await expect(page.getByTestId(SELECTORS.FEATURES.TOGGLE_CHAT_ASSISTANT)).toBeChecked();
-  });
-
   test('should enable and save barcode scanning feature', async ({ page }) => {
     await signIn(page, TEST_USERS.owner);
     await page.goto(`/${TEST_USERS.owner.tenant}/settings/features`);

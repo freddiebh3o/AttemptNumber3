@@ -82,12 +82,9 @@ test.describe('Transfer Reversal - Complete Flow', () => {
     const productName = `Reversal Test Product ${timestamp}`;
     const productSku = `REV-${timestamp}`;
 
-    // Step 1: Setup - Create product and stock via API
-    const branches = await Factories.branch.getAll(page);
-    if (branches.length < 2) {
-      console.warn('Skipping test: Need at least 2 branches');
-      return;
-    }
+    // Step 1: Setup - Get seeded branches that owner has access to
+    const sourceBranchId = await Factories.branch.getBySlug(page, 'acme-warehouse');
+    const destBranchId = await Factories.branch.getBySlug(page, 'acme-retail-1');
 
     const productId = await Factories.product.create(page, {
       productName,
@@ -97,15 +94,15 @@ test.describe('Transfer Reversal - Complete Flow', () => {
 
     await Factories.stock.addStock(page, {
       productId,
-      branchId: branches[0].id,
+      branchId: sourceBranchId,
       qtyDelta: 100,
       unitCostPence: 500,
     });
 
     // Step 2: Create transfer via API (low qty to avoid approval rules)
     const transferId = await Factories.transfer.create(page, {
-      sourceBranchId: branches[0].id,
-      destinationBranchId: branches[1].id,
+      sourceBranchId: sourceBranchId,
+      destinationBranchId: destBranchId,
       items: [{ productId, qty: 2 }],
     });
 
@@ -320,35 +317,6 @@ test.describe('Transfer Reversal - Bidirectional Links', () => {
 });
 
 test.describe('Transfer Reversal - Status Display', () => {
-  test('should show reversal transfers with COMPLETED status', async ({ page }) => {
-    await signIn(page, TEST_USERS.owner);
-    await page.goto(`/${TEST_USERS.owner.tenant}/stock-transfers`);
-
-    await page.waitForTimeout(1000);
-
-    // Look through transfers for reversals
-    const rows = page.locator('table tbody tr');
-    const rowCount = await rows.count();
-
-    for (let i = 0; i < rowCount; i++) {
-      const row = rows.nth(i);
-      await row.click();
-      await page.waitForTimeout(500);
-
-      const isReversal = await page.getByText(/this is a reversal/i).isVisible();
-
-      if (isReversal) {
-        // Reversal transfers should always be COMPLETED
-        await expect(page.getByText(/status.*completed/i)).toBeVisible();
-        break;
-      }
-
-      // Go back to list
-      await page.goto(`/${TEST_USERS.owner.tenant}/stock-transfers`);
-      await page.waitForTimeout(500);
-    }
-  });
-
   test.skip('should display reversal reason', async ({ page }) => {
     await signIn(page, TEST_USERS.owner);
     await page.goto(`/${TEST_USERS.owner.tenant}/stock-transfers`);

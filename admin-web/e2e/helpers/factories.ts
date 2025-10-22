@@ -320,6 +320,30 @@ export const BranchFactory = {
     const data = await response.json();
     return data.data.items;
   },
+
+  /**
+   * Get a branch by its slug
+   *
+   * @param page - Playwright page object (must be authenticated)
+   * @param slug - Branch slug to find
+   * @returns Branch ID
+   * @throws Error if branch not found
+   *
+   * @example
+   * ```typescript
+   * const warehouseId = await BranchFactory.getBySlug(page, 'acme-warehouse');
+   * ```
+   */
+  async getBySlug(page: Page, slug: string): Promise<string> {
+    const branches = await this.getAll(page);
+    const branch = branches.find((b: any) => b.branchSlug === slug);
+
+    if (!branch) {
+      throw new Error(`Branch not found with slug: ${slug}`);
+    }
+
+    return branch.id;
+  },
 };
 
 /**
@@ -336,6 +360,8 @@ export const StockFactory = {
    * @example
    * ```typescript
    * const { productId, branchId } = await StockFactory.createProductWithStock(page);
+   * // Or specify a branch:
+   * const result = await StockFactory.createProductWithStock(page, { branchId: 'branch-123' });
    * ```
    */
   async createProductWithStock(
@@ -346,6 +372,8 @@ export const StockFactory = {
       productPricePence?: number;
       initialQty?: number;
       unitCostPence?: number;
+      branchId?: string;
+      branchSlug?: string;
     }
   ): Promise<{ productId: string; branchId: string }> {
     const timestamp = Date.now();
@@ -358,8 +386,16 @@ export const StockFactory = {
     // Create product
     const productId = await ProductFactory.create(page, params);
 
-    // Get first branch
-    const branchId = await BranchFactory.getFirst(page);
+    // Get branch ID - prioritize explicit branchId, then branchSlug, then default to seeded warehouse
+    let branchId: string;
+    if (productParams?.branchId) {
+      branchId = productParams.branchId;
+    } else if (productParams?.branchSlug) {
+      branchId = await BranchFactory.getBySlug(page, productParams.branchSlug);
+    } else {
+      // Default to seeded warehouse branch (owner has access to this)
+      branchId = await BranchFactory.getBySlug(page, 'acme-warehouse');
+    }
 
     // Add initial stock
     const adjustResponse = await makeAuthenticatedRequest(page, 'POST', '/api/stock/adjust', {

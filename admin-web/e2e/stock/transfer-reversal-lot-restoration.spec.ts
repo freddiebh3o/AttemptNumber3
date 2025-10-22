@@ -48,12 +48,9 @@ test.describe('Transfer Reversal Lot Restoration - Basic Flow', () => {
     const productName = `Lot Restore Test ${timestamp}`;
     const productSku = `LOT-${timestamp}`;
 
-    // Setup: Create product and branches
-    const branches = await Factories.branch.getAll(page);
-    if (branches.length < 2) {
-      console.warn('Skipping test: Need at least 2 branches');
-      return;
-    }
+    // Setup: Create product and get seeded branches that owner has access to
+    const sourceBranchId = await Factories.branch.getBySlug(page, 'acme-warehouse');
+    const destBranchId = await Factories.branch.getBySlug(page, 'acme-retail-1');
 
     const productId = await Factories.product.create(page, {
       productName,
@@ -65,7 +62,7 @@ test.describe('Transfer Reversal Lot Restoration - Basic Flow', () => {
       // Step 1: Add initial stock to source branch
       await Factories.stock.addStock(page, {
         productId,
-        branchId: branches[0].id,
+        branchId: sourceBranchId,
         qtyDelta: 50,
         unitCostPence: 100,
         reason: 'E2E test: Initial stock for lot restoration test',
@@ -74,7 +71,7 @@ test.describe('Transfer Reversal Lot Restoration - Basic Flow', () => {
       // Get the original lot at source branch before transfer
       const sourceStockBefore = await Factories.stock.getLots(page, {
         productId,
-        branchId: branches[0].id,
+        branchId: sourceBranchId,
       });
 
       expect(sourceStockBefore.productStock.qtyOnHand).toBe(50);
@@ -86,8 +83,8 @@ test.describe('Transfer Reversal Lot Restoration - Basic Flow', () => {
 
       // Step 2: Create and complete transfer
       const transferId = await Factories.transfer.create(page, {
-        sourceBranchId: branches[0].id,
-        destinationBranchId: branches[1].id,
+        sourceBranchId: sourceBranchId,
+        destinationBranchId: destBranchId,
         items: [{ productId, qty: 10 }],
       });
 
@@ -118,14 +115,14 @@ test.describe('Transfer Reversal Lot Restoration - Basic Flow', () => {
       // Verify stock moved from source to destination
       const sourceStockAfterTransfer = await Factories.stock.getLots(page, {
         productId,
-        branchId: branches[0].id,
+        branchId: sourceBranchId,
       });
 
       expect(sourceStockAfterTransfer.productStock.qtyOnHand).toBe(40); // 50 - 10
 
       const destStockAfterTransfer = await Factories.stock.getLots(page, {
         productId,
-        branchId: branches[1].id,
+        branchId: destBranchId,
       });
 
       expect(destStockAfterTransfer.productStock.qtyOnHand).toBe(10);
@@ -148,7 +145,7 @@ test.describe('Transfer Reversal Lot Restoration - Basic Flow', () => {
       // Step 4: Verify stock returned to original lot at source
       const sourceStockAfterReversal = await Factories.stock.getLots(page, {
         productId,
-        branchId: branches[0].id,
+        branchId: sourceBranchId,
       });
 
       expect(sourceStockAfterReversal.productStock.qtyOnHand).toBe(50); // Back to original
@@ -166,7 +163,7 @@ test.describe('Transfer Reversal Lot Restoration - Basic Flow', () => {
       // Verify destination stock returned to zero
       const destStockAfterReversal = await Factories.stock.getLots(page, {
         productId,
-        branchId: branches[1].id,
+        branchId: destBranchId,
       });
 
       expect(destStockAfterReversal.productStock.qtyOnHand).toBe(0);
@@ -182,11 +179,9 @@ test.describe('Transfer Reversal Lot Restoration - Basic Flow', () => {
     const productName = `Ledger Test ${timestamp}`;
     const productSku = `LDG-${timestamp}`;
 
-    const branches = await Factories.branch.getAll(page);
-    if (branches.length < 2) {
-      console.warn('Skipping test: Need at least 2 branches');
-      return;
-    }
+    // Get seeded branches that owner has access to
+    const sourceBranchId = await Factories.branch.getBySlug(page, 'acme-warehouse');
+    const destBranchId = await Factories.branch.getBySlug(page, 'acme-retail-1');
 
     const productId = await Factories.product.create(page, {
       productName,
@@ -198,14 +193,14 @@ test.describe('Transfer Reversal Lot Restoration - Basic Flow', () => {
       // Setup: Add stock and complete transfer (use low qty to avoid approval rules)
       await Factories.stock.addStock(page, {
         productId,
-        branchId: branches[0].id,
+        branchId: sourceBranchId,
         qtyDelta: 20,
         unitCostPence: 100,
       });
 
       const transferId = await Factories.transfer.createAndShip(page, {
-        sourceBranchId: branches[0].id,
-        destinationBranchId: branches[1].id,
+        sourceBranchId: sourceBranchId,
+        destinationBranchId: destBranchId,
         productId,
         quantity: 5, // Low qty to avoid approval rules
         unitCostPence: 100,
@@ -229,7 +224,7 @@ test.describe('Transfer Reversal Lot Restoration - Basic Flow', () => {
       // Check ledger for REVERSAL entries (not RECEIPT)
       const sourceLedger = await Factories.stock.getLedger(page, {
         productId,
-        branchId: branches[0].id,
+        branchId: sourceBranchId,
         kinds: 'REVERSAL',
         limit: 10,
       });
@@ -259,11 +254,9 @@ test.describe('Transfer Reversal Lot Restoration - Multi-Lot Scenarios', () => {
     const productName = `Multi-Lot Test ${timestamp}`;
     const productSku = `ML-${timestamp}`;
 
-    const branches = await Factories.branch.getAll(page);
-    if (branches.length < 2) {
-      console.warn('Skipping test: Need at least 2 branches');
-      return;
-    }
+    // Get seeded branches that owner has access to
+    const sourceBranchId = await Factories.branch.getBySlug(page, 'acme-warehouse');
+    const destBranchId = await Factories.branch.getBySlug(page, 'acme-retail-1');
 
     const productId = await Factories.product.create(page, {
       productName,
@@ -275,7 +268,7 @@ test.describe('Transfer Reversal Lot Restoration - Multi-Lot Scenarios', () => {
       // Create multiple lots at source (FIFO order)
       await Factories.stock.addStock(page, {
         productId,
-        branchId: branches[0].id,
+        branchId: sourceBranchId,
         qtyDelta: 10,
         unitCostPence: 100,
         reason: 'First lot (oldest)',
@@ -286,7 +279,7 @@ test.describe('Transfer Reversal Lot Restoration - Multi-Lot Scenarios', () => {
 
       await Factories.stock.addStock(page, {
         productId,
-        branchId: branches[0].id,
+        branchId: sourceBranchId,
         qtyDelta: 10,
         unitCostPence: 120,
         reason: 'Second lot (middle)',
@@ -296,7 +289,7 @@ test.describe('Transfer Reversal Lot Restoration - Multi-Lot Scenarios', () => {
 
       await Factories.stock.addStock(page, {
         productId,
-        branchId: branches[0].id,
+        branchId: sourceBranchId,
         qtyDelta: 10,
         unitCostPence: 140,
         reason: 'Third lot (newest)',
@@ -305,7 +298,7 @@ test.describe('Transfer Reversal Lot Restoration - Multi-Lot Scenarios', () => {
       // Get all lots before transfer
       const lotsBeforeTransfer = await Factories.stock.getLots(page, {
         productId,
-        branchId: branches[0].id,
+        branchId: sourceBranchId,
       });
 
       expect(lotsBeforeTransfer.productStock.qtyOnHand).toBe(30);
@@ -317,8 +310,8 @@ test.describe('Transfer Reversal Lot Restoration - Multi-Lot Scenarios', () => {
       // Transfer 8 units (will consume from first 2 lots via FIFO) - low qty to avoid approval rules
       // Don't use createAndShip() because it adds more stock - we already have stock
       const transferId = await Factories.transfer.create(page, {
-        sourceBranchId: branches[0].id,
-        destinationBranchId: branches[1].id,
+        sourceBranchId: sourceBranchId,
+        destinationBranchId: destBranchId,
         items: [{ productId, qty: 8 }],
       });
 
@@ -361,7 +354,7 @@ test.describe('Transfer Reversal Lot Restoration - Multi-Lot Scenarios', () => {
       // Verify all lots restored
       const lotsAfterReversal = await Factories.stock.getLots(page, {
         productId,
-        branchId: branches[0].id,
+        branchId: sourceBranchId,
       });
 
       expect(lotsAfterReversal.productStock.qtyOnHand).toBe(30); // Back to original
@@ -386,11 +379,9 @@ test.describe('Transfer Reversal Lot Restoration - Multi-Lot Scenarios', () => {
     const productName = `Post-Transfer Stock Test ${timestamp}`;
     const productSku = `PTS-${timestamp}`;
 
-    const branches = await Factories.branch.getAll(page);
-    if (branches.length < 2) {
-      console.warn('Skipping test: Need at least 2 branches');
-      return;
-    }
+    // Get seeded branches that owner has access to
+    const sourceBranchId = await Factories.branch.getBySlug(page, 'acme-warehouse');
+    const destBranchId = await Factories.branch.getBySlug(page, 'acme-retail-1');
 
     const productId = await Factories.product.create(page, {
       productName,
@@ -402,22 +393,22 @@ test.describe('Transfer Reversal Lot Restoration - Multi-Lot Scenarios', () => {
       // Initial stock
       await Factories.stock.addStock(page, {
         productId,
-        branchId: branches[0].id,
+        branchId: sourceBranchId,
         qtyDelta: 20,
         unitCostPence: 100,
       });
 
       const lotsBeforeTransfer = await Factories.stock.getLots(page, {
         productId,
-        branchId: branches[0].id,
+        branchId: sourceBranchId,
       });
 
       const originalLotId = lotsBeforeTransfer.lots[0].id;
 
       // Transfer some stock
       const transferId = await Factories.transfer.createAndShip(page, {
-        sourceBranchId: branches[0].id,
-        destinationBranchId: branches[1].id,
+        sourceBranchId: sourceBranchId,
+        destinationBranchId: destBranchId,
         productId,
         quantity: 10,
         unitCostPence: 100,
@@ -428,7 +419,7 @@ test.describe('Transfer Reversal Lot Restoration - Multi-Lot Scenarios', () => {
       // Add MORE stock to source after transfer (new lot)
       await Factories.stock.addStock(page, {
         productId,
-        branchId: branches[0].id,
+        branchId: sourceBranchId,
         qtyDelta: 30,
         unitCostPence: 150,
         reason: 'New stock received after transfer',
@@ -436,7 +427,7 @@ test.describe('Transfer Reversal Lot Restoration - Multi-Lot Scenarios', () => {
 
       const lotsBeforeReversal = await Factories.stock.getLots(page, {
         productId,
-        branchId: branches[0].id,
+        branchId: sourceBranchId,
       });
 
       // createAndShip() adds stock, so we have: 20 initial + 10 from createAndShip + 30 new = 60 total
@@ -460,7 +451,7 @@ test.describe('Transfer Reversal Lot Restoration - Multi-Lot Scenarios', () => {
       // Verify lots restored + new lot still exists
       const lotsAfterReversal = await Factories.stock.getLots(page, {
         productId,
-        branchId: branches[0].id,
+        branchId: sourceBranchId,
       });
 
       // After reversal: 20 initial + 10 from createAndShip + 30 new + 10 reversed = 70 total
@@ -485,11 +476,9 @@ test.describe('Transfer Reversal Lot Restoration - UI Integration', () => {
     const productName = `UI Test ${timestamp}`;
     const productSku = `UI-${timestamp}`;
 
-    const branches = await Factories.branch.getAll(page);
-    if (branches.length < 2) {
-      console.warn('Skipping test: Need at least 2 branches');
-      return;
-    }
+    // Get seeded branches that owner has access to
+    const sourceBranchId = await Factories.branch.getBySlug(page, 'acme-warehouse');
+    const destBranchId = await Factories.branch.getBySlug(page, 'acme-retail-1');
 
     const productId = await Factories.product.create(page, {
       productName,
@@ -501,14 +490,14 @@ test.describe('Transfer Reversal Lot Restoration - UI Integration', () => {
       // Setup stock and transfer (use low qty to avoid approval rules)
       await Factories.stock.addStock(page, {
         productId,
-        branchId: branches[0].id,
+        branchId: sourceBranchId,
         qtyDelta: 20,
         unitCostPence: 100,
       });
 
       const transferId = await Factories.transfer.createAndShip(page, {
-        sourceBranchId: branches[0].id,
-        destinationBranchId: branches[1].id,
+        sourceBranchId: sourceBranchId,
+        destinationBranchId: destBranchId,
         productId,
         quantity: 5, // Low qty to avoid approval rules
         unitCostPence: 100,
@@ -516,16 +505,18 @@ test.describe('Transfer Reversal Lot Restoration - UI Integration', () => {
 
       await page.waitForTimeout(1000);
 
-      // Navigate to product FIFO tab
-      await page.goto(`/${TEST_USERS.owner.tenant}/products/${productId}?tab=fifo`);
+      // Navigate to product FIFO tab for SOURCE branch (where stock should be returned to)
+      await page.goto(`/${TEST_USERS.owner.tenant}/products/${productId}?tab=fifo&branchId=${sourceBranchId}`);
       await page.waitForLoadState('networkidle');
 
 
-      // Check stock level before reversal
-      // createAndShip adds 5 more units, so total is 20 + 5 = 25, then transfer 5 = 20 remaining
+      // Check stock level before reversal at SOURCE branch
+      // Initial: 20 units added
+      // createAndShip: adds 5 more units (now 25), then ships 5 units (back to 20)
+      // So source branch should have 20 units
       const onHandTextBefore = await page.getByText(/on hand:/i).textContent();
       const qtyBefore = parseInt(onHandTextBefore?.match(/on hand:\s*(\d+)/i)?.[1] || '0');
-      expect(qtyBefore).toBe(20); // 20 initial + 5 from createAndShip - 5 transferred = 20
+      expect(qtyBefore).toBe(20); // 20 initial + 5 from createAndShip - 5 shipped = 20
 
       // Reverse transfer via API
       const reverseResponse = await makeAuthenticatedRequest(
@@ -560,11 +551,9 @@ test.describe('Transfer Reversal Lot Restoration - UI Integration', () => {
     const productName = `Ledger UI Test ${timestamp}`;
     const productSku = `LUI-${timestamp}`;
 
-    const branches = await Factories.branch.getAll(page);
-    if (branches.length < 2) {
-      console.warn('Skipping test: Need at least 2 branches');
-      return;
-    }
+    // Get seeded branches that owner has access to
+    const sourceBranchId = await Factories.branch.getBySlug(page, 'acme-warehouse');
+    const destBranchId = await Factories.branch.getBySlug(page, 'acme-retail-1');
 
     const productId = await Factories.product.create(page, {
       productName,
@@ -575,8 +564,8 @@ test.describe('Transfer Reversal Lot Restoration - UI Integration', () => {
     try {
       // Setup and reverse transfer
       const transferId = await Factories.transfer.createAndShip(page, {
-        sourceBranchId: branches[0].id,
-        destinationBranchId: branches[1].id,
+        sourceBranchId: sourceBranchId,
+        destinationBranchId: destBranchId,
         productId,
         quantity: 8,
         unitCostPence: 100,
@@ -596,8 +585,8 @@ test.describe('Transfer Reversal Lot Restoration - UI Integration', () => {
       expect(reverseResponse.ok()).toBeTruthy();
       await page.waitForTimeout(1000);
 
-      // Navigate to product FIFO tab to see ledger
-      await page.goto(`/${TEST_USERS.owner.tenant}/products/${productId}?tab=fifo`);
+      // Navigate to product FIFO tab for SOURCE branch to see ledger with REVERSAL entries
+      await page.goto(`/${TEST_USERS.owner.tenant}/products/${productId}?tab=fifo&branchId=${sourceBranchId}`);
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(1500);
 
@@ -626,11 +615,9 @@ test.describe('Transfer Reversal Lot Restoration - Edge Cases', () => {
     const productName = `Partial Test ${timestamp}`;
     const productSku = `PART-${timestamp}`;
 
-    const branches = await Factories.branch.getAll(page);
-    if (branches.length < 2) {
-      console.warn('Skipping test: Need at least 2 branches');
-      return;
-    }
+    // Get seeded branches that owner has access to
+    const sourceBranchId = await Factories.branch.getBySlug(page, 'acme-warehouse');
+    const destBranchId = await Factories.branch.getBySlug(page, 'acme-retail-1');
 
     const productId = await Factories.product.create(page, {
       productName,
@@ -642,15 +629,15 @@ test.describe('Transfer Reversal Lot Restoration - Edge Cases', () => {
       // Add initial stock (low qty to avoid approval rules)
       await Factories.stock.addStock(page, {
         productId,
-        branchId: branches[0].id,
+        branchId: sourceBranchId,
         qtyDelta: 30,
         unitCostPence: 100,
       });
 
       // Create transfer but ship less than requested
       const transferId = await Factories.transfer.create(page, {
-        sourceBranchId: branches[0].id,
-        destinationBranchId: branches[1].id,
+        sourceBranchId: sourceBranchId,
+        destinationBranchId: destBranchId,
         items: [{ productId, qty: 10 }],
       });
 
@@ -696,7 +683,7 @@ test.describe('Transfer Reversal Lot Restoration - Edge Cases', () => {
       // Verify all stock transferred
       const sourceAfterTransfer = await Factories.stock.getLots(page, {
         productId,
-        branchId: branches[0].id,
+        branchId: sourceBranchId,
       });
       expect(sourceAfterTransfer.productStock.qtyOnHand).toBe(20); // 30 - 10
 
@@ -716,13 +703,13 @@ test.describe('Transfer Reversal Lot Restoration - Edge Cases', () => {
       // Verify all shipped quantity (10 total) is restored
       const sourceAfterReversal = await Factories.stock.getLots(page, {
         productId,
-        branchId: branches[0].id,
+        branchId: sourceBranchId,
       });
       expect(sourceAfterReversal.productStock.qtyOnHand).toBe(30); // Back to original
 
       const destAfterReversal = await Factories.stock.getLots(page, {
         productId,
-        branchId: branches[1].id,
+        branchId: destBranchId,
       });
       expect(destAfterReversal.productStock.qtyOnHand).toBe(0);
     } finally {
@@ -737,11 +724,9 @@ test.describe('Transfer Reversal Lot Restoration - Edge Cases', () => {
     const productName = `FIFO Order Test ${timestamp}`;
     const productSku = `FIFO-${timestamp}`;
 
-    const branches = await Factories.branch.getAll(page);
-    if (branches.length < 2) {
-      console.warn('Skipping test: Need at least 2 branches');
-      return;
-    }
+    // Get seeded branches that owner has access to
+    const sourceBranchId = await Factories.branch.getBySlug(page, 'acme-warehouse');
+    const destBranchId = await Factories.branch.getBySlug(page, 'acme-retail-1');
 
     const productId = await Factories.product.create(page, {
       productName,
@@ -753,7 +738,7 @@ test.describe('Transfer Reversal Lot Restoration - Edge Cases', () => {
       // Create lots with different costs (FIFO order)
       await Factories.stock.addStock(page, {
         productId,
-        branchId: branches[0].id,
+        branchId: sourceBranchId,
         qtyDelta: 10,
         unitCostPence: 100, // Oldest
       });
@@ -762,7 +747,7 @@ test.describe('Transfer Reversal Lot Restoration - Edge Cases', () => {
 
       await Factories.stock.addStock(page, {
         productId,
-        branchId: branches[0].id,
+        branchId: sourceBranchId,
         qtyDelta: 10,
         unitCostPence: 200, // Middle
       });
@@ -771,14 +756,14 @@ test.describe('Transfer Reversal Lot Restoration - Edge Cases', () => {
 
       await Factories.stock.addStock(page, {
         productId,
-        branchId: branches[0].id,
+        branchId: sourceBranchId,
         qtyDelta: 10,
         unitCostPence: 300, // Newest
       });
 
       const lotsBeforeTransfer = await Factories.stock.getLots(page, {
         productId,
-        branchId: branches[0].id,
+        branchId: sourceBranchId,
       });
 
       // Verify FIFO order (oldest first)
@@ -790,8 +775,8 @@ test.describe('Transfer Reversal Lot Restoration - Edge Cases', () => {
 
       // Transfer and reverse (use low qty to avoid approval rules)
       const transferId = await Factories.transfer.createAndShip(page, {
-        sourceBranchId: branches[0].id,
-        destinationBranchId: branches[1].id,
+        sourceBranchId: sourceBranchId,
+        destinationBranchId: destBranchId,
         productId,
         quantity: 5, // Low qty to avoid approval rules
         unitCostPence: 100,
@@ -814,7 +799,7 @@ test.describe('Transfer Reversal Lot Restoration - Edge Cases', () => {
       // Verify FIFO order preserved after reversal
       const lotsAfterReversal = await Factories.stock.getLots(page, {
         productId,
-        branchId: branches[0].id,
+        branchId: sourceBranchId,
       });
 
       // createAndShip adds 5 units, so we have 4 lots total (3 original + 1 from createAndShip)

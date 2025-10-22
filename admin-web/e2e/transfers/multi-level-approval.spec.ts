@@ -66,12 +66,9 @@ test.describe('Multi-Level Approval - Transfer Creation', () => {
     const productName = `Multi-Level Test Product ${timestamp}`;
     const productSku = `MLVL-${timestamp}`;
 
-    // Get branches first
-    const branches = await Factories.branch.getAll(page);
-    if (branches.length < 2) {
-      console.warn('Skipping test: Need at least 2 branches');
-      return;
-    }
+    // Get seeded branches that owner has access to
+    const sourceBranchId = await Factories.branch.getBySlug(page, 'acme-warehouse');
+    const destBranchId = await Factories.branch.getBySlug(page, 'acme-retail-1');
 
     // Create product and add stock
     const productId = await Factories.product.create(page, {
@@ -82,7 +79,7 @@ test.describe('Multi-Level Approval - Transfer Creation', () => {
 
     await Factories.stock.addStock(page, {
       productId,
-      branchId: branches[0].id,
+      branchId: sourceBranchId,
       qtyDelta: 200, // Enough stock for our transfer
       unitCostPence: 500,
     });
@@ -242,12 +239,9 @@ test.describe('Multi-Level Approval - Approval Actions', () => {
     const productName = `Approval Test Product ${timestamp}`;
     const productSku = `APR-${timestamp}`;
 
-    // Get branches
-    const branches = await Factories.branch.getAll(page);
-    if (branches.length < 2) {
-      console.warn('Skipping test: Need at least 2 branches');
-      return;
-    }
+    // Get seeded branches that owner has access to
+    const sourceBranchId = await Factories.branch.getBySlug(page, 'acme-warehouse');
+    const destBranchId = await Factories.branch.getBySlug(page, 'acme-retail-1');
 
     // Create product and add stock
     const productId = await Factories.product.create(page, {
@@ -258,15 +252,15 @@ test.describe('Multi-Level Approval - Approval Actions', () => {
 
     await Factories.stock.addStock(page, {
       productId,
-      branchId: branches[0].id,
+      branchId: sourceBranchId,
       qtyDelta: 200,
       unitCostPence: 500,
     });
 
     // Create transfer with >100 qty to trigger multi-level approval (if rule exists)
     const transferId = await Factories.transfer.create(page, {
-      sourceBranchId: branches[0].id,
-      destinationBranchId: branches[1].id,
+      sourceBranchId: sourceBranchId,
+      destinationBranchId: destBranchId,
       items: [{ productId, qty: 150 }],
     });
 
@@ -323,12 +317,9 @@ test.describe('Multi-Level Approval - Approval Actions', () => {
     const productName = `Rejection Test Product ${timestamp}`;
     const productSku = `REJ-${timestamp}`;
 
-    // Get branches
-    const branches = await Factories.branch.getAll(page);
-    if (branches.length < 2) {
-      console.warn('Skipping test: Need at least 2 branches');
-      return;
-    }
+    // Get seeded branches that owner has access to
+    const sourceBranchId = await Factories.branch.getBySlug(page, 'acme-warehouse');
+    const destBranchId = await Factories.branch.getBySlug(page, 'acme-retail-1');
 
     // Create product and add stock
     const productId = await Factories.product.create(page, {
@@ -339,15 +330,15 @@ test.describe('Multi-Level Approval - Approval Actions', () => {
 
     await Factories.stock.addStock(page, {
       productId,
-      branchId: branches[0].id,
+      branchId: sourceBranchId,
       qtyDelta: 200,
       unitCostPence: 500,
     });
 
     // Create transfer with >100 qty to trigger multi-level approval (if rule exists)
     const transferId = await Factories.transfer.create(page, {
-      sourceBranchId: branches[0].id,
-      destinationBranchId: branches[1].id,
+      sourceBranchId: sourceBranchId,
+      destinationBranchId: destBranchId,
       items: [{ productId, qty: 150 }],
     });
 
@@ -401,12 +392,9 @@ test.describe('Multi-Level Approval - Sequential Workflow', () => {
     const productName = `Sequential Test Product ${timestamp}`;
     const productSku = `SEQ-${timestamp}`;
 
-    // Get branches
-    const branches = await Factories.branch.getAll(page);
-    if (branches.length < 2) {
-      console.warn('Skipping test: Need at least 2 branches');
-      return;
-    }
+    // Get seeded branches that owner has access to
+    const sourceBranchId = await Factories.branch.getBySlug(page, 'acme-warehouse');
+    const destBranchId = await Factories.branch.getBySlug(page, 'acme-retail-1');
 
     // Create product and add stock
     const productId = await Factories.product.create(page, {
@@ -417,15 +405,15 @@ test.describe('Multi-Level Approval - Sequential Workflow', () => {
 
     await Factories.stock.addStock(page, {
       productId,
-      branchId: branches[0].id,
+      branchId: sourceBranchId,
       qtyDelta: 200,
       unitCostPence: 500,
     });
 
     // Create transfer with >100 qty to trigger multi-level approval (if rule exists)
     const transferId = await Factories.transfer.create(page, {
-      sourceBranchId: branches[0].id,
-      destinationBranchId: branches[1].id,
+      sourceBranchId: sourceBranchId,
+      destinationBranchId: destBranchId,
       items: [{ productId, qty: 150 }],
     });
 

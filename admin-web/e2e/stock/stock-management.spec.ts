@@ -226,12 +226,12 @@ test.describe('FIFO Tab - Ledger Display and Filtering', () => {
     test.setTimeout(15000); // Set timeout to 15 seconds
     await signIn(page, TEST_USERS.owner);
 
-    // Create product with stock (guarantees ledger entries exist)
-    const { productId } = await Factories.stock.createProductWithStock(page);
+    // Create product with stock at warehouse (guarantees ledger entries exist)
+    const { productId, branchId } = await Factories.stock.createProductWithStock(page);
 
     try {
-      // Navigate to the product we just created
-      await page.goto(`/${TEST_USERS.owner.tenant}/products/${productId}?tab=fifo`);
+      // Navigate to the product we just created with the correct branch selected
+      await page.goto(`/${TEST_USERS.owner.tenant}/products/${productId}?tab=fifo&branchId=${branchId}`);
       await page.waitForTimeout(1500);
 
       // Should show Ledger heading (level 4)
@@ -307,12 +307,12 @@ test.describe('FIFO Tab - Ledger Display and Filtering', () => {
     test.setTimeout(15000); // Set timeout to 15 seconds
     await signIn(page, TEST_USERS.owner);
 
-    // Create product with stock (guarantees ledger entries exist - 2 entries from helper)
-    const { productId } = await Factories.stock.createProductWithStock(page);
+    // Create product with stock at warehouse (guarantees ledger entries exist - 2 entries from helper)
+    const { productId, branchId } = await Factories.stock.createProductWithStock(page);
 
     try {
-      // Navigate to the product we just created
-      await page.goto(`/${TEST_USERS.owner.tenant}/products/${productId}?tab=fifo`);
+      // Navigate to the product we just created with the correct branch selected
+      await page.goto(`/${TEST_USERS.owner.tenant}/products/${productId}?tab=fifo&branchId=${branchId}`);
       await page.waitForTimeout(1500);
 
       // Wait for ledger table to load
