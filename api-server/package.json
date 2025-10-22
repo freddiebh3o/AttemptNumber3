@@ -23,8 +23,6 @@
     "db:studio": "prisma studio",
     "db:seed": "prisma db seed",
     "db:reset:dev": "prisma migrate reset --force --skip-generate --skip-seed && npm run db:deploy && npm run db:seed",
-    "seed:rbac": "tsx ./scripts/seedPermissionsAndRoles.ts",
-    "seed:test-users": "tsx ./scripts/seedTestUsers.ts",
     "ingest-docs": "tsx ./scripts/ingestDocs.ts"
   },
   "prisma": {

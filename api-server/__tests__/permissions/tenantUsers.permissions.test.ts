@@ -34,6 +34,12 @@ describe('[RBAC] Tenant Users Permissions', () => {
   let targetUser: Awaited<ReturnType<typeof createTestUser>>;
   let targetRole: any;
 
+  // Roles (created in beforeEach)
+  let ownerRole: any;
+  let adminRole: any;
+  let editorRole: any;
+  let viewerRole: any;
+
   beforeAll(async () => {
     app = express();
     app.use(express.json());
@@ -54,25 +60,25 @@ describe('[RBAC] Tenant Users Permissions', () => {
     targetUser = await createTestUser();
 
     // Create roles (with proper system names for service logic)
-    const ownerRole = await createTestRoleWithPermissions({
+    ownerRole = await createTestRoleWithPermissions({
       name: 'OWNER',
       tenantId: testTenant.id,
       permissionKeys: ROLE_DEFS.OWNER,
       isSystem: true,
     });
-    const adminRole = await createTestRoleWithPermissions({
+    adminRole = await createTestRoleWithPermissions({
       name: 'ADMIN',
       tenantId: testTenant.id,
       permissionKeys: ROLE_DEFS.ADMIN,
       isSystem: true,
     });
-    const editorRole = await createTestRoleWithPermissions({
+    editorRole = await createTestRoleWithPermissions({
       name: 'EDITOR',
       tenantId: testTenant.id,
       permissionKeys: ROLE_DEFS.EDITOR,
       isSystem: true,
     });
-    const viewerRole = await createTestRoleWithPermissions({
+    viewerRole = await createTestRoleWithPermissions({
       name: 'VIEWER',
       tenantId: testTenant.id,
       permissionKeys: ROLE_DEFS.VIEWER,
@@ -668,6 +674,150 @@ describe('[RBAC] Tenant Users Permissions', () => {
       // Activity endpoints typically return 200 with empty results for cross-tenant
       expect(response.status).toBe(200);
       expect(response.body.data.items).toEqual([]);
+    });
+  });
+
+  describe('[OWNER-ASSIGN-SEC] OWNER Role Assignment Security', () => {
+    describe('POST /api/tenant-users - Create User with OWNER Role', () => {
+      it('OWNER - should allow creating user with OWNER role (returns 201)', async () => {
+        const timestamp = Date.now();
+        const requestBody = {
+          email: `new-owner-${timestamp}@test.com`,
+          password: 'Password123!',
+          roleId: ownerRole.id,
+        };
+
+        const response = await request(app)
+          .post('/api/tenant-users')
+          .set('Cookie', ownerCookie)
+          .send(requestBody);
+
+        expect(response.status).toBe(201);
+        expect(response.body.success).toBe(true);
+        expect(response.body.data.user.role.name).toBe('OWNER');
+      });
+
+      it('ADMIN - should deny creating user with OWNER role (returns 403)', async () => {
+        const timestamp = Date.now();
+        const requestBody = {
+          email: `blocked-owner-${timestamp}@test.com`,
+          password: 'Password123!',
+          roleId: ownerRole.id,
+        };
+
+        const response = await request(app)
+          .post('/api/tenant-users')
+          .set('Cookie', adminCookie)
+          .send(requestBody);
+
+        expect(response.status).toBe(403);
+        expect(response.body.success).toBe(false);
+        expect(response.body.error?.errorCode).toBe('CANT_ASSIGN_OWNER_ROLE');
+        expect(response.body.error?.userFacingMessage).toContain('Only OWNER users can assign the OWNER role');
+      });
+
+      it('ADMIN - should allow creating user with non-OWNER roles (returns 201)', async () => {
+        const timestamp = Date.now();
+        const requestBody = {
+          email: `admin-created-${timestamp}@test.com`,
+          password: 'Password123!',
+          roleId: editorRole.id,
+        };
+
+        const response = await request(app)
+          .post('/api/tenant-users')
+          .set('Cookie', adminCookie)
+          .send(requestBody);
+
+        expect(response.status).toBe(201);
+        expect(response.body.success).toBe(true);
+        expect(response.body.data.user.role.name).toBe('EDITOR');
+      });
+
+      it('Custom role with users:manage - should deny OWNER assignment (returns 403)', async () => {
+        const customUser = await createTestUser();
+        const customRole = await createTestRoleWithPermissions({
+          tenantId: testTenant.id,
+          permissionKeys: ['users:manage'],
+        });
+        await createTestMembership({
+          userId: customUser.id,
+          tenantId: testTenant.id,
+          roleId: customRole.id,
+        });
+        const customCookie = createSessionCookie(customUser.id, testTenant.id);
+
+        const timestamp = Date.now();
+        const requestBody = {
+          email: `custom-blocked-${timestamp}@test.com`,
+          password: 'Password123!',
+          roleId: ownerRole.id,
+        };
+
+        const response = await request(app)
+          .post('/api/tenant-users')
+          .set('Cookie', customCookie)
+          .send(requestBody);
+
+        expect(response.status).toBe(403);
+        expect(response.body.error?.errorCode).toBe('CANT_ASSIGN_OWNER_ROLE');
+      });
+    });
+
+    describe('PUT /api/tenant-users/:userId - Update User to OWNER Role', () => {
+      it('OWNER - should allow updating user to OWNER role (returns 200)', async () => {
+        const targetUser = await createTestUser();
+        await createTestMembership({
+          userId: targetUser.id,
+          tenantId: testTenant.id,
+          roleId: editorRole.id,
+        });
+
+        const response = await request(app)
+          .put(`/api/tenant-users/${targetUser.id}`)
+          .set('Cookie', ownerCookie)
+          .send({ roleId: ownerRole.id });
+
+        expect(response.status).toBe(200);
+        expect(response.body.success).toBe(true);
+        expect(response.body.data.user.role.name).toBe('OWNER');
+      });
+
+      it('ADMIN - should deny updating user to OWNER role (returns 403)', async () => {
+        const targetUser = await createTestUser();
+        await createTestMembership({
+          userId: targetUser.id,
+          tenantId: testTenant.id,
+          roleId: editorRole.id,
+        });
+
+        const response = await request(app)
+          .put(`/api/tenant-users/${targetUser.id}`)
+          .set('Cookie', adminCookie)
+          .send({ roleId: ownerRole.id });
+
+        expect(response.status).toBe(403);
+        expect(response.body.success).toBe(false);
+        expect(response.body.error?.errorCode).toBe('CANT_ASSIGN_OWNER_ROLE');
+      });
+
+      it('ADMIN - should allow updating user to non-OWNER roles (returns 200)', async () => {
+        const targetUser = await createTestUser();
+        await createTestMembership({
+          userId: targetUser.id,
+          tenantId: testTenant.id,
+          roleId: viewerRole.id, // Use existing viewerRole from beforeEach
+        });
+
+        const response = await request(app)
+          .put(`/api/tenant-users/${targetUser.id}`)
+          .set('Cookie', adminCookie)
+          .send({ roleId: editorRole.id });
+
+        expect(response.status).toBe(200);
+        expect(response.body.success).toBe(true);
+        expect(response.body.data.user.role.name).toBe('EDITOR');
+      });
     });
   });
 });

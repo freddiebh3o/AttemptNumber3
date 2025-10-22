@@ -50,6 +50,14 @@ export const Errors = {
       userFacingMessage: "You cannot delete the last owner of a tenant.",
     });
   },
+  cantAssignOwnerRole() {
+    return new HttpError({
+      httpStatusCode: 403,
+      errorCode: "CANT_ASSIGN_OWNER_ROLE",
+      userFacingMessage: "Only OWNER users can assign the OWNER role to other users.",
+      developerMessage: "Role assignment validation: current user must have OWNER role to assign OWNER role to others.",
+    });
+  },
   notFound(userMsg = "The requested resource was not found.") {
     return new HttpError({
       httpStatusCode: 404,

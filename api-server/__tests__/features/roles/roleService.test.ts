@@ -305,7 +305,7 @@ describe('[ROLE-SVC] Role Service', () => {
       const ownerRole = await createTenantRoleService({
         currentTenantId: testTenant.id,
         name: 'OWNER',
-        permissionKeys: ROLE_DEFS.OWNER,
+        permissionKeys: ROLE_DEFS.OWNER as string[],
       });
 
       // Mark it as system role
@@ -411,7 +411,7 @@ describe('[ROLE-SVC] Role Service', () => {
       const ownerRole = await createTenantRoleService({
         currentTenantId: testTenant.id,
         name: 'OWNER',
-        permissionKeys: ROLE_DEFS.OWNER,
+        permissionKeys: ROLE_DEFS.OWNER as string[],
       });
 
       // Mark it as system role

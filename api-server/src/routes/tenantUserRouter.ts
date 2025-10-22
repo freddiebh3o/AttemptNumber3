@@ -146,6 +146,7 @@ tenantUserRouter.post(
 
       const out = await createOrAttachUserToTenantService({
         currentTenantId: req.currentTenantId,
+        currentUserId: req.currentUserId,
         email: body.email,
         password: body.password,
         roleId: body.roleId,

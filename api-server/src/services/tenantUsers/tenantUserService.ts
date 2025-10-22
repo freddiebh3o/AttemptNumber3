@@ -26,6 +26,39 @@ function auditCtxOrNull(ctx?: AuditCtx) {
   };
 }
 
+/**
+ * Validates that only OWNER users can assign the OWNER role to other users.
+ * Security control to prevent privilege escalation.
+ *
+ * @throws {HttpError} 403 CANT_ASSIGN_OWNER_ROLE if non-OWNER attempts to assign OWNER role
+ */
+async function requireOwnerRoleToAssignOwner(params: {
+  currentUserId: string;
+  currentTenantId: string;
+  targetRoleId: string;
+}) {
+  const { currentUserId, currentTenantId, targetRoleId } = params;
+
+  // Check if target role is OWNER by name
+  const targetRole = await prismaClientInstance.role.findUnique({
+    where: { id: targetRoleId },
+    select: { name: true, tenantId: true },
+  });
+
+  // If target role is OWNER, verify current user is also OWNER
+  if (targetRole && targetRole.name === 'OWNER') {
+    const currentUserMembership = await prismaClientInstance.userTenantMembership.findUnique({
+      where: { userId_tenantId: { userId: currentUserId, tenantId: currentTenantId } },
+      select: { role: { select: { name: true } } },
+    });
+
+    const currentUserRoleName = currentUserMembership?.role?.name;
+    if (currentUserRoleName !== 'OWNER') {
+      throw Errors.cantAssignOwnerRole();
+    }
+  }
+}
+
 async function syncUserBranches(
   tx: PrismaNS.TransactionClient,
   tenantId: string,
@@ -343,13 +376,14 @@ export async function getUserForCurrentTenantService(params: {
  */
 export async function createOrAttachUserToTenantService(params: {
   currentTenantId: string;
+  currentUserId: string;
   email: string;
   password: string;
   roleId: string;
   branchIdsOptional?: string[];
   auditContextOptional?: AuditCtx;
 }) {
-  const { currentTenantId, email, password, roleId, branchIdsOptional, auditContextOptional } = params;
+  const { currentTenantId, currentUserId, email, password, roleId, branchIdsOptional, auditContextOptional } = params;
   const meta = auditCtxOrNull(auditContextOptional);
 
   // Validate role belongs to tenant
@@ -364,6 +398,13 @@ export async function createOrAttachUserToTenantService(params: {
   if (!role || role.tenantId !== currentTenantId) {
     throw Errors.validation('Invalid role', 'Role not found for this tenant.');
   }
+
+  // SECURITY: Only OWNER users can assign OWNER role
+  await requireOwnerRoleToAssignOwner({
+    currentUserId,
+    currentTenantId,
+    targetRoleId: roleId,
+  });
 
   // Find or create user
   const existingUser = await prismaClientInstance.user.findUnique({
@@ -545,6 +586,13 @@ export async function updateTenantUserService(params: {
       throw Errors.validation('Invalid role', 'Role not found for this tenant.');
     }
     nextRoleId = nextRole.id;
+
+    // SECURITY: Only OWNER users can assign OWNER role
+    await requireOwnerRoleToAssignOwner({
+      currentUserId: params.currentUserId,
+      currentTenantId,
+      targetRoleId: nextRoleId,
+    });
   }
 
   await prismaClientInstance.$transaction(async (tx) => {

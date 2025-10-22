@@ -41,6 +41,13 @@ describe('[TENANT-USER-SVC] Tenant User Service', () => {
       permissionKeys: ROLE_DEFS.EDITOR,
       isSystem: false,
     });
+
+    // Make actorUser an OWNER so they can assign OWNER role to others
+    await createTestMembership({
+      userId: actorUser.id,
+      tenantId: testTenant.id,
+      roleId: ownerRole.id,
+    });
   });
 
   describe('createOrAttachUserToTenantService - Invite User', () => {
@@ -50,6 +57,7 @@ describe('[TENANT-USER-SVC] Tenant User Service', () => {
 
       const result = await createOrAttachUserToTenantService({
         currentTenantId: testTenant.id,
+        currentUserId: actorUser.id,
         email,
         password: 'Password123!',
         roleId: editorRole.id,
@@ -72,6 +80,7 @@ describe('[TENANT-USER-SVC] Tenant User Service', () => {
 
       const result = await createOrAttachUserToTenantService({
         currentTenantId: testTenant.id,
+        currentUserId: actorUser.id,
         email: existingUser.userEmailAddress,
         password: 'ignored-password',
         roleId: editorRole.id,
@@ -87,6 +96,7 @@ describe('[TENANT-USER-SVC] Tenant User Service', () => {
 
       const result = await createOrAttachUserToTenantService({
         currentTenantId: testTenant.id,
+        currentUserId: actorUser.id,
         email,
         password: 'Password123!',
         roleId: ownerRole.id,
@@ -104,6 +114,7 @@ describe('[TENANT-USER-SVC] Tenant User Service', () => {
 
       const result = await createOrAttachUserToTenantService({
         currentTenantId: testTenant.id,
+        currentUserId: actorUser.id,
         email,
         password: 'Password123!',
         roleId: editorRole.id,
@@ -121,6 +132,7 @@ describe('[TENANT-USER-SVC] Tenant User Service', () => {
 
       const result = await createOrAttachUserToTenantService({
         currentTenantId: testTenant.id,
+        currentUserId: actorUser.id,
         email,
         password: 'Password123!',
         roleId: editorRole.id,
@@ -145,6 +157,7 @@ describe('[TENANT-USER-SVC] Tenant User Service', () => {
 
       const result = await createOrAttachUserToTenantService({
         currentTenantId: testTenant.id,
+        currentUserId: actorUser.id,
         email,
         password: 'Password123!',
         roleId: editorRole.id,
@@ -175,6 +188,7 @@ describe('[TENANT-USER-SVC] Tenant User Service', () => {
       await expect(
         createOrAttachUserToTenantService({
           currentTenantId: testTenant.id,
+          currentUserId: actorUser.id,
           email,
           password: 'Password123!',
           roleId: otherRole.id,
@@ -188,6 +202,7 @@ describe('[TENANT-USER-SVC] Tenant User Service', () => {
 
       await createOrAttachUserToTenantService({
         currentTenantId: testTenant.id,
+        currentUserId: actorUser.id,
         email,
         password: 'Password123!',
         roleId: editorRole.id,
@@ -196,6 +211,7 @@ describe('[TENANT-USER-SVC] Tenant User Service', () => {
       // Second call should succeed (update role if different)
       const result2 = await createOrAttachUserToTenantService({
         currentTenantId: testTenant.id,
+        currentUserId: actorUser.id,
         email,
         password: 'ignored',
         roleId: ownerRole.id,
@@ -504,6 +520,16 @@ describe('[TENANT-USER-SVC] Tenant User Service', () => {
     });
 
     it('should prevent removing last OWNER', async () => {
+      // First, remove actorUser's OWNER membership so we only have one OWNER
+      await prisma.userTenantMembership.delete({
+        where: {
+          userId_tenantId: {
+            userId: actorUser.id,
+            tenantId: testTenant.id,
+          },
+        },
+      });
+
       const ownerUser = await createTestUser();
       await createTestMembership({
         userId: ownerUser.id,
@@ -514,7 +540,7 @@ describe('[TENANT-USER-SVC] Tenant User Service', () => {
       await expect(
         updateTenantUserService({
           currentTenantId: testTenant.id,
-          currentUserId: actorUser.id,
+          currentUserId: ownerUser.id, // Use ownerUser as actor since actorUser is no longer a member
           targetUserId: ownerUser.id,
           newRoleIdOptional: editorRole.id,
         })
@@ -603,6 +629,16 @@ describe('[TENANT-USER-SVC] Tenant User Service', () => {
     });
 
     it('should prevent removing last OWNER', async () => {
+      // First, remove actorUser's OWNER membership so we only have one OWNER
+      await prisma.userTenantMembership.delete({
+        where: {
+          userId_tenantId: {
+            userId: actorUser.id,
+            tenantId: testTenant.id,
+          },
+        },
+      });
+
       const ownerUser = await createTestUser();
       await createTestMembership({
         userId: ownerUser.id,
@@ -613,7 +649,7 @@ describe('[TENANT-USER-SVC] Tenant User Service', () => {
       await expect(
         removeUserFromTenantService({
           currentTenantId: testTenant.id,
-          currentUserId: actorUser.id,
+          currentUserId: ownerUser.id, // Use ownerUser as actor since actorUser is no longer a member
           targetUserId: ownerUser.id,
         })
       ).rejects.toThrow();
@@ -803,6 +839,198 @@ describe('[TENANT-USER-SVC] Tenant User Service', () => {
           newRoleIdOptional: editorRole.id,
         })
       ).rejects.toThrow();
+    });
+  });
+
+  describe('[OWNER-ASSIGN-SEC] OWNER Role Assignment Security', () => {
+    let adminUser: Awaited<ReturnType<typeof createTestUser>>;
+    let adminRole: Awaited<ReturnType<typeof createTestRoleWithPermissions>>;
+    let customRoleWithUsersManage: Awaited<ReturnType<typeof createTestRoleWithPermissions>>;
+
+    beforeEach(async () => {
+      adminUser = await createTestUser();
+
+      // Create ADMIN role (has users:manage but is not OWNER)
+      adminRole = await createTestRoleWithPermissions({
+        name: 'ADMIN',
+        tenantId: testTenant.id,
+        permissionKeys: ROLE_DEFS.ADMIN,
+        isSystem: true,
+      });
+
+      // Create custom role with users:manage permission
+      customRoleWithUsersManage = await createTestRoleWithPermissions({
+        name: 'Custom User Manager',
+        tenantId: testTenant.id,
+        permissionKeys: ['users:manage', 'products:read'],
+        isSystem: false,
+      });
+
+      await createTestMembership({
+        userId: adminUser.id,
+        tenantId: testTenant.id,
+        roleId: adminRole.id,
+      });
+    });
+
+    describe('createOrAttachUserToTenantService - OWNER Assignment Control', () => {
+      it('OWNER can create new user with OWNER role', async () => {
+        // Create OWNER user
+        const ownerUser = await createTestUser();
+        await createTestMembership({
+          userId: ownerUser.id,
+          tenantId: testTenant.id,
+          roleId: ownerRole.id,
+        });
+
+        const timestamp = Date.now();
+        const email = `newowner-${timestamp}@test.com`;
+
+        const result = await createOrAttachUserToTenantService({
+          currentTenantId: testTenant.id,
+          currentUserId: ownerUser.id,
+          email,
+          password: 'Password123!',
+          roleId: ownerRole.id,
+          auditContextOptional: { actorUserId: ownerUser.id },
+        });
+
+        expect(result).toBeDefined();
+        expect(result.userEmailAddress).toBe(email);
+        expect(result.role?.name).toBe('OWNER');
+      });
+
+      it('ADMIN cannot create new user with OWNER role', async () => {
+        const timestamp = Date.now();
+        const email = `blocked-owner-${timestamp}@test.com`;
+
+        await expect(
+          createOrAttachUserToTenantService({
+            currentTenantId: testTenant.id,
+            currentUserId: adminUser.id,
+            email,
+            password: 'Password123!',
+            roleId: ownerRole.id,
+            auditContextOptional: { actorUserId: adminUser.id },
+          })
+        ).rejects.toThrow('Only OWNER users can assign the OWNER role');
+      });
+
+      it('ADMIN can create user with non-OWNER roles', async () => {
+        const timestamp = Date.now();
+        const email = `admin-created-${timestamp}@test.com`;
+
+        const result = await createOrAttachUserToTenantService({
+          currentTenantId: testTenant.id,
+          currentUserId: adminUser.id,
+          email,
+          password: 'Password123!',
+          roleId: editorRole.id,
+          auditContextOptional: { actorUserId: adminUser.id },
+        });
+
+        expect(result).toBeDefined();
+        expect(result.role?.name).toBe('EDITOR');
+      });
+
+      it('Custom role with users:manage cannot assign OWNER role', async () => {
+        const customUser = await createTestUser();
+        await createTestMembership({
+          userId: customUser.id,
+          tenantId: testTenant.id,
+          roleId: customRoleWithUsersManage.id,
+        });
+
+        const timestamp = Date.now();
+        const email = `custom-blocked-${timestamp}@test.com`;
+
+        await expect(
+          createOrAttachUserToTenantService({
+            currentTenantId: testTenant.id,
+            currentUserId: customUser.id,
+            email,
+            password: 'Password123!',
+            roleId: ownerRole.id,
+            auditContextOptional: { actorUserId: customUser.id },
+          })
+        ).rejects.toThrow('Only OWNER users can assign the OWNER role');
+      });
+    });
+
+    describe('updateTenantUserService - OWNER Assignment Control', () => {
+      it('OWNER can update existing user to OWNER role', async () => {
+        // Create OWNER user
+        const ownerUser = await createTestUser();
+        await createTestMembership({
+          userId: ownerUser.id,
+          tenantId: testTenant.id,
+          roleId: ownerRole.id,
+        });
+
+        // Create target user with EDITOR role
+        const targetUser = await createTestUser();
+        await createTestMembership({
+          userId: targetUser.id,
+          tenantId: testTenant.id,
+          roleId: editorRole.id,
+        });
+
+        const result = await updateTenantUserService({
+          currentTenantId: testTenant.id,
+          currentUserId: ownerUser.id,
+          targetUserId: targetUser.id,
+          newRoleIdOptional: ownerRole.id,
+          auditContextOptional: { actorUserId: ownerUser.id },
+        });
+
+        expect(result.role?.name).toBe('OWNER');
+      });
+
+      it('ADMIN cannot update existing user to OWNER role', async () => {
+        // Create target user with EDITOR role
+        const targetUser = await createTestUser();
+        await createTestMembership({
+          userId: targetUser.id,
+          tenantId: testTenant.id,
+          roleId: editorRole.id,
+        });
+
+        await expect(
+          updateTenantUserService({
+            currentTenantId: testTenant.id,
+            currentUserId: adminUser.id,
+            targetUserId: targetUser.id,
+            newRoleIdOptional: ownerRole.id,
+            auditContextOptional: { actorUserId: adminUser.id },
+          })
+        ).rejects.toThrow('Only OWNER users can assign the OWNER role');
+      });
+
+      it('ADMIN can update user to non-OWNER roles', async () => {
+        // Create target user with VIEWER role
+        const targetUser = await createTestUser();
+        const viewerRole = await createTestRoleWithPermissions({
+          name: 'VIEWER',
+          tenantId: testTenant.id,
+          permissionKeys: ROLE_DEFS.VIEWER,
+          isSystem: true,
+        });
+        await createTestMembership({
+          userId: targetUser.id,
+          tenantId: testTenant.id,
+          roleId: viewerRole.id,
+        });
+
+        const result = await updateTenantUserService({
+          currentTenantId: testTenant.id,
+          currentUserId: adminUser.id,
+          targetUserId: targetUser.id,
+          newRoleIdOptional: editorRole.id,
+          auditContextOptional: { actorUserId: adminUser.id },
+        });
+
+        expect(result.role?.name).toBe('EDITOR');
+      });
     });
   });
 });

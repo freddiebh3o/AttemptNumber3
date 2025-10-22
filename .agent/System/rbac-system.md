@@ -55,6 +55,7 @@ The system implements a comprehensive Role-Based Access Control (RBAC) system wi
 | `products:read` | View products | ALL |
 | `products:write` | Create/update/delete products | OWNER, ADMIN, EDITOR |
 | `users:manage` | Invite or manage tenant users | OWNER, ADMIN |
+| `roles:read` | View roles (for assignment) | OWNER, ADMIN |
 | `roles:manage` | Create/edit roles and permissions | OWNER |
 | `tenant:manage` | Manage tenant settings | OWNER |
 | `theme:manage` | Manage tenant theme/branding | OWNER, ADMIN |
@@ -88,7 +89,7 @@ The system implements a comprehensive Role-Based Access Control (RBAC) system wi
 
 **Location:** `api-server/src/rbac/catalog.ts` → `ROLE_DEFS`
 
-### 1. OWNER (12 permissions)
+### 1. OWNER (13 permissions)
 
 **Full access to all features** - Intended for tenant owners/founders.
 
@@ -96,7 +97,7 @@ The system implements a comprehensive Role-Based Access Control (RBAC) system wi
 ```typescript
 [
   'products:read', 'products:write',
-  'users:manage', 'roles:manage', 'tenant:manage',
+  'users:manage', 'roles:read', 'roles:manage', 'tenant:manage',
   'theme:manage', 'uploads:write',
   'branches:manage', 'stock:read', 'stock:write', 'stock:allocate',
   'reports:view',
@@ -106,10 +107,15 @@ The system implements a comprehensive Role-Based Access Control (RBAC) system wi
 **Use Cases:**
 - Configure tenant settings
 - Create custom roles
+- Assign OWNER role to other users (security-restricted)
 - Manage billing (future)
 - Full administrative access
 
-### 2. ADMIN (10 permissions)
+**Security Note:**
+- Only OWNER users can assign the OWNER role to other users
+- This prevents privilege escalation by ADMIN users
+
+### 2. ADMIN (11 permissions)
 
 **Manage users and operations** - Day-to-day admin without role/tenant configuration.
 
@@ -117,7 +123,7 @@ The system implements a comprehensive Role-Based Access Control (RBAC) system wi
 ```typescript
 [
   'products:read', 'products:write',
-  'users:manage',
+  'users:manage', 'roles:read',
   'theme:manage', 'uploads:write',
   'branches:manage', 'stock:read', 'stock:write', 'stock:allocate',
   'reports:view',
@@ -125,12 +131,13 @@ The system implements a comprehensive Role-Based Access Control (RBAC) system wi
 ```
 
 **Missing (vs OWNER):**
-- `roles:manage` - Cannot create/edit roles
+- `roles:manage` - Cannot create/edit custom roles
 - `tenant:manage` - Cannot change tenant settings
+- **OWNER assignment** - Cannot assign OWNER role to users (security restriction)
 
 **Use Cases:**
 - Manage products and inventory
-- Invite/remove users
+- Invite/remove users (assign ADMIN/EDITOR/VIEWER roles)
 - Customize branding
 - Day-to-day operations
 
@@ -664,7 +671,36 @@ for (const [roleName, permKeys] of Object.entries(ROLE_DEFS)) {
 
 ## Security Considerations
 
-### 1. Server-Side Enforcement
+### 1. OWNER Role Assignment Protection
+
+**Only OWNER users can assign the OWNER role to other users** - Prevents privilege escalation.
+
+**Implementation:**
+- Backend validation in `tenantUserService.ts` checks current user's role before allowing OWNER assignment
+- Frontend filters OWNER role from dropdown for non-OWNER users
+- Informational message displayed to non-OWNER users explaining the restriction
+
+**Enforcement Points:**
+- `POST /api/tenant-users` - Creating new user with role
+- `PUT /api/tenant-users/:userId` - Updating existing user's role
+- Frontend role selector - Filters available roles based on current user's role
+
+**Error Response (403):**
+```json
+{
+  "success": false,
+  "error": {
+    "errorCode": "FORBIDDEN",
+    "httpStatusCode": 403,
+    "userFacingMessage": "Only OWNER users can assign the OWNER role",
+    "correlationId": "..."
+  }
+}
+```
+
+**Rationale:** Without this protection, ADMIN users (who have `users:manage`) could promote themselves or others to OWNER, bypassing role hierarchy. This enforces proper privilege separation.
+
+### 2. Server-Side Enforcement
 
 **NEVER trust client-side permission checks** - Always enforce on backend.
 
@@ -682,7 +718,7 @@ router.delete('/products/:id',
 )
 ```
 
-### 2. Tenant Isolation
+### 3. Tenant Isolation
 
 **Always filter by tenantId** - Prevent cross-tenant access.
 
@@ -696,7 +732,7 @@ const roles = await prisma.role.findMany({
 })
 ```
 
-### 3. System Role Protection
+### 4. System Role Protection
 
 **Prevent modification of system roles:**
 
@@ -706,7 +742,7 @@ if (role.isSystem) {
 }
 ```
 
-### 4. Permission Caching
+### 5. Permission Caching
 
 **Cache permissions per request, not globally:**
 
@@ -720,7 +756,7 @@ globalCache.set(userId, permissions)
 
 **Rationale:** User permissions may change mid-session (role updated, user removed from tenant). Request-scoped cache ensures fresh permissions on each request.
 
-### 5. Frontend UI Consistency
+### 6. Frontend UI Consistency
 
 **Hide/disable UI elements** based on permissions to avoid confusing users.
 
@@ -939,5 +975,5 @@ if (role.isSystem) {
 
 ---
 
-**Last Updated:** 2025-10-19
-**Document Version:** 1.1
+**Last Updated:** 2025-10-22
+**Document Version:** 1.2 - Added OWNER role assignment security + roles:read permission

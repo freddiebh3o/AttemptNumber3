@@ -8,6 +8,7 @@ export const PERMISSIONS = [
 
   // Users / roles / tenancy
   { key: 'users:manage',   description: 'Invite or manage tenant users' },
+  { key: 'roles:read',     description: 'View roles (for assignment)' },
   { key: 'roles:manage',   description: 'Create/edit roles and permissions' },
   { key: 'tenant:manage',  description: 'Manage tenant settings' },
 
@@ -33,14 +34,14 @@ export const ROLE_DEFS: Record<
 > = {
   OWNER: [
     'products:read','products:write',
-    'users:manage','roles:manage','tenant:manage',
+    'users:manage','roles:read','roles:manage','tenant:manage',
     'theme:manage','uploads:write',
     'branches:manage','stock:read','stock:write','stock:allocate',
     'reports:view',
   ],
   ADMIN: [
     'products:read','products:write',
-    'users:manage',
+    'users:manage','roles:read',
     'theme:manage','uploads:write',
     'branches:manage','stock:read','stock:write','stock:allocate',
     'reports:view',

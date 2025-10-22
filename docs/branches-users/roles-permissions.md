@@ -19,8 +19,9 @@ Permissions are granular capabilities that control access to features and action
 - `products:read` - View products and details
 - `products:write` - Create, edit, and delete products
 
-**Users & Roles (2 permissions)**
+**Users & Roles (3 permissions)**
 - `users:manage` - Invite and manage users
+- `roles:read` - View roles (for assignment in user management)
 - `roles:manage` - Create and edit roles and permissions
 
 **Organization (1 permission)**
@@ -41,18 +42,18 @@ Permissions are granular capabilities that control access to features and action
 **Analytics (1 permission)**
 - `reports:view` - Access analytics reports and dashboards
 
-**Total: 12 permissions**
+**Total: 13 permissions**
 
 ## System Roles
 
 The system provides four default roles that cannot be deleted or edited. These are called "system roles."
 
-### OWNER (12 permissions)
+### OWNER (13 permissions)
 **Full access** - All permissions across the entire system
 
 **Permissions:**
 - products:read, products:write
-- users:manage, roles:manage, tenant:manage
+- users:manage, roles:read, roles:manage, tenant:manage
 - theme:manage, uploads:write
 - branches:manage, stock:read, stock:write, stock:allocate
 - reports:view
@@ -62,12 +63,16 @@ The system provides four default roles that cannot be deleted or edited. These a
 - Primary administrators with complete control
 - Users who need to manage everything
 
-### ADMIN (10 permissions)
+**Security Note:**
+- 🔒 Only OWNER users can assign the OWNER role to other users
+- This prevents privilege escalation by ADMIN users
+
+### ADMIN (11 permissions)
 **Administrative access** - Everything except role/tenant management
 
 **Permissions:**
 - products:read, products:write
-- users:manage
+- users:manage, roles:read
 - theme:manage, uploads:write
 - branches:manage, stock:read, stock:write, stock:allocate
 - reports:view
@@ -75,11 +80,17 @@ The system provides four default roles that cannot be deleted or edited. These a
 **Missing (vs OWNER):**
 - ❌ roles:manage - Cannot create/edit roles
 - ❌ tenant:manage - Cannot manage organization settings
+- ❌ **OWNER assignment** - Cannot assign OWNER role to users (security restriction)
 
 **Use Case:**
 - Operational managers
 - Senior staff who manage users and inventory
 - Users who need broad access but not full control
+
+**Security Restriction:**
+- Can invite/manage users with ADMIN, EDITOR, or VIEWER roles
+- Cannot assign OWNER role (only OWNER users can do this)
+- OWNER option hidden in role dropdown when ADMIN user creates/edits users
 
 ### EDITOR (5 permissions)
 **Editing access** - Can manage products and stock

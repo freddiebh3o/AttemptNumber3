@@ -66,6 +66,7 @@ You need the **`users:manage`** permission (available to OWNER and ADMIN roles b
 - Select from dropdown (OWNER, ADMIN, EDITOR, VIEWER, or custom roles)
 - Determines what permissions they have
 - See [Roles & Permissions](./roles-permissions.md) for details
+- **Security Note:** Only OWNER users can assign the OWNER role to other users (see below)
 
 **Branches** (optional)
 - Use multiselect to assign user to one or more branches
@@ -251,6 +252,38 @@ In the users list, the "Branches" column shows all assigned branches as badges:
 4. Changes apply immediately
 
 **Important:** User's permissions update instantly. They may need to refresh their browser to see UI changes.
+
+### OWNER Role Assignment Security
+
+🔒 **Special Restriction:** Only users with the OWNER role can assign the OWNER role to other users.
+
+**Why This Restriction Exists:**
+- Prevents privilege escalation attacks
+- Ensures proper organizational hierarchy
+- Protects against unauthorized self-promotion to highest privilege level
+
+**What This Means:**
+
+**If you are an OWNER:**
+- ✅ You can assign any role, including OWNER, to users
+- ✅ OWNER option appears in the role dropdown
+- ✅ You have full control over user role assignments
+
+**If you are an ADMIN:**
+- ✅ You can assign ADMIN, EDITOR, and VIEWER roles
+- ❌ You cannot assign OWNER role to yourself or others
+- ℹ️ OWNER option is hidden from the role dropdown
+- ℹ️ You'll see a blue info message: "Only OWNER users can assign the OWNER role"
+
+**Attempting to Bypass:**
+If an ADMIN user attempts to assign the OWNER role via API (bypassing the frontend), they receive:
+- HTTP 403 Forbidden error
+- Error message: "Only OWNER users can assign the OWNER role"
+
+**Best Practices:**
+- Limit OWNER role to 1-3 trusted executives/founders
+- Use ADMIN role for day-to-day administrators
+- Contact an existing OWNER if you need to assign OWNER role to someone
 
 ### Permission Changes
 
@@ -534,6 +567,12 @@ Currently no direct filter. Review the "Branches" column and look for empty entr
 - You need `users:manage` permission
 - Contact OWNER or ADMIN to grant access
 
+**"Only OWNER users can assign the OWNER role" (403 error)**
+- You attempted to assign OWNER role as a non-OWNER user
+- This is a security restriction to prevent privilege escalation
+- Contact an existing OWNER user to assign OWNER role
+- Use ADMIN role instead if appropriate
+
 **"User not found" (404 error)**
 - User may have been removed
 - Verify you're in the correct organization
@@ -580,7 +619,7 @@ Currently no direct filter. Review the "Branches" column and look for empty entr
 🔒 **Review permissions regularly** - Audit user roles quarterly
 🔒 **Archive inactive users** - Archive (not delete) accounts for users who left
 🔒 **Verify archived status** - Periodically check that archived users cannot sign in
-🔒 **Limit OWNER role** - Only assign to trusted executives
+🔒 **Limit OWNER role** - Only assign to trusted executives (only OWNER users can assign this role)
 🔒 **Monitor activity logs** - Watch for suspicious behavior
 🔒 **Use principle of least privilege** - Give minimum necessary permissions
 🔒 **Restore carefully** - Verify user identity before restoring archived accounts

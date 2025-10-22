@@ -166,10 +166,19 @@ export default function TenantUserPage() {
     return () => void (cancelled = true);
   }, [isEdit, userId, refreshTick]);
 
-  const roleChoices = useMemo(
-    () => (roles ?? []).map((r) => ({ value: r.id, label: r.name })),
-    [roles]
-  );
+  // Get current user's role to filter role choices
+  const currentUserRole = useAuthStore((s) => s.currentTenant?.role?.name);
+
+  const roleChoices = useMemo(() => {
+    const allRoles = (roles ?? []).map((r) => ({ value: r.id, label: r.name }));
+
+    // Filter out OWNER role if current user is not an OWNER
+    if (currentUserRole !== 'OWNER') {
+      return allRoles.filter((r) => r.label !== 'OWNER');
+    }
+
+    return allRoles;
+  }, [roles, currentUserRole]);
 
   const branchChoices = useMemo(
     () =>
@@ -422,6 +431,7 @@ export default function TenantUserPage() {
                   searchable
                   nothingFoundMessage="No roles"
                   required
+                  data-testid="role-select"
                 />
                 <MultiSelect
                   label="Branches"
