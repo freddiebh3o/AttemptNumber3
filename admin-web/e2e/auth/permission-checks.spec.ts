@@ -238,15 +238,14 @@ test.describe('[PERM-003] User Management Permissions', () => {
   test('OWNER should have user management access', async ({ page }) => {
     await signIn(page, TEST_USERS.owner);
 
-    // Expand "User Management" navigation group if collapsed
-    const userManagementNav = page.getByRole('navigation').getByText(/user management/i);
-    if (await userManagementNav.isVisible()) {
-      await userManagementNav.click();
-      await page.waitForTimeout(300); // Wait for expansion animation
-    }
+    // Wait for navigation to load, then expand "User Management" dropdown
+    const userManagementNav = page.getByRole('navigation').getByText(/^user management$/i);
+    await expect(userManagementNav).toBeVisible();
+    await userManagementNav.click();
+    await page.waitForTimeout(300); // Wait for expansion animation
 
-    // Navigate to users page
-    await page.getByRole('link', { name: /users/i }).click();
+    // Navigate to users page - use exact match to avoid matching "User Management" parent
+    await page.getByRole('link', { name: /^users$/i }).click();
     await expect(page).toHaveURL(/\/users/);
 
     // Should see "Add user" button enabled
@@ -258,15 +257,14 @@ test.describe('[PERM-003] User Management Permissions', () => {
   test('ADMIN should have user management access', async ({ page }) => {
     await signIn(page, TEST_USERS.admin);
 
-    // Expand "User Management" navigation group if collapsed
-    const userManagementNav = page.getByRole('navigation').getByText(/user management/i);
-    if (await userManagementNav.isVisible()) {
-      await userManagementNav.click();
-      await page.waitForTimeout(300); // Wait for expansion animation
-    }
+    // Wait for navigation to load, then expand "User Management" dropdown
+    const userManagementNav = page.getByRole('navigation').getByText(/^user management$/i);
+    await expect(userManagementNav).toBeVisible();
+    await userManagementNav.click();
+    await page.waitForTimeout(300); // Wait for expansion animation
 
-    // Navigate to users page
-    await page.getByRole('link', { name: /users/i }).click();
+    // Navigate to users page - use exact match to avoid matching "User Management" parent
+    await page.getByRole('link', { name: /^users$/i }).click();
     await expect(page).toHaveURL(/\/users/);
 
     // Admin has users:manage permission
@@ -308,16 +306,15 @@ test.describe('[PERM-004] Navigation Visibility', () => {
     // Should see Products link
     await expect(page.getByRole('link', { name: /^products$/i })).toBeVisible();
 
-    // Expand "User Management" navigation group to see Users link
-    const userManagementNav = page.getByRole('navigation').getByText(/user management/i);
-    if (await userManagementNav.isVisible()) {
-      await userManagementNav.click();
-      await page.waitForTimeout(300);
-    }
+    // Wait for navigation to load, then expand "User Management" dropdown to see nested links
+    const userManagementNav = page.getByRole('navigation').getByText(/^user management$/i);
+    await expect(userManagementNav).toBeVisible();
+    await userManagementNav.click();
+    await page.waitForTimeout(300);
 
-    // Should see Users and Branches links
-    await expect(page.getByRole('link', { name: /users/i })).toBeVisible();
-    await expect(page.getByRole('link', { name: /branches/i })).toBeVisible();
+    // Should see Users and Branches links - use exact match for "Users" to avoid matching "User Management"
+    await expect(page.getByRole('link', { name: /^users$/i })).toBeVisible();
+    await expect(page.getByRole('link', { name: /^branches$/i })).toBeVisible();
   });
 
   test('ADMIN should see all navigation links', async ({ page }) => {
@@ -326,16 +323,15 @@ test.describe('[PERM-004] Navigation Visibility', () => {
     // Should see Products link
     await expect(page.getByRole('link', { name: /^products$/i })).toBeVisible();
 
-    // Expand "User Management" navigation group to see Users link
-    const userManagementNav = page.getByRole('navigation').getByText(/user management/i);
-    if (await userManagementNav.isVisible()) {
-      await userManagementNav.click();
-      await page.waitForTimeout(300);
-    }
+    // Wait for navigation to load, then expand "User Management" dropdown to see nested links
+    const userManagementNav = page.getByRole('navigation').getByText(/^user management$/i);
+    await expect(userManagementNav).toBeVisible();
+    await userManagementNav.click();
+    await page.waitForTimeout(300);
 
-    // Admin should see all links
-    await expect(page.getByRole('link', { name: /users/i })).toBeVisible();
-    await expect(page.getByRole('link', { name: /branches/i })).toBeVisible();
+    // Admin should see all links - use exact match for "Users" to avoid matching "User Management"
+    await expect(page.getByRole('link', { name: /^users$/i })).toBeVisible();
+    await expect(page.getByRole('link', { name: /^branches$/i })).toBeVisible();
   });
 
   test('EDITOR should see only Products', async ({ page }) => {
@@ -344,20 +340,13 @@ test.describe('[PERM-004] Navigation Visibility', () => {
     // Editor should see Products link
     await expect(page.getByRole('link', { name: /^products$/i })).toBeVisible();
 
-    // Editor should NOT see Users link (no users:manage permission)
+    // Editor should NOT see User Management dropdown (no users:manage or roles:manage permission)
+    const userManagementNav = page.getByRole('navigation').getByText(/^user management$/i);
+    await expect(userManagementNav).not.toBeVisible();
+
     // Editor should NOT see Branches link (no branches:manage permission)
-    // Note: These checks depend on whether navigation conditionally renders links
-    // If your app always shows links but blocks access, skip these checks
-    const usersLink = page.getByRole('link', { name: /users/i });
-    const branchesLink = page.getByRole('link', { name: /branches/i });
-
-    // Only check if navigation conditionally hides links
-    const usersCount = await usersLink.count();
-    const branchesCount = await branchesLink.count();
-
-    if (usersCount > 0 || branchesCount > 0) {
-      console.warn('Navigation links not conditionally hidden - they may be present but access blocked');
-    }
+    const branchesLink = page.getByRole('link', { name: /^branches$/i });
+    await expect(branchesLink).not.toBeVisible();
   });
 
   test('VIEWER should see only Products', async ({ page }) => {
@@ -366,9 +355,13 @@ test.describe('[PERM-004] Navigation Visibility', () => {
     // Viewer should see Products link (has products:read)
     await expect(page.getByRole('link', { name: /^products$/i })).toBeVisible();
 
-    // Viewer should NOT see Users link (no users:manage permission)
+    // Viewer should NOT see User Management dropdown (no users:manage or roles:manage permission)
+    const userManagementNav = page.getByRole('navigation').getByText(/^user management$/i);
+    await expect(userManagementNav).not.toBeVisible();
+
     // Viewer should NOT see Branches link (no branches:manage permission)
-    // Note: Similar to EDITOR test - only check if links are conditionally hidden
+    const branchesLink = page.getByRole('link', { name: /^branches$/i });
+    await expect(branchesLink).not.toBeVisible();
   });
 });
 
