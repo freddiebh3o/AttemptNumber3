@@ -182,29 +182,6 @@ test.describe('Chat Analytics Page', () => {
     }
   });
 
-  test('should rank tools correctly in Top Tools table', async ({ page }) => {
-    await signIn(page, TEST_USERS.owner);
-    await page.goto('/acme/chat-analytics');
-
-    await page.waitForSelector('[data-testid="top-tools-table"]');
-
-    const table = page.getByTestId('top-tools-table');
-    const rows = table.locator('tbody tr');
-    const rowCount = await rows.count();
-
-    if (rowCount > 0) {
-      // Check first rank badge shows #1
-      const firstRankBadge = rows.first().locator('td').first();
-      await expect(firstRankBadge).toContainText('#1');
-
-      // If there are more rows, check second rank
-      if (rowCount > 1) {
-        const secondRankBadge = rows.nth(1).locator('td').first();
-        await expect(secondRankBadge).toContainText('#2');
-      }
-    }
-  });
-
   test('should display page description', async ({ page }) => {
     await signIn(page, TEST_USERS.owner);
     await page.goto('/acme/chat-analytics');

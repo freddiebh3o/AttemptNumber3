@@ -77,12 +77,17 @@ async function seedTenantsAndRBAC() {
   // Ensure the global permission catalogue includes all current keys
   await ensurePermissionCatalog(prisma);
 
+  // Get OpenAI API key from environment for ACME tenant
+  const openaiApiKey = process.env.OPENAI_API_KEY || null;
+
   const acme = await prisma.tenant.upsert({
     where: { tenantSlug: 'acme' },
     update: {
       featureFlags: {
         barcodeScanningEnabled: true,  // Enable for testing
         barcodeScanningMode: 'camera',
+        chatAssistantEnabled: true,    // Enable chat assistant for testing
+        openaiApiKey: openaiApiKey,    // Use server's API key if available
       },
     },
     create: {
@@ -91,6 +96,8 @@ async function seedTenantsAndRBAC() {
       featureFlags: {
         barcodeScanningEnabled: true,  // Enable for testing
         barcodeScanningMode: 'camera',
+        chatAssistantEnabled: true,    // Enable chat assistant for testing
+        openaiApiKey: openaiApiKey,    // Use server's API key if available
       },
     },
   });
@@ -102,6 +109,8 @@ async function seedTenantsAndRBAC() {
       featureFlags: {
         barcodeScanningEnabled: false, // Disabled by default
         barcodeScanningMode: null,
+        chatAssistantEnabled: false,   // Disabled by default
+        openaiApiKey: null,
       },
     },
     create: {
@@ -110,14 +119,21 @@ async function seedTenantsAndRBAC() {
       featureFlags: {
         barcodeScanningEnabled: false, // Disabled by default
         barcodeScanningMode: null,
+        chatAssistantEnabled: false,   // Disabled by default
+        openaiApiKey: null,
       },
     },
   });
   await provisionTenantRBAC(globex.id, prisma);
 
   console.log('--- Feature flags seeded ---');
-  console.log('ACME: barcodeScanningEnabled=true (camera mode)');
-  console.log('Globex: barcodeScanningEnabled=false');
+  console.log('ACME: barcodeScanningEnabled=true (camera mode), chatAssistantEnabled=true');
+  console.log('Globex: barcodeScanningEnabled=false, chatAssistantEnabled=false');
+  if (openaiApiKey) {
+    console.log('ACME OpenAI API key configured from environment');
+  } else {
+    console.log('⚠️  OPENAI_API_KEY not set in environment - chat tests may fail');
+  }
 
   return { acmeId: acme.id, globexId: globex.id };
 }

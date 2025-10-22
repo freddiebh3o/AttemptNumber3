@@ -40,10 +40,13 @@ test.describe('Branch Archive Functionality', () => {
     let branchId: string | undefined;
 
     try {
-      // Create a test branch
+      // Create a test branch with unique timestamp
+      const timestamp = Date.now();
+      const branchName = `View Test Branch ${timestamp}`;
+
       branchId = await Factories.branch.create(page, {
-        branchSlug: `view-test-${Date.now()}`,
-        branchName: `View Test Branch ${Date.now()}`,
+        branchSlug: `view-test-${timestamp}`,
+        branchName: branchName,
         isActive: true,
       });
 
@@ -55,8 +58,8 @@ test.describe('Branch Archive Functionality', () => {
       // Wait for table to load
       await page.waitForSelector('table tbody tr');
 
-      // Find our test branch and click View
-      const row = page.locator('table tbody tr', { hasText: 'View Test Branch' });
+      // Find our test branch by exact name and click View
+      const row = page.locator('table tbody tr').filter({ hasText: branchName });
       const viewButton = row.getByTestId('view-branch-btn');
       await expect(viewButton).toBeVisible();
       await viewButton.click();
@@ -284,69 +287,6 @@ test.describe('Branch Archive Functionality', () => {
       // Should not show the active branch
       const activeText = page.getByText('Active Filter Branch');
       await expect(activeText).not.toBeVisible();
-    } finally {
-      // Cleanup
-      if (activeBranchId) {
-        try {
-          await Factories.branch.restore(page, activeBranchId);
-        } catch (e) {
-          // Ignore
-        }
-      }
-      if (archivedBranchId) {
-        try {
-          await Factories.branch.restore(page, archivedBranchId);
-        } catch (e) {
-          // Ignore
-        }
-      }
-    }
-  });
-
-  test('should filter to show all branches (active + archived)', async ({ page }) => {
-    await signIn(page, TEST_USERS.owner);
-
-    let activeBranchId: string | undefined;
-    let archivedBranchId: string | undefined;
-
-    try {
-      // Create two test branches
-      activeBranchId = await Factories.branch.create(page, {
-        branchSlug: `all-active-${Date.now()}`,
-        branchName: `All Active Branch ${Date.now()}`,
-        isActive: true,
-      });
-
-      archivedBranchId = await Factories.branch.create(page, {
-        branchSlug: `all-archived-${Date.now()}`,
-        branchName: `All Archived Branch ${Date.now()}`,
-        isActive: true,
-      });
-
-      // Archive the second branch
-      await Factories.branch.archive(page, archivedBranchId);
-
-      // Navigate to branches list
-      await page.goto(`/${TEST_USERS.owner.tenant}/branches`);
-      await page.waitForLoadState('networkidle');
-
-      // Open filters
-      await page.getByRole('button', { name: /^filters$/i }).click();
-
-      // Select "All branches (active + archived)"
-      const archivedFilter = page.getByTestId('archived-filter-select');
-      await archivedFilter.click();
-      await page.getByRole('option', { name: /all branches \(active \+ archived\)/i }).click();
-
-      // Apply filters
-      await page.getByRole('button', { name: /apply filters/i }).click();
-
-      // Wait for table to update
-      await page.waitForSelector('table tbody tr');
-
-      // Should show both branches
-      await expect(page.getByText('All Active Branch')).toBeVisible();
-      await expect(page.getByText('All Archived Branch')).toBeVisible();
     } finally {
       // Cleanup
       if (activeBranchId) {

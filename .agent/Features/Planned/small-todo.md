@@ -4,16 +4,6 @@
 
 
 - e2e suites that have failures:
-    - auth
-        - permission-checks.spec.ts
-            - User management permissions
-                - OWNER shoud have user management access
-                - ADMIN should have user management access 
-                (Both failing because they are trying to access the 'users' tab which has since been moved inside the user management dropdown)
-                
-    - Chat 
-        - ALL CHAT SPECS FAILING -> I think its because the feature flag is by default off. We need to change the seed so that, for acme, the feature flag is set to be on, and their openai api key is set from the .env file 
-
     - Features 
         - feature-flags.spec.ts
             - Feature Flags: ACME tenant (BARCODE Scanning Enabled)
