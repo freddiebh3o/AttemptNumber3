@@ -48,6 +48,57 @@ Organized alphabetically by feature name in Completed/ folder. Listed here by co
 
 ### October 2025
 
+#### Enforce Custom OpenAI API Keys
+**Path:** `Completed/enforce-custom-openai-keys/`
+**Status:** ✅ Completed
+**Completion Date:** 2025-10-24
+
+**Overview:**
+Removed the server-level OpenAI API key fallback for the AI Chat Assistant feature. Tenants must now provide their own OpenAI API key to use the chat assistant, eliminating cost burden from the developer and providing tenants with full control over AI usage costs.
+
+**Key Features:**
+- Mandatory OpenAI API key requirement for AI Chat Assistant
+- Frontend validation prevents enabling without valid API key
+- Backend validation enforces requirement (defense in depth)
+- API key format validation (must start with "sk-")
+- Comprehensive migration guide for existing users
+- Troubleshooting documentation
+- Cost transparency (tenants pay directly via OpenAI)
+
+**Documentation:**
+- [README.md](./Completed/enforce-custom-openai-keys/README.md) - Feature summary and patterns
+- [prd.md](./Completed/enforce-custom-openai-keys/prd.md) - Full PRD with implementation details
+- [docs/settings/feature-settings.md](../../docs/settings/feature-settings.md) - User-facing setup guide
+
+**Backend Changes:**
+- Updated `apiKeyService.ts` - Removed server fallback, returns `null` if no tenant key
+- Updated `tenantFeatureFlagsService.ts` - Added validation requiring key when enabling chat
+- Updated `chatService.ts` - Improved error messages with configuration links
+
+**Frontend Changes:**
+- Updated `FeatureSettingsPage.tsx` - Frontend validation, format checks, auto-clearing errors
+- Added validation error Alert component with `data-testid="alert-validation-error"`
+- Updated help text and alerts to reflect mandatory requirement
+
+**Testing:**
+- 30 backend tests (13 service + 17 route) - All validation scenarios
+- 16 E2E tests - Validation flows, permissions, Mantine Switch patterns
+- Fixed strict mode violations (scoped text searches to Alert component)
+- Established Mantine Switch interaction pattern in E2E Guidelines
+
+**Developer Documentation:**
+- Updated `CLAUDE.md` - Marked `OPENAI_API_KEY` as deprecated for tenant fallback
+- Updated `.agent/System/Domain/ai-chatbot.md` - Removed fallback references
+- Updated `.agent/SOP/feature_flags_usage.md` - Mandatory requirement emphasis
+- Updated `admin-web/e2e/GUIDELINES.md` - Mantine Switch pattern documentation
+
+**User Documentation:**
+- Updated `docs/settings/feature-settings.md` - Setup guide, troubleshooting, migration
+- Updated `docs/README.md` - Warnings and references
+- Updated `docs/faq.md` - 3 new FAQs about API key requirements
+
+---
+
 #### Approval Rule Archival
 **Path:** `Completed/approval-rule-archival/`
 **Status:** ✅ Completed

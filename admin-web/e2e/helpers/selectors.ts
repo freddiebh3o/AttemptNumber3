@@ -182,6 +182,7 @@ export const SELECTORS = {
     INPUT_OPENAI_API_KEY: 'input-openai-api-key',
     TOGGLE_BARCODE_SCANNING: 'toggle-barcode-scanning',
     BTN_SAVE_FEATURES: 'btn-save-features',
+    ALERT_VALIDATION_ERROR: 'alert-validation-error',
   },
 
   /**

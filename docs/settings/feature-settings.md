@@ -18,31 +18,46 @@ The **Feature Settings** page allows administrators to enable or disable specifi
 
 Enable or disable the AI-powered chat assistant that helps users with inventory management tasks.
 
+**⚠️ IMPORTANT: You must provide your own OpenAI API key to use this feature.**
+
 **Settings:**
 
 1. **Enable AI Chat Assistant**
    - Toggle this on to make the chat assistant available to all users in your organization
    - When enabled, users will see a chat button in the navigation bar
    - When disabled, the chat feature will be completely hidden
+   - **Requires:** A valid OpenAI API key (see below)
 
-2. **OpenAI API Key** (Optional)
-   - Provide your own OpenAI API key to control AI costs
-   - If left blank, the system will use the default server API key
+2. **OpenAI API Key** (Required)
+   - **REQUIRED** to enable the AI Chat Assistant feature
    - Your API key must start with `sk-`
    - API key is stored securely and masked in the UI
+   - The system no longer provides a fallback API key
 
 **Cost Information:**
 
-- **Using Your Own API Key:** All chat assistant usage will be billed to your OpenAI account. You have full control over costs and can monitor usage in your OpenAI dashboard.
-- **Using System Default:** All chat assistant usage is included in your subscription (billed to the system's OpenAI account).
+All chat assistant usage will be billed to **your OpenAI account**. You have full control over costs and can monitor usage in your [OpenAI dashboard](https://platform.openai.com/usage).
+
+**How to Get an OpenAI API Key:**
+
+1. Visit [OpenAI Platform](https://platform.openai.com/)
+2. Sign up or sign in to your account
+3. Navigate to **API Keys** in your account settings
+4. Click **"Create new secret key"**
+5. Copy the key (it starts with `sk-`)
+6. Paste it into the **OpenAI API Key** field below
+
+**⚠️ Security Note:** Keep your API key secure! Don't share it publicly or commit it to version control.
 
 **How to Configure:**
 
 1. Navigate to **System → Features** from the sidebar
 2. Locate the **AI Chat Assistant** section
-3. Toggle **Enable AI Chat Assistant** to turn the feature on
-4. (Optional) Enter your OpenAI API key in the **OpenAI API Key** field
+3. Enter your OpenAI API key in the **OpenAI API Key** field
+4. Toggle **Enable AI Chat Assistant** to turn the feature on
 5. Click **Save Settings** to apply changes
+
+**Note:** You cannot enable the AI Chat Assistant without providing an API key. The system will show a validation error if you try to enable the feature without a key.
 
 ### Barcode Scanning
 
@@ -95,6 +110,87 @@ All feature settings are saved to your tenant's configuration and will persist:
 
 ---
 
+## Troubleshooting
+
+### I can't enable the AI Chat Assistant
+
+**Error:** "Please provide an OpenAI API key to enable the AI Chat Assistant"
+
+**Cause:** The AI Chat Assistant requires a valid OpenAI API key. The system no longer provides a fallback key.
+
+**Solution:**
+1. Get an OpenAI API key (see "[How to Get an OpenAI API Key](#how-to-get-an-openai-api-key)" above)
+2. Enter the key in the **OpenAI API Key** field
+3. Ensure the key starts with `sk-`
+4. Click **Save Settings**
+5. Now you can enable the AI Chat Assistant toggle
+
+### I get "OpenAI API key must start with sk-" error
+
+**Cause:** The API key format is invalid.
+
+**Solution:**
+- OpenAI API keys always start with `sk-`
+- Double-check you copied the entire key from OpenAI Platform
+- Don't include spaces or extra characters
+- If still failing, generate a new key from OpenAI
+
+### The chat assistant was working, now it's not
+
+**Possible causes:**
+1. **API key removed:** Someone cleared the API key field
+2. **Feature disabled:** The toggle was turned off
+3. **OpenAI account issue:** Your API key may be invalid or billing issue
+
+**Solutions:**
+- Check that the toggle is ON in Settings → Features
+- Verify the API key is still present (will show as masked dots)
+- Check your OpenAI account for billing issues or rate limits
+- Try regenerating your API key if it's expired or revoked
+
+---
+
+## Migrating from Server-Level API Keys
+
+**What Changed?**
+
+As of **October 2025**, the platform no longer provides a server-level OpenAI API key as a fallback for tenants. Previously, if you enabled the AI Chat Assistant without providing your own API key, the system would use a shared server key.
+
+**Why the Change?**
+
+- **Cost allocation:** The developer was bearing the cost for all tenant AI usage
+- **Scalability:** Shared keys create usage limits and billing complexity
+- **Transparency:** You now have full visibility and control over your AI costs
+
+**Impact on Existing Users:**
+
+If you previously enabled the AI Chat Assistant **without** providing your own API key:
+- ✅ Your chat history is preserved
+- ❌ New chat requests will fail until you add your own key
+- ⚠️ You must add an API key to continue using the feature
+
+**Migration Steps:**
+
+1. **Get an OpenAI API key** (see "[How to Get an OpenAI API Key](#how-to-get-an-openai-api-key)" above)
+2. Navigate to **System → Features**
+3. Enter your new API key in the **OpenAI API Key** field
+4. Ensure **Enable AI Chat Assistant** is toggled ON
+5. Click **Save Settings**
+6. Test the chat assistant to confirm it's working
+
+**Cost Considerations:**
+
+- **OpenAI pricing:** Approximately $0.01-0.03 per chat interaction (varies by model and message length)
+- **Monitoring costs:** Track usage in your [OpenAI dashboard](https://platform.openai.com/usage)
+- **Setting limits:** Configure spending limits in your OpenAI account settings
+- **Free credits:** New OpenAI accounts often include free credits for testing
+
+**Questions?**
+
+Contact your organization admin or platform support if you need help migrating.
+
+---
+
 ## Frequently Asked Questions
 
 ### Who can change feature settings?
@@ -105,12 +201,20 @@ Only users with the **Owner** or **Admin** role can access and modify feature se
 
 Yes, feature changes take effect immediately for all users in your organization. Users may need to refresh their browser to see changes to UI elements.
 
-### Can I use my own OpenAI API key?
+### Why do I need my own OpenAI API key?
 
-Yes! You can provide your own OpenAI API key in the AI Chat Assistant settings. This gives you:
-- Full control over AI costs
-- Ability to monitor usage in your OpenAI dashboard
-- Independent billing from the system
+The platform no longer provides a shared server API key. You must provide your own OpenAI API key to:
+- Control and monitor your AI usage costs
+- Ensure service availability (not dependent on shared limits)
+- Maintain data privacy (your requests go directly to OpenAI with your account)
+
+### Where do I get an OpenAI API key?
+
+Visit [OpenAI Platform](https://platform.openai.com/), sign up for an account, and create an API key in your account settings. See the "[How to Get an OpenAI API Key](#how-to-get-an-openai-api-key)" section above for step-by-step instructions.
+
+### What happens if I don't provide an API key?
+
+Without an API key, you cannot enable the AI Chat Assistant feature. The system will show a validation error if you try to enable it without providing a key. Other features (like barcode scanning) work independently and don't require an API key.
 
 ### What happens if I disable the AI Chat Assistant?
 
@@ -156,4 +260,4 @@ Currently, there is no built-in usage analytics for the AI Chat Assistant. If yo
 
 If you have questions about feature settings or need assistance configuring features for your organization, contact your system administrator or support team.
 
-**Last Updated:** 2025-10-20
+**Last Updated:** 2025-10-24

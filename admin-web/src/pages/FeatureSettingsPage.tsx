@@ -16,7 +16,7 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useParams } from 'react-router-dom';
-import { IconInfoCircle } from '@tabler/icons-react';
+import { IconInfoCircle, IconAlertCircle } from '@tabler/icons-react';
 import {
   getTenantFeatureFlagsApiRequest,
   putTenantFeatureFlagsApiRequest,
@@ -33,6 +33,7 @@ export default function FeatureSettingsPage() {
   const { tenantSlug } = useParams<{ tenantSlug: string }>();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [featureFlags, setFeatureFlags] = useState<FeatureFlags>({
     chatAssistantEnabled: false,
     openaiApiKey: null,
@@ -68,11 +69,29 @@ export default function FeatureSettingsPage() {
     loadFeatureFlags();
   }, [tenantSlug]);
 
+  // Frontend validation: Clear validation error when user makes changes
+  useEffect(() => {
+    setValidationError(null);
+  }, [featureFlags.chatAssistantEnabled, featureFlags.openaiApiKey]);
+
   const handleSave = async () => {
     if (!tenantSlug) return;
 
+    // Frontend validation: Cannot enable chat assistant without API key
+    if (featureFlags.chatAssistantEnabled && !featureFlags.openaiApiKey) {
+      setValidationError('Please provide an OpenAI API key to enable the AI Chat Assistant');
+      return;
+    }
+
+    // Validate API key format (must start with sk-)
+    if (featureFlags.openaiApiKey && !featureFlags.openaiApiKey.startsWith('sk-')) {
+      setValidationError('OpenAI API key must start with "sk-"');
+      return;
+    }
+
     try {
       setSaving(true);
+      setValidationError(null);
       const response = await putTenantFeatureFlagsApiRequest({
         tenantSlug,
         body: featureFlags,
@@ -137,7 +156,7 @@ export default function FeatureSettingsPage() {
               label="OpenAI API Key"
               placeholder="sk-..."
               type="password"
-              description="Leave blank to use system default"
+              description="Required to enable AI Chat Assistant"
               value={featureFlags.openaiApiKey || ''}
               onChange={(event) =>
                 setFeatureFlags({
@@ -145,13 +164,29 @@ export default function FeatureSettingsPage() {
                   openaiApiKey: event.currentTarget.value || null,
                 })
               }
+              error={validationError}
+              required={featureFlags.chatAssistantEnabled}
               data-testid="input-openai-api-key"
             />
 
-            <Alert icon={<IconInfoCircle size={16} />} title="Cost Information" color="blue">
+            {validationError && (
+              <Alert
+                icon={<IconAlertCircle size={16} />}
+                title="Validation Error"
+                color="red"
+                data-testid="alert-validation-error"
+              >
+                <Text size="sm">{validationError}</Text>
+              </Alert>
+            )}
+
+            <Alert icon={<IconInfoCircle size={16} />} title="Important" color="blue">
               <Text size="sm">
-                If you provide your own OpenAI API key, all chat assistant calls will be billed to
-                your API account. If left blank, the system default key will be used.
+                <strong>You must provide your own OpenAI API key to use the AI Chat Assistant.</strong>
+                {' '}All chat usage will be billed to your OpenAI account. Get your API key from{' '}
+                <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">
+                  OpenAI Platform
+                </a>.
               </Text>
             </Alert>
           </Stack>

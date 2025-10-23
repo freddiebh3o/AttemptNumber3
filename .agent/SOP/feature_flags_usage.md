@@ -273,25 +273,28 @@ test('should hide feature when flag disabled', async ({ page }) => {
 ### `chatAssistantEnabled` (boolean)
 - **Default**: `false`
 - **Purpose**: Controls whether the AI Chat Assistant feature is available for the tenant
+- **Requirement**: **MUST** provide `openaiApiKey` to enable (cannot enable without a valid key)
 - **Affects**:
   - Visibility of chat trigger button in the UI
   - Access to `/api/chat` endpoint
-  - Whether tenant's OpenAI API key is used (if provided)
+  - Whether tenant's OpenAI API key is used
 - **UI Management**: Configurable via **System > Features** page (requires `theme:manage` permission)
-- **Cost Control**: When enabled, tenant can provide their own OpenAI API key to control costs
-- **Related Flags**: Works with `openaiApiKey` (string | null) for tenant-specific API keys
-- **Test Tenant**: Can be enabled per tenant via Features page
+- **Validation**: Frontend and backend prevent enabling without providing a valid API key
+- **Related Flags**: **Requires** `openaiApiKey` (string | null) - cannot enable without it
+- **Test Tenant**: Can be enabled per tenant via Features page (with API key)
 
 ### `openaiApiKey` (string | null)
 - **Default**: `null`
 - **Purpose**: Tenant-specific OpenAI API key for the AI Chat Assistant
+- **Requirement**: **REQUIRED** to enable `chatAssistantEnabled` - no server fallback
 - **Validation**: Must start with `sk-` if provided
-- **Fallback**: If not provided, uses server's `OPENAI_API_KEY` environment variable
+- **No Fallback**: Server does NOT provide a fallback API key - tenants must provide their own
 - **Security**: Stored in plaintext (MVP), password-masked in UI
 - **UI Management**: Configurable via **System > Features** page (requires `theme:manage` permission)
 - **Cost Allocation**:
-  - If provided: All chat costs billed to tenant's OpenAI account
-  - If null: All chat costs billed to server's OpenAI account
+  - All chat costs are billed to the tenant's OpenAI account
+  - Tenant is responsible for their own API usage and costs
+  - Cannot use chat assistant without providing a valid key
 - **Related Documentation**: [AI Chatbot System - Tenant-Specific API Keys](../System/Domain/ai-chatbot.md#tenant-specific-api-keys)
 
 ### `barcodeScanningEnabled` (boolean)

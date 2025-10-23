@@ -185,12 +185,13 @@ export async function streamChatResponse({
   // Convert messages to model format (removes UI-specific fields)
   const modelMessages = convertToModelMessages(messages);
 
-  // Get tenant-specific or server-fallback OpenAI API key
+  // Get tenant-specific OpenAI API key (no server fallback)
   const apiKey = await getOpenAIApiKey({ tenantId });
 
   if (!apiKey) {
-    throw Errors.internal(
-      'OpenAI API key not configured. Please configure an OpenAI API key in your tenant settings or contact your system administrator.'
+    throw Errors.validation(
+      'AI Chat Assistant requires an OpenAI API key. Please ask your administrator to add one in Settings > Features',
+      'Configure your OpenAI API key in tenant feature settings to enable the AI chat assistant'
     );
   }
 

@@ -480,9 +480,57 @@ Not yet. Export functionality is planned but not yet implemented.
 
 ## AI Chatbot
 
+### Why do I need my own OpenAI API key?
+
+**As of October 2025**, the platform no longer provides a shared server API key for the AI Chat Assistant. You must provide your own OpenAI API key to use this feature.
+
+**Reasons for this change:**
+- **Cost control:** You pay directly for your AI usage, not the platform developer
+- **Transparency:** Full visibility into your AI costs via OpenAI dashboard
+- **Scalability:** No shared rate limits or usage caps
+- **Data privacy:** Your chat requests go directly to OpenAI with your account
+
+**Cost:** Approximately $0.01-0.03 per chat interaction (varies by model and message length)
+
+**See:** [Feature Settings - AI Chat Assistant](settings/feature-settings.md) for setup instructions
+
+### Where do I get an OpenAI API key?
+
+**Step-by-step:**
+
+1. Visit [OpenAI Platform](https://platform.openai.com/)
+2. Sign up or sign in to your account
+3. Navigate to **API Keys** in your account settings
+4. Click **"Create new secret key"**
+5. Copy the key (starts with `sk-`)
+6. Paste it into the **OpenAI API Key** field in Settings → Features
+7. Enable the AI Chat Assistant toggle
+8. Click **Save Settings**
+
+**Security tip:** Keep your API key secure! Don't share it publicly or commit it to version control.
+
+**New accounts:** OpenAI often provides free credits for testing.
+
+**See:** [Feature Settings - How to Get an OpenAI API Key](settings/feature-settings.md#how-to-get-an-openai-api-key) for detailed instructions
+
+### What happens if I don't provide an API key?
+
+Without providing your own OpenAI API key:
+
+- ❌ You **cannot enable** the AI Chat Assistant feature
+- ❌ The chat icon will **not appear** in the navigation bar
+- ❌ Users will **not have access** to AI-powered help
+- ✅ All other platform features work normally (products, transfers, stock management, etc.)
+
+**The system will show a validation error** if you try to enable the AI Chat Assistant without providing a valid API key.
+
+**Migration note:** If you previously used the AI Chat Assistant with the old server fallback key, you must add your own API key to continue using the feature. See [Migrating from Server-Level API Keys](settings/feature-settings.md#migrating-from-server-level-api-keys).
+
 ### How do I access the chatbot?
 
 Click the **chat icon** 💬 in the top-right corner of the header (next to sign out button).
+
+**Note:** The chat icon only appears if your organization has enabled the AI Chat Assistant feature with a valid OpenAI API key.
 
 ### What can I ask the chatbot?
 

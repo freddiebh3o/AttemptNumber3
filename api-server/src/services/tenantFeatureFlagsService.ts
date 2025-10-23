@@ -34,6 +34,7 @@ export async function getTenantFeatureFlagsService({
  *
  * Validates:
  * - OpenAI API key format (must start with 'sk-' if provided)
+ * - Cannot enable chat assistant without providing an API key
  * - Merges with existing flags (partial update)
  */
 export async function updateTenantFeatureFlagsService({
@@ -70,6 +71,16 @@ export async function updateTenantFeatureFlagsService({
     ...currentFlags,
     ...updates,
   };
+
+  // Validate: Cannot enable chat assistant without an API key
+  if (updatedFlags.chatAssistantEnabled) {
+    if (!updatedFlags.openaiApiKey) {
+      throw Errors.validation(
+        'Cannot enable AI Chat Assistant without providing an OpenAI API key',
+        'Please provide a valid OpenAI API key (starting with "sk-") to enable the chat assistant'
+      );
+    }
+  }
 
   // Update in database
   await prismaClientInstance.tenant.update({

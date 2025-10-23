@@ -345,6 +345,7 @@ type CreateBody = paths['/api/products']['post']['requestBody']['content']['appl
 - `DISABLE_RATE_LIMIT` - ⚠️ `true` to disable rate limiting (ONLY for test environments, NEVER in production!)
 - `RATE_LIMIT_AUTH` - Auth endpoints rate limit (requests per minute, default: `120`)
 - `RATE_LIMIT_GENERAL` - General API rate limit (requests per minute, default: `600`)
+- `OPENAI_API_KEY` - ⚠️ **DEPRECATED as tenant fallback** (October 2025). No longer used for tenant AI Chat Assistant. Tenants must provide their own OpenAI API key in Settings → Features. This environment variable may still be used for system-level AI operations (if any) but is NOT a fallback for tenant chat.
 
 **Admin Web:**
 - `VITE_API_BASE_URL` - API base URL (default: `http://localhost:4000`)

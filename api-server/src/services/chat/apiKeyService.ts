@@ -5,10 +5,8 @@ import type { TenantFeatureFlags } from '../../types/tenant.js';
 /**
  * Get the OpenAI API key to use for this tenant
  *
- * Priority:
- * 1. If chatAssistantEnabled is true AND tenant has openaiApiKey, use tenant key
- * 2. Otherwise, fall back to server's OPENAI_API_KEY from env
- * 3. If neither exists, return null
+ * Returns the tenant's custom OpenAI API key if the chat assistant is enabled and a key is configured.
+ * No server-level fallback is used - tenants MUST provide their own API key to use the chat assistant.
  *
  * @param params.tenantId - The tenant ID
  * @returns OpenAI API key or null if unavailable
@@ -30,17 +28,11 @@ export async function getOpenAIApiKey({
 
   const featureFlags = (tenant.featureFlags as TenantFeatureFlags | null) || {};
 
-  // If chat assistant is enabled and tenant has their own API key, use it
+  // Only return tenant's API key if chat assistant is enabled AND key exists
   if (featureFlags.chatAssistantEnabled && featureFlags.openaiApiKey) {
     return featureFlags.openaiApiKey;
   }
 
-  // Otherwise, fall back to server's API key
-  const serverApiKey = process.env.OPENAI_API_KEY;
-  if (serverApiKey) {
-    return serverApiKey;
-  }
-
-  // No API key available
+  // No API key available (no server fallback)
   return null;
 }

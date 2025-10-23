@@ -1,6 +1,8 @@
 /**
  * Tests for Tenant Feature Flags Service
  * Tests the getOpenAIApiKey utility and feature flags CRUD
+ *
+ * UPDATED: Removed server API key fallback tests (enforced custom keys only)
  */
 
 import { describe, expect, test, beforeAll, afterAll } from '@jest/globals';
@@ -14,9 +16,8 @@ import {
 
 const prisma = new PrismaClient();
 
-describe('Tenant Feature Flags Service', () => {
+describe('[FEATURE-FLAGS-SVC] Tenant Feature Flags Service', () => {
   let testTenant: any;
-  const originalApiKey = process.env.OPENAI_API_KEY;
 
   beforeAll(async () => {
     testTenant = await createTestTenant({ slug: `feature-flags-test-${Date.now()}` });
@@ -28,32 +29,10 @@ describe('Tenant Feature Flags Service', () => {
       await prisma.tenant.delete({ where: { id: testTenant.id } });
     }
     await prisma.$disconnect();
-    // Restore original env var
-    if (originalApiKey) {
-      process.env.OPENAI_API_KEY = originalApiKey;
-    }
   });
 
-  describe('getOpenAIApiKey', () => {
-    test('should return server API key when tenant has no key', async () => {
-      process.env.OPENAI_API_KEY = 'sk-server-test-key';
-
-      const apiKey = await getOpenAIApiKey({ tenantId: testTenant.id });
-
-      expect(apiKey).toBe('sk-server-test-key');
-    });
-
-    test('should return null when neither tenant nor server has key', async () => {
-      delete process.env.OPENAI_API_KEY;
-
-      const apiKey = await getOpenAIApiKey({ tenantId: testTenant.id });
-
-      expect(apiKey).toBeNull();
-    });
-
+  describe('getOpenAIApiKey - Get OpenAI API Key', () => {
     test('should return tenant key when chatAssistantEnabled is true and key exists', async () => {
-      process.env.OPENAI_API_KEY = 'sk-server-key';
-
       // Set tenant key
       await prisma.tenant.update({
         where: { id: testTenant.id },
@@ -70,9 +49,7 @@ describe('Tenant Feature Flags Service', () => {
       expect(apiKey).toBe('sk-tenant-custom-key');
     });
 
-    test('should return server key when chatAssistantEnabled is false even if tenant has key', async () => {
-      process.env.OPENAI_API_KEY = 'sk-server-fallback';
-
+    test('should return null when chatAssistantEnabled is false', async () => {
       // Set tenant key but disable feature
       await prisma.tenant.update({
         where: { id: testTenant.id },
@@ -86,12 +63,10 @@ describe('Tenant Feature Flags Service', () => {
 
       const apiKey = await getOpenAIApiKey({ tenantId: testTenant.id });
 
-      expect(apiKey).toBe('sk-server-fallback');
+      expect(apiKey).toBeNull();
     });
 
-    test('should return server key when tenant key is null', async () => {
-      process.env.OPENAI_API_KEY = 'sk-server-default';
-
+    test('should return null when chatAssistantEnabled is true but no key', async () => {
       await prisma.tenant.update({
         where: { id: testTenant.id },
         data: {
@@ -104,7 +79,23 @@ describe('Tenant Feature Flags Service', () => {
 
       const apiKey = await getOpenAIApiKey({ tenantId: testTenant.id });
 
-      expect(apiKey).toBe('sk-server-default');
+      expect(apiKey).toBeNull();
+    });
+
+    test('should return null when key is empty string', async () => {
+      await prisma.tenant.update({
+        where: { id: testTenant.id },
+        data: {
+          featureFlags: {
+            chatAssistantEnabled: true,
+            openaiApiKey: '',
+          },
+        },
+      });
+
+      const apiKey = await getOpenAIApiKey({ tenantId: testTenant.id });
+
+      expect(apiKey).toBeNull();
     });
 
     test('should throw error for non-existent tenant', async () => {
@@ -114,7 +105,7 @@ describe('Tenant Feature Flags Service', () => {
     });
   });
 
-  describe('getTenantFeatureFlagsService', () => {
+  describe('getTenantFeatureFlagsService - Get Feature Flags', () => {
     test('should return default flags for tenant with no flags set', async () => {
       const tenant = await createTestTenant({ slug: `flags-get-test-${Date.now()}` });
 
@@ -163,49 +154,61 @@ describe('Tenant Feature Flags Service', () => {
     });
   });
 
-  describe('updateTenantFeatureFlagsService', () => {
-    test('should update feature flags (partial update)', async () => {
-      const tenant = await createTestTenant({ slug: `flags-update-${Date.now()}` });
+  describe('updateTenantFeatureFlagsService - Update Feature Flags', () => {
+    test('should throw error when enabling chat assistant without API key', async () => {
+      const tenant = await createTestTenant({ slug: `flags-no-key-${Date.now()}` });
 
-      // Set initial flags
-      await prisma.tenant.update({
-        where: { id: tenant.id },
-        data: {
-          featureFlags: {
-            chatAssistantEnabled: false,
-            openaiApiKey: null,
-            barcodeScanningEnabled: false,
-          },
-        },
-      });
-
-      // Update only chatAssistantEnabled
-      const updated = await updateTenantFeatureFlagsService({
-        tenantId: tenant.id,
-        updates: { chatAssistantEnabled: true },
-      });
-
-      expect(updated.chatAssistantEnabled).toBe(true);
-      expect(updated.openaiApiKey).toBeNull();
-      expect(updated.barcodeScanningEnabled).toBe(false);
+      await expect(
+        updateTenantFeatureFlagsService({
+          tenantId: tenant.id,
+          updates: { chatAssistantEnabled: true },
+        })
+      ).rejects.toThrow('Cannot enable AI Chat Assistant without providing an OpenAI API key');
 
       // Cleanup
       await prisma.tenant.delete({ where: { id: tenant.id } });
     });
 
-    test('should update OpenAI API key', async () => {
-      const tenant = await createTestTenant({ slug: `flags-api-key-${Date.now()}` });
+    test('should allow enabling chat assistant with valid key', async () => {
+      const tenant = await createTestTenant({ slug: `flags-with-key-${Date.now()}` });
 
       const updated = await updateTenantFeatureFlagsService({
         tenantId: tenant.id,
         updates: {
           chatAssistantEnabled: true,
-          openaiApiKey: 'sk-new-custom-key',
+          openaiApiKey: 'sk-valid-key-123',
         },
       });
 
       expect(updated.chatAssistantEnabled).toBe(true);
-      expect(updated.openaiApiKey).toBe('sk-new-custom-key');
+      expect(updated.openaiApiKey).toBe('sk-valid-key-123');
+
+      // Cleanup
+      await prisma.tenant.delete({ where: { id: tenant.id } });
+    });
+
+    test('should allow disabling chat assistant without key', async () => {
+      const tenant = await createTestTenant({ slug: `flags-disable-${Date.now()}` });
+
+      // First enable with key
+      await prisma.tenant.update({
+        where: { id: tenant.id },
+        data: {
+          featureFlags: {
+            chatAssistantEnabled: true,
+            openaiApiKey: 'sk-old-key',
+          },
+        },
+      });
+
+      // Now disable without providing key
+      const updated = await updateTenantFeatureFlagsService({
+        tenantId: tenant.id,
+        updates: { chatAssistantEnabled: false },
+      });
+
+      expect(updated.chatAssistantEnabled).toBe(false);
+      expect(updated.openaiApiKey).toBe('sk-old-key'); // Unchanged
 
       // Cleanup
       await prisma.tenant.delete({ where: { id: tenant.id } });
@@ -225,7 +228,36 @@ describe('Tenant Feature Flags Service', () => {
       await prisma.tenant.delete({ where: { id: tenant.id } });
     });
 
-    test('should allow setting API key to null', async () => {
+    test('should allow partial updates', async () => {
+      const tenant = await createTestTenant({ slug: `flags-partial-${Date.now()}` });
+
+      // Set initial state
+      await prisma.tenant.update({
+        where: { id: tenant.id },
+        data: {
+          featureFlags: {
+            chatAssistantEnabled: true,
+            openaiApiKey: 'sk-initial-key',
+            barcodeScanningEnabled: false,
+          },
+        },
+      });
+
+      // Update only barcode scanning
+      const updated = await updateTenantFeatureFlagsService({
+        tenantId: tenant.id,
+        updates: { barcodeScanningEnabled: true },
+      });
+
+      expect(updated.chatAssistantEnabled).toBe(true); // Unchanged
+      expect(updated.openaiApiKey).toBe('sk-initial-key'); // Unchanged
+      expect(updated.barcodeScanningEnabled).toBe(true); // Updated
+
+      // Cleanup
+      await prisma.tenant.delete({ where: { id: tenant.id } });
+    });
+
+    test('should allow setting key to null after previously set', async () => {
       const tenant = await createTestTenant({ slug: `flags-null-key-${Date.now()}` });
 
       // Set a key first
@@ -233,33 +265,46 @@ describe('Tenant Feature Flags Service', () => {
         where: { id: tenant.id },
         data: {
           featureFlags: {
-            chatAssistantEnabled: true,
+            chatAssistantEnabled: false, // Disabled
             openaiApiKey: 'sk-old-key',
           },
         },
       });
 
-      // Now clear it
+      // Now clear it (while chat is disabled)
       const updated = await updateTenantFeatureFlagsService({
         tenantId: tenant.id,
         updates: { openaiApiKey: null },
       });
 
       expect(updated.openaiApiKey).toBeNull();
+      expect(updated.chatAssistantEnabled).toBe(false);
 
       // Cleanup
       await prisma.tenant.delete({ where: { id: tenant.id } });
     });
 
-    test('should update barcode scanning flag', async () => {
-      const tenant = await createTestTenant({ slug: `flags-barcode-${Date.now()}` });
+    test('should throw error when trying to clear key while chat is enabled', async () => {
+      const tenant = await createTestTenant({ slug: `flags-clear-enabled-${Date.now()}` });
 
-      const updated = await updateTenantFeatureFlagsService({
-        tenantId: tenant.id,
-        updates: { barcodeScanningEnabled: true },
+      // Set chat enabled with key
+      await prisma.tenant.update({
+        where: { id: tenant.id },
+        data: {
+          featureFlags: {
+            chatAssistantEnabled: true,
+            openaiApiKey: 'sk-current-key',
+          },
+        },
       });
 
-      expect(updated.barcodeScanningEnabled).toBe(true);
+      // Try to clear key while chat is enabled - should fail
+      await expect(
+        updateTenantFeatureFlagsService({
+          tenantId: tenant.id,
+          updates: { openaiApiKey: null },
+        })
+      ).rejects.toThrow('Cannot enable AI Chat Assistant without providing an OpenAI API key');
 
       // Cleanup
       await prisma.tenant.delete({ where: { id: tenant.id } });
@@ -272,6 +317,22 @@ describe('Tenant Feature Flags Service', () => {
           updates: { chatAssistantEnabled: true },
         })
       ).rejects.toThrow('Tenant not found');
+    });
+
+    test('should update barcode scanning flag independently', async () => {
+      const tenant = await createTestTenant({ slug: `flags-barcode-${Date.now()}` });
+
+      const updated = await updateTenantFeatureFlagsService({
+        tenantId: tenant.id,
+        updates: { barcodeScanningEnabled: true },
+      });
+
+      expect(updated.barcodeScanningEnabled).toBe(true);
+      expect(updated.chatAssistantEnabled).toBe(false);
+      expect(updated.openaiApiKey).toBeNull();
+
+      // Cleanup
+      await prisma.tenant.delete({ where: { id: tenant.id } });
     });
   });
 });

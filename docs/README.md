@@ -84,9 +84,9 @@ Welcome to the platform documentation! This guide will help you learn how to use
 **Organization configuration (Owner/Admin roles):**
 
 - **[Theme & Branding](settings/theme-branding.md)** - Customize colors, logo, and visual appearance
-- **[Feature Settings](settings/feature-settings.md)** - Enable/disable features, configure AI Chat Assistant
+- **[Feature Settings](settings/feature-settings.md)** - Enable/disable features, configure AI Chat Assistant (**⚠️ Requires your own OpenAI API key**)
 
-**Learn:** Theme presets, custom colors, logo upload, typography, branding management, feature flags, AI API keys
+**Learn:** Theme presets, custom colors, logo upload, typography, branding management, feature flags, mandatory OpenAI API keys
 
 ---
 
@@ -130,6 +130,8 @@ Welcome to the platform documentation! This guide will help you learn how to use
 **The fastest way to get help:**
 
 Click the **chat icon** 💬 in the header and ask questions in natural language.
+
+**⚠️ IMPORTANT:** Your organization must provide its own OpenAI API key to use this feature. See [Feature Settings](settings/feature-settings.md) for setup instructions.
 
 **What you can ask:**
 - "How do I create a transfer?"
@@ -493,9 +495,11 @@ REQUESTED → APPROVED → IN_TRANSIT → COMPLETED
 
 This documentation reflects the current platform state as of the latest release. New features and improvements are added regularly.
 
-**Last updated:** 2025-10-20
+**Last updated:** 2025-10-24
 
 **Recent additions:**
+- **Mandatory OpenAI API key requirement** for AI Chat Assistant (October 2025)
+- Migration guide for existing users
 - Feature Settings documentation
 - Analytics & Reports guides
 - Getting Started section

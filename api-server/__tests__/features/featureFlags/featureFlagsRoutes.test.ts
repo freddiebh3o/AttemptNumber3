@@ -1,6 +1,8 @@
 /**
  * Tests for Tenant Feature Flags API Routes
  * Tests GET and PUT /api/tenants/:tenantSlug/feature-flags
+ *
+ * UPDATED: Added validation tests for custom API key requirement
  */
 
 import express from 'express';
@@ -22,7 +24,7 @@ import { createSessionCookie } from '../../helpers/auth.js';
 
 const prisma = new PrismaClient();
 
-describe('Tenant Feature Flags Routes', () => {
+describe('[FEATURE-FLAGS-API] Tenant Feature Flags Routes', () => {
   let app: Express;
   let testTenant: Awaited<ReturnType<typeof createTestTenant>>;
   let ownerUser: Awaited<ReturnType<typeof createTestUser>>;
@@ -161,18 +163,20 @@ describe('Tenant Feature Flags Routes', () => {
   });
 
   describe('PUT /api/tenants/:tenantSlug/feature-flags', () => {
-    test('should update chat assistant flag', async () => {
+    test('should reject enabling chat assistant without API key (400)', async () => {
       const response = await request(app)
         .put(`/api/tenants/${testTenant.tenantSlug}/feature-flags`)
         .set('Cookie', ownerCookie)
         .send({ chatAssistantEnabled: true });
 
-      expect(response.status).toBe(200);
-      expect(response.body.success).toBe(true);
-      expect(response.body.data.chatAssistantEnabled).toBe(true);
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.userFacingMessage).toContain(
+        'Cannot enable AI Chat Assistant without providing an OpenAI API key'
+      );
     });
 
-    test('should update OpenAI API key', async () => {
+    test('should allow enabling chat assistant with valid key', async () => {
       const response = await request(app)
         .put(`/api/tenants/${testTenant.tenantSlug}/feature-flags`)
         .set('Cookie', ownerCookie)
@@ -182,7 +186,38 @@ describe('Tenant Feature Flags Routes', () => {
         });
 
       expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.chatAssistantEnabled).toBe(true);
       expect(response.body.data.openaiApiKey).toBe('sk-new-test-key-12345');
+
+      // Reset for other tests
+      await prisma.tenant.update({
+        where: { id: testTenant.id },
+        data: { featureFlags: {} },
+      });
+    });
+
+    test('should allow disabling chat assistant without key', async () => {
+      // First set chat enabled with key
+      await prisma.tenant.update({
+        where: { id: testTenant.id },
+        data: {
+          featureFlags: {
+            chatAssistantEnabled: true,
+            openaiApiKey: 'sk-existing-key',
+          },
+        },
+      });
+
+      // Now disable without providing key
+      const response = await request(app)
+        .put(`/api/tenants/${testTenant.tenantSlug}/feature-flags`)
+        .set('Cookie', ownerCookie)
+        .send({ chatAssistantEnabled: false });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.chatAssistantEnabled).toBe(false);
+      expect(response.body.data.openaiApiKey).toBe('sk-existing-key'); // Unchanged
     });
 
     test('should validate API key format (must start with sk-)', async () => {
@@ -196,13 +231,13 @@ describe('Tenant Feature Flags Routes', () => {
       expect(response.body.error.userFacingMessage).toContain('Invalid OpenAI API key format');
     });
 
-    test('should allow setting API key to null', async () => {
+    test('should allow setting API key to null when chat is disabled', async () => {
       // First set a key
       await prisma.tenant.update({
         where: { id: testTenant.id },
         data: {
           featureFlags: {
-            chatAssistantEnabled: true,
+            chatAssistantEnabled: false,
             openaiApiKey: 'sk-old-key',
           },
         },
@@ -241,16 +276,16 @@ describe('Tenant Feature Flags Routes', () => {
         },
       });
 
-      // Update only one field
+      // Update only barcode scanning
       const response = await request(app)
         .put(`/api/tenants/${testTenant.tenantSlug}/feature-flags`)
         .set('Cookie', ownerCookie)
-        .send({ chatAssistantEnabled: false });
+        .send({ barcodeScanningEnabled: false });
 
       expect(response.status).toBe(200);
-      expect(response.body.data.chatAssistantEnabled).toBe(false);
+      expect(response.body.data.chatAssistantEnabled).toBe(true); // Unchanged
       expect(response.body.data.openaiApiKey).toBe('sk-existing-key'); // Unchanged
-      expect(response.body.data.barcodeScanningEnabled).toBe(true); // Unchanged
+      expect(response.body.data.barcodeScanningEnabled).toBe(false); // Updated
     });
 
     test('should require authentication', async () => {
@@ -307,6 +342,21 @@ describe('Tenant Feature Flags Routes', () => {
       // Should return original cached response
       expect(response2.body.data.chatAssistantEnabled).toBe(true);
       expect(response2.body.data.openaiApiKey).toBe('sk-test-idem-key');
+    });
+
+    test('should prevent cross-tenant access', async () => {
+      const otherTenant = await createTestTenant();
+
+      const response = await request(app)
+        .put(`/api/tenants/${otherTenant.tenantSlug}/feature-flags`)
+        .set('Cookie', ownerCookie) // Owner cookie for testTenant, not otherTenant
+        .send({ chatAssistantEnabled: false });
+
+      // Should get 403 because owner doesn't have access to otherTenant
+      expect(response.status).toBe(403);
+
+      // Cleanup
+      await prisma.tenant.delete({ where: { id: otherTenant.id } });
     });
   });
 });

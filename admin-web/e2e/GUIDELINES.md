@@ -856,6 +856,53 @@ test('Globex tenant hides barcode scanner', async ({ page }) => {
 });
 ```
 
+### Mantine Switch (Toggle) Pattern
+
+**IMPORTANT:** Mantine Switch components render with a hidden checkbox input and a visible label wrapper. Do NOT try to interact with the checkbox directly - always click the label element instead.
+
+```typescript
+// ✅ CORRECT: Click the label element (visible, interactive)
+const switchLabel = page.locator('label:has-text("Enable AI Chat Assistant"):has(input[data-testid="toggle-chat-assistant"])');
+await switchLabel.click();
+
+// ✅ CORRECT: Check state using the input's data-testid
+const isEnabled = await page.getByTestId('toggle-chat-assistant').isChecked();
+
+// ❌ WRONG: Don't try to .check() or .click() the hidden checkbox
+await page.getByTestId('toggle-chat-assistant').check(); // Will fail: element not visible
+
+// ❌ WRONG: Don't use force options
+await page.getByTestId('toggle-chat-assistant').check({ force: true }); // Fragile, may fail
+```
+
+**Why this pattern works:**
+- Mantine Switch uses a hidden `<input type="checkbox">` for accessibility
+- The visible UI is rendered by the `<label>` element
+- Clicking the label toggles the hidden checkbox (standard HTML behavior)
+- Using `locator()` with `:has-text()` and `:has(input[data-testid])` ensures we click the correct label
+
+**Full example:**
+```typescript
+test('should toggle feature on and off', async ({ page }) => {
+  await page.goto('/settings/features');
+
+  // Define label locator
+  const chatToggleLabel = page.locator(
+    'label:has-text("Enable AI Chat Assistant"):has(input[data-testid="toggle-chat-assistant"])'
+  );
+
+  // Check current state
+  const checkbox = page.getByTestId('toggle-chat-assistant');
+  const wasEnabled = await checkbox.isChecked();
+
+  // Toggle by clicking label
+  await chatToggleLabel.click();
+
+  // Verify state changed
+  await expect(checkbox).toBeChecked({ checked: !wasEnabled });
+});
+```
+
 ---
 
 ## Anti-Patterns to Avoid

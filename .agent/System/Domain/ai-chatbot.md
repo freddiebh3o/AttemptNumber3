@@ -1019,15 +1019,19 @@ data: [DONE]
 ### Tenant-Specific API Keys
 
 **Overview:**
-Tenants can provide their own OpenAI API keys for the AI Chat Assistant, allowing them to:
-- Use their own API budget instead of the server's
-- Control their AI feature costs directly
-- Enable/disable the chat assistant feature independently
+Tenants **MUST** provide their own OpenAI API keys to use the AI Chat Assistant. Each tenant is responsible for:
+- Managing their own OpenAI API budget and costs
+- Providing a valid API key (starting with `sk-`)
+- Controlling their AI feature usage directly
+- Cannot enable chat assistant without a valid key
 
-**API Key Priority (Fallback Chain):**
-1. **Tenant's OpenAI API Key** (if `chatAssistantEnabled: true` and `openaiApiKey` is set)
-2. **Server's Default API Key** (from `OPENAI_API_KEY` environment variable)
-3. **No API Key** - Chat assistant returns error
+**IMPORTANT:** There is no server-level API key fallback. Tenants cannot enable the chat assistant without providing their own key.
+
+**API Key Requirement:**
+- **Tenant's OpenAI API Key** is **REQUIRED** when `chatAssistantEnabled: true`
+- **Validation enforced** on both frontend and backend
+- **No fallback** to server environment variables
+- **Error returned** if chat assistant is used without a configured key
 
 **Implementation:**
 ```typescript
@@ -1042,13 +1046,13 @@ const tenant = await prisma.tenant.findUnique({
 
 const flags = tenant.featureFlags as TenantFeatureFlags;
 
-// 2. Check if tenant has chat assistant enabled with custom key
+// 2. Return tenant's key ONLY if chat is enabled AND key exists
 if (flags?.chatAssistantEnabled && flags?.openaiApiKey) {
   return flags.openaiApiKey; // Use tenant's key
 }
 
-// 3. Fall back to server's default key
-return process.env.OPENAI_API_KEY || null;
+// 3. No fallback - return null if key not configured
+return null;
 ```
 
 **Feature Flags Structure:**
