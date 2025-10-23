@@ -1,7 +1,7 @@
 # E2E Test Coverage Matrix
 
 **Created:** 2025-10-22
-**Last Updated:** 2025-10-22
+**Last Updated:** 2025-10-23
 
 ---
 
@@ -9,9 +9,9 @@
 
 | Metric | Backend (Jest) | E2E (Playwright) | Total |
 |--------|----------------|------------------|-------|
-| **Total Tests** | 1,007 | 312 | 1,319 |
-| **Test Files** | 49 | 26 | 75 |
-| **Average Tests/File** | 20.5 | 12.0 | 17.6 |
+| **Total Tests** | 1,007 | 338 | 1,345 |
+| **Test Files** | 49 | 27 | 76 |
+| **Average Tests/File** | 20.5 | 12.5 | 17.7 |
 
 ---
 
@@ -29,7 +29,7 @@
 
 | Backend Tests | E2E Tests | Coverage | Gap Level |
 |--------------|-----------|----------|-----------|
-| 87 | 28 | 32% | ✅ LOW |
+| 87 | 54 | 62% | ✅ LOW |
 
 **Backend Test Files (4 files):**
 - `productService.test.ts` (38 tests)
@@ -37,14 +37,15 @@
 - `barcodes.test.ts` (23 tests)
 - `productArchival.test.ts` (2 tests)
 
-**E2E Test Files (2 files):**
+**E2E Test Files (4 files):**
 - `products/product-crud.spec.ts` (20 tests)
 - `products/product-archive.spec.ts` (8 tests)
+- `products/product-barcodes.spec.ts` (0 tests) - **Placeholder**
+- `products/product-stock-levels.spec.ts` (26 tests) - **NEW ✅**
 
 **Missing E2E Coverage:**
 - Product Activity tab (audit log view)
-- Product Stock Levels tab
-- Advanced barcode scanning workflows
+- Advanced barcode scanning workflows (file exists but empty)
 
 ---
 

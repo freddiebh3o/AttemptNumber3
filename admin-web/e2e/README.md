@@ -126,7 +126,9 @@ admin-web/e2e/
 │
 ├── products/                      # Product management tests
 │   ├── product-crud.spec.ts      # Product CRUD operations
-│   └── product-archive.spec.ts   # Archive/restore functionality
+│   ├── product-archive.spec.ts   # Archive/restore functionality
+│   ├── product-barcodes.spec.ts  # Barcode scanning (placeholder)
+│   └── product-stock-levels.spec.ts  # Stock Levels tab (26 tests)
 │
 ├── stock/                         # Stock management tests
 │   └── stock-management.spec.ts  # FIFO, adjustments, ledger
@@ -694,6 +696,6 @@ When adding new E2E tests:
 
 ---
 
-**Last Updated:** 2025-10-18
-**Test Files:** 18 specs across 6 domains
-**Total Tests:** 299 passing (227 backend + 72 frontend)
+**Last Updated:** 2025-10-23
+**Test Files:** 19 specs across 6 domains
+**Total Tests:** 325 passing (227 backend + 98 frontend)
