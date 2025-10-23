@@ -10,8 +10,8 @@
 | Metric | Backend (Jest) | E2E (Playwright) | Total |
 |--------|----------------|------------------|-------|
 | **Total Tests** | 1,007 | 364 | 1,371 |
-| **Test Files** | 49 | 29 | 78 |
-| **Average Tests/File** | 20.5 | 12.6 | 17.6 |
+| **Test Files** | 49 | 31 | 80 |
+| **Average Tests/File** | 20.5 | 11.7 | 17.1 |
 
 ---
 

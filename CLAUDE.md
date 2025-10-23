@@ -393,7 +393,7 @@ type CreateBody = paths['/api/products']['post']['requestBody']['content']['appl
 
 ### Test Coverage Summary
 
-**Total: 299 passing tests (227 backend + 72 frontend)**
+**Total: 351 passing tests (227 backend + 124 frontend)**
 
 **Backend (Jest):**
 - Authentication & RBAC: 46 tests
@@ -405,8 +405,9 @@ type CreateBody = paths['/api/products']['post']['requestBody']['content']['appl
 
 **Frontend (Playwright E2E):**
 - Authentication Flow: 12 tests (sign-in page + full flow)
-- Product Management: 23 tests (CRUD, permissions, validation)
+- Product Management: 71 tests (CRUD, permissions, stock levels tab, activity tab)
 - Stock Management: 20 tests (FIFO, adjust stock, ledger, branch selection)
+- Stock Transfers: 4 tests (batch shipment workflow, validation)
 - Permission-Based UI: 21 tests (all roles across all features)
 
 ### Running Tests
@@ -422,16 +423,19 @@ npm run test:accept:coverage     # Generate coverage report
 **Admin Web (Playwright E2E):**
 ```bash
 cd admin-web
-npm run test:accept              # Headless mode (72 passing)
+npm run test:accept              # Headless mode (124 passing)
 npm run test:accept:ui           # Interactive UI mode (recommended for debugging)
 npm run test:accept:debug        # Debug with breakpoints
 npm run test:accept:report       # View HTML report of last run
 
 # Run specific test file
-npm run test:accept -- auth-flow.spec.ts
-npm run test:accept -- product-management.spec.ts
-npm run test:accept -- stock-management.spec.ts
-npm run test:accept -- permission-checks.spec.ts
+npm run test:accept -- auth/auth-flow.spec.ts
+npm run test:accept -- products/product-crud.spec.ts
+npm run test:accept -- products/product-stock-levels.spec.ts
+npm run test:accept -- products/product-activity.spec.ts
+npm run test:accept -- transfers/transfer-partial-shipment.spec.ts
+npm run test:accept -- stock/stock-management.spec.ts
+npm run test:accept -- permissions/permission-checks.spec.ts
 ```
 
 **Prerequisites for E2E tests:**
