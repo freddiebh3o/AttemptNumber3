@@ -313,7 +313,7 @@ export default function TenantUserPage() {
         <Group justify="space-between" align="start">
           <Title order={2}>Edit user</Title>
           <Group>
-            <Button variant="default" onClick={() => navigate(-1)}>
+            <Button variant="default" onClick={() => navigate(`/${tenantSlug}/users`)}>
               Back
             </Button>
           </Group>
@@ -346,7 +346,7 @@ export default function TenantUserPage() {
           )}
         </Group>
         <Group>
-          <Button variant="default" onClick={() => navigate(-1)}>Cancel</Button>
+          <Button variant="default" onClick={() => navigate(`/${tenantSlug}/users`)}>Cancel</Button>
           {isEdit && isArchived && canManageUsers && (
             <Button
               onClick={handleRestoreUser}

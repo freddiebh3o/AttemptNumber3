@@ -219,7 +219,7 @@ export default function RolePage() {
         <Group justify="space-between" align="start">
           <Title order={2}>Edit role</Title>
           <Group>
-            <Button variant="default" onClick={() => navigate(-1)}>
+            <Button variant="default" onClick={() => navigate(`/${tenantSlug}/roles`)}>
               Back
             </Button>
           </Group>
@@ -286,9 +286,9 @@ export default function RolePage() {
               Restore
             </Button>
           )}
-          <Button variant="default" onClick={() => navigate(-1)}>
+          <Button variant="default" onClick={() => navigate(`/${tenantSlug}/roles`)}>
             Cancel
-          </Button>
+        </Button>
           <Button
             onClick={handleSave}
             loading={busy}

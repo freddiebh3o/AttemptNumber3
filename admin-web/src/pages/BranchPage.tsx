@@ -205,7 +205,7 @@ export default function BranchPage() {
           )}
         </Group>
         <Group>
-          <Button variant="default" onClick={() => navigate(-1)} data-testid="cancel-branch-button">Cancel</Button>
+          <Button variant="default" onClick={() => navigate(`/${tenantSlug}/branches`)} data-testid="cancel-branch-button">Cancel</Button>
           {isEdit && isArchived && canManage && (
             <Button
               onClick={handleRestoreBranch}

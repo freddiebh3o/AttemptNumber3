@@ -475,7 +475,7 @@ export default function TransferApprovalRulesPage() {
             <Select
               label="Show Rules"
               data={[
-                { value: "active-only", label: "Active rules only" },
+                { value: "active-only", label: "Non-archived rules only" },
                 { value: "archived-only", label: "Archived rules only" },
                 { value: "all", label: "All rules (active + archived)" },
               ]}

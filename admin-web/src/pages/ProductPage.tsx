@@ -217,7 +217,7 @@ export default function ProductPage() {
         <Group justify="space-between" align="start">
           <Title order={2}>Edit product</Title>
           <Group>
-            <Button variant="default" onClick={() => navigate(-1)}>
+            <Button variant="default" onClick={() => navigate(`/${tenantSlug}/products`)}>
               Back
             </Button>
           </Group>
@@ -257,7 +257,7 @@ export default function ProductPage() {
           )}
         </Group>
         <Group>
-          <Button variant="default" onClick={() => navigate(-1)}>
+          <Button variant="default" onClick={() => navigate(`/${tenantSlug}/products`)}>
             Cancel
           </Button>
           {isEdit && isArchived && canWriteProducts && (

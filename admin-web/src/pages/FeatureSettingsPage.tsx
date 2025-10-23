@@ -1,7 +1,6 @@
 /* admin-web/src/pages/FeatureSettingsPage.tsx */
 import { useState, useEffect } from 'react';
 import {
-  Container,
   Title,
   Paper,
   Stack,
@@ -122,107 +121,103 @@ export default function FeatureSettingsPage() {
 
   if (loading) {
     return (
-      <Container size="md" py="xl">
-        <Group justify="center">
-          <Loader />
-        </Group>
-      </Container>
+      <Group justify="center">
+        <Loader />
+      </Group>
     );
   }
 
   return (
-    <Container size="md" py="xl">
-      <Stack gap="lg">
+    <Stack gap="lg">
+      <Group justify="space-between" align="start">
         <Title order={2}>Feature Settings</Title>
+        
+        <Button
+          onClick={handleSave}
+          loading={saving}
+          data-testid="btn-save-features"
+        >
+          Save Settings
+        </Button>
+      </Group>
 
-        <Paper p="lg" withBorder>
-          <Stack gap="md">
-            <Title order={3}>AI Chat Assistant</Title>
+      <Paper p="lg" withBorder>
+        <Stack gap="md">
+          <Title order={3}>AI Chat Assistant</Title>
 
-            <Switch
-              label="Enable AI Chat Assistant"
-              description="Allow users to use the AI-powered chat assistant"
-              checked={featureFlags.chatAssistantEnabled}
-              onChange={(event) =>
-                setFeatureFlags({
-                  ...featureFlags,
-                  chatAssistantEnabled: event.currentTarget.checked,
-                })
-              }
-              data-testid="toggle-chat-assistant"
-            />
+          <Switch
+            label="Enable AI Chat Assistant"
+            description="Allow users to use the AI-powered chat assistant"
+            checked={featureFlags.chatAssistantEnabled}
+            onChange={(event) =>
+              setFeatureFlags({
+                ...featureFlags,
+                chatAssistantEnabled: event.currentTarget.checked,
+              })
+            }
+            data-testid="toggle-chat-assistant"
+          />
 
-            <TextInput
-              label="OpenAI API Key"
-              placeholder="sk-..."
-              type="password"
-              description="Required to enable AI Chat Assistant"
-              value={featureFlags.openaiApiKey || ''}
-              onChange={(event) =>
-                setFeatureFlags({
-                  ...featureFlags,
-                  openaiApiKey: event.currentTarget.value || null,
-                })
-              }
-              error={validationError}
-              required={featureFlags.chatAssistantEnabled}
-              data-testid="input-openai-api-key"
-            />
+          <TextInput
+            label="OpenAI API Key"
+            placeholder="sk-..."
+            type="password"
+            description="Required to enable AI Chat Assistant"
+            value={featureFlags.openaiApiKey || ''}
+            onChange={(event) =>
+              setFeatureFlags({
+                ...featureFlags,
+                openaiApiKey: event.currentTarget.value || null,
+              })
+            }
+            error={validationError}
+            required={featureFlags.chatAssistantEnabled}
+            data-testid="input-openai-api-key"
+          />
 
-            {validationError && (
-              <Alert
-                icon={<IconAlertCircle size={16} />}
-                title="Validation Error"
-                color="red"
-                data-testid="alert-validation-error"
-              >
-                <Text size="sm">{validationError}</Text>
-              </Alert>
-            )}
-
-            <Alert icon={<IconInfoCircle size={16} />} title="Important" color="blue">
-              <Text size="sm">
-                <strong>You must provide your own OpenAI API key to use the AI Chat Assistant.</strong>
-                {' '}All chat usage will be billed to your OpenAI account. Get your API key from{' '}
-                <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">
-                  OpenAI Platform
-                </a>.
-              </Text>
+          {validationError && (
+            <Alert
+              icon={<IconAlertCircle size={16} />}
+              title="Validation Error"
+              color="red"
+              data-testid="alert-validation-error"
+            >
+              <Text size="sm">{validationError}</Text>
             </Alert>
-          </Stack>
-        </Paper>
+          )}
 
-        <Divider />
+          <Alert icon={<IconInfoCircle size={16} />} title="Important" color="blue">
+            <Text size="sm">
+              <strong>You must provide your own OpenAI API key to use the AI Chat Assistant.</strong>
+              {' '}All chat usage will be billed to your OpenAI account. Get your API key from{' '}
+              <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">
+                OpenAI Platform
+              </a>.
+            </Text>
+          </Alert>
+        </Stack>
+      </Paper>
 
-        <Paper p="lg" withBorder>
-          <Stack gap="md">
-            <Title order={3}>Barcode Scanning</Title>
+      <Divider />
 
-            <Switch
-              label="Enable Barcode Scanning"
-              description="Allow users to scan product barcodes with their device camera"
-              checked={featureFlags.barcodeScanningEnabled}
-              onChange={(event) =>
-                setFeatureFlags({
-                  ...featureFlags,
-                  barcodeScanningEnabled: event.currentTarget.checked,
-                })
-              }
-              data-testid="toggle-barcode-scanning"
-            />
-          </Stack>
-        </Paper>
+      <Paper p="lg" withBorder>
+        <Stack gap="md">
+          <Title order={3}>Barcode Scanning</Title>
 
-        <Group justify="flex-end">
-          <Button
-            onClick={handleSave}
-            loading={saving}
-            data-testid="btn-save-features"
-          >
-            Save Settings
-          </Button>
-        </Group>
-      </Stack>
-    </Container>
+          <Switch
+            label="Enable Barcode Scanning"
+            description="Allow users to scan product barcodes with their device camera"
+            checked={featureFlags.barcodeScanningEnabled}
+            onChange={(event) =>
+              setFeatureFlags({
+                ...featureFlags,
+                barcodeScanningEnabled: event.currentTarget.checked,
+              })
+            }
+            data-testid="toggle-barcode-scanning"
+          />
+        </Stack>
+      </Paper>
+    </Stack>
   );
 }
