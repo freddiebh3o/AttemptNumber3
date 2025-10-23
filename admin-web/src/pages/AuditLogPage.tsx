@@ -669,7 +669,7 @@ export default function AuditLogPage() {
               placeholder="UUID"
               value={values.actorUserId}
               onChange={(e) =>
-                setValues((prev) => ({ ...prev, actorUserId: e.currentTarget.value }))
+                setValues((prev) => ({ ...prev, actorUserId: e.target.value }))
               }
             />
 
@@ -678,7 +678,7 @@ export default function AuditLogPage() {
               placeholder="Entity UUID"
               value={values.entityId}
               onChange={(e) =>
-                setValues((prev) => ({ ...prev, entityId: e.currentTarget.value }))
+                setValues((prev) => ({ ...prev, entityId: e.target.value }))
               }
             />
 

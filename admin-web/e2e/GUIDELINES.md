@@ -297,13 +297,18 @@ await page.getByRole('link', { name: /products/i }).click();
 
 ### 3. getByLabel (Form Fields)
 
-**When to use:** Form inputs, selects, textareas
+**When to use:** Simple text inputs, textareas, checkboxes
 
 ```typescript
-// ✅ GOOD: Accessible, semantic
+// ✅ GOOD: Simple text inputs
 await page.getByLabel(/product name/i).fill('Widget');
 await page.getByLabel(/email address/i).fill('user@example.com');
 await page.getByLabel(/password/i).fill('secret');
+
+// ⚠️ CAUTION: For Mantine Select, use getByRole('textbox') instead
+// getByLabel matches both the input AND the dropdown listbox (strict mode violation)
+const select = page.getByRole('textbox', { name: /entity type/i });
+await select.click();
 ```
 
 ### 4. getByText (Use Sparingly)
@@ -320,13 +325,35 @@ await page.getByText('Save').click(); // Use getByRole('button', { name: /save/i
 
 ### Handling Mantine Components
 
-**Mantine Select (no data-testid):**
+**Mantine Select (Recommended Pattern):**
 
 ```typescript
-// Use aria attributes
-const select = page.locator('input[id*="mantine"][aria-haspopup="listbox"]').first();
-await select.click();
-await page.getByText('Option Name', { exact: true }).click();
+// ✅ BEST: Use semantic role-based selectors
+const entityTypeInput = page.getByRole('textbox', { name: /entity type/i });
+await entityTypeInput.click();
+await page.getByRole('option', { name: 'PRODUCT', exact: true }).click();
+
+// ❌ AVOID: getByLabel matches both input AND listbox dropdown (strict mode violation)
+await page.getByLabel(/entity type/i).click();
+
+// ❌ AVOID: getByText matches dropdown options AND table content
+await page.getByText('PRODUCT', { exact: true }).click();
+```
+
+**Why this works:**
+- `getByRole('textbox')` targets only the input field (not the dropdown listbox)
+- `getByRole('option', { exact: true })` targets only dropdown options (not table content)
+- `exact: true` prevents "PRODUCT" from matching "PRODUCT_STOCK"
+
+**Mantine DatePickerInput:**
+
+```typescript
+// ✅ BEST: Use URL parameters (simpler, more reliable)
+await page.goto(`/page?startDate=${isoDate}&endDate=${isoDate}`);
+
+// ❌ AVOID: Complex date picker interactions
+// DatePickerInput renders as a button that opens a calendar popup
+// Interacting with it requires complex navigation and is fragile
 ```
 
 **Mantine Modal:**
@@ -336,6 +363,25 @@ await page.getByText('Option Name', { exact: true }).click();
 const modal = page.getByRole('dialog');
 await modal.getByLabel(/product name/i).fill('New Name');
 await modal.getByRole('button', { name: /save/i }).click();
+```
+
+**Avoiding Strict Mode Violations:**
+
+```typescript
+// ✅ GOOD: Use exact match with regex anchors
+page.getByRole('button', { name: /^filters$/i })  // Matches "Filters" only
+page.getByRole('option', { name: 'CREATE', exact: true })  // Exact match
+
+// ✅ GOOD: Use .first() when multiple similar elements exist
+page.getByText(/showing \d+–\d+/i).first()
+
+// ✅ GOOD: Scope to parent container to avoid ambiguity
+const emptyState = page.getByText(/no results/i).locator('..');
+await emptyState.getByRole('button', { name: /clear all/i }).click();
+
+// ❌ BAD: Ambiguous selectors
+page.getByRole('button', { name: /filters/i })  // Matches "Filters" AND "Apply filters"
+page.getByRole('option', { name: 'PRODUCT' })   // Matches "PRODUCT" AND "PRODUCT_STOCK"
 ```
 
 ---
