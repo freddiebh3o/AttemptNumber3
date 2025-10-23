@@ -190,7 +190,7 @@ admin-web/e2e/
 ### New Test Files to Create
 
 - [x] features/branches/branch-crud.spec.ts (Create/Read/Update/List branches) - **COMPLETED**
-- [ ] features/roles/role-crud.spec.ts (Create/Read/Update/List roles)
+- [x] features/roles/role-crud.spec.ts (Create/Read/Update/List roles) - **COMPLETED**
 - [ ] features/users/user-crud.spec.ts (Create/Edit users with branch assignments)
 - [ ] features/transfers/transfer-crud.spec.ts (Create/Edit transfer drafts)
 - [ ] features/transfers/transfer-workflow.spec.ts (Draft → Submit → Approve → Ship → Receive)
@@ -217,22 +217,34 @@ admin-web/e2e/
 - [x] Created BranchFactory.addCurrentUserToBranch() helper method
 - [x] Fixed React synthetic event pooling issue in filter search input
 
-### Role CRUD Tests
+### Role CRUD Tests ✅ COMPLETED
 
 **File:** [admin-web/e2e/features/roles/role-crud.spec.ts](../../../admin-web/e2e/features/roles/role-crud.spec.ts)
 
-- [ ] Test: List all roles with table display
-- [ ] Test: View system roles (OWNER, ADMIN, EDITOR, VIEWER)
-- [ ] Test: Navigate to create role page
-- [ ] Test: Create custom role with permissions
-- [ ] Test: Validation errors for empty role name
-- [ ] Test: Edit custom role permissions
-- [ ] Test: Cannot edit system role permissions
-- [ ] Test: View role details with permission list
-- [ ] Test: Permission check - Only OWNER/ADMIN can manage roles
-- [ ] Refer to [admin-web/e2e/GUIDELINES.md](../../../admin-web/e2e/GUIDELINES.md) for test patterns
-- [ ] Use consistent helper functions (signIn, Factories.role)
-- [ ] Add data-testid attributes to role management UI
+- [x] Test: List all roles with table display
+- [x] Test: View system roles (OWNER, ADMIN, EDITOR, VIEWER)
+- [x] Test: Navigate to create role page
+- [x] Test: Create custom role with permissions
+- [x] Test: Validation errors for empty role name
+- [x] Test: Edit custom role permissions
+- [x] Test: Cannot edit system role permissions
+- [x] Test: View role details with permission list
+- [x] Test: Permission check - viewer cannot access roles page
+- [x] Test: Permission check - admin can view but cannot create/edit (only has roles:read)
+- [x] Test: Permission check - owner can create/edit (has roles:manage)
+- [x] Refer to [admin-web/e2e/GUIDELINES.md](../../../admin-web/e2e/GUIDELINES.md) for test patterns
+- [x] Use consistent helper functions (signIn, Factories.role)
+- [x] Used existing data-testid attributes (role-system-badge, system-badge, archived-badge)
+
+**Implementation Notes:**
+- Fixed route guards: Changed from `roles:manage` to `roles:read` in [main.tsx](../../../admin-web/src/main.tsx) (lines 141, 150)
+- Fixed sidebar navigation: Changed from `roles:manage` to `roles:read` in [SidebarNav.tsx](../../../admin-web/src/components/shell/SidebarNav.tsx) (lines 99, 115)
+- Added permission guard to "New role" button in [RolesPage.tsx](../../../admin-web/src/pages/RolesPage.tsx) (line 822)
+- Used `getByRole('textbox', { name: 'Name' })` pattern for form inputs
+- Used `getByPlaceholder('Select permissions')` for MultiSelect component
+- Permission dropdown options formatted as `key — description` (e.g., "products:read — View products")
+- Used 500ms timeout for Mantine MultiSelect dropdown animations
+- Added `^` anchor to notification regexes to avoid strict mode violations
 
 ### User CRUD Tests
 

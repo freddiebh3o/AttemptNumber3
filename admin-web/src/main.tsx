@@ -138,7 +138,7 @@ const router = createBrowserRouter([
           {
             path: 'roles',
             element: (
-              <RequirePermission perm="roles:manage">
+              <RequirePermission perm="roles:read">
                 <RolesPage />
               </RequirePermission>
             ),
@@ -147,7 +147,7 @@ const router = createBrowserRouter([
           {
             path: 'roles/:roleId',
             element: (
-              <RequirePermission perm="roles:manage">
+              <RequirePermission perm="roles:read">
                 <RolePage />
               </RequirePermission>
             ),

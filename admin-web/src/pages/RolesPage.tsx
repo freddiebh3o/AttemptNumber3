@@ -55,6 +55,7 @@ import {
 import type { components } from "../types/openapi";
 import { FilterBar } from "../components/common/FilterBar";
 import { buildCommonDatePresets } from "../utils/datePresets";
+import { usePermissions } from "../hooks/usePermissions";
 
 type RoleRecord = components["schemas"]["RoleRecord"];
 type SortField = "name" | "createdAt" | "updatedAt" | "isSystem";
@@ -96,6 +97,7 @@ export default function RolesPage() {
   const location = useLocation();
   const navigationType = useNavigationType();
   const navigate = useNavigate();
+  const { hasPerm } = usePermissions();
 
   // data
   const [rows, setRows] = useState<RoleRecord[] | null>(null);
@@ -817,6 +819,7 @@ export default function RolesPage() {
             <Button
               leftSection={<IconPlus size={16} />}
               onClick={() => navigate(`/${tenantSlug}/roles/new`)}
+              disabled={!hasPerm('roles:manage')}
             >
               New role
             </Button>

@@ -96,7 +96,7 @@ export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) 
           </NavLink>
         )}
 
-        {(hasPerm("users:manage") || hasPerm("roles:manage")) && (
+        {(hasPerm("users:manage") || hasPerm("roles:read")) && (
           <NavLink
             label="User Management"
             leftSection={<IconUserCog size={16} />}
@@ -112,7 +112,7 @@ export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) 
                 leftSection={<IconUsers size={16} />}
               />
             )}
-            {hasPerm("roles:manage") && (
+            {hasPerm("roles:read") && (
               <NavLink
                 label="Roles"
                 component={Link}
