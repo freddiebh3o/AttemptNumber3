@@ -57,7 +57,7 @@ npm run test:accept:ui  # Interactive UI mode (recommended)
 
 ```bash
 cd admin-web
-npm run test:accept              # Parallel (uses all CPU cores, ~2-5 min for 72 tests)
+npm run test:accept              # Parallel (uses all CPU cores, ~2-5 min for 124 tests)
 npm run test:accept:ui           # Interactive UI mode (recommended for development)
 npm run test:accept:parallel     # Force 4 workers (predictable performance)
 npm run test:accept:fast         # 4 workers, no retries (fastest local run)
@@ -68,7 +68,7 @@ npm run test:accept:fast         # 4 workers, no retries (fastest local run)
 - Local: Usually 4-8 workers depending on CPU
 - CI: 4 workers (balanced performance/resource usage)
 - Rate limiting is disabled in E2E environment to support parallel execution
-- ~2-5 minutes to run all 72 tests (vs ~15-20 minutes serial)
+- ~3-6 minutes to run all 124 tests (vs ~20-30 minutes serial)
 
 ### Run Specific Domain
 
@@ -128,13 +128,15 @@ admin-web/e2e/
 │   ├── product-crud.spec.ts      # Product CRUD operations
 │   ├── product-archive.spec.ts   # Archive/restore functionality
 │   ├── product-barcodes.spec.ts  # Barcode scanning (placeholder)
-│   └── product-stock-levels.spec.ts  # Stock Levels tab (26 tests)
+│   ├── product-stock-levels.spec.ts  # Stock Levels tab (26 tests)
+│   └── product-activity.spec.ts  # Activity tab - audit log (22 tests)
 │
 ├── stock/                         # Stock management tests
 │   └── stock-management.spec.ts  # FIFO, adjustments, ledger
 │
 ├── transfers/                     # Stock transfer tests
 │   ├── transfer-templates.spec.ts        # Transfer templates
+│   ├── transfer-partial-shipment.spec.ts # Batch shipment workflow (4 tests)
 │   ├── approval-rules.spec.ts            # Approval rule system
 │   ├── multi-level-approval.spec.ts      # Multi-level approvals
 │   ├── transfer-reversal.spec.ts         # Transfer reversal flows
@@ -697,5 +699,5 @@ When adding new E2E tests:
 ---
 
 **Last Updated:** 2025-10-23
-**Test Files:** 19 specs across 6 domains
-**Total Tests:** 325 passing (227 backend + 98 frontend)
+**Test Files:** 20 specs across 6 domains
+**Total Tests:** 351 passing (227 backend + 124 frontend)

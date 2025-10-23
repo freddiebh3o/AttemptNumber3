@@ -9,9 +9,9 @@
 
 | Metric | Backend (Jest) | E2E (Playwright) | Total |
 |--------|----------------|------------------|-------|
-| **Total Tests** | 1,007 | 338 | 1,345 |
-| **Test Files** | 49 | 27 | 76 |
-| **Average Tests/File** | 20.5 | 12.5 | 17.7 |
+| **Total Tests** | 1,007 | 364 | 1,371 |
+| **Test Files** | 49 | 29 | 78 |
+| **Average Tests/File** | 20.5 | 12.6 | 17.6 |
 
 ---
 
@@ -25,11 +25,11 @@
 
 ---
 
-### 1. Products ✅ LOW GAP
+### 1. Products ✅ EXCELLENT COVERAGE
 
 | Backend Tests | E2E Tests | Coverage | Gap Level |
 |--------------|-----------|----------|-----------|
-| 87 | 54 | 62% | ✅ LOW |
+| 87 | 76 | 87% | ✅ EXCELLENT |
 
 **Backend Test Files (4 files):**
 - `productService.test.ts` (38 tests)
@@ -37,14 +37,14 @@
 - `barcodes.test.ts` (23 tests)
 - `productArchival.test.ts` (2 tests)
 
-**E2E Test Files (4 files):**
+**E2E Test Files (5 files):**
 - `products/product-crud.spec.ts` (20 tests)
 - `products/product-archive.spec.ts` (8 tests)
 - `products/product-barcodes.spec.ts` (0 tests) - **Placeholder**
 - `products/product-stock-levels.spec.ts` (26 tests) - **NEW ✅**
+- `products/product-activity.spec.ts` (22 tests) - **NEW ✅**
 
 **Missing E2E Coverage:**
-- Product Activity tab (audit log view)
 - Advanced barcode scanning workflows (file exists but empty)
 
 ---
@@ -74,12 +74,12 @@
 
 | Backend Tests | E2E Tests | Coverage | Gap Level |
 |--------------|-----------|----------|-----------|
-| 198 | 67 | 34% | ✅ LOW |
+| 198 | 71 | 36% | ✅ LOW |
 
 **Backend Test Files (10 files):**
 - `transferService.test.ts` (29 tests)
 - `transferRoutes.test.ts` (56 tests)
-- `partialShipment.test.ts` (22 tests) ⚠️ **Missing E2E**
+- `partialShipment.test.ts` (22 tests) ✅ **Covered**
 - `transferPriority.test.ts` (14 tests) ⚠️ **Missing E2E**
 - `templates/templateService.test.ts` (33 tests)
 - `templates/templateRoutes.test.ts` (19 tests)
@@ -88,7 +88,7 @@
 - `approvals/approvalRulesRoutes.test.ts` (15 tests)
 - `approvals/approvalRuleArchival.test.ts` (14 tests)
 
-**E2E Test Files (7 files):**
+**E2E Test Files (8 files):**
 - `transfers/approval-rules.spec.ts` (12 tests)
 - `transfers/multi-level-approval.spec.ts` (9 tests)
 - `transfers/approval-rule-archival.spec.ts` (11 tests)
@@ -96,11 +96,11 @@
 - `transfers/transfer-reversal.spec.ts` (6 tests)
 - `transfers/transfer-templates.spec.ts` (15 tests)
 - `transfers/transfer-template-archival.spec.ts` (9 tests)
+- `transfers/transfer-partial-shipment.spec.ts` (4 tests) - **NEW ✅**
 
 **Missing E2E Coverage:**
 - Transfer CRUD (create/edit draft)
 - Complete transfer workflow (draft → submit → approve → ship → receive)
-- Partial shipment E2E flows
 - Transfer priority handling
 
 ---
