@@ -1011,11 +1011,91 @@ await page.getByText('Option', { exact: true }).click();
 - Transfer tests benefit from conditional logic (data availability checks)
 - Don't over-abstract domain-specific helpers
 - Use serial mode to prevent transferNumber collisions
+- **Batch shipment workflow**: Transfers stay `APPROVED` until ALL items fully shipped, then become `IN_TRANSIT`
+- **Avoid approval rules in tests**: Use low prices (under £10/product) and low quantities (under £100 total value)
 
 **Patterns:**
 ```typescript
 // Serial mode for collision prevention
 test.describe.configure({ mode: 'serial' });
+
+// Batch Shipment Workflow Pattern
+// Status: APPROVED → IN_TRANSIT → PARTIALLY_RECEIVED → COMPLETED
+
+// 1. Create transfer with low value to avoid approval rules
+const transferId = await Factories.transfer.create(page, {
+  sourceBranchId,
+  destinationBranchId: destBranchId,
+  items: [{ productId, qty: 10 }], // 10 × £5 = £50 (under £100 threshold)
+});
+
+await Factories.transfer.approve(page, transferId);
+
+const transfer = await Factories.transfer.getById(page, transferId);
+const itemId = transfer.items[0].id;
+
+// 2. Ship in batches - status stays APPROVED until all shipped
+await Factories.transfer.ship(page, {
+  transferId,
+  items: [{ itemId, qtyToShip: 6 }], // Partial ship
+});
+
+let updated = await Factories.transfer.getById(page, transferId);
+expect(updated.status).toBe('APPROVED'); // Still APPROVED
+
+// 3. Ship remaining - NOW becomes IN_TRANSIT
+await Factories.transfer.ship(page, {
+  transferId,
+  items: [{ itemId, qtyToShip: 4 }], // Complete shipping
+});
+
+updated = await Factories.transfer.getById(page, transferId);
+expect(updated.status).toBe('IN_TRANSIT'); // Now can receive
+
+// 4. Receive in batches - status becomes PARTIALLY_RECEIVED
+await Factories.transfer.receive(page, {
+  transferId,
+  items: [{ itemId, qtyReceived: 7 }],
+});
+
+updated = await Factories.transfer.getById(page, transferId);
+expect(updated.status).toBe('PARTIALLY_RECEIVED');
+
+// 5. Receive remaining - status becomes COMPLETED
+await Factories.transfer.receive(page, {
+  transferId,
+  items: [{ itemId, qtyReceived: 3 }],
+});
+
+updated = await Factories.transfer.getById(page, transferId);
+expect(updated.status).toBe('COMPLETED');
+```
+
+**Avoiding Approval Rules in Tests:**
+```typescript
+// Approval rules trigger at:
+// - >£100 total transfer value
+// - >100 total units
+// - Transfers FROM warehouse (branch-specific rule)
+
+// Use LOW prices and quantities
+const productId = await Factories.product.create(page, {
+  productName: `Test Product ${timestamp}`,
+  productSku: `TST-${timestamp}`,
+  productPricePence: 500, // £5 (low price)
+});
+
+const transferId = await Factories.transfer.create(page, {
+  sourceBranchId,
+  destinationBranchId: destBranchId,
+  items: [
+    { productId: product1Id, qty: 10 }, // 10 × £5 = £50
+    { productId: product2Id, qty: 8 },  // 8 × £6 = £48
+  ],                                     // Total: £98 (under £100 threshold)
+});
+
+// This transfer can use simple approve() without multi-level approval workflow
+await Factories.transfer.approve(page, transferId);
 ```
 
 ### Chat Domain
@@ -1077,6 +1157,7 @@ When migrating old tests to new structure:
 
 ---
 
-**Last Updated:** 2025-10-18
-**Refactoring Phases:** 8 of 9 complete
+**Last Updated:** 2025-10-23
+**Refactoring Phases:** 4 complete (Stock Levels, Activity, Partial Shipment batch workflow)
 **Total Code Reduction:** ~600+ lines removed across all domains
+**New Patterns Added:** Batch shipment workflow, avoiding approval rules in tests

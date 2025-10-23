@@ -517,27 +517,17 @@ admin-web/e2e/
 - Avoided approval rules by using products priced at £5-6 and transfer totals under £100
 - Reduced from 9 redundant tests to 4 focused, essential tests
 
-### Theme Customization Tests
+### Documentation ✅ COMPLETED
 
-**File:** [admin-web/e2e/features/theme/theme-customization.spec.ts](../../../admin-web/e2e/features/theme/theme-customization.spec.ts)
+- [x] Update test coverage matrix with all new tests
+- [x] Document partial shipment testing pattern
+- [x] Update [admin-web/e2e/GUIDELINES.md](../../../admin-web/e2e/GUIDELINES.md) with advanced patterns
 
-- [ ] Test: Navigate to theme settings page
-- [ ] Test: Select theme preset (Light, Dark, Custom)
-- [ ] Test: Customize primary color
-- [ ] Test: Customize secondary color
-- [ ] Test: Save theme changes
-- [ ] Test: Theme changes apply across application
-- [ ] Test: Reset to default theme
-- [ ] Test: Preview theme before saving
-- [ ] Test: Permission check - Only OWNER/ADMIN can customize theme
-- [ ] Refer to [admin-web/e2e/GUIDELINES.md](../../../admin-web/e2e/GUIDELINES.md) for test patterns
-- [ ] Add data-testid attributes to theme customization UI
-
-### Documentation
-
-- [ ] Update test coverage matrix with all new tests
-- [ ] Document partial shipment testing pattern
-- [ ] Update [admin-web/e2e/GUIDELINES.md](../../../admin-web/e2e/GUIDELINES.md) with advanced patterns
+**What was added to GUIDELINES.md:**
+- Complete batch shipment workflow pattern (APPROVED → IN_TRANSIT → PARTIALLY_RECEIVED → COMPLETED)
+- How to avoid approval rules in tests (use products under £10, transfers under £100 total)
+- Code examples for batch shipping and receiving
+- Status transition expectations
 
 **⚠️ IMPORTANT: NEVER RUN THE TESTS - User will run them manually after each test file is created**
 
