@@ -179,7 +179,7 @@ describe('[RBAC] Roles Permissions', () => {
   });
 
   describe('GET /api/roles - List Roles', () => {
-    it('OWNER - should allow access (has roles:manage)', async () => {
+    it('OWNER - should allow access (has roles:read)', async () => {
       const response = await request(app)
         .get('/api/roles')
         .set('Cookie', ownerCookie);
@@ -189,15 +189,15 @@ describe('[RBAC] Roles Permissions', () => {
       expect(response.body.data.items).toBeDefined();
     });
 
-    it('ADMIN - should deny (lacks roles:manage)', async () => {
+    it('ADMIN - should ALLOW access (has roles:read)', async () => {
       const response = await request(app)
         .get('/api/roles')
         .set('Cookie', adminCookie);
 
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(200);
     });
 
-    it('EDITOR - should deny (lacks roles:manage)', async () => {
+    it('EDITOR - should deny (lacks roles:read)', async () => {
       const response = await request(app)
         .get('/api/roles')
         .set('Cookie', editorCookie);
@@ -205,7 +205,7 @@ describe('[RBAC] Roles Permissions', () => {
       expect(response.status).toBe(403);
     });
 
-    it('VIEWER - should deny (lacks roles:manage)', async () => {
+    it('VIEWER - should deny (lacks roles:read)', async () => {
       const response = await request(app)
         .get('/api/roles')
         .set('Cookie', viewerCookie);
@@ -231,12 +231,12 @@ describe('[RBAC] Roles Permissions', () => {
       expect(response.body.data.role).toBeDefined();
     });
 
-    it('ADMIN - should deny (lacks roles:manage)', async () => {
+    it('ADMIN - should allow access (has roles:read)', async () => {
       const response = await request(app)
         .get(`/api/roles/${targetRole.id}`)
         .set('Cookie', adminCookie);
 
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(200);
     });
 
     it('EDITOR - should deny (lacks roles:manage)', async () => {
@@ -687,12 +687,12 @@ describe('[RBAC] Roles Permissions', () => {
       expect(response.body.success).toBe(true);
     });
 
-    it('ADMIN - should deny (lacks roles:manage)', async () => {
+    it('ADMIN - should allow (lacks roles:read)', async () => {
       const response = await request(app)
         .get(`/api/roles/${targetRole.id}/activity`)
         .set('Cookie', adminCookie);
 
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(200);
     });
 
     it('EDITOR - should deny (lacks roles:manage)', async () => {

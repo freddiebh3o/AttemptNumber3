@@ -538,6 +538,6 @@ test.describe('User CRUD - Navigation', () => {
     await page.waitForLoadState('networkidle');
 
     // Should show edit form
-    await expect(page.getByLabel(/email/i)).toBeVisible();
+    await expect(page.getByLabel(/email/i).first()).toBeVisible();
   });
 });

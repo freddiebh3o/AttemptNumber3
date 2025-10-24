@@ -299,6 +299,8 @@ describe('Role Archival', () => {
         .get('/api/roles')
         .set('Cookie', createSessionCookie(ownerUserId, tenantId));
 
+      console.log(response.body);
+
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data.items).toBeInstanceOf(Array);

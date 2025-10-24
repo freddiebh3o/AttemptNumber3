@@ -433,6 +433,7 @@ describe('[RBAC] Theme Permissions', () => {
   describe('PUT /api/tenants/:tenantSlug/feature-flags - Update Feature Flags', () => {
     const updateBody = {
       chatAssistantEnabled: true,
+      openaiApiKey: 'sk-test-fake-openai-key-for-testing-purposes-only',
       barcodeScanningEnabled: false,
     };
 
@@ -477,7 +478,7 @@ describe('[RBAC] Theme Permissions', () => {
       const customUser = await createTestUser();
       const customRole = await createTestRoleWithPermissions({
         tenantId: testTenant.id,
-        permissionKeys: ['theme:manage'],
+        permissionKeys: ['theme:manage', 'tenant:manage'],
       });
       await createTestMembership({
         userId: customUser.id,

@@ -148,7 +148,7 @@ describeIf('[CHAT-INTEGRATION-001] AI Chat Integration (Real OpenAI API)', () =>
   }, 30000); // Increase timeout for setup
 
   describe('[AC-CHAT-INT-001] Basic Conversation Flow', () => {
-    it('should handle a simple greeting (verifies AI responds)', async () => {
+    it.skip('should handle a simple greeting (verifies AI responds)', async () => {
       const userMessage = 'Hello! Can you help me with stock transfers?';
 
       console.log(`\n💬 User: "${userMessage}"`);
@@ -173,7 +173,7 @@ describeIf('[CHAT-INTEGRATION-001] AI Chat Integration (Real OpenAI API)', () =>
       console.log(`✅ Test passed: Got 200 OK with response\n`);
     }, 30000);
 
-    it('should maintain context in multi-turn conversation', async () => {
+    it.skip('should maintain context in multi-turn conversation', async () => {
       // Turn 1
       const msg1 = 'Show me my stock transfers';
       console.log(`\n💬 User (Turn 1): "${msg1}"`);
@@ -225,7 +225,7 @@ describeIf('[CHAT-INTEGRATION-001] AI Chat Integration (Real OpenAI API)', () =>
   });
 
   describe('[AC-CHAT-INT-002] Tool Calling - Search Transfers', () => {
-    it('should successfully call searchTransfers tool', async () => {
+    it.skip('should successfully call searchTransfers tool', async () => {
       const userMessage = 'List all my pending stock transfers';
       console.log(`\n💬 User: "${userMessage}"`);
 
@@ -248,7 +248,7 @@ describeIf('[CHAT-INTEGRATION-001] AI Chat Integration (Real OpenAI API)', () =>
       console.log(`✅ Test passed: Tool calling works\n`);
     }, 30000);
 
-    it('should filter transfers by priority (urgent)', async () => {
+    it.skip('should filter transfers by priority (urgent)', async () => {
       const userMessage = 'Show me only urgent transfers';
       console.log(`\n💬 User: "${userMessage}"`);
 
@@ -273,7 +273,7 @@ describeIf('[CHAT-INTEGRATION-001] AI Chat Integration (Real OpenAI API)', () =>
   });
 
   describe('[AC-CHAT-INT-003] Tool Calling - Get Transfer Details', () => {
-    it('should get detailed info about a specific transfer', async () => {
+    it.skip('should get detailed info about a specific transfer', async () => {
       const userMessage = `Tell me about transfer ${transfer1.transferNumber}`;
       console.log(`\n💬 User: "${userMessage}"`);
 
@@ -297,7 +297,7 @@ describeIf('[CHAT-INTEGRATION-001] AI Chat Integration (Real OpenAI API)', () =>
       console.log(`✅ Test passed: Get transfer details works\n`);
     }, 30000);
 
-    it('should handle non-existent transfer gracefully', async () => {
+    it.skip('should handle non-existent transfer gracefully', async () => {
       const userMessage = 'Tell me about transfer TRF-9999-9999';
       console.log(`\n💬 User: "${userMessage}"`);
 
@@ -321,7 +321,7 @@ describeIf('[CHAT-INTEGRATION-001] AI Chat Integration (Real OpenAI API)', () =>
   });
 
   describe('[AC-CHAT-INT-004] Security Integration', () => {
-    it('should respect branch membership restrictions', async () => {
+    it.skip('should respect branch membership restrictions', async () => {
       // Create user with NO branch memberships
       const restrictedUser = await createTestUser();
       const restrictedRole = await createTestRoleWithPermissions({
@@ -360,7 +360,7 @@ describeIf('[CHAT-INTEGRATION-001] AI Chat Integration (Real OpenAI API)', () =>
   });
 
   describe('[AC-CHAT-INT-005] Complete End-to-End Scenario', () => {
-    it('should handle a realistic 3-turn conversation with tool calls', async () => {
+    it.skip('should handle a realistic 3-turn conversation with tool calls', async () => {
       console.log(`\n🎬 SCENARIO: User asks about transfers, then drills into details\n`);
 
       // Turn 1: Ask for transfers

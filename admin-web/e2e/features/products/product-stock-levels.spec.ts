@@ -194,34 +194,30 @@ test.describe('Product Stock Levels Tab - Display', () => {
   test('should display multiple branches with stock', async ({ page }) => {
     await signIn(page, TEST_USERS.owner); // Owner has branches:manage
 
-    // Get existing branches
-    const branches = await Factories.branch.getAll(page);
+    // Use known seeded branches that owner has access to
+    const warehouseId = await Factories.branch.getBySlug(page, 'acme-warehouse');
+    const hqId = await Factories.branch.getBySlug(page, 'acme-hq');
 
-    // Create product with stock at first branch
+    // Create product with stock at warehouse
     const timestamp = Date.now();
-    const { productId, branchId: firstBranchId } = await Factories.stock.createProductWithStock(page, {
+    const { productId } = await Factories.stock.createProductWithStock(page, {
       productName: `Multi-Branch Product ${timestamp}`,
       productSku: `MULTI-${timestamp}`,
       productPricePence: 1300,
+      branchId: warehouseId, // Explicit warehouse branch
       initialQty: 40,
       unitCostPence: 450,
     });
 
     try {
-      // Add stock at second branch (if available)
-      if (branches.length > 1) {
-        const secondBranch = branches.find(b => b.id !== firstBranchId);
-        if (secondBranch) {
-          // Make sure owner has access to this branch (should by seed data)
-          await Factories.stock.addStock(page, {
-            productId,
-            branchId: secondBranch.id,
-            qtyDelta: 30,
-            unitCostPence: 400,
-            reason: 'E2E test multi-branch stock',
-          });
-        }
-      }
+      // Add stock at HQ (owner has access to this branch per seed data)
+      await Factories.stock.addStock(page, {
+        productId,
+        branchId: hqId,
+        qtyDelta: 30,
+        unitCostPence: 400,
+        reason: 'E2E test multi-branch stock',
+      });
 
       // Navigate to Stock Levels tab
       await page.goto(`/${TEST_USERS.owner.tenant}/products/${productId}?tab=levels`);
@@ -230,12 +226,17 @@ test.describe('Product Stock Levels Tab - Display', () => {
       // Wait for table to load
       await expect(page.getByRole('table')).toBeVisible();
 
-      // Should show at least 2 rows (2 branches with stock)
-      if (branches.length > 1) {
-        const rows = page.locator('tbody tr');
-        const rowCount = await rows.count();
-        expect(rowCount).toBeGreaterThanOrEqual(2);
-      }
+      // Verify Warehouse row has 40 units
+      const warehouseRow = page.getByRole('row', { name: /warehouse/i });
+      await expect(warehouseRow).toBeVisible();
+      const warehouseCells = warehouseRow.locator('td');
+      await expect(warehouseCells.nth(1)).toContainText('40'); // On hand column
+
+      // Verify HQ row has 30 units
+      const hqRow = page.getByRole('row', { name: /^hq/i });
+      await expect(hqRow).toBeVisible();
+      const hqCells = hqRow.locator('td');
+      await expect(hqCells.nth(1)).toContainText('30'); // On hand column
     } finally {
       await Factories.product.delete(page, productId);
     }

@@ -2,7 +2,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuthenticatedUserMiddleware } from "../middleware/sessionMiddleware.js";
-import { requirePermission } from "../middleware/permissionMiddleware.js";
+import { requirePermission, requireAnyPermission } from "../middleware/permissionMiddleware.js";
 import {
   validateRequestBodyWithZod,
   validateRequestParamsWithZod,
@@ -113,7 +113,7 @@ roleRouter.get(
 roleRouter.get(
   "/roles",
   requireAuthenticatedUserMiddleware,
-  requirePermission("roles:read"),
+  requireAnyPermission(["roles:read", "roles:manage"]),
   validateRequestQueryWithZod(listQuerySchema),
   async (req, res, next) => {
     try {
@@ -289,7 +289,7 @@ roleRouter.post(
 roleRouter.get(
   "/roles/:roleId/activity",
   requireAuthenticatedUserMiddleware,
-  requirePermission("roles:manage"),
+  requireAnyPermission(["roles:read", "roles:manage"]),
   validateRequestParamsWithZod(activityParamsSchema),
   validateRequestQueryWithZod(activityQuerySchema),
   async (req, res, next) => {
@@ -345,7 +345,7 @@ roleRouter.get(
 roleRouter.get(
   '/roles/:roleId',
   requireAuthenticatedUserMiddleware,
-  requirePermission('roles:manage'),
+  requireAnyPermission(['roles:read', 'roles:manage']),
   validateRequestParamsWithZod(getRoleParams),
   async (req, res, next) => {
     try {

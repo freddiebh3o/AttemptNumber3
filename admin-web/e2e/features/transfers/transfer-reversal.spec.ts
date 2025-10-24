@@ -234,7 +234,7 @@ test.describe('Transfer Reversal - Permissions', () => {
     }
   });
 
-  test('should show Reverse Transfer button for editors', async ({ page }) => {
+  test('should hide Reverse Transfer button for editors', async ({ page }) => {
     await signIn(page, TEST_USERS.editor);
     await page.goto(`/${TEST_USERS.editor.tenant}/stock-transfers`);
 
@@ -249,8 +249,8 @@ test.describe('Transfer Reversal - Permissions', () => {
       await completedTransfer.click();
       await page.waitForTimeout(500);
 
-      // Editor should see Reverse Transfer button (has stock:write) - use .first() to avoid strict mode violation
-      await expect(page.getByRole('button', { name: /reverse transfer/i }).first()).toBeVisible();
+      // Editor should NOT see Reverse Transfer button (stock:write required, editors only have stock:read and stock:allocate)
+      await expect(page.getByRole('button', { name: /reverse transfer/i })).not.toBeVisible();
     }
   });
 });

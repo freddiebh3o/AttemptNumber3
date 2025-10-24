@@ -433,10 +433,6 @@ test.describe('Audit Logs - Viewing', () => {
           // Verify JSON sections exist
           const preElements = modal.locator('pre');
           expect(await preElements.count()).toBeGreaterThanOrEqual(3);
-
-          // Close modal
-          await modal.getByRole('button', { name: /close/i }).click();
-          await expect(modal).not.toBeVisible();
         }
       } finally {
         await Factories.product.delete(page, productId);

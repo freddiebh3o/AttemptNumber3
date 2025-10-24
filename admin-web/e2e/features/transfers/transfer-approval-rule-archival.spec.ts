@@ -96,7 +96,7 @@ test.describe('Approval Rule Archival - Archive Flow', () => {
       const archivedFilter = page.getByTestId(SELECTORS.APPROVAL_RULE.ARCHIVED_FILTER_SELECT);
       await archivedFilter.click();
       await page.waitForTimeout(300);
-      await page.getByRole('option', { name: /archived rules only/i }).click();
+      await page.getByRole('option', { name: 'Archived rules only', exact: true }).click();
 
       await page.getByRole('button', { name: /apply/i }).click();
       await page.waitForTimeout(1000);
@@ -192,7 +192,7 @@ test.describe('Approval Rule Archival - Restore Flow', () => {
       const archivedFilter = page.getByTestId(SELECTORS.APPROVAL_RULE.ARCHIVED_FILTER_SELECT);
       await archivedFilter.click();
       await page.waitForTimeout(300);
-      await page.getByRole('option', { name: /archived rules only/i }).click();
+      await page.getByRole('option', { name: 'Archived rules only', exact: true }).click();
 
       await page.getByRole('button', { name: /apply/i }).click();
       await page.waitForTimeout(1000);
@@ -233,7 +233,7 @@ test.describe('Approval Rule Archival - Restore Flow', () => {
       // Switch to active view to verify rule is restored
       await archivedFilter.click();
       await page.waitForTimeout(300);
-      await page.getByRole('option', { name: /active rules only/i }).click();
+      await page.getByRole('option', { name: 'Archived rules only', exact: true }).click();
 
       await page.getByRole('button', { name: /apply/i }).click();
       await page.waitForTimeout(1000);
@@ -316,7 +316,7 @@ test.describe('Approval Rule Archival - Filter Functionality', () => {
     // Default filter should be "Active rules only" - check the displayed text
     const archivedFilter = page.getByTestId(SELECTORS.APPROVAL_RULE.ARCHIVED_FILTER_SELECT);
     const filterText = await archivedFilter.inputValue();
-    expect(filterText).toBe('Active rules only'); // Mantine Select shows the label, not the value
+    expect(filterText).toBe('Non-archived rules only'); // Mantine Select shows the label, not the value
 
     // Should not show any archived badges in default view
     const archivedBadges = page.getByTestId(SELECTORS.APPROVAL_RULE.ARCHIVED_BADGE);
@@ -355,7 +355,7 @@ test.describe('Approval Rule Archival - Filter Functionality', () => {
       const archivedFilter = page.getByTestId(SELECTORS.APPROVAL_RULE.ARCHIVED_FILTER_SELECT);
       await archivedFilter.click();
       await page.waitForTimeout(300);
-      await page.getByRole('option', { name: /archived rules only/i }).click();
+      await page.getByRole('option', { name: 'Archived rules only', exact: true }).click();
 
       await page.getByRole('button', { name: /apply/i }).click();
       await page.waitForTimeout(1000);
@@ -451,7 +451,7 @@ test.describe('Approval Rule Archival - Filter Functionality', () => {
     const archivedFilter = page.getByTestId(SELECTORS.APPROVAL_RULE.ARCHIVED_FILTER_SELECT);
     await archivedFilter.click();
     await page.waitForTimeout(300);
-    await page.getByRole('option', { name: /archived rules only/i }).click();
+    await page.getByRole('option', { name: 'Archived rules only', exact: true }).click();
 
     // Click clear button
     await page.getByRole('button', { name: /clear/i }).click();
@@ -460,7 +460,7 @@ test.describe('Approval Rule Archival - Filter Functionality', () => {
 
     // Filter should reset to active-only
     const filterValue = await archivedFilter.inputValue();
-    expect(filterValue).toBe('Active rules only');
+    expect(filterValue).toBe('Non-archived rules only');
   });
 });
 

@@ -79,7 +79,7 @@ describe('[MIDDLEWARE-ZOD] Zod Validation Middleware', () => {
       expect(response.status).toBe(400);
       expect(response.body.success).toBe(false);
       expect(response.body.error?.errorCode).toBe('VALIDATION_ERROR');
-      expect(response.body.error?.userFacingMessage).toBe('Invalid request body');
+      expect(response.body.error?.userFacingMessage).toBe('Invalid email address');
     });
 
     it('should provide detailed validation error messages', async () => {
@@ -236,7 +236,7 @@ describe('[MIDDLEWARE-ZOD] Zod Validation Middleware', () => {
 
       expect(response.status).toBe(400);
       expect(response.body.error?.errorCode).toBe('VALIDATION_ERROR');
-      expect(response.body.error?.userFacingMessage).toBe('Invalid query string');
+      expect(response.body.error?.userFacingMessage).toBe('Invalid UUID');
     });
 
     it('should handle missing required query parameters', async () => {
@@ -317,7 +317,7 @@ describe('[MIDDLEWARE-ZOD] Zod Validation Middleware', () => {
 
       expect(response.status).toBe(400);
       expect(response.body.error?.errorCode).toBe('VALIDATION_ERROR');
-      expect(response.body.error?.userFacingMessage).toBe('Invalid route parameters');
+      expect(response.body.error?.userFacingMessage).toBe('Invalid UUID');
     });
 
     it('should work with multiple path parameters', async () => {

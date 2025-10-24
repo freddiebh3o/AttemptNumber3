@@ -990,6 +990,7 @@ export default function AuditLogPage() {
                   variant="subtle"
                   size="sm"
                   onClick={() => copy(detailsFor.id, "Event id copied")}
+                  aria-label="Copy event id"
                 >
                   <IconCopy size={14} />
                 </ActionIcon>

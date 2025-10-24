@@ -396,9 +396,6 @@ test.describe('Product Activity Tab - Refresh', () => {
       await page.goto(`/${TEST_USERS.owner.tenant}/products/${productId}?tab=activity`);
       await page.waitForLoadState('networkidle');
 
-      // Note the current content
-      const initialContent = await page.getByRole('table').textContent();
-
       // Click refresh button
       await page.getByRole('button', { name: /refresh/i }).click();
 
@@ -507,7 +504,7 @@ test.describe('Product Activity Tab - Timestamp Display', () => {
     await page.waitForLoadState('networkidle');
 
     // Should show relative time (e.g., "5 minutes ago", "2 days ago")
-    await expect(page.getByText(/ago/i)).toBeVisible();
+    await expect(page.getByText(/ago/i).first()).toBeVisible();
 
     // Should show absolute timestamp on hover (tooltip)
     // First table row's timestamp cell
