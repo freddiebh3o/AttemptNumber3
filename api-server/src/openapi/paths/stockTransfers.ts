@@ -76,11 +76,45 @@ const StockTransferSchema = z.object({
   expectedDeliveryDate: z.string().nullable(),
   isReversal: z.boolean(),
   reversalOfId: z.string().nullable(),
-  reversedById: z.string().nullable(),
   reversedByTransferId: z.string().nullable(),
   reversalReason: z.string().nullable(),
   requiresMultiLevelApproval: z.boolean(),
   items: z.array(StockTransferItemSchema),
+  // Reversal relationships
+  reversalOf: z
+    .object({
+      id: z.string(),
+      transferNumber: z.string(),
+      status: z.enum([
+        'REQUESTED',
+        'APPROVED',
+        'REJECTED',
+        'IN_TRANSIT',
+        'PARTIALLY_RECEIVED',
+        'COMPLETED',
+        'CANCELLED',
+      ]),
+      reversalReason: z.string().nullable(),
+    })
+    .nullable()
+    .optional(),
+  reversedBy: z
+    .object({
+      id: z.string(),
+      transferNumber: z.string(),
+      status: z.enum([
+        'REQUESTED',
+        'APPROVED',
+        'REJECTED',
+        'IN_TRANSIT',
+        'PARTIALLY_RECEIVED',
+        'COMPLETED',
+        'CANCELLED',
+      ]),
+      reversalReason: z.string().nullable(),
+    })
+    .nullable()
+    .optional(),
   sourceBranch: z
     .object({
       id: z.string(),

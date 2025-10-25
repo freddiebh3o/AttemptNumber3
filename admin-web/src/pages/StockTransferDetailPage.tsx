@@ -17,6 +17,7 @@ import {
   Modal,
   Textarea,
   Select,
+  Box,
 } from "@mantine/core";
 import {
   IconArrowLeft,
@@ -227,9 +228,9 @@ export default function StockTransferDetailPage() {
 
   const canReverse =
     canWriteStock &&
-    isMemberOfSource &&
+    isMemberOfDestination &&
     transfer?.status === "COMPLETED" &&
-    !transfer?.reversedById;
+    !transfer?.reversedByTransferId;
 
   const canEditPriority =
     canWriteStock &&
@@ -420,19 +421,6 @@ export default function StockTransferDetailPage() {
                 <PriorityBadge priority={transfer.priority as "LOW" | "NORMAL" | "HIGH" | "URGENT"} size="lg" />
               </Group>
 
-              {/* Reversal Info Badges */}
-              {transfer.isReversal && transfer.reversalOfId && (
-                <Badge color="orange" variant="light" size="md">
-                  This is a reversal of another transfer
-                </Badge>
-              )}
-
-              {transfer.reversedById && (
-                <Badge color="red" variant="light" size="md">
-                  This transfer has been reversed
-                </Badge>
-              )}
-
               {/* Expected Delivery Date */}
               {transfer.expectedDeliveryDate && (
                 <Group gap="xs">
@@ -514,6 +502,75 @@ export default function StockTransferDetailPage() {
             )}
           </Group>
         </Group>
+
+        {/* Reversal Links Section */}
+        {(transfer.reversalOf || transfer.reversedBy) && (
+          <Paper withBorder p="md" radius="md">
+            <Stack gap="md">
+              <Title order={5}>Reversal Information</Title>
+
+              {/* Link to original transfer (if this is a reversal) */}
+              {transfer.reversalOf && (
+                <Box data-testid="reversal-of-section">
+                  <Group gap="xs" mb="xs">
+                    <IconArrowBack size={16} />
+                    <Text size="sm" fw={500}>
+                      This is a reversal of:{" "}
+                      <Button
+                        component="a"
+                        href={`/${tenantSlug}/stock-transfers/${transfer.reversalOf.id}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          navigate(`/${tenantSlug}/stock-transfers/${transfer.reversalOf!.id}`);
+                        }}
+                        variant="subtle"
+                        size="compact-sm"
+                        data-testid="reversal-of-link"
+                      >
+                        {transfer.reversalOf.transferNumber}
+                      </Button>
+                    </Text>
+                  </Group>
+                  {transfer.reversalReason && (
+                    <Text size="sm" c="dimmed" data-testid="reversal-reason">
+                      Reason: {transfer.reversalReason}
+                    </Text>
+                  )}
+                </Box>
+              )}
+
+              {/* Link to reversal transfer (if this was reversed) */}
+              {transfer.reversedBy && (
+                <Box data-testid="reversed-by-section">
+                  <Group gap="xs" mb="xs">
+                    <IconAlertCircle size={16} />
+                    <Text size="sm" fw={500}>
+                      This transfer has been reversed by:{" "}
+                      <Button
+                        component="a"
+                        href={`/${tenantSlug}/stock-transfers/${transfer.reversedBy.id}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          navigate(`/${tenantSlug}/stock-transfers/${transfer.reversedBy!.id}`);
+                        }}
+                        variant="subtle"
+                        size="compact-sm"
+                        data-testid="reversed-by-link"
+                      >
+                        {transfer.reversedBy.transferNumber}
+                      </Button>
+                    </Text>
+                  </Group>
+                  {transfer.reversedBy.reversalReason && (
+                    <Text size="sm" c="dimmed" data-testid="reversed-by-reason">
+                      Reason: {transfer.reversedBy.reversalReason}
+                    </Text>
+                  )}
+                </Box>
+              )}
+            </Stack>
+          </Paper>
+        )}
 
         {/* Branch Information */}
         <Paper withBorder p="md" radius="md">

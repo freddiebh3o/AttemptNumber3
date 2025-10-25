@@ -1272,7 +1272,7 @@ export async function getStockTransfer(params: {
   // Validate access
   await assertTransferAccess({ userId, tenantId, transferId });
 
-  // Get transfer with full details
+  // Get transfer with full details including reversal relationships
   const transfer = await prismaClientInstance.stockTransfer.findFirst({
     where: { id: transferId, tenantId },
     include: {
@@ -1293,6 +1293,22 @@ export async function getStockTransfer(params: {
       requestedByUser: { select: { id: true, userEmailAddress: true } },
       reviewedByUser: { select: { id: true, userEmailAddress: true } },
       shippedByUser: { select: { id: true, userEmailAddress: true } },
+      reversalOf: {
+        select: {
+          id: true,
+          transferNumber: true,
+          status: true,
+          reversalReason: true,
+        },
+      },
+      reversedBy: {
+        select: {
+          id: true,
+          transferNumber: true,
+          status: true,
+          reversalReason: true,
+        },
+      },
     },
   });
 
@@ -1342,7 +1358,7 @@ export async function reverseStockTransfer(params: {
   }
 
   // Validate: transfer hasn't already been reversed
-  if (original.reversedById) {
+  if (original.reversedByTransferId) {
     throw Errors.conflict('Transfer has already been reversed');
   }
 
@@ -1425,6 +1441,11 @@ export async function reverseStockTransfer(params: {
     // Generate transfer number for reversal
     const reversalTransferNumber = await generateTransferNumber(tenantId, tx);
 
+    // Build orderNotes with reversal reason prefix
+    const orderNotes = reversalReason
+      ? `Reversal of ${original.transferNumber}: ${reversalReason}`
+      : null;
+
     // Create reversal transfer
     const reversal = await tx.stockTransfer.create({
       data: {
@@ -1436,6 +1457,7 @@ export async function reverseStockTransfer(params: {
         isReversal: true,
         reversalOfId: original.id,
         reversalReason: reversalReason ?? null,
+        orderNotes: orderNotes, // Add reversal reason to orderNotes
         requestedByUserId: userId,
         reviewedByUserId: userId, // Auto-approved
         shippedByUserId: userId, // Auto-shipped
@@ -1479,10 +1501,10 @@ export async function reverseStockTransfer(params: {
       },
     });
 
-    // Update original transfer with reversal link
+    // Update original transfer with bidirectional reversal link
     await tx.stockTransfer.update({
       where: { id: original.id },
-      data: { reversedById: reversal.id },
+      data: { reversedByTransferId: reversal.id },
     });
 
     // Audit reversal creation

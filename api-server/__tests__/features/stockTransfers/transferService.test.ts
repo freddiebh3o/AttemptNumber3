@@ -895,7 +895,7 @@ describe('[ST-007] Stock Transfer Service', () => {
       const updatedOriginal = await prisma.stockTransfer.findUnique({
         where: { id: completed.id },
       });
-      expect(updatedOriginal?.reversedById).toBe(reversalTransfer.id);
+      expect(updatedOriginal?.reversedByTransferId).toBe(reversalTransfer.id);
 
       // Stock should be returned to original source
       const sourceStock = await prisma.productStock.findUnique({

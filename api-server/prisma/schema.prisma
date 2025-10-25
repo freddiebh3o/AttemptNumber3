@@ -419,8 +419,7 @@ model StockTransfer {
   // Reversal fields
   isReversal           Boolean @default(false) // True if this is a reversal transfer
   reversalOfId         String? // Links to original transfer (if reversal)
-  reversedById         String? // Links to reversal transfer (if reversed)
-  reversedByTransferId String? // Bidirectional link to reversal transfer
+  reversedByTransferId String? // Bidirectional link to reversal transfer (if reversed)
   reversalReason       String? @db.Text // Why reversal occurred
 
   // Multi-level approval
@@ -435,7 +434,9 @@ model StockTransfer {
   shippedByUser     User?                    @relation("TransferShipper", fields: [shippedByUserId], references: [id], onDelete: SetNull)
   items             StockTransferItem[]
   reversalOf        StockTransfer?           @relation("TransferReversal", fields: [reversalOfId], references: [id], onDelete: SetNull)
-  reversedBy        StockTransfer?           @relation("TransferReversal")
+  reversals         StockTransfer[]          @relation("TransferReversal")
+  reversedBy        StockTransfer?           @relation("TransferReversedBy", fields: [reversedByTransferId], references: [id], onDelete: SetNull)
+  reversedOriginals StockTransfer[]          @relation("TransferReversedBy")
   approvalRecords   TransferApprovalRecord[]
 
   createdAt DateTime @default(now())
@@ -447,7 +448,6 @@ model StockTransfer {
   @@index([sourceBranchId, status])
   @@index([destinationBranchId, status])
   @@index([requestedByUserId])
-  @@index([reversedById])
   @@index([reversedByTransferId])
   @@index([expectedDeliveryDate])
 }

@@ -5297,7 +5297,6 @@ export interface paths {
                                     expectedDeliveryDate: string | null;
                                     isReversal: boolean;
                                     reversalOfId: string | null;
-                                    reversedById: string | null;
                                     reversedByTransferId: string | null;
                                     reversalReason: string | null;
                                     requiresMultiLevelApproval: boolean;
@@ -5331,6 +5330,20 @@ export interface paths {
                                             productSku: string;
                                         };
                                     }[];
+                                    reversalOf?: {
+                                        id: string;
+                                        transferNumber: string;
+                                        /** @enum {string} */
+                                        status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
+                                        reversalReason: string | null;
+                                    } | null;
+                                    reversedBy?: {
+                                        id: string;
+                                        transferNumber: string;
+                                        /** @enum {string} */
+                                        status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
+                                        reversalReason: string | null;
+                                    } | null;
                                     sourceBranch?: {
                                         id: string;
                                         branchName: string;
@@ -5434,7 +5447,6 @@ export interface paths {
                                 expectedDeliveryDate: string | null;
                                 isReversal: boolean;
                                 reversalOfId: string | null;
-                                reversedById: string | null;
                                 reversedByTransferId: string | null;
                                 reversalReason: string | null;
                                 requiresMultiLevelApproval: boolean;
@@ -5468,6 +5480,20 @@ export interface paths {
                                         productSku: string;
                                     };
                                 }[];
+                                reversalOf?: {
+                                    id: string;
+                                    transferNumber: string;
+                                    /** @enum {string} */
+                                    status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
+                                    reversalReason: string | null;
+                                } | null;
+                                reversedBy?: {
+                                    id: string;
+                                    transferNumber: string;
+                                    /** @enum {string} */
+                                    status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
+                                    reversalReason: string | null;
+                                } | null;
                                 sourceBranch?: {
                                     id: string;
                                     branchName: string;
@@ -5555,7 +5581,6 @@ export interface paths {
                                 expectedDeliveryDate: string | null;
                                 isReversal: boolean;
                                 reversalOfId: string | null;
-                                reversedById: string | null;
                                 reversedByTransferId: string | null;
                                 reversalReason: string | null;
                                 requiresMultiLevelApproval: boolean;
@@ -5589,6 +5614,20 @@ export interface paths {
                                         productSku: string;
                                     };
                                 }[];
+                                reversalOf?: {
+                                    id: string;
+                                    transferNumber: string;
+                                    /** @enum {string} */
+                                    status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
+                                    reversalReason: string | null;
+                                } | null;
+                                reversedBy?: {
+                                    id: string;
+                                    transferNumber: string;
+                                    /** @enum {string} */
+                                    status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
+                                    reversalReason: string | null;
+                                } | null;
                                 sourceBranch?: {
                                     id: string;
                                     branchName: string;
@@ -5724,7 +5763,6 @@ export interface paths {
                                 expectedDeliveryDate: string | null;
                                 isReversal: boolean;
                                 reversalOfId: string | null;
-                                reversedById: string | null;
                                 reversedByTransferId: string | null;
                                 reversalReason: string | null;
                                 requiresMultiLevelApproval: boolean;
@@ -5758,6 +5796,20 @@ export interface paths {
                                         productSku: string;
                                     };
                                 }[];
+                                reversalOf?: {
+                                    id: string;
+                                    transferNumber: string;
+                                    /** @enum {string} */
+                                    status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
+                                    reversalReason: string | null;
+                                } | null;
+                                reversedBy?: {
+                                    id: string;
+                                    transferNumber: string;
+                                    /** @enum {string} */
+                                    status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
+                                    reversalReason: string | null;
+                                } | null;
                                 sourceBranch?: {
                                     id: string;
                                     branchName: string;
@@ -5853,7 +5905,6 @@ export interface paths {
                                 expectedDeliveryDate: string | null;
                                 isReversal: boolean;
                                 reversalOfId: string | null;
-                                reversedById: string | null;
                                 reversedByTransferId: string | null;
                                 reversalReason: string | null;
                                 requiresMultiLevelApproval: boolean;
@@ -5887,6 +5938,20 @@ export interface paths {
                                         productSku: string;
                                     };
                                 }[];
+                                reversalOf?: {
+                                    id: string;
+                                    transferNumber: string;
+                                    /** @enum {string} */
+                                    status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
+                                    reversalReason: string | null;
+                                } | null;
+                                reversedBy?: {
+                                    id: string;
+                                    transferNumber: string;
+                                    /** @enum {string} */
+                                    status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
+                                    reversalReason: string | null;
+                                } | null;
                                 sourceBranch?: {
                                     id: string;
                                     branchName: string;
@@ -5985,7 +6050,6 @@ export interface paths {
                                 expectedDeliveryDate: string | null;
                                 isReversal: boolean;
                                 reversalOfId: string | null;
-                                reversedById: string | null;
                                 reversedByTransferId: string | null;
                                 reversalReason: string | null;
                                 requiresMultiLevelApproval: boolean;
@@ -6019,6 +6083,20 @@ export interface paths {
                                         productSku: string;
                                     };
                                 }[];
+                                reversalOf?: {
+                                    id: string;
+                                    transferNumber: string;
+                                    /** @enum {string} */
+                                    status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
+                                    reversalReason: string | null;
+                                } | null;
+                                reversedBy?: {
+                                    id: string;
+                                    transferNumber: string;
+                                    /** @enum {string} */
+                                    status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
+                                    reversalReason: string | null;
+                                } | null;
                                 sourceBranch?: {
                                     id: string;
                                     branchName: string;
@@ -6114,7 +6192,6 @@ export interface paths {
                                 expectedDeliveryDate: string | null;
                                 isReversal: boolean;
                                 reversalOfId: string | null;
-                                reversedById: string | null;
                                 reversedByTransferId: string | null;
                                 reversalReason: string | null;
                                 requiresMultiLevelApproval: boolean;
@@ -6148,6 +6225,20 @@ export interface paths {
                                         productSku: string;
                                     };
                                 }[];
+                                reversalOf?: {
+                                    id: string;
+                                    transferNumber: string;
+                                    /** @enum {string} */
+                                    status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
+                                    reversalReason: string | null;
+                                } | null;
+                                reversedBy?: {
+                                    id: string;
+                                    transferNumber: string;
+                                    /** @enum {string} */
+                                    status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
+                                    reversalReason: string | null;
+                                } | null;
                                 sourceBranch?: {
                                     id: string;
                                     branchName: string;
@@ -6248,7 +6339,6 @@ export interface paths {
                                 expectedDeliveryDate: string | null;
                                 isReversal: boolean;
                                 reversalOfId: string | null;
-                                reversedById: string | null;
                                 reversedByTransferId: string | null;
                                 reversalReason: string | null;
                                 requiresMultiLevelApproval: boolean;
@@ -6282,6 +6372,20 @@ export interface paths {
                                         productSku: string;
                                     };
                                 }[];
+                                reversalOf?: {
+                                    id: string;
+                                    transferNumber: string;
+                                    /** @enum {string} */
+                                    status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
+                                    reversalReason: string | null;
+                                } | null;
+                                reversedBy?: {
+                                    id: string;
+                                    transferNumber: string;
+                                    /** @enum {string} */
+                                    status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
+                                    reversalReason: string | null;
+                                } | null;
                                 sourceBranch?: {
                                     id: string;
                                     branchName: string;

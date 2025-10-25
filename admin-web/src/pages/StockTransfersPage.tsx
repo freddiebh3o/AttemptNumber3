@@ -1405,14 +1405,26 @@ export default function StockTransfersPage() {
                               <PriorityBadge priority={transfer.priority as "LOW" | "NORMAL" | "HIGH" | "URGENT"} />
                             </Table.Td>
                             <Table.Td>
-                              <Badge color={getStatusColor(transfer.status)} variant="filled">
-                                <Group gap={4} wrap="nowrap">
-                                  {transfer.status.replace(/_/g, " ")}
-                                  {transfer.status === "COMPLETED" && <IconCircleCheck size={12} />}
-                                  {transfer.status === "REJECTED" && <IconX size={12} />}
-                                  {transfer.status === "CANCELLED" && <IconBan size={12} />}
-                                </Group>
-                              </Badge>
+                              <Stack gap="xs">
+                                <Badge color={getStatusColor(transfer.status)} variant="filled">
+                                  <Group gap={4} wrap="nowrap">
+                                    {transfer.status.replace(/_/g, " ")}
+                                    {transfer.status === "COMPLETED" && <IconCircleCheck size={12} />}
+                                    {transfer.status === "REJECTED" && <IconX size={12} />}
+                                    {transfer.status === "CANCELLED" && <IconBan size={12} />}
+                                  </Group>
+                                </Badge>
+                                {transfer.isReversal && (
+                                  <Badge color="orange" variant="light" size="xs" data-testid={`reversal-badge-${transfer.transferNumber}`}>
+                                    Reversal
+                                  </Badge>
+                                )}
+                                {transfer.reversedByTransferId && (
+                                  <Badge color="red" variant="light" size="xs" data-testid={`reversed-badge-${transfer.transferNumber}`}>
+                                    Reversed
+                                  </Badge>
+                                )}
+                              </Stack>
                             </Table.Td>
                             <Table.Td>
                               {transfer.requiresMultiLevelApproval ? (

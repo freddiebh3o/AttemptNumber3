@@ -413,7 +413,7 @@ See [Meta/agent-handoff-protocol.md](./Meta/agent-handoff-protocol.md) for detai
 Planned/ → InProgress/ → Completed/YYYY-MM/
 ```
 
-### Completed Features (3)
+### Completed Features
 
 **Location:** [Features/Completed/](./Features/Completed/) (organized alphabetically by feature name)
 
@@ -454,6 +454,12 @@ Planned/ → InProgress/ → Completed/YYYY-MM/
 - **What:** Soft delete enhancement for transfer approval rules with archive/restore functionality
 - **Docs:** [PRD](./Features/Completed/approval-rule-archival/prd.md)
 - **Key Features:** Archive filter dropdown (active-only, archived-only, all), archived/inactive badges, isActive state preservation on restore, confirmation modals, 19 E2E tests
+
+#### 7. Stock Transfer Reversal Linking
+- **Status:** ✅ Completed 2025-10-25
+- **What:** Bidirectional relationship tracking between original and reversal transfers with automatic reason propagation
+- **Docs:** [README](./Features/Completed/stock-transfer-reversal-linking/README.md) | [PRD](./Features/Completed/stock-transfer-reversal-linking/prd.md)
+- **Key Features:** Bidirectional navigation, reversal reason propagation to orderNotes, theme-aware UI, reversal-of-reversal support, 8 backend tests + enhanced E2E tests
 
 ### In Progress Features (0)
 
@@ -1064,10 +1070,11 @@ Each feature now has a README.md summarizing the work with completion date metad
 
 ### Feature Metrics
 
-**Completed Features:** 6
+**Completed Features:** 7
 - Approval Rule Archival
 - E2E Test Refactoring & Organization
 - Product Archival
+- Stock Transfer Reversal Linking
 - Stock Transfers v1
 - Stock Transfers v2
 - Session Expiration Handler
@@ -1077,9 +1084,9 @@ Each feature now has a README.md summarizing the work with completion date metad
 **Planned:** 0
 
 **Database Tables Added:** 2 (StockTransfer, TransferTemplate)
-**Database Enhancements:** Approval rule archival (3 new fields: isArchived, archivedAt, archivedByUserId)
+**Database Enhancements:** Approval rule archival (3 new fields: isArchived, archivedAt, archivedByUserId), Transfer reversal bidirectional linking (removed redundant reversedById field, updated relations)
 **New Permissions:** 1 (stock:transfer)
-**Tests Added:** 318 (241 backend + 77 frontend) - includes 14 backend archival tests + 19 frontend archival E2E tests
+**Tests Added:** 326 (243 backend + 83 frontend) - includes 14 backend archival tests + 19 frontend archival E2E tests + 8 backend reversal linking tests
 
 ---
 
