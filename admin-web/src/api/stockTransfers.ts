@@ -79,6 +79,8 @@ export async function listStockTransfersApiRequest(params?: {
   requestedAtTo?: string;
   shippedAtFrom?: string;
   shippedAtTo?: string;
+  expectedDeliveryDateFrom?: string; // ISO date (YYYY-MM-DD)
+  expectedDeliveryDateTo?: string;
   limit?: number;
   cursor?: string;
   includeTotal?: boolean;
@@ -95,6 +97,8 @@ export async function listStockTransfersApiRequest(params?: {
   if (params?.requestedAtTo) search.set("requestedAtTo", params.requestedAtTo);
   if (params?.shippedAtFrom) search.set("shippedAtFrom", params.shippedAtFrom);
   if (params?.shippedAtTo) search.set("shippedAtTo", params.shippedAtTo);
+  if (params?.expectedDeliveryDateFrom) search.set("expectedDeliveryDateFrom", params.expectedDeliveryDateFrom);
+  if (params?.expectedDeliveryDateTo) search.set("expectedDeliveryDateTo", params.expectedDeliveryDateTo);
   if (params?.limit !== undefined) search.set("limit", String(params.limit));
   if (params?.cursor) search.set("cursor", params.cursor);
   if (params?.includeTotal !== undefined) search.set("includeTotal", String(params.includeTotal));

@@ -432,6 +432,16 @@ export default function StockTransferDetailPage() {
                   This transfer has been reversed
                 </Badge>
               )}
+
+              {/* Expected Delivery Date */}
+              {transfer.expectedDeliveryDate && (
+                <Group gap="xs">
+                  <Text size="sm" c="dimmed">Expected Delivery:</Text>
+                  <Text size="sm" fw={500} data-testid="transfer-expected-delivery">
+                    {new Date(transfer.expectedDeliveryDate).toLocaleDateString()}
+                  </Text>
+                </Group>
+              )}
             </Stack>
           </div>
           <Group gap="xs">
@@ -841,7 +851,7 @@ export default function StockTransferDetailPage() {
         </Paper>
 
         {/* Notes */}
-        {(transfer.requestNotes || transfer.reviewNotes) && (
+        {(transfer.requestNotes || transfer.reviewNotes || transfer.orderNotes) && (
           <Paper withBorder p="md" radius="md">
             <Title order={5} mb="md">
               Notes
@@ -854,6 +864,16 @@ export default function StockTransferDetailPage() {
                   </Text>
                   <Alert icon={<IconAlertCircle size={16} />} color="blue">
                     {transfer.requestNotes}
+                  </Alert>
+                </div>
+              )}
+              {transfer.orderNotes && (
+                <div>
+                  <Text size="sm" fw={500} mb="xs">
+                    Order Notes:
+                  </Text>
+                  <Alert icon={<IconAlertCircle size={16} />} color="grape" data-testid="transfer-order-notes">
+                    {transfer.orderNotes}
                   </Alert>
                 </div>
               )}

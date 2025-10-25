@@ -7,7 +7,7 @@
     "dev": "vite --port 5174",
     "build": "tsc -b && vite build",
     "preview": "vite preview --port 5174",
-    "typecheck": "tsc -p tsconfig.app.json --noEmit",
+    "typecheck": "tsc -b --noEmit",
     "lint": "eslint .",
     "test:accept": "playwright test",
     "test:accept:ui": "playwright test --ui",

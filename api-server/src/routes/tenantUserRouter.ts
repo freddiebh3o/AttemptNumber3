@@ -52,14 +52,17 @@ const listQuerySchema = z.object({
 const userIdParams = z.object({ userId: z.string().min(1) });
 
 const createBody = z.object({
-  email: z.string({ required_error: 'Email is required' })
+  email: z.string()
+    .min(1, 'Email is required')
     .email('Invalid email format')
     .max(320, 'Email must be 320 characters or less'),
-  password: z.string({ required_error: 'Password is required' })
+  password: z.string()
     .min(8, 'Password must be at least 8 characters')
-    .max(200, 'Password must be 200 characters or less'),
-  roleId: z.string({ required_error: 'Role is required' })
-    .min(1, 'Role is required'),
+    .max(200, 'Password must be 200 characters or less')
+    .optional(),
+  roleId: z.string()
+    .min(1, 'Role is required')
+    .optional(),
   branchIds: z.array(z.string().min(1)).optional(),
 });
 
@@ -161,8 +164,8 @@ tenantUserRouter.post(
         currentTenantId: req.currentTenantId,
         currentUserId: req.currentUserId,
         email: body.email,
-        password: body.password,
-        roleId: body.roleId,
+        password: body.password ?? '',
+        roleId: body.roleId ?? '',
         ...(body.branchIds !== undefined ? { branchIdsOptional: body.branchIds } : {}),
         auditContextOptional: getAuditContext(req),
       });

@@ -72,9 +72,12 @@ const StockTransferSchema = z.object({
   completedAt: z.string().nullable(),
   requestNotes: z.string().nullable(),
   reviewNotes: z.string().nullable(),
+  orderNotes: z.string().nullable(),
+  expectedDeliveryDate: z.string().nullable(),
   isReversal: z.boolean(),
   reversalOfId: z.string().nullable(),
   reversedById: z.string().nullable(),
+  reversedByTransferId: z.string().nullable(),
   reversalReason: z.string().nullable(),
   requiresMultiLevelApproval: z.boolean(),
   items: z.array(StockTransferItemSchema),
@@ -120,6 +123,8 @@ const CreateTransferBodySchema = z.object({
   sourceBranchId: z.string(),
   destinationBranchId: z.string(),
   requestNotes: z.string().max(1000).optional(),
+  orderNotes: z.string().max(2000).optional().describe('Order notes for communication between branches'),
+  expectedDeliveryDate: z.string().datetime().optional().describe('Expected delivery date (ISO 8601 format)'),
   priority: z.enum(['URGENT', 'HIGH', 'NORMAL', 'LOW']).optional().describe('Transfer priority (default: NORMAL)'),
   items: z
     .array(
@@ -218,6 +223,8 @@ export function registerStockTransferPaths(registry: OpenAPIRegistry) {
         requestedAtTo: z.string().optional(),
         shippedAtFrom: z.string().optional(),
         shippedAtTo: z.string().optional(),
+        expectedDeliveryDateFrom: z.string().optional().describe('Filter by expected delivery date from (ISO date YYYY-MM-DD)'),
+        expectedDeliveryDateTo: z.string().optional().describe('Filter by expected delivery date to (ISO date YYYY-MM-DD)'),
         limit: z.string().optional(),
         cursor: z.string().optional(),
         includeTotal: z.string().optional(), // "true" | "false"

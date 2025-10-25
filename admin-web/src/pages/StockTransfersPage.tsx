@@ -82,6 +82,8 @@ type TransferFilters = {
   requestedAtTo: string | null;
   shippedAtFrom: string | null;
   shippedAtTo: string | null;
+  expectedDeliveryDateFrom: string | null;
+  expectedDeliveryDateTo: string | null;
 };
 
 const emptyTransferFilters: TransferFilters = {
@@ -92,6 +94,8 @@ const emptyTransferFilters: TransferFilters = {
   requestedAtTo: null,
   shippedAtFrom: null,
   shippedAtTo: null,
+  expectedDeliveryDateFrom: null,
+  expectedDeliveryDateTo: null,
 };
 
 const STATUS_OPTIONS = [
@@ -205,6 +209,8 @@ export default function StockTransfersPage() {
       requestedAtTo: values.requestedAtTo ?? null,
       shippedAtFrom: values.shippedAtFrom ?? null,
       shippedAtTo: values.shippedAtTo ?? null,
+      expectedDeliveryDateFrom: values.expectedDeliveryDateFrom ?? null,
+      expectedDeliveryDateTo: values.expectedDeliveryDateTo ?? null,
     });
     resetToFirstPageAndFetch({
       qOverride: values.q.trim() || null,
@@ -214,6 +220,8 @@ export default function StockTransfersPage() {
       requestedToOverride: values.requestedAtTo ?? null,
       shippedFromOverride: values.shippedAtFrom ?? null,
       shippedToOverride: values.shippedAtTo ?? null,
+      expectedDeliveryFromOverride: values.expectedDeliveryDateFrom ?? null,
+      expectedDeliveryToOverride: values.expectedDeliveryDateTo ?? null,
     });
   }
 
@@ -252,6 +260,8 @@ export default function StockTransfersPage() {
     requestedAtTo?: string | null | undefined;
     shippedAtFrom?: string | null | undefined;
     shippedAtTo?: string | null | undefined;
+    expectedDeliveryDateFrom?: string | null | undefined;
+    expectedDeliveryDateTo?: string | null | undefined;
     page?: number;
   }) {
     const params = new URLSearchParams();
@@ -300,6 +310,16 @@ export default function StockTransfersPage() {
         ? overrides.shippedAtTo
         : appliedFilters.shippedAtTo;
 
+    const expectedDeliveryFromVal =
+      overrides && Object.prototype.hasOwnProperty.call(overrides, "expectedDeliveryDateFrom")
+        ? overrides.expectedDeliveryDateFrom
+        : appliedFilters.expectedDeliveryDateFrom;
+
+    const expectedDeliveryToVal =
+      overrides && Object.prototype.hasOwnProperty.call(overrides, "expectedDeliveryDateTo")
+        ? overrides.expectedDeliveryDateTo
+        : appliedFilters.expectedDeliveryDateTo;
+
     put("limit", overrides?.limit ?? limit);
     put("sortBy", overrides?.sortBy ?? sortBy);
     put("sortDir", overrides?.sortDir ?? sortDir);
@@ -311,6 +331,8 @@ export default function StockTransfersPage() {
     put("requestedAtTo", requestedToVal);
     put("shippedAtFrom", shippedFromVal);
     put("shippedAtTo", shippedToVal);
+    put("expectedDeliveryDateFrom", expectedDeliveryFromVal);
+    put("expectedDeliveryDateTo", expectedDeliveryToVal);
 
     const cursor =
       overrides?.cursorId === undefined
@@ -338,6 +360,8 @@ export default function StockTransfersPage() {
     requestedToOverride?: string | null | undefined;
     shippedFromOverride?: string | null | undefined;
     shippedToOverride?: string | null | undefined;
+    expectedDeliveryFromOverride?: string | null | undefined;
+    expectedDeliveryToOverride?: string | null | undefined;
   }) {
     setIsLoading(true);
     try {
@@ -380,6 +404,16 @@ export default function StockTransfersPage() {
           ? appliedFilters.shippedAtTo || undefined
           : opts.shippedToOverride || undefined;
 
+      const expectedDeliveryFromParam =
+        opts?.expectedDeliveryFromOverride === undefined
+          ? appliedFilters.expectedDeliveryDateFrom || undefined
+          : opts.expectedDeliveryFromOverride || undefined;
+
+      const expectedDeliveryToParam =
+        opts?.expectedDeliveryToOverride === undefined
+          ? appliedFilters.expectedDeliveryDateTo || undefined
+          : opts.expectedDeliveryToOverride || undefined;
+
       const response = await listStockTransfersApiRequest({
         limit: opts?.limitOverride ?? limit,
         cursor: opts?.cursorId ?? cursorStack[pageIndex] ?? undefined,
@@ -393,6 +427,8 @@ export default function StockTransfersPage() {
         requestedAtTo: requestedToParam,
         shippedAtFrom: shippedFromParam,
         shippedAtTo: shippedToParam,
+        expectedDeliveryDateFrom: expectedDeliveryFromParam,
+        expectedDeliveryDateTo: expectedDeliveryToParam,
         includeTotal: opts?.includeTotal === true,
       });
 
@@ -440,6 +476,8 @@ export default function StockTransfersPage() {
     requestedToOverride?: string | null | undefined;
     shippedFromOverride?: string | null | undefined;
     shippedToOverride?: string | null | undefined;
+    expectedDeliveryFromOverride?: string | null | undefined;
+    expectedDeliveryToOverride?: string | null | undefined;
   }) {
     setCursorStack([null]);
     setPageIndex(0);
@@ -457,6 +495,8 @@ export default function StockTransfersPage() {
       requestedAtTo: opts?.requestedToOverride,
       shippedAtFrom: opts?.shippedFromOverride,
       shippedAtTo: opts?.shippedToOverride,
+      expectedDeliveryDateFrom: opts?.expectedDeliveryFromOverride,
+      expectedDeliveryDateTo: opts?.expectedDeliveryToOverride,
     });
     void fetchPageWith({
       includeTotal: true,
@@ -488,6 +528,8 @@ export default function StockTransfersPage() {
     const qpRequestedTo = searchParams.get("requestedAtTo");
     const qpShippedFrom = searchParams.get("shippedAtFrom");
     const qpShippedTo = searchParams.get("shippedAtTo");
+    const qpExpectedDeliveryFrom = searchParams.get("expectedDeliveryDateFrom");
+    const qpExpectedDeliveryTo = searchParams.get("expectedDeliveryDateTo");
     const qpCursor = searchParams.get("cursorId");
 
     if (!Number.isNaN(qpLimit) && qpLimit)
@@ -504,6 +546,8 @@ export default function StockTransfersPage() {
       requestedAtTo: qpRequestedTo ?? null,
       shippedAtFrom: qpShippedFrom ?? null,
       shippedAtTo: qpShippedTo ?? null,
+      expectedDeliveryDateFrom: qpExpectedDeliveryFrom ?? null,
+      expectedDeliveryDateTo: qpExpectedDeliveryTo ?? null,
     });
 
     setCursorStack([qpCursor ?? null]);
@@ -526,6 +570,8 @@ export default function StockTransfersPage() {
       requestedToOverride: qpRequestedTo ?? undefined,
       shippedFromOverride: qpShippedFrom ?? undefined,
       shippedToOverride: qpShippedTo ?? undefined,
+      expectedDeliveryFromOverride: qpExpectedDeliveryFrom ?? undefined,
+      expectedDeliveryToOverride: qpExpectedDeliveryTo ?? undefined,
     });
   }, [tenantSlug]);
 
@@ -546,6 +592,8 @@ export default function StockTransfersPage() {
     const qpRequestedTo = sp.get("requestedAtTo");
     const qpShippedFrom = sp.get("shippedAtFrom");
     const qpShippedTo = sp.get("shippedAtTo");
+    const qpExpectedDeliveryFrom = sp.get("expectedDeliveryDateFrom");
+    const qpExpectedDeliveryTo = sp.get("expectedDeliveryDateTo");
     const qpCursor = sp.get("cursorId");
     const qpPage = Number(sp.get("page") ?? "1");
     const newPageIndex = Number.isFinite(qpPage) && qpPage > 0 ? qpPage - 1 : 0;
@@ -564,6 +612,8 @@ export default function StockTransfersPage() {
       requestedAtTo: qpRequestedTo ?? null,
       shippedAtFrom: qpShippedFrom ?? null,
       shippedAtTo: qpShippedTo ?? null,
+      expectedDeliveryDateFrom: qpExpectedDeliveryFrom ?? null,
+      expectedDeliveryDateTo: qpExpectedDeliveryTo ?? null,
     });
 
     setCursorStack([qpCursor ?? null]);
@@ -586,6 +636,8 @@ export default function StockTransfersPage() {
       requestedToOverride: qpRequestedTo ?? undefined,
       shippedFromOverride: qpShippedFrom ?? undefined,
       shippedToOverride: qpShippedTo ?? undefined,
+      expectedDeliveryFromOverride: qpExpectedDeliveryFrom ?? undefined,
+      expectedDeliveryToOverride: qpExpectedDeliveryTo ?? undefined,
     });
   }, [location.key, navigationType, tenantSlug]);
 
@@ -645,14 +697,15 @@ export default function StockTransfersPage() {
     navigate(`/${tenantSlug}/stock-transfers/${transferId}`);
   }
 
-  function handleCreateSuccess() {
+  function handleCreateSuccess(transferId: string) {
     setCreateModalOpen(false);
     setTemplateInitialValues(undefined);
     notifications.show({
       color: "green",
       message: "Transfer request created successfully",
     });
-    resetToFirstPageAndFetch();
+    // Navigate to the transfer detail page
+    navigate(`/${tenantSlug}/stock-transfers/${transferId}`);
   }
 
   function handleTemplateSelected(template: StockTransferTemplate) {
@@ -721,6 +774,16 @@ export default function StockTransfersPage() {
         key: "shippedAtTo",
         label: `shipped ≤ ${appliedFilters.shippedAtTo}`,
       });
+    if (appliedFilters.expectedDeliveryDateFrom)
+      chips.push({
+        key: "expectedDeliveryDateFrom",
+        label: `delivery ≥ ${appliedFilters.expectedDeliveryDateFrom}`,
+      });
+    if (appliedFilters.expectedDeliveryDateTo)
+      chips.push({
+        key: "expectedDeliveryDateTo",
+        label: `delivery ≤ ${appliedFilters.expectedDeliveryDateTo}`,
+      });
     return chips;
   }, [appliedFilters]);
 
@@ -735,6 +798,10 @@ export default function StockTransfersPage() {
       requestedAtTo: key === "requestedAtTo" ? null : appliedFilters.requestedAtTo,
       shippedAtFrom: key === "shippedAtFrom" ? null : appliedFilters.shippedAtFrom,
       shippedAtTo: key === "shippedAtTo" ? null : appliedFilters.shippedAtTo,
+      expectedDeliveryDateFrom:
+        key === "expectedDeliveryDateFrom" ? null : appliedFilters.expectedDeliveryDateFrom,
+      expectedDeliveryDateTo:
+        key === "expectedDeliveryDateTo" ? null : appliedFilters.expectedDeliveryDateTo,
     };
     applyAndFetch(defaults);
   }
@@ -1079,6 +1146,38 @@ export default function StockTransfersPage() {
                   popoverProps={{ withinPortal: true }}
                   presets={buildCommonDatePresets()}
                   clearable
+                />
+              </Grid.Col>
+
+              <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+                <DatePickerInput
+                  label="Expected delivery from"
+                  placeholder="Start date"
+                  value={values.expectedDeliveryDateFrom ? new Date(values.expectedDeliveryDateFrom) : null}
+                  onChange={(v) => {
+                    const dateStr = v ? new Date(v).toISOString().split("T")[0] : null;
+                    setValues((prev) => ({ ...prev, expectedDeliveryDateFrom: dateStr }));
+                  }}
+                  popoverProps={{ withinPortal: true }}
+                  presets={buildCommonDatePresets()}
+                  clearable
+                  data-testid="filter-delivery-date-range-from"
+                />
+              </Grid.Col>
+
+              <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+                <DatePickerInput
+                  label="Expected delivery to"
+                  placeholder="End date"
+                  value={values.expectedDeliveryDateTo ? new Date(values.expectedDeliveryDateTo) : null}
+                  onChange={(v) => {
+                    const dateStr = v ? new Date(v).toISOString().split("T")[0] : null;
+                    setValues((prev) => ({ ...prev, expectedDeliveryDateTo: dateStr }));
+                  }}
+                  popoverProps={{ withinPortal: true }}
+                  presets={buildCommonDatePresets()}
+                  clearable
+                  data-testid="filter-delivery-date-range-to"
                 />
               </Grid.Col>
             </Grid>

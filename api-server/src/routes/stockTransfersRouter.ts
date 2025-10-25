@@ -16,6 +16,8 @@ const CreateTransferBodySchema = z.object({
   sourceBranchId: z.string(),
   destinationBranchId: z.string(),
   requestNotes: z.string().max(1000).optional(),
+  orderNotes: z.string().max(2000).optional(),
+  expectedDeliveryDate: z.string().datetime().optional(),
   priority: z.enum(['URGENT', 'HIGH', 'NORMAL', 'LOW']).optional(),
   items: z
     .array(
@@ -60,7 +62,7 @@ stockTransfersRouter.post(
   async (req, res, next) => {
     try {
       assertAuthed(req);
-      const { sourceBranchId, destinationBranchId, items, requestNotes, priority } =
+      const { sourceBranchId, destinationBranchId, items, requestNotes, orderNotes, expectedDeliveryDate, priority } =
         req.validatedBody as z.infer<typeof CreateTransferBodySchema>;
 
       const transfer = await transferService.createStockTransfer({
@@ -71,6 +73,8 @@ stockTransfersRouter.post(
           destinationBranchId,
           items,
           ...(requestNotes ? { requestNotes } : {}),
+          ...(orderNotes ? { orderNotes } : {}),
+          ...(expectedDeliveryDate ? { expectedDeliveryDate: new Date(expectedDeliveryDate) } : {}),
           ...(priority ? { priority } : {}),
         },
         auditContext: getAuditContext(req),
@@ -103,6 +107,8 @@ stockTransfersRouter.get(
       const requestedAtTo = req.query.requestedAtTo as string | undefined;
       const shippedAtFrom = req.query.shippedAtFrom as string | undefined;
       const shippedAtTo = req.query.shippedAtTo as string | undefined;
+      const expectedDeliveryDateFrom = req.query.expectedDeliveryDateFrom as string | undefined;
+      const expectedDeliveryDateTo = req.query.expectedDeliveryDateTo as string | undefined;
       const limitStr = req.query.limit as string | undefined;
       const cursor = req.query.cursor as string | undefined;
       const includeTotalStr = req.query.includeTotal as string | undefined;
@@ -122,6 +128,8 @@ stockTransfersRouter.get(
           ...(requestedAtTo ? { requestedAtTo } : {}),
           ...(shippedAtFrom ? { shippedAtFrom } : {}),
           ...(shippedAtTo ? { shippedAtTo } : {}),
+          ...(expectedDeliveryDateFrom ? { expectedDeliveryDateFrom } : {}),
+          ...(expectedDeliveryDateTo ? { expectedDeliveryDateTo } : {}),
           ...(limitStr ? { limit: parseInt(limitStr) } : {}),
           ...(cursor ? { cursor } : {}),
           ...(includeTotalStr ? { includeTotal: includeTotalStr === 'true' } : {}),

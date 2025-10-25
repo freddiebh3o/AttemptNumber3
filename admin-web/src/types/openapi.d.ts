@@ -5250,6 +5250,10 @@ export interface paths {
                     requestedAtTo?: string;
                     shippedAtFrom?: string;
                     shippedAtTo?: string;
+                    /** @description Filter by expected delivery date from (ISO date YYYY-MM-DD) */
+                    expectedDeliveryDateFrom?: string;
+                    /** @description Filter by expected delivery date to (ISO date YYYY-MM-DD) */
+                    expectedDeliveryDateTo?: string;
                     limit?: string;
                     cursor?: string;
                     includeTotal?: string;
@@ -5289,9 +5293,12 @@ export interface paths {
                                     completedAt: string | null;
                                     requestNotes: string | null;
                                     reviewNotes: string | null;
+                                    orderNotes: string | null;
+                                    expectedDeliveryDate: string | null;
                                     isReversal: boolean;
                                     reversalOfId: string | null;
                                     reversedById: string | null;
+                                    reversedByTransferId: string | null;
                                     reversalReason: string | null;
                                     requiresMultiLevelApproval: boolean;
                                     items: {
@@ -5375,6 +5382,13 @@ export interface paths {
                         sourceBranchId: string;
                         destinationBranchId: string;
                         requestNotes?: string;
+                        /** @description Order notes for communication between branches */
+                        orderNotes?: string;
+                        /**
+                         * Format: date-time
+                         * @description Expected delivery date (ISO 8601 format)
+                         */
+                        expectedDeliveryDate?: string;
                         /**
                          * @description Transfer priority (default: NORMAL)
                          * @enum {string}
@@ -5416,9 +5430,12 @@ export interface paths {
                                 completedAt: string | null;
                                 requestNotes: string | null;
                                 reviewNotes: string | null;
+                                orderNotes: string | null;
+                                expectedDeliveryDate: string | null;
                                 isReversal: boolean;
                                 reversalOfId: string | null;
                                 reversedById: string | null;
+                                reversedByTransferId: string | null;
                                 reversalReason: string | null;
                                 requiresMultiLevelApproval: boolean;
                                 items: {
@@ -5534,9 +5551,12 @@ export interface paths {
                                 completedAt: string | null;
                                 requestNotes: string | null;
                                 reviewNotes: string | null;
+                                orderNotes: string | null;
+                                expectedDeliveryDate: string | null;
                                 isReversal: boolean;
                                 reversalOfId: string | null;
                                 reversedById: string | null;
+                                reversedByTransferId: string | null;
                                 reversalReason: string | null;
                                 requiresMultiLevelApproval: boolean;
                                 items: {
@@ -5700,9 +5720,12 @@ export interface paths {
                                 completedAt: string | null;
                                 requestNotes: string | null;
                                 reviewNotes: string | null;
+                                orderNotes: string | null;
+                                expectedDeliveryDate: string | null;
                                 isReversal: boolean;
                                 reversalOfId: string | null;
                                 reversedById: string | null;
+                                reversedByTransferId: string | null;
                                 reversalReason: string | null;
                                 requiresMultiLevelApproval: boolean;
                                 items: {
@@ -5826,9 +5849,12 @@ export interface paths {
                                 completedAt: string | null;
                                 requestNotes: string | null;
                                 reviewNotes: string | null;
+                                orderNotes: string | null;
+                                expectedDeliveryDate: string | null;
                                 isReversal: boolean;
                                 reversalOfId: string | null;
                                 reversedById: string | null;
+                                reversedByTransferId: string | null;
                                 reversalReason: string | null;
                                 requiresMultiLevelApproval: boolean;
                                 items: {
@@ -5955,9 +5981,12 @@ export interface paths {
                                 completedAt: string | null;
                                 requestNotes: string | null;
                                 reviewNotes: string | null;
+                                orderNotes: string | null;
+                                expectedDeliveryDate: string | null;
                                 isReversal: boolean;
                                 reversalOfId: string | null;
                                 reversedById: string | null;
+                                reversedByTransferId: string | null;
                                 reversalReason: string | null;
                                 requiresMultiLevelApproval: boolean;
                                 items: {
@@ -6081,9 +6110,12 @@ export interface paths {
                                 completedAt: string | null;
                                 requestNotes: string | null;
                                 reviewNotes: string | null;
+                                orderNotes: string | null;
+                                expectedDeliveryDate: string | null;
                                 isReversal: boolean;
                                 reversalOfId: string | null;
                                 reversedById: string | null;
+                                reversedByTransferId: string | null;
                                 reversalReason: string | null;
                                 requiresMultiLevelApproval: boolean;
                                 items: {
@@ -6212,9 +6244,12 @@ export interface paths {
                                 completedAt: string | null;
                                 requestNotes: string | null;
                                 reviewNotes: string | null;
+                                orderNotes: string | null;
+                                expectedDeliveryDate: string | null;
                                 isReversal: boolean;
                                 reversalOfId: string | null;
                                 reversedById: string | null;
+                                reversedByTransferId: string | null;
                                 reversalReason: string | null;
                                 requiresMultiLevelApproval: boolean;
                                 items: {
@@ -7293,7 +7328,7 @@ export interface components {
             role: components["schemas"]["RoleBrief"];
         };
         /** @enum {string} */
-        PermissionKey: "products:read" | "products:write" | "users:manage" | "roles:manage" | "tenant:manage" | "theme:manage" | "uploads:write" | "branches:manage" | "stock:read" | "stock:write" | "stock:allocate" | "reports:view";
+        PermissionKey: "products:read" | "products:write" | "users:manage" | "roles:read" | "roles:manage" | "tenant:manage" | "theme:manage" | "uploads:write" | "branches:manage" | "stock:read" | "stock:write" | "stock:allocate" | "reports:view";
         BranchMembershipBrief: {
             branchId: string;
             branchName: string;

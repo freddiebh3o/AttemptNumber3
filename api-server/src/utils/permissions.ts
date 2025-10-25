@@ -4,6 +4,7 @@ export const PERMISSION_KEYS = [
   'products:write',
   // Users / roles / tenancy
   'users:manage',
+  'roles:read',
   'roles:manage',
   'tenant:manage',
   // Theme & uploads

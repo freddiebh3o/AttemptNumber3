@@ -112,7 +112,7 @@ roleRouter.get(
 // GET /api/roles
 roleRouter.get(
   "/roles",
-  requireAuthenticatedUserMiddleware,
+requireAuthenticatedUserMiddleware,
   requireAnyPermission(["roles:read", "roles:manage"]),
   validateRequestQueryWithZod(listQuerySchema),
   async (req, res, next) => {

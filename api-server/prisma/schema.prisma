@@ -411,12 +411,17 @@ model StockTransfer {
   // Notes
   requestNotes String? @db.Text
   reviewNotes  String? @db.Text // Reason for rejection
+  orderNotes   String? @db.Text // Order notes for communication
+
+  // Delivery planning
+  expectedDeliveryDate DateTime?
 
   // Reversal fields
-  isReversal     Boolean @default(false) // True if this is a reversal transfer
-  reversalOfId   String? // Links to original transfer (if reversal)
-  reversedById   String? // Links to reversal transfer (if reversed)
-  reversalReason String? @db.Text // Why reversal occurred
+  isReversal           Boolean @default(false) // True if this is a reversal transfer
+  reversalOfId         String? // Links to original transfer (if reversal)
+  reversedById         String? // Links to reversal transfer (if reversed)
+  reversedByTransferId String? // Bidirectional link to reversal transfer
+  reversalReason       String? @db.Text // Why reversal occurred
 
   // Multi-level approval
   requiresMultiLevelApproval Boolean @default(false)
@@ -443,6 +448,8 @@ model StockTransfer {
   @@index([destinationBranchId, status])
   @@index([requestedByUserId])
   @@index([reversedById])
+  @@index([reversedByTransferId])
+  @@index([expectedDeliveryDate])
 }
 
 /// Line items for stock transfer

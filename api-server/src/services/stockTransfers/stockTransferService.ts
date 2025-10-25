@@ -81,6 +81,8 @@ export async function createStockTransfer(params: {
     sourceBranchId: string;
     destinationBranchId: string;
     requestNotes?: string;
+    orderNotes?: string;
+    expectedDeliveryDate?: Date;
     priority?: 'URGENT' | 'HIGH' | 'NORMAL' | 'LOW';
     items: Array<{
       productId: string;
@@ -160,6 +162,8 @@ export async function createStockTransfer(params: {
         status: StockTransferStatus.REQUESTED,
         requestedByUserId: userId,
         requestNotes: data.requestNotes ?? null,
+        orderNotes: data.orderNotes ?? null,
+        expectedDeliveryDate: data.expectedDeliveryDate ?? null,
         priority: data.priority ?? 'NORMAL',
         items: {
           create: data.items.map((item) => ({
@@ -982,6 +986,8 @@ export async function listStockTransfers(params: {
     requestedAtTo?: string;
     shippedAtFrom?: string;
     shippedAtTo?: string;
+    expectedDeliveryDateFrom?: string; // ISO date
+    expectedDeliveryDateTo?: string;
     limit?: number;
     cursor?: string;
     includeTotal?: boolean;
@@ -1076,6 +1082,19 @@ export async function listStockTransfers(params: {
     toDate.setHours(23, 59, 59, 999); // End of day
     if (!where.shippedAt) where.shippedAt = {};
     (where.shippedAt as any).lte = toDate;
+  }
+
+  // Filter by expected delivery date range
+  if (filters?.expectedDeliveryDateFrom) {
+    const fromDate = new Date(filters.expectedDeliveryDateFrom);
+    if (!where.expectedDeliveryDate) where.expectedDeliveryDate = {};
+    (where.expectedDeliveryDate as any).gte = fromDate;
+  }
+  if (filters?.expectedDeliveryDateTo) {
+    const toDate = new Date(filters.expectedDeliveryDateTo);
+    toDate.setHours(23, 59, 59, 999); // End of day
+    if (!where.expectedDeliveryDate) where.expectedDeliveryDate = {};
+    (where.expectedDeliveryDate as any).lte = toDate;
   }
 
   // Sorting

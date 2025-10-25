@@ -22,7 +22,6 @@ import {
   IconPlus,
   IconArrowRight,
   IconCopy,
-  IconTrash,
   IconLink,
   IconArchive,
   IconArchiveOff,

@@ -13,6 +13,7 @@ import {
   Table,
   Alert,
 } from "@mantine/core";
+import { DateInput } from "@mantine/dates";
 import { IconPlus, IconTrash, IconAlertCircle } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import { createStockTransferApiRequest } from "../../api/stockTransfers";
@@ -23,7 +24,7 @@ import { useAuthStore } from "../../stores/auth";
 interface CreateTransferModalProps {
   opened: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (transferId: string) => void;
   initialValues?: {
     sourceBranchId?: string;
     destinationBranchId?: string;
@@ -52,6 +53,8 @@ export default function CreateTransferModal({
   const [sourceBranchId, setSourceBranchId] = useState<string>("");
   const [destinationBranchId, setDestinationBranchId] = useState<string>("");
   const [requestNotes, setRequestNotes] = useState("");
+  const [orderNotes, setOrderNotes] = useState("");
+  const [expectedDeliveryDate, setExpectedDeliveryDate] = useState<Date | null>(null);
   const [priority, setPriority] = useState<"LOW" | "NORMAL" | "HIGH" | "URGENT">("NORMAL");
   const [items, setItems] = useState<TransferItem[]>([]);
 
@@ -129,6 +132,8 @@ export default function CreateTransferModal({
       setSourceBranchId("");
       setDestinationBranchId("");
       setRequestNotes("");
+      setOrderNotes("");
+      setExpectedDeliveryDate(null);
       setPriority("NORMAL");
       setItems([]);
     }
@@ -216,6 +221,8 @@ export default function CreateTransferModal({
         sourceBranchId,
         destinationBranchId,
         requestNotes: requestNotes.trim() || undefined,
+        orderNotes: orderNotes.trim() || undefined,
+        expectedDeliveryDate: expectedDeliveryDate?.toISOString(),
         priority: priority,
         items: items.map((item) => ({
           productId: item.productId,
@@ -224,8 +231,8 @@ export default function CreateTransferModal({
         idempotencyKeyOptional: idempotencyKey,
       });
 
-      if (response.success) {
-        onSuccess();
+      if (response.success && response.data) {
+        onSuccess(response.data.id);
       }
     } catch (error: any) {
       notifications.show({
@@ -363,6 +370,16 @@ export default function CreateTransferModal({
           required
         />
 
+        <DateInput
+          label="Expected Delivery Date (Optional)"
+          placeholder="Select expected delivery date"
+          value={expectedDeliveryDate}
+          onChange={(v) => setExpectedDeliveryDate(v ? new Date(v) : null)}
+          minDate={new Date()}
+          clearable
+          data-testid="expected-delivery-date"
+        />
+
         <Textarea
           label="Request Notes (Optional)"
           placeholder="Why do you need this stock transfer?"
@@ -370,6 +387,16 @@ export default function CreateTransferModal({
           onChange={(e) => setRequestNotes(e.currentTarget.value)}
           minRows={3}
           maxLength={1000}
+        />
+
+        <Textarea
+          label="Order Notes (Optional)"
+          placeholder="Additional delivery instructions or special requirements"
+          value={orderNotes}
+          onChange={(e) => setOrderNotes(e.currentTarget.value)}
+          minRows={2}
+          maxLength={2000}
+          data-testid="order-notes"
         />
 
         <Group justify="flex-end" gap="xs">

@@ -145,7 +145,7 @@
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/auditLogs/auditLogRoutes.test.ts
 
 
-## FEATURES: STOCK TRANSFERS (10 suites - EXPANDED: PRD-5 Phase 4-6)
+## FEATURES: STOCK TRANSFERS (11 suites - EXPANDED: PRD-5 Phase 4-6 + Delivery Fields)
 
 ### Failing suites
 - transferService.test.ts (previously had 1 failure)
@@ -153,11 +153,13 @@
 ### All tests and commands
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/stockTransfers/transferService.test.ts
 
-- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/stockTransfers/transferRoutes.test.ts 
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/stockTransfers/transferRoutes.test.ts
 
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/stockTransfers/partialShipment.test.ts
 
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/stockTransfers/transferPriority.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/stockTransfers/transferDeliveryFields.test.ts
 
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/stockTransfers/templates/templateService.test.ts
 
@@ -227,7 +229,7 @@
 
 ## SUMMARY
 
-**Total Suites:** 69 (was 57 - added 12 new test files from PRD-5)
+**Total Suites:** 70 (was 57 - added 12 from PRD-5 + 1 for delivery fields)
 
 **PRD-5 New Test Files (12 total):**
 1. features/theme/themeService.test.ts (Phase 1)
