@@ -63,6 +63,8 @@ const StockTransferSchema = z.object({
     'CANCELLED',
   ]),
   priority: z.enum(['URGENT', 'HIGH', 'NORMAL', 'LOW']),
+  initiationType: z.enum(['PUSH', 'PULL']),
+  initiatedByBranchId: z.string().nullable(),
   requestedByUserId: z.string(),
   reviewedByUserId: z.string().nullable(),
   shippedByUserId: z.string().nullable(),
@@ -160,6 +162,10 @@ const CreateTransferBodySchema = z.object({
   orderNotes: z.string().max(2000).optional().describe('Order notes for communication between branches'),
   expectedDeliveryDate: z.string().datetime().optional().describe('Expected delivery date (ISO 8601 format)'),
   priority: z.enum(['URGENT', 'HIGH', 'NORMAL', 'LOW']).optional().describe('Transfer priority (default: NORMAL)'),
+  initiationType: z
+    .enum(['PUSH', 'PULL'])
+    .optional()
+    .describe('Transfer initiation type: PUSH (source sends) or PULL (destination requests). Default: PUSH'),
   items: z
     .array(
       z.object({
@@ -250,6 +256,8 @@ export function registerStockTransferPaths(registry: OpenAPIRegistry) {
         direction: z.enum(['inbound', 'outbound']).optional(),
         status: z.string().optional(), // Comma-separated
         priority: z.string().optional().describe('Comma-separated priority values (URGENT,HIGH,NORMAL,LOW)'),
+        initiationType: z.enum(['PUSH', 'PULL']).optional().describe('Filter by transfer initiation type'),
+        initiatedByMe: z.string().optional().describe('Filter by transfers initiated by user\'s branches (true/false)'),
         q: z.string().optional(), // Search transfer number
         sortBy: z.enum(['requestedAt', 'updatedAt', 'transferNumber', 'status', 'priority']).optional().describe('Default: priority'),
         sortDir: z.enum(['asc', 'desc']).optional().describe('Default: desc'),

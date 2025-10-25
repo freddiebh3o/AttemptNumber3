@@ -59,10 +59,10 @@ test.describe('Transfer Delivery Fields - Create with Delivery Fields', () => {
     await expect(dialog).toBeVisible();
 
     // Fill in basic fields - use seeded branches
-    await dialog.getByLabel(/source branch/i).click();
+    await dialog.getByLabel(/from branch/i).click();
     await page.getByRole('option', { name: 'HQ' }).click();
 
-    await dialog.getByLabel(/destination branch/i).click();
+    await dialog.getByLabel(/to branch/i).click();
     await page.getByRole('option', { name: 'Warehouse' }).click();
 
     // Add item
@@ -114,10 +114,10 @@ test.describe('Transfer Delivery Fields - Create with Delivery Fields', () => {
     await page.getByRole('button', { name: /new transfer/i }).click();
     const dialog = page.getByRole('dialog');
 
-    await dialog.getByLabel(/source branch/i).click();
+    await dialog.getByLabel(/from branch/i).click();
     await page.getByRole('option', { name: 'HQ' }).click();
 
-    await dialog.getByLabel(/destination branch/i).click();
+    await dialog.getByLabel(/to branch/i).click();
     await page.getByRole('option', { name: 'Warehouse' }).click();
 
     await dialog.getByRole('button', { name: /add item/i }).click();
@@ -160,10 +160,10 @@ test.describe('Transfer Delivery Fields - Create with Delivery Fields', () => {
     await page.getByRole('button', { name: /new transfer/i }).click();
     const dialog = page.getByRole('dialog');
 
-    await dialog.getByLabel(/source branch/i).click();
+    await dialog.getByLabel(/from branch/i).click();
     await page.getByRole('option', { name: 'HQ' }).click();
 
-    await dialog.getByLabel(/destination branch/i).click();
+    await dialog.getByLabel(/to branch/i).click();
     await page.getByRole('option', { name: 'Warehouse' }).click();
 
     await dialog.getByRole('button', { name: /add item/i }).click();
@@ -202,10 +202,10 @@ test.describe('Transfer Delivery Fields - Create with Delivery Fields', () => {
     await page.getByRole('button', { name: /new transfer/i }).click();
     const dialog = page.getByRole('dialog');
 
-    await dialog.getByLabel(/source branch/i).click();
+    await dialog.getByLabel(/from branch/i).click();
     await page.getByRole('option', { name: 'HQ' }).click();
 
-    await dialog.getByLabel(/destination branch/i).click();
+    await dialog.getByLabel(/to branch/i).click();
     await page.getByRole('option', { name: 'Warehouse' }).click();
 
     await dialog.getByRole('button', { name: /add item/i }).click();
@@ -289,10 +289,10 @@ test.describe('Transfer Delivery Fields - Validation', () => {
     await page.getByRole('button', { name: /new transfer/i }).click();
     const dialog = page.getByRole('dialog');
 
-    await dialog.getByLabel(/source branch/i).click();
+    await dialog.getByLabel(/from branch/i).click();
     await page.getByRole('option', { name: 'HQ' }).click();
 
-    await dialog.getByLabel(/destination branch/i).click();
+    await dialog.getByLabel(/to branch/i).click();
     await page.getByRole('option', { name: 'Warehouse' }).click();
 
     await dialog.getByRole('button', { name: /add item/i }).click();
@@ -324,10 +324,10 @@ test.describe('Transfer Delivery Fields - Validation', () => {
     await page.getByRole('button', { name: /new transfer/i }).click();
     const dialog = page.getByRole('dialog');
 
-    await dialog.getByLabel(/source branch/i).click();
+    await dialog.getByLabel(/from branch/i).click();
     await page.getByRole('option', { name: 'HQ' }).click();
 
-    await dialog.getByLabel(/destination branch/i).click();
+    await dialog.getByLabel(/to branch/i).click();
     await page.getByRole('option', { name: 'Warehouse' }).click();
 
     await dialog.getByRole('button', { name: /add item/i }).click();

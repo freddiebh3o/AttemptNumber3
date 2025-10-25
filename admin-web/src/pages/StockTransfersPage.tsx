@@ -78,6 +78,8 @@ type TransferFilters = {
   q: string; // Transfer number search
   status: string; // Status filter
   priority: string; // Priority filter
+  initiationType: string; // Initiation type filter (PUSH/PULL/all)
+  initiatedByMe: string; // Initiated by me filter (true/false/all)
   requestedAtFrom: string | null;
   requestedAtTo: string | null;
   shippedAtFrom: string | null;
@@ -90,6 +92,8 @@ const emptyTransferFilters: TransferFilters = {
   q: "",
   status: "all",
   priority: "all",
+  initiationType: "all",
+  initiatedByMe: "all",
   requestedAtFrom: null,
   requestedAtTo: null,
   shippedAtFrom: null,
@@ -115,6 +119,18 @@ const PRIORITY_OPTIONS = [
   { value: "HIGH", label: "High" },
   { value: "NORMAL", label: "Normal" },
   { value: "LOW", label: "Low" },
+];
+
+const INITIATION_TYPE_OPTIONS = [
+  { value: "all", label: "All Types" },
+  { value: "PUSH", label: "PUSH (Send)" },
+  { value: "PULL", label: "PULL (Request)" },
+];
+
+const INITIATED_BY_ME_OPTIONS = [
+  { value: "all", label: "All Transfers" },
+  { value: "true", label: "Initiated by Me" },
+  { value: "false", label: "Requested from Me" },
 ];
 
 function getStatusColor(status: TransferStatus): string {
@@ -205,6 +221,8 @@ export default function StockTransfersPage() {
       q: values.q.trim() || null,
       status: values.status === "all" ? null : values.status,
       priority: values.priority === "all" ? null : values.priority,
+      initiationType: values.initiationType === "all" ? null : values.initiationType,
+      initiatedByMe: values.initiatedByMe === "all" ? null : values.initiatedByMe,
       requestedAtFrom: values.requestedAtFrom ?? null,
       requestedAtTo: values.requestedAtTo ?? null,
       shippedAtFrom: values.shippedAtFrom ?? null,
@@ -216,6 +234,8 @@ export default function StockTransfersPage() {
       qOverride: values.q.trim() || null,
       statusOverride: values.status === "all" ? null : values.status,
       priorityOverride: values.priority === "all" ? null : values.priority,
+      initiationTypeOverride: values.initiationType === "all" ? null : values.initiationType,
+      initiatedByMeOverride: values.initiatedByMe === "all" ? null : values.initiatedByMe,
       requestedFromOverride: values.requestedAtFrom ?? null,
       requestedToOverride: values.requestedAtTo ?? null,
       shippedFromOverride: values.shippedAtFrom ?? null,
@@ -256,6 +276,8 @@ export default function StockTransfersPage() {
     q?: string | null | undefined;
     status?: string | null | undefined;
     priority?: string | null | undefined;
+    initiationType?: string | null | undefined;
+    initiatedByMe?: string | null | undefined;
     requestedAtFrom?: string | null | undefined;
     requestedAtTo?: string | null | undefined;
     shippedAtFrom?: string | null | undefined;
@@ -289,6 +311,20 @@ export default function StockTransfersPage() {
           ? null
           : appliedFilters.priority
         : overrides.priority;
+
+    const initiationTypeVal =
+      overrides?.initiationType === undefined
+        ? appliedFilters.initiationType === "all"
+          ? null
+          : appliedFilters.initiationType
+        : overrides.initiationType;
+
+    const initiatedByMeVal =
+      overrides?.initiatedByMe === undefined
+        ? appliedFilters.initiatedByMe === "all"
+          ? null
+          : appliedFilters.initiatedByMe
+        : overrides.initiatedByMe;
 
     const requestedFromVal =
       overrides && Object.prototype.hasOwnProperty.call(overrides, "requestedAtFrom")
@@ -327,6 +363,8 @@ export default function StockTransfersPage() {
     put("q", qVal);
     put("status", statusVal);
     put("priority", priorityVal);
+    put("initiationType", initiationTypeVal);
+    put("initiatedByMe", initiatedByMeVal);
     put("requestedAtFrom", requestedFromVal);
     put("requestedAtTo", requestedToVal);
     put("shippedAtFrom", shippedFromVal);
@@ -356,6 +394,8 @@ export default function StockTransfersPage() {
     qOverride?: string | null | undefined;
     statusOverride?: string | null | undefined;
     priorityOverride?: string | null | undefined;
+    initiationTypeOverride?: string | null | undefined;
+    initiatedByMeOverride?: string | null | undefined;
     requestedFromOverride?: string | null | undefined;
     requestedToOverride?: string | null | undefined;
     shippedFromOverride?: string | null | undefined;
@@ -414,6 +454,20 @@ export default function StockTransfersPage() {
           ? appliedFilters.expectedDeliveryDateTo || undefined
           : opts.expectedDeliveryToOverride || undefined;
 
+      const initiationTypeParam =
+        opts?.initiationTypeOverride === undefined
+          ? appliedFilters.initiationType === "all"
+            ? undefined
+            : (appliedFilters.initiationType as "PUSH" | "PULL" | undefined)
+          : (opts.initiationTypeOverride as "PUSH" | "PULL" | undefined);
+
+      const initiatedByMeParam =
+        opts?.initiatedByMeOverride === undefined
+          ? appliedFilters.initiatedByMe === "all"
+            ? undefined
+            : appliedFilters.initiatedByMe === "true"
+          : opts.initiatedByMeOverride === "true";
+
       const response = await listStockTransfersApiRequest({
         limit: opts?.limitOverride ?? limit,
         cursor: opts?.cursorId ?? cursorStack[pageIndex] ?? undefined,
@@ -421,6 +475,8 @@ export default function StockTransfersPage() {
         q: qParam,
         status: statusParam,
         priority: priorityParam,
+        initiationType: initiationTypeParam,
+        initiatedByMe: initiatedByMeParam,
         sortBy: opts?.sortByOverride ?? sortBy,
         sortDir: opts?.sortDirOverride ?? sortDir,
         requestedAtFrom: requestedFromParam,
@@ -472,6 +528,8 @@ export default function StockTransfersPage() {
     qOverride?: string | null | undefined;
     statusOverride?: string | null | undefined;
     priorityOverride?: string | null | undefined;
+    initiationTypeOverride?: string | null | undefined;
+    initiatedByMeOverride?: string | null | undefined;
     requestedFromOverride?: string | null | undefined;
     requestedToOverride?: string | null | undefined;
     shippedFromOverride?: string | null | undefined;
@@ -491,6 +549,8 @@ export default function StockTransfersPage() {
       q: opts?.qOverride,
       status: opts?.statusOverride,
       priority: opts?.priorityOverride,
+      initiationType: opts?.initiationTypeOverride,
+      initiatedByMe: opts?.initiatedByMeOverride,
       requestedAtFrom: opts?.requestedFromOverride,
       requestedAtTo: opts?.requestedToOverride,
       shippedAtFrom: opts?.shippedFromOverride,
@@ -524,6 +584,8 @@ export default function StockTransfersPage() {
     const qpQ = searchParams.get("q");
     const qpStatus = searchParams.get("status");
     const qpPriority = searchParams.get("priority");
+    const qpInitiationType = searchParams.get("initiationType");
+    const qpInitiatedByMe = searchParams.get("initiatedByMe");
     const qpRequestedFrom = searchParams.get("requestedAtFrom");
     const qpRequestedTo = searchParams.get("requestedAtTo");
     const qpShippedFrom = searchParams.get("shippedAtFrom");
@@ -542,6 +604,8 @@ export default function StockTransfersPage() {
       q: qpQ ?? "",
       status: qpStatus ?? "all",
       priority: qpPriority ?? "all",
+      initiationType: qpInitiationType ?? "all",
+      initiatedByMe: qpInitiatedByMe ?? "all",
       requestedAtFrom: qpRequestedFrom ?? null,
       requestedAtTo: qpRequestedTo ?? null,
       shippedAtFrom: qpShippedFrom ?? null,
@@ -566,6 +630,8 @@ export default function StockTransfersPage() {
       qOverride: qpQ ?? undefined,
       statusOverride: qpStatus ?? undefined,
       priorityOverride: qpPriority ?? undefined,
+      initiationTypeOverride: qpInitiationType ?? undefined,
+      initiatedByMeOverride: qpInitiatedByMe ?? undefined,
       requestedFromOverride: qpRequestedFrom ?? undefined,
       requestedToOverride: qpRequestedTo ?? undefined,
       shippedFromOverride: qpShippedFrom ?? undefined,
@@ -588,6 +654,8 @@ export default function StockTransfersPage() {
     const qpQ = sp.get("q");
     const qpStatus = sp.get("status");
     const qpPriority = sp.get("priority");
+    const qpInitiationType = sp.get("initiationType");
+    const qpInitiatedByMe = sp.get("initiatedByMe");
     const qpRequestedFrom = sp.get("requestedAtFrom");
     const qpRequestedTo = sp.get("requestedAtTo");
     const qpShippedFrom = sp.get("shippedAtFrom");
@@ -608,6 +676,8 @@ export default function StockTransfersPage() {
       q: qpQ ?? "",
       status: qpStatus ?? "all",
       priority: qpPriority ?? "all",
+      initiationType: qpInitiationType ?? "all",
+      initiatedByMe: qpInitiatedByMe ?? "all",
       requestedAtFrom: qpRequestedFrom ?? null,
       requestedAtTo: qpRequestedTo ?? null,
       shippedAtFrom: qpShippedFrom ?? null,
@@ -632,6 +702,8 @@ export default function StockTransfersPage() {
       qOverride: qpQ ?? undefined,
       statusOverride: qpStatus ?? undefined,
       priorityOverride: qpPriority ?? undefined,
+      initiationTypeOverride: qpInitiationType ?? undefined,
+      initiatedByMeOverride: qpInitiatedByMe ?? undefined,
       requestedFromOverride: qpRequestedFrom ?? undefined,
       requestedToOverride: qpRequestedTo ?? undefined,
       shippedFromOverride: qpShippedFrom ?? undefined,
@@ -754,6 +826,10 @@ export default function StockTransfersPage() {
       chips.push({ key: "status", label: `status: ${appliedFilters.status}` });
     if (appliedFilters.priority !== "all")
       chips.push({ key: "priority", label: `priority: ${appliedFilters.priority}` });
+    if (appliedFilters.initiationType !== "all")
+      chips.push({ key: "initiationType", label: `type: ${appliedFilters.initiationType}` });
+    if (appliedFilters.initiatedByMe !== "all")
+      chips.push({ key: "initiatedByMe", label: `initiated: ${appliedFilters.initiatedByMe === "true" ? "by me" : "by others"}` });
     if (appliedFilters.requestedAtFrom)
       chips.push({
         key: "requestedAtFrom",
@@ -793,6 +869,8 @@ export default function StockTransfersPage() {
       q: key === "q" ? "" : appliedFilters.q,
       status: key === "status" ? "all" : appliedFilters.status,
       priority: key === "priority" ? "all" : appliedFilters.priority,
+      initiationType: key === "initiationType" ? "all" : appliedFilters.initiationType,
+      initiatedByMe: key === "initiatedByMe" ? "all" : appliedFilters.initiatedByMe,
       requestedAtFrom:
         key === "requestedAtFrom" ? null : appliedFilters.requestedAtFrom,
       requestedAtTo: key === "requestedAtTo" ? null : appliedFilters.requestedAtTo,
@@ -1082,6 +1160,56 @@ export default function StockTransfersPage() {
                   }}
                 >
                   {PRIORITY_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </Grid.Col>
+
+              <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+                <Text size="sm" fw={500} mb={4}>
+                  Initiation Type
+                </Text>
+                <select
+                  value={values.initiationType}
+                  onChange={(e) =>
+                    setValues((prev) => ({ ...prev, initiationType: e.target.value }))
+                  }
+                  style={{
+                    width: "100%",
+                    padding: "8px",
+                    borderRadius: "4px",
+                    border: "1px solid #ced4da",
+                  }}
+                  data-testid="filter-initiation-type"
+                >
+                  {INITIATION_TYPE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </Grid.Col>
+
+              <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+                <Text size="sm" fw={500} mb={4}>
+                  Initiated By
+                </Text>
+                <select
+                  value={values.initiatedByMe}
+                  onChange={(e) =>
+                    setValues((prev) => ({ ...prev, initiatedByMe: e.target.value }))
+                  }
+                  style={{
+                    width: "100%",
+                    padding: "8px",
+                    borderRadius: "4px",
+                    border: "1px solid #ced4da",
+                  }}
+                  data-testid="filter-initiated-by-me"
+                >
+                  {INITIATED_BY_ME_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
                       {opt.label}
                     </option>
@@ -1424,6 +1552,14 @@ export default function StockTransfersPage() {
                                     Reversed
                                   </Badge>
                                 )}
+                                <Badge
+                                  color={transfer.initiationType === "PUSH" ? "blue" : "grape"}
+                                  variant="light"
+                                  size="xs"
+                                  data-testid="transfer-row-initiation-type"
+                                >
+                                  {transfer.initiationType === "PUSH" ? "PUSH" : "PULL"}
+                                </Badge>
                               </Stack>
                             </Table.Td>
                             <Table.Td>

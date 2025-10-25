@@ -12,6 +12,7 @@ import {
   ActionIcon,
   Table,
   Alert,
+  SegmentedControl,
 } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
 import { IconPlus, IconTrash, IconAlertCircle } from "@tabler/icons-react";
@@ -50,6 +51,7 @@ export default function CreateTransferModal({
 }: CreateTransferModalProps) {
   const branchMemberships = useAuthStore((s) => s.branchMembershipsCurrentTenant);
 
+  const [initiationType, setInitiationType] = useState<"PUSH" | "PULL">("PUSH");
   const [sourceBranchId, setSourceBranchId] = useState<string>("");
   const [destinationBranchId, setDestinationBranchId] = useState<string>("");
   const [requestNotes, setRequestNotes] = useState("");
@@ -129,6 +131,7 @@ export default function CreateTransferModal({
   // Reset form when modal closes
   useEffect(() => {
     if (!opened) {
+      setInitiationType("PUSH");
       setSourceBranchId("");
       setDestinationBranchId("");
       setRequestNotes("");
@@ -220,6 +223,7 @@ export default function CreateTransferModal({
       const response = await createStockTransferApiRequest({
         sourceBranchId,
         destinationBranchId,
+        initiationType,
         requestNotes: requestNotes.trim() || undefined,
         orderNotes: orderNotes.trim() || undefined,
         expectedDeliveryDate: expectedDeliveryDate?.toISOString(),
@@ -247,6 +251,14 @@ export default function CreateTransferModal({
   const userBranchIds = new Set(branchMemberships.map((b) => b.branchId));
   const availableBranches = branches.filter((b) => userBranchIds.has(b.value));
 
+  // Dynamic labels based on initiation type
+  const sourceBranchLabel = initiationType === "PUSH"
+    ? "From Branch (Sending)"
+    : "Request From Branch";
+  const destinationBranchLabel = initiationType === "PUSH"
+    ? "To Branch (Receiving)"
+    : "To My Branch (Receiving)";
+
   return (
     <Modal
       opened={opened}
@@ -261,10 +273,31 @@ export default function CreateTransferModal({
           </Alert>
         )}
 
+        <div>
+          <Text size="sm" fw={500} mb="xs">
+            Transfer Type
+          </Text>
+          <SegmentedControl
+            data-testid="initiation-type"
+            value={initiationType}
+            onChange={(value) => setInitiationType(value as "PUSH" | "PULL")}
+            data={[
+              { label: "PUSH (Send Stock)", value: "PUSH" },
+              { label: "PULL (Request Stock)", value: "PULL" },
+            ]}
+            fullWidth
+          />
+          <Text size="xs" c="dimmed" mt="xs">
+            {initiationType === "PUSH"
+              ? "Send stock from your branch to another branch"
+              : "Request stock from another branch to your branch"}
+          </Text>
+        </div>
+
         <Select
-          label="Source Branch (Sending From)"
+          label={sourceBranchLabel}
           placeholder="Select branch"
-          data={branches}
+          data={initiationType === "PUSH" ? availableBranches : branches}
           value={sourceBranchId}
           onChange={(v) => setSourceBranchId(v || "")}
           searchable
@@ -273,9 +306,9 @@ export default function CreateTransferModal({
         />
 
         <Select
-          label="Destination Branch (Sending To)"
+          label={destinationBranchLabel}
           placeholder="Select branch"
-          data={availableBranches}
+          data={initiationType === "PULL" ? availableBranches : branches}
           value={destinationBranchId}
           onChange={(v) => setDestinationBranchId(v || "")}
           searchable

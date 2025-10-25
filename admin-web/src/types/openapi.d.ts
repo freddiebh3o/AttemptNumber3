@@ -5241,6 +5241,10 @@ export interface paths {
                     status?: string;
                     /** @description Comma-separated priority values (URGENT,HIGH,NORMAL,LOW) */
                     priority?: string;
+                    /** @description Filter by transfer initiation type */
+                    initiationType?: "PUSH" | "PULL";
+                    /** @description Filter by transfers initiated by user's branches (true/false) */
+                    initiatedByMe?: string;
                     q?: string;
                     /** @description Default: priority */
                     sortBy?: "requestedAt" | "updatedAt" | "transferNumber" | "status" | "priority";
@@ -5284,6 +5288,9 @@ export interface paths {
                                     status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
                                     /** @enum {string} */
                                     priority: "URGENT" | "HIGH" | "NORMAL" | "LOW";
+                                    /** @enum {string} */
+                                    initiationType: "PUSH" | "PULL";
+                                    initiatedByBranchId: string | null;
                                     requestedByUserId: string;
                                     reviewedByUserId: string | null;
                                     shippedByUserId: string | null;
@@ -5407,6 +5414,11 @@ export interface paths {
                          * @enum {string}
                          */
                         priority?: "URGENT" | "HIGH" | "NORMAL" | "LOW";
+                        /**
+                         * @description Transfer initiation type: PUSH (source sends) or PULL (destination requests). Default: PUSH
+                         * @enum {string}
+                         */
+                        initiationType?: "PUSH" | "PULL";
                         items: {
                             productId: string;
                             qtyRequested: number;
@@ -5434,6 +5446,9 @@ export interface paths {
                                 status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
                                 /** @enum {string} */
                                 priority: "URGENT" | "HIGH" | "NORMAL" | "LOW";
+                                /** @enum {string} */
+                                initiationType: "PUSH" | "PULL";
+                                initiatedByBranchId: string | null;
                                 requestedByUserId: string;
                                 reviewedByUserId: string | null;
                                 shippedByUserId: string | null;
@@ -5568,6 +5583,9 @@ export interface paths {
                                 status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
                                 /** @enum {string} */
                                 priority: "URGENT" | "HIGH" | "NORMAL" | "LOW";
+                                /** @enum {string} */
+                                initiationType: "PUSH" | "PULL";
+                                initiatedByBranchId: string | null;
                                 requestedByUserId: string;
                                 reviewedByUserId: string | null;
                                 shippedByUserId: string | null;
@@ -5750,6 +5768,9 @@ export interface paths {
                                 status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
                                 /** @enum {string} */
                                 priority: "URGENT" | "HIGH" | "NORMAL" | "LOW";
+                                /** @enum {string} */
+                                initiationType: "PUSH" | "PULL";
+                                initiatedByBranchId: string | null;
                                 requestedByUserId: string;
                                 reviewedByUserId: string | null;
                                 shippedByUserId: string | null;
@@ -5892,6 +5913,9 @@ export interface paths {
                                 status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
                                 /** @enum {string} */
                                 priority: "URGENT" | "HIGH" | "NORMAL" | "LOW";
+                                /** @enum {string} */
+                                initiationType: "PUSH" | "PULL";
+                                initiatedByBranchId: string | null;
                                 requestedByUserId: string;
                                 reviewedByUserId: string | null;
                                 shippedByUserId: string | null;
@@ -6037,6 +6061,9 @@ export interface paths {
                                 status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
                                 /** @enum {string} */
                                 priority: "URGENT" | "HIGH" | "NORMAL" | "LOW";
+                                /** @enum {string} */
+                                initiationType: "PUSH" | "PULL";
+                                initiatedByBranchId: string | null;
                                 requestedByUserId: string;
                                 reviewedByUserId: string | null;
                                 shippedByUserId: string | null;
@@ -6179,6 +6206,9 @@ export interface paths {
                                 status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
                                 /** @enum {string} */
                                 priority: "URGENT" | "HIGH" | "NORMAL" | "LOW";
+                                /** @enum {string} */
+                                initiationType: "PUSH" | "PULL";
+                                initiatedByBranchId: string | null;
                                 requestedByUserId: string;
                                 reviewedByUserId: string | null;
                                 shippedByUserId: string | null;
@@ -6326,6 +6356,9 @@ export interface paths {
                                 status: "REQUESTED" | "APPROVED" | "REJECTED" | "IN_TRANSIT" | "PARTIALLY_RECEIVED" | "COMPLETED" | "CANCELLED";
                                 /** @enum {string} */
                                 priority: "URGENT" | "HIGH" | "NORMAL" | "LOW";
+                                /** @enum {string} */
+                                initiationType: "PUSH" | "PULL";
+                                initiatedByBranchId: string | null;
                                 requestedByUserId: string;
                                 reviewedByUserId: string | null;
                                 shippedByUserId: string | null;

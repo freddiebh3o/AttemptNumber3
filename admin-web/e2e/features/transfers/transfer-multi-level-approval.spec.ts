@@ -68,7 +68,7 @@ test.describe('Multi-Level Approval - Transfer Creation', () => {
 
     // Get seeded branches that owner has access to
     const sourceBranchId = await Factories.branch.getBySlug(page, 'acme-warehouse');
-    const destBranchId = await Factories.branch.getBySlug(page, 'acme-retail-1');
+    // const destBranchId = await Factories.branch.getBySlug(page, 'acme-retail-1');
 
     // Create product and add stock
     const productId = await Factories.product.create(page, {
@@ -95,8 +95,8 @@ test.describe('Multi-Level Approval - Transfer Creation', () => {
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
 
-    // Select source branch using the working pattern
-    await dialog.getByLabel(/source branch/i).click();
+    // Select source branch using the working pattern (PUSH mode: "from branch")
+    await dialog.getByLabel(/from branch/i).click();
     await page.waitForTimeout(500);
     // getByRole automatically filters hidden elements
     await page.getByRole('option').first().click();
@@ -104,8 +104,8 @@ test.describe('Multi-Level Approval - Transfer Creation', () => {
     // Wait for selection to register
     await page.waitForTimeout(500);
 
-    // Select destination branch (different from source)
-    await dialog.getByLabel(/destination branch/i).click();
+    // Select destination branch (different from source) (PUSH mode: "to branch")
+    await dialog.getByLabel(/to branch/i).click();
     await page.waitForTimeout(500);
     const destOptions = page.getByRole('option');
     const destCount = await destOptions.count();

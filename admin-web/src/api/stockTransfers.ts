@@ -72,6 +72,8 @@ export async function listStockTransfersApiRequest(params?: {
   direction?: "inbound" | "outbound";
   status?: string; // Comma-separated
   priority?: string; // Comma-separated
+  initiationType?: "PUSH" | "PULL"; // Filter by initiation type
+  initiatedByMe?: boolean; // Filter by transfers initiated by user's branches
   q?: string; // Search transfer number
   sortBy?: "requestedAt" | "updatedAt" | "transferNumber" | "status" | "priority";
   sortDir?: "asc" | "desc";
@@ -90,6 +92,8 @@ export async function listStockTransfersApiRequest(params?: {
   if (params?.direction) search.set("direction", params.direction);
   if (params?.status) search.set("status", params.status);
   if (params?.priority) search.set("priority", params.priority);
+  if (params?.initiationType) search.set("initiationType", params.initiationType);
+  if (params?.initiatedByMe !== undefined) search.set("initiatedByMe", params.initiatedByMe.toString());
   if (params?.q) search.set("q", params.q);
   if (params?.sortBy) search.set("sortBy", params.sortBy);
   if (params?.sortDir) search.set("sortDir", params.sortDir);

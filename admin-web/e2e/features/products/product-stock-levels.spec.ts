@@ -272,7 +272,7 @@ test.describe('Product Stock Levels Tab - Empty State', () => {
     }
   });
 
-  test('should show alert when tenant has no branches', async ({ page }) => {
+  test('should show alert when tenant has no branches', async ({ }) => {
     // This test would require a tenant with no branches (not in seed data)
     // Skipping for now as all tenants have branches by default
     test.skip();
@@ -466,7 +466,7 @@ test.describe('Product Stock Levels Tab - Loading State', () => {
 
     // Should show loading text initially (may be brief)
     // Note: This might be flaky if loading is too fast
-    const loadingText = page.getByText(/loading/i);
+    // const loadingText = page.getByText(/loading/i);
 
     // Just verify the page loads successfully
     await page.waitForLoadState('networkidle');

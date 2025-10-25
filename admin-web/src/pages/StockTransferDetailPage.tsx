@@ -206,10 +206,19 @@ export default function StockTransferDetailPage() {
     ? userBranchIds.has(transfer.destinationBranchId)
     : false;
 
-  // Determine which actions are available
+  // Determine which actions are available based on initiation type
+  // PUSH: destination reviews (they receive the stock)
+  // PULL: source reviews (they're being asked to send stock)
+  const reviewingBranchId = transfer?.initiationType === "PUSH"
+    ? transfer?.destinationBranchId
+    : transfer?.sourceBranchId;
+  const isMemberOfReviewingBranch = reviewingBranchId
+    ? userBranchIds.has(reviewingBranchId)
+    : false;
+
   const canApprove =
     canWriteStock &&
-    isMemberOfSource &&
+    isMemberOfReviewingBranch &&
     transfer?.status === "REQUESTED";
 
   const canShip =
@@ -419,7 +428,31 @@ export default function StockTransferDetailPage() {
                   {transfer.status.replace(/_/g, " ")}
                 </Badge>
                 <PriorityBadge priority={transfer.priority as "LOW" | "NORMAL" | "HIGH" | "URGENT"} size="lg" />
+                <Badge
+                  color={transfer.initiationType === "PUSH" ? "blue" : "grape"}
+                  variant="light"
+                  size="lg"
+                  data-testid="transfer-initiation-type"
+                >
+                  {transfer.initiationType === "PUSH" ? "PUSH (Send)" : "PULL (Request)"}
+                </Badge>
               </Group>
+
+              {/* Initiated By Branch */}
+              {transfer.initiatedByBranchId && (
+                <Group gap="xs">
+                  <Text size="sm" c="dimmed">Initiated by:</Text>
+                  <Badge
+                    color="gray"
+                    variant="dot"
+                    data-testid="initiated-by-branch"
+                  >
+                    {transfer.initiationType === "PUSH"
+                      ? transfer.sourceBranch?.branchName
+                      : transfer.destinationBranch?.branchName}
+                  </Badge>
+                </Group>
+              )}
 
               {/* Expected Delivery Date */}
               {transfer.expectedDeliveryDate && (
@@ -446,7 +479,9 @@ export default function StockTransferDetailPage() {
                 leftSection={<IconCheck size={16} />}
                 onClick={() => setReviewModalOpen(true)}
               >
-                Review Transfer
+                {transfer.initiationType === "PUSH"
+                  ? "Approve Receipt"
+                  : "Approve Request"}
               </Button>
             )}
             {canShip && (

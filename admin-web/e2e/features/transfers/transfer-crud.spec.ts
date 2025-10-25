@@ -70,9 +70,12 @@ test.describe('Transfer CRUD - Navigation', () => {
     await expect(dialog).toBeVisible();
     await expect(dialog.getByText(/create transfer request/i).first()).toBeVisible();
 
-    // Should show form fields
-    await expect(dialog.getByLabel(/source branch/i)).toBeVisible();
-    await expect(dialog.getByLabel(/destination branch/i)).toBeVisible();
+    // Should show PUSH/PULL toggle (default: PUSH)
+    await expect(dialog.getByTestId('initiation-type')).toBeVisible();
+
+    // Should show form fields (PUSH labels by default)
+    await expect(dialog.getByLabel(/from branch/i)).toBeVisible();
+    await expect(dialog.getByLabel(/to branch/i)).toBeVisible();
   });
 
   test('should display transfers table with columns', async ({ page }) => {
@@ -126,12 +129,12 @@ test.describe('Transfer CRUD - Create Draft via Modal', () => {
       await expect(dialog).toBeVisible();
 
       // Fill in transfer details - select by branch name (more reliable)
-      await dialog.getByLabel(/source branch/i).click();
+      await dialog.getByLabel(/from branch/i).click();
       await page.waitForTimeout(300);
       await page.getByRole('option', { name: /hq/i }).click();
       await page.waitForTimeout(300);
 
-      await dialog.getByLabel(/destination branch/i).click();
+      await dialog.getByLabel(/to branch/i).click();
       await page.waitForTimeout(300);
       await page.getByRole('option', { name: /warehouse/i }).click();
       await page.waitForTimeout(300);
@@ -216,12 +219,12 @@ test.describe('Transfer CRUD - Create Draft via Modal', () => {
       await expect(dialog).toBeVisible();
 
       // Select branches by name
-      await dialog.getByLabel(/source branch/i).click();
+      await dialog.getByLabel(/from branch/i).click();
       await page.waitForTimeout(300);
       await page.getByRole('option', { name: /hq/i }).click();
       await page.waitForTimeout(300);
 
-      await dialog.getByLabel(/destination branch/i).click();
+      await dialog.getByLabel(/to branch/i).click();
       await page.waitForTimeout(300);
       await page.getByRole('option', { name: /warehouse/i }).click();
       await page.waitForTimeout(300);
@@ -309,12 +312,12 @@ test.describe('Transfer CRUD - View Transfer', () => {
       // Verify transfer details are displayed
       await expect(page.getByText(productName)).toBeVisible();
 
-      // Verify quantity is shown in table cell
-      await expect(page.getByRole('cell', { name: '25' })).toBeVisible();
+      // Verify quantity is shown in table cell (use exact match to avoid timestamp conflicts)
+      await expect(page.getByRole('cell', { name: '25', exact: true })).toBeVisible();
 
-      // Verify source and destination branches are shown
-      await expect(page.getByText(/hq/i)).toBeVisible();
-      await expect(page.getByText(/warehouse/i)).toBeVisible();
+      // Verify source and destination branches are shown (use .first() due to initiated-by badge)
+      await expect(page.getByText(/hq/i).first()).toBeVisible();
+      await expect(page.getByText(/warehouse/i).first()).toBeVisible();
     } finally {
       await Factories.transfer.delete(page, transferId);
       await Factories.product.delete(page, productId);
@@ -335,12 +338,12 @@ test.describe('Transfer CRUD - Validation', () => {
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
 
-    await dialog.getByLabel(/destination branch/i).click();
+    await dialog.getByLabel(/to branch/i).click();
     await page.waitForTimeout(300);
     await page.getByRole('option').first().click();
     await page.waitForTimeout(300);
 
-    // Try to save without source branch
+    // Try to save without source branch (from branch in PUSH mode)
     await dialog.getByRole('button', { name: /create|save/i }).click();
 
     // Should show validation error
@@ -365,14 +368,14 @@ test.describe('Transfer CRUD - Validation', () => {
     }
 
     // Select different branches
-    await dialog.getByLabel(/source branch/i).click();
+    await dialog.getByLabel(/from branch/i).click();
     await page.waitForTimeout(300);
     await page.getByRole('option').first().click();
     await page.waitForTimeout(300);
 
-    await dialog.getByLabel(/destination branch/i).click();
+    await dialog.getByLabel(/to branch/i).click();
     await page.waitForTimeout(300);
-    await page.getByRole('option').nth(1).click();
+    await page.getByRole('option').first().click();
     await page.waitForTimeout(300);
 
     // Don't add any products
@@ -430,7 +433,7 @@ test.describe('Transfer CRUD - Permission Checks', () => {
     await page.getByRole('button', { name: /new transfer/i }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByLabel(/source branch/i)).toBeVisible();
+    await expect(dialog.getByLabel(/from branch/i)).toBeVisible();
   });
 
   test('owner can create transfers (has stock:write)', async ({ page }) => {
@@ -447,6 +450,6 @@ test.describe('Transfer CRUD - Permission Checks', () => {
     await page.getByRole('button', { name: /new transfer/i }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByLabel(/source branch/i)).toBeVisible();
+    await expect(dialog.getByLabel(/from branch/i)).toBeVisible();
   });
 });

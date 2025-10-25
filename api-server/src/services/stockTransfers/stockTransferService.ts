@@ -84,6 +84,7 @@ export async function createStockTransfer(params: {
     orderNotes?: string;
     expectedDeliveryDate?: Date;
     priority?: 'URGENT' | 'HIGH' | 'NORMAL' | 'LOW';
+    initiationType?: 'PUSH' | 'PULL';
     items: Array<{
       productId: string;
       qtyRequested: number;
@@ -103,12 +104,22 @@ export async function createStockTransfer(params: {
     throw Errors.validation('Transfer must include at least one item');
   }
 
-  // Validate: user is member of destination branch
+  // Determine initiation type (default: PUSH for backward compatibility)
+  const initiationType = data.initiationType ?? 'PUSH';
+
+  // Determine which branch is initiating based on initiation type
+  const initiatingBranchId = initiationType === 'PUSH'
+    ? data.sourceBranchId
+    : data.destinationBranchId;
+
+  // Validate: user is member of initiating branch
+  // PUSH: user must be in source branch (sending stock)
+  // PULL: user must be in destination branch (requesting stock)
   await assertBranchMembership({
     userId,
     tenantId,
-    branchId: data.destinationBranchId,
-    errorMessage: 'You must be a member of the destination branch to request transfers',
+    branchId: initiatingBranchId,
+    errorMessage: `You must be a member of the ${initiationType === 'PUSH' ? 'source' : 'destination'} branch to initiate ${initiationType} transfers`,
   });
 
   // Validate: both branches exist and belong to tenant
@@ -161,6 +172,8 @@ export async function createStockTransfer(params: {
         destinationBranchId: data.destinationBranchId,
         status: StockTransferStatus.REQUESTED,
         requestedByUserId: userId,
+        initiationType,
+        initiatedByBranchId: initiatingBranchId,
         requestNotes: data.requestNotes ?? null,
         orderNotes: data.orderNotes ?? null,
         expectedDeliveryDate: data.expectedDeliveryDate ?? null,
@@ -215,7 +228,7 @@ export async function createStockTransfer(params: {
     try {
       await writeAuditEvent(tx, {
         tenantId,
-        actorUserId: auditContext?.correlationId ? null : userId,
+        actorUserId: userId,
         entityType: AuditEntityType.STOCK_TRANSFER,
         entityId: transfer.id,
         action: AuditAction.TRANSFER_REQUEST,
@@ -291,12 +304,19 @@ export async function reviewStockTransfer(params: {
 
   if (!transfer) throw Errors.notFound('Transfer not found');
 
-  // Validate: user is member of source branch
+  // Determine which branch can review based on initiation type
+  // PUSH: destination branch reviews (they receive the stock)
+  // PULL: source branch reviews (they're being asked to send stock)
+  const reviewingBranchId = transfer.initiationType === 'PUSH'
+    ? transfer.destinationBranchId
+    : transfer.sourceBranchId;
+
+  // Validate: user is member of reviewing branch
   await assertBranchMembership({
     userId,
     tenantId,
-    branchId: transfer.sourceBranchId,
-    errorMessage: 'You must be a member of the source branch to review transfers',
+    branchId: reviewingBranchId,
+    errorMessage: `You must be a member of the ${transfer.initiationType === 'PUSH' ? 'destination' : 'source'} branch to review ${transfer.initiationType} transfers`,
   });
 
   // Validate: transfer is in REQUESTED status
@@ -979,6 +999,8 @@ export async function listStockTransfers(params: {
     direction?: 'inbound' | 'outbound';
     status?: string; // comma-separated
     priority?: string; // comma-separated
+    initiationType?: 'PUSH' | 'PULL'; // Filter by initiation type
+    initiatedByMe?: boolean; // Filter by transfers initiated by user's branches
     q?: string; // Search transfer number
     sortBy?: 'requestedAt' | 'updatedAt' | 'transferNumber' | 'status' | 'priority';
     sortDir?: 'asc' | 'desc';
@@ -1051,6 +1073,16 @@ export async function listStockTransfers(params: {
     if (priorities.length > 0) {
       where.priority = { in: priorities };
     }
+  }
+
+  // Filter by initiation type
+  if (filters?.initiationType) {
+    where.initiationType = filters.initiationType;
+  }
+
+  // Filter by "initiated by me" (transfers where user's branches initiated)
+  if (filters?.initiatedByMe === true) {
+    where.initiatedByBranchId = { in: userBranchIds };
   }
 
   // Filter by transfer number (search)

@@ -133,6 +133,11 @@ enum TransferPriority {
   URGENT
 }
 
+enum TransferInitiationType {
+  PUSH // Source branch initiates (sends stock to destination)
+  PULL // Destination branch initiates (requests stock from source)
+}
+
 enum ApprovalRuleConditionType {
   TOTAL_QTY_THRESHOLD // Total quantity > X
   TOTAL_VALUE_THRESHOLD // Total value (pence) > X
@@ -394,13 +399,15 @@ model StockTransfer {
   destinationBranchId String
 
   // Workflow
-  status   StockTransferStatus @default(REQUESTED)
-  priority TransferPriority    @default(NORMAL)
+  status         StockTransferStatus     @default(REQUESTED)
+  priority       TransferPriority        @default(NORMAL)
+  initiationType TransferInitiationType  @default(PUSH)
 
   // Actors
-  requestedByUserId String // User who initiated request
-  reviewedByUserId  String? // User who approved/rejected
-  shippedByUserId   String? // User who shipped
+  requestedByUserId   String  // User who initiated request
+  reviewedByUserId    String? // User who approved/rejected
+  shippedByUserId     String? // User who shipped
+  initiatedByBranchId String? // Branch that initiated the transfer (PUSH: source, PULL: destination)
 
   // Timestamps
   requestedAt DateTime  @default(now())
@@ -450,6 +457,8 @@ model StockTransfer {
   @@index([requestedByUserId])
   @@index([reversedByTransferId])
   @@index([expectedDeliveryDate])
+  @@index([tenantId, initiationType])
+  @@index([initiatedByBranchId])
 }
 
 /// Line items for stock transfer

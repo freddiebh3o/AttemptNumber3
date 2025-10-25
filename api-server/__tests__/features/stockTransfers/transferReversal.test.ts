@@ -123,7 +123,7 @@ describe('[TRANSFER-REVERSAL] Stock Transfer Reversal Linking', () => {
         tenantId: testTenant.id,
         userId: testUser.id,
         transferId: transfer.id,
-        receivedItems: [{ itemId: transfer.items[0].id, qtyReceived: 10 }],
+        receivedItems: [{ itemId: transfer.items[0]?.id ?? '', qtyReceived: 10 }],
       });
 
       // Step 2: Reverse the transfer
@@ -176,7 +176,7 @@ describe('[TRANSFER-REVERSAL] Stock Transfer Reversal Linking', () => {
         tenantId: testTenant.id,
         userId: testUser.id,
         transferId: transfer.id,
-        receivedItems: [{ itemId: transfer.items[0].id, qtyReceived: 10 }],
+        receivedItems: [{ itemId: transfer.items[0]?.id ?? '', qtyReceived: 10 }],
       });
 
       // Reverse the transfer
@@ -241,7 +241,7 @@ describe('[TRANSFER-REVERSAL] Stock Transfer Reversal Linking', () => {
         tenantId: testTenant.id,
         userId: testUser.id,
         transferId: transfer.id,
-        receivedItems: [{ itemId: transfer.items[0].id, qtyReceived: 10 }],
+        receivedItems: [{ itemId: transfer.items[0]?.id ?? '', qtyReceived: 10 }],
       });
 
       // Reverse with reason
@@ -289,7 +289,7 @@ describe('[TRANSFER-REVERSAL] Stock Transfer Reversal Linking', () => {
         tenantId: testTenant.id,
         userId: testUser.id,
         transferId: transfer.id,
-        receivedItems: [{ itemId: transfer.items[0].id, qtyReceived: 10 }],
+        receivedItems: [{ itemId: transfer.items[0]?.id ?? '', qtyReceived: 10 }],
       });
 
       // Reverse without reason
@@ -335,7 +335,7 @@ describe('[TRANSFER-REVERSAL] Stock Transfer Reversal Linking', () => {
         tenantId: testTenant.id,
         userId: testUser.id,
         transferId: transfer.id,
-        receivedItems: [{ itemId: transfer.items[0].id, qtyReceived: 10 }],
+        receivedItems: [{ itemId: transfer.items[0]?.id ?? '', qtyReceived: 10 }],
       });
 
       // Reverse with reason
@@ -418,7 +418,7 @@ describe('[TRANSFER-REVERSAL] Stock Transfer Reversal Linking', () => {
         tenantId: testTenant.id,
         userId: testUser.id,
         transferId: transfer.id,
-        receivedItems: [{ itemId: transfer.items[0].id, qtyReceived: 10 }],
+        receivedItems: [{ itemId: transfer.items[0]?.id ?? '', qtyReceived: 10 }],
       });
 
       const reversal = await reverseStockTransfer({
@@ -469,7 +469,7 @@ describe('[TRANSFER-REVERSAL] Stock Transfer Reversal Linking', () => {
         tenantId: testTenant.id,
         userId: testUser.id,
         transferId: transfer.id,
-        receivedItems: [{ itemId: transfer.items[0].id, qtyReceived: 10 }],
+        receivedItems: [{ itemId: transfer.items[0]?.id ?? '', qtyReceived: 10 }],
       });
 
       // First reversal - should succeed
@@ -520,7 +520,7 @@ describe('[TRANSFER-REVERSAL] Stock Transfer Reversal Linking', () => {
         tenantId: testTenant.id,
         userId: testUser.id,
         transferId: original.id,
-        receivedItems: [{ itemId: original.items[0].id, qtyReceived: 10 }],
+        receivedItems: [{ itemId: original.items[0]?.id ?? '', qtyReceived: 10 }],
       });
 
       // First reversal

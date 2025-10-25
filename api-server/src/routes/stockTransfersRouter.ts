@@ -19,6 +19,7 @@ const CreateTransferBodySchema = z.object({
   orderNotes: z.string().max(2000).optional(),
   expectedDeliveryDate: z.string().datetime().optional(),
   priority: z.enum(['URGENT', 'HIGH', 'NORMAL', 'LOW']).optional(),
+  initiationType: z.enum(['PUSH', 'PULL']).optional(),
   items: z
     .array(
       z.object({
@@ -62,7 +63,7 @@ stockTransfersRouter.post(
   async (req, res, next) => {
     try {
       assertAuthed(req);
-      const { sourceBranchId, destinationBranchId, items, requestNotes, orderNotes, expectedDeliveryDate, priority } =
+      const { sourceBranchId, destinationBranchId, items, requestNotes, orderNotes, expectedDeliveryDate, priority, initiationType } =
         req.validatedBody as z.infer<typeof CreateTransferBodySchema>;
 
       const transfer = await transferService.createStockTransfer({
@@ -76,6 +77,7 @@ stockTransfersRouter.post(
           ...(orderNotes ? { orderNotes } : {}),
           ...(expectedDeliveryDate ? { expectedDeliveryDate: new Date(expectedDeliveryDate) } : {}),
           ...(priority ? { priority } : {}),
+          ...(initiationType ? { initiationType } : {}),
         },
         auditContext: getAuditContext(req),
       });
@@ -100,6 +102,8 @@ stockTransfersRouter.get(
       const direction = req.query.direction as 'inbound' | 'outbound' | undefined;
       const status = req.query.status as string | undefined;
       const priority = req.query.priority as string | undefined;
+      const initiationType = req.query.initiationType as 'PUSH' | 'PULL' | undefined;
+      const initiatedByMeStr = req.query.initiatedByMe as string | undefined;
       const q = req.query.q as string | undefined;
       const sortBy = req.query.sortBy as 'requestedAt' | 'updatedAt' | 'transferNumber' | 'status' | 'priority' | undefined;
       const sortDir = req.query.sortDir as 'asc' | 'desc' | undefined;
@@ -121,6 +125,8 @@ stockTransfersRouter.get(
           ...(direction ? { direction } : {}),
           ...(status ? { status } : {}),
           ...(priority ? { priority } : {}),
+          ...(initiationType ? { initiationType } : {}),
+          ...(initiatedByMeStr ? { initiatedByMe: initiatedByMeStr === 'true' } : {}),
           ...(q ? { q } : {}),
           ...(sortBy ? { sortBy } : {}),
           ...(sortDir ? { sortDir } : {}),

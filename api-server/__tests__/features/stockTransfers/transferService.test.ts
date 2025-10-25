@@ -148,7 +148,7 @@ describe('[ST-007] Stock Transfer Service', () => {
     it('should create transfer request with REQUESTED status', async () => {
       const transfer = await transferService.createStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         data: {
           sourceBranchId: sourceBranch.id,
           destinationBranchId: destinationBranch.id,
@@ -163,7 +163,7 @@ describe('[ST-007] Stock Transfer Service', () => {
       expect(transfer.status).toBe(StockTransferStatus.REQUESTED);
       expect(transfer.sourceBranchId).toBe(sourceBranch.id);
       expect(transfer.destinationBranchId).toBe(destinationBranch.id);
-      expect(transfer.requestedByUserId).toBe(userDestination.id);
+      expect(transfer.requestedByUserId).toBe(userSource.id); // PUSH: created by source user
       expect(transfer.requestNotes).toBe('Need stock for store');
       expect(transfer.items).toHaveLength(2);
       expect(transfer.items[0]?.qtyRequested).toBe(100);
@@ -175,7 +175,7 @@ describe('[ST-007] Stock Transfer Service', () => {
       await expect(
         transferService.createStockTransfer({
           tenantId: testTenant.id,
-          userId: userDestination.id,
+          userId: userSource.id, // PUSH: create from SOURCE
           data: {
             sourceBranchId: sourceBranch.id,
             destinationBranchId: sourceBranch.id,
@@ -185,25 +185,26 @@ describe('[ST-007] Stock Transfer Service', () => {
       ).rejects.toThrow('Source and destination branches must be different');
     });
 
-    it('should reject if user is not member of destination branch', async () => {
-      // Create a third user who is only member of source branch
-      const userOnlySource = await createTestUser();
+    it('should reject if user is not member of initiating branch (PUSH requires source)', async () => {
+      // Create a user who is only member of destination branch (NOT source)
+      const userOnlyDestination = await createTestUser();
       const role = await createTestRoleWithPermissions({
         tenantId: testTenant.id,
         permissionKeys: ['stock:read', 'stock:write'],
       });
       await createTestMembership({
-        userId: userOnlySource.id,
+        userId: userOnlyDestination.id,
         tenantId: testTenant.id,
         roleId: role.id,
       });
-      // Only add to source branch, NOT destination
-      await addUserToBranch(userOnlySource.id, testTenant.id, sourceBranch.id);
+      // Only add to destination branch, NOT source
+      await addUserToBranch(userOnlyDestination.id, testTenant.id, destinationBranch.id);
 
+      // PUSH transfer (default) requires user to be in SOURCE branch
       await expect(
         transferService.createStockTransfer({
           tenantId: testTenant.id,
-          userId: userOnlySource.id, // User only in source branch
+          userId: userOnlyDestination.id, // User only in destination branch
           data: {
             sourceBranchId: sourceBranch.id,
             destinationBranchId: destinationBranch.id,
@@ -217,7 +218,7 @@ describe('[ST-007] Stock Transfer Service', () => {
       await expect(
         transferService.createStockTransfer({
           tenantId: testTenant.id,
-          userId: userDestination.id,
+          userId: userSource.id, // PUSH: create from SOURCE
           data: {
             sourceBranchId: sourceBranch.id,
             destinationBranchId: destinationBranch.id,
@@ -232,7 +233,7 @@ describe('[ST-007] Stock Transfer Service', () => {
     it('should approve transfer and set qtyApproved', async () => {
       const transfer = await transferService.createStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         data: {
           sourceBranchId: sourceBranch.id,
           destinationBranchId: destinationBranch.id,
@@ -245,7 +246,7 @@ describe('[ST-007] Stock Transfer Service', () => {
 
       const reviewed = await transferService.reviewStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id, // PUSH: review from DESTINATION
         transferId: transfer.id,
         action: 'approve',
         reviewNotes: 'Approved, stock available',
@@ -256,7 +257,7 @@ describe('[ST-007] Stock Transfer Service', () => {
       });
 
       expect(reviewed.status).toBe(StockTransferStatus.APPROVED);
-      expect(reviewed.reviewedByUserId).toBe(userSource.id);
+      expect(reviewed.reviewedByUserId).toBe(userDestination.id);
       expect(reviewed.reviewNotes).toBe('Approved, stock available');
       expect(reviewed.items[0]?.qtyApproved).toBe(80);
       expect(reviewed.items[1]?.qtyApproved).toBe(50);
@@ -266,7 +267,7 @@ describe('[ST-007] Stock Transfer Service', () => {
     it('should default qtyApproved to qtyRequested if not provided', async () => {
       const transfer = await transferService.createStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         data: {
           sourceBranchId: sourceBranch.id,
           destinationBranchId: destinationBranch.id,
@@ -276,7 +277,7 @@ describe('[ST-007] Stock Transfer Service', () => {
 
       const reviewed = await transferService.reviewStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id, // PUSH: review from DESTINATION
         transferId: transfer.id,
         action: 'approve',
       });
@@ -284,24 +285,25 @@ describe('[ST-007] Stock Transfer Service', () => {
       expect(reviewed.items[0]?.qtyApproved).toBe(100); // Defaults to requested
     });
 
-    it('should reject if user is not member of source branch', async () => {
-      // Create a third user who is only member of destination branch
-      const userOnlyDestination = await createTestUser();
+    it('should reject if user is not member of reviewing branch (PUSH requires destination)', async () => {
+      // Create a user who is only member of source branch (NOT destination)
+      const userOnlySource = await createTestUser();
       const role = await createTestRoleWithPermissions({
         tenantId: testTenant.id,
         permissionKeys: ['stock:read', 'stock:write'],
       });
       await createTestMembership({
-        userId: userOnlyDestination.id,
+        userId: userOnlySource.id,
         tenantId: testTenant.id,
         roleId: role.id,
       });
-      // Only add to destination branch, NOT source
-      await addUserToBranch(userOnlyDestination.id, testTenant.id, destinationBranch.id);
+      // Only add to source branch, NOT destination
+      await addUserToBranch(userOnlySource.id, testTenant.id, sourceBranch.id);
 
+      // Create PUSH transfer from source branch (userSource can create)
       const transfer = await transferService.createStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userDestination.id, // PUSH: review from DESTINATION // User in source branch creates PUSH transfer
         data: {
           sourceBranchId: sourceBranch.id,
           destinationBranchId: destinationBranch.id,
@@ -309,10 +311,11 @@ describe('[ST-007] Stock Transfer Service', () => {
         },
       });
 
+      // PUSH transfer requires DESTINATION branch user to review
       await expect(
         transferService.reviewStockTransfer({
           tenantId: testTenant.id,
-          userId: userOnlyDestination.id, // User only in destination branch
+          userId: userOnlySource.id, // User only in source branch (NOT destination)
           transferId: transfer.id,
           action: 'approve',
         })
@@ -322,7 +325,7 @@ describe('[ST-007] Stock Transfer Service', () => {
     it('should reject if transfer is not in REQUESTED status', async () => {
       const transfer = await transferService.createStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         data: {
           sourceBranchId: sourceBranch.id,
           destinationBranchId: destinationBranch.id,
@@ -333,7 +336,7 @@ describe('[ST-007] Stock Transfer Service', () => {
       // Approve it first
       await transferService.reviewStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id, // PUSH: review from DESTINATION
         transferId: transfer.id,
         action: 'approve',
       });
@@ -342,7 +345,7 @@ describe('[ST-007] Stock Transfer Service', () => {
       await expect(
         transferService.reviewStockTransfer({
           tenantId: testTenant.id,
-          userId: userSource.id,
+          userId: userDestination.id, // PUSH: review from DESTINATION
           transferId: transfer.id,
           action: 'approve',
         })
@@ -354,7 +357,7 @@ describe('[ST-007] Stock Transfer Service', () => {
     it('should reject transfer with reason', async () => {
       const transfer = await transferService.createStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         data: {
           sourceBranchId: sourceBranch.id,
           destinationBranchId: destinationBranch.id,
@@ -364,14 +367,14 @@ describe('[ST-007] Stock Transfer Service', () => {
 
       const rejected = await transferService.reviewStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id, // PUSH: review from DESTINATION
         transferId: transfer.id,
         action: 'reject',
         reviewNotes: 'Insufficient stock at source',
       });
 
       expect(rejected.status).toBe(StockTransferStatus.REJECTED);
-      expect(rejected.reviewedByUserId).toBe(userSource.id);
+      expect(rejected.reviewedByUserId).toBe(userDestination.id); // PUSH: destination reviews
       expect(rejected.reviewNotes).toBe('Insufficient stock at source');
       expect(rejected.reviewedAt).toBeDefined();
     });
@@ -381,7 +384,7 @@ describe('[ST-007] Stock Transfer Service', () => {
     it('should ship transfer and consume stock using FIFO', async () => {
       const transfer = await transferService.createStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         data: {
           sourceBranchId: sourceBranch.id,
           destinationBranchId: destinationBranch.id,
@@ -391,14 +394,14 @@ describe('[ST-007] Stock Transfer Service', () => {
 
       await transferService.reviewStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id, // PUSH: review from DESTINATION
         transferId: transfer.id,
         action: 'approve',
       });
 
       const shipped = await transferService.shipStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userSource.id, // Source branch ships the stock
         transferId: transfer.id,
       });
 
@@ -425,7 +428,7 @@ describe('[ST-007] Stock Transfer Service', () => {
     it('should create CONSUMPTION ledger entries with transfer number', async () => {
       const transfer = await transferService.createStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         data: {
           sourceBranchId: sourceBranch.id,
           destinationBranchId: destinationBranch.id,
@@ -435,14 +438,14 @@ describe('[ST-007] Stock Transfer Service', () => {
 
       await transferService.reviewStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id, // PUSH: review from DESTINATION
         transferId: transfer.id,
         action: 'approve',
       });
 
       await transferService.shipStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id, // PUSH: review from DESTINATION
         transferId: transfer.id,
       });
 
@@ -462,7 +465,7 @@ describe('[ST-007] Stock Transfer Service', () => {
     it('should reject if insufficient stock at source', async () => {
       const transfer = await transferService.createStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         data: {
           sourceBranchId: sourceBranch.id,
           destinationBranchId: destinationBranch.id,
@@ -472,7 +475,7 @@ describe('[ST-007] Stock Transfer Service', () => {
 
       await transferService.reviewStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id, // PUSH: review from DESTINATION
         transferId: transfer.id,
         action: 'approve',
       });
@@ -480,7 +483,7 @@ describe('[ST-007] Stock Transfer Service', () => {
       await expect(
         transferService.shipStockTransfer({
           tenantId: testTenant.id,
-          userId: userSource.id,
+          userId: userDestination.id, // PUSH: review from DESTINATION
           transferId: transfer.id,
         })
       ).rejects.toThrow('Insufficient stock');
@@ -489,7 +492,7 @@ describe('[ST-007] Stock Transfer Service', () => {
     it('should reject if transfer is not APPROVED', async () => {
       const transfer = await transferService.createStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         data: {
           sourceBranchId: sourceBranch.id,
           destinationBranchId: destinationBranch.id,
@@ -500,7 +503,7 @@ describe('[ST-007] Stock Transfer Service', () => {
       await expect(
         transferService.shipStockTransfer({
           tenantId: testTenant.id,
-          userId: userSource.id,
+          userId: userDestination.id, // PUSH: review from DESTINATION
           transferId: transfer.id,
         })
       ).rejects.toThrow('APPROVED');
@@ -511,7 +514,7 @@ describe('[ST-007] Stock Transfer Service', () => {
     it('should receive transfer and create stock lots at destination', async () => {
       const transfer = await transferService.createStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         data: {
           sourceBranchId: sourceBranch.id,
           destinationBranchId: destinationBranch.id,
@@ -521,20 +524,20 @@ describe('[ST-007] Stock Transfer Service', () => {
 
       await transferService.reviewStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id, // PUSH: review from DESTINATION
         transferId: transfer.id,
         action: 'approve',
       });
 
       const shipped = await transferService.shipStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id, // PUSH: review from DESTINATION
         transferId: transfer.id,
       });
 
       const received = await transferService.receiveStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         transferId: transfer.id,
         receivedItems: [{ itemId: shipped.items[0]!.id, qtyReceived: 100 }],
       });
@@ -570,7 +573,7 @@ describe('[ST-007] Stock Transfer Service', () => {
     it('should support partial receipt', async () => {
       const transfer = await transferService.createStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         data: {
           sourceBranchId: sourceBranch.id,
           destinationBranchId: destinationBranch.id,
@@ -580,21 +583,21 @@ describe('[ST-007] Stock Transfer Service', () => {
 
       await transferService.reviewStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id, // PUSH: review from DESTINATION
         transferId: transfer.id,
         action: 'approve',
       });
 
       const shipped = await transferService.shipStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id, // PUSH: review from DESTINATION
         transferId: transfer.id,
       });
 
       // Receive only 60 units
       const partialReceived = await transferService.receiveStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         transferId: transfer.id,
         receivedItems: [{ itemId: shipped.items[0]!.id, qtyReceived: 60 }],
       });
@@ -606,7 +609,7 @@ describe('[ST-007] Stock Transfer Service', () => {
       // Receive remaining 40 units
       const fullyReceived = await transferService.receiveStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         transferId: transfer.id,
         receivedItems: [{ itemId: shipped.items[0]!.id, qtyReceived: 40 }],
       });
@@ -619,7 +622,7 @@ describe('[ST-007] Stock Transfer Service', () => {
     it('should reject if receiving more than shipped', async () => {
       const transfer = await transferService.createStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         data: {
           sourceBranchId: sourceBranch.id,
           destinationBranchId: destinationBranch.id,
@@ -629,21 +632,21 @@ describe('[ST-007] Stock Transfer Service', () => {
 
       await transferService.reviewStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id, // PUSH: review from DESTINATION
         transferId: transfer.id,
         action: 'approve',
       });
 
       const shipped = await transferService.shipStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id, // PUSH: review from DESTINATION
         transferId: transfer.id,
       });
 
       await expect(
         transferService.receiveStockTransfer({
           tenantId: testTenant.id,
-          userId: userDestination.id,
+          userId: userSource.id, // PUSH: create from SOURCE
           transferId: transfer.id,
           receivedItems: [{ itemId: shipped.items[0]!.id, qtyReceived: 150 }],
         })
@@ -667,7 +670,7 @@ describe('[ST-007] Stock Transfer Service', () => {
 
       const transfer = await transferService.createStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         data: {
           sourceBranchId: sourceBranch.id,
           destinationBranchId: destinationBranch.id,
@@ -677,14 +680,14 @@ describe('[ST-007] Stock Transfer Service', () => {
 
       await transferService.reviewStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id, // PUSH: review from DESTINATION
         transferId: transfer.id,
         action: 'approve',
       });
 
       const shipped = await transferService.shipStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id, // PUSH: review from DESTINATION
         transferId: transfer.id,
       });
 
@@ -703,7 +706,7 @@ describe('[ST-007] Stock Transfer Service', () => {
     it('should cancel transfer in REQUESTED status', async () => {
       const transfer = await transferService.createStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         data: {
           sourceBranchId: sourceBranch.id,
           destinationBranchId: destinationBranch.id,
@@ -713,7 +716,7 @@ describe('[ST-007] Stock Transfer Service', () => {
 
       await transferService.cancelStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         transferId: transfer.id,
       });
 
@@ -727,7 +730,7 @@ describe('[ST-007] Stock Transfer Service', () => {
     it('should reject cancellation if not in REQUESTED status', async () => {
       const transfer = await transferService.createStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         data: {
           sourceBranchId: sourceBranch.id,
           destinationBranchId: destinationBranch.id,
@@ -737,7 +740,7 @@ describe('[ST-007] Stock Transfer Service', () => {
 
       await transferService.reviewStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id, // PUSH: review from DESTINATION
         transferId: transfer.id,
         action: 'approve',
       });
@@ -745,7 +748,7 @@ describe('[ST-007] Stock Transfer Service', () => {
       await expect(
         transferService.cancelStockTransfer({
           tenantId: testTenant.id,
-          userId: userDestination.id,
+          userId: userSource.id, // PUSH: create from SOURCE
           transferId: transfer.id,
         })
       ).rejects.toThrow('Only transfers in REQUESTED status can be cancelled');
@@ -757,7 +760,7 @@ describe('[ST-007] Stock Transfer Service', () => {
       // Create transfer from warehouse to retail
       await transferService.createStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         data: {
           sourceBranchId: sourceBranch.id,
           destinationBranchId: destinationBranch.id,
@@ -768,7 +771,7 @@ describe('[ST-007] Stock Transfer Service', () => {
       // List inbound transfers for destination branch
       const inbound = await transferService.listStockTransfers({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         filters: {
           branchId: destinationBranch.id,
           direction: 'inbound',
@@ -781,7 +784,7 @@ describe('[ST-007] Stock Transfer Service', () => {
       // List outbound transfers for source branch
       const outbound = await transferService.listStockTransfers({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id, // PUSH: review from DESTINATION
         filters: {
           branchId: sourceBranch.id,
           direction: 'outbound',
@@ -795,7 +798,7 @@ describe('[ST-007] Stock Transfer Service', () => {
     it('should filter by status', async () => {
       const transfer1 = await transferService.createStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         data: {
           sourceBranchId: sourceBranch.id,
           destinationBranchId: destinationBranch.id,
@@ -805,7 +808,7 @@ describe('[ST-007] Stock Transfer Service', () => {
 
       const transfer2 = await transferService.createStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         data: {
           sourceBranchId: sourceBranch.id,
           destinationBranchId: destinationBranch.id,
@@ -815,7 +818,7 @@ describe('[ST-007] Stock Transfer Service', () => {
 
       await transferService.reviewStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id, // PUSH: review from DESTINATION
         transferId: transfer1.id,
         action: 'approve',
       });
@@ -823,7 +826,7 @@ describe('[ST-007] Stock Transfer Service', () => {
       // List REQUESTED only
       const requested = await transferService.listStockTransfers({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         filters: { status: 'REQUESTED' },
       });
 
@@ -833,7 +836,7 @@ describe('[ST-007] Stock Transfer Service', () => {
       // List APPROVED only
       const approved = await transferService.listStockTransfers({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id, // PUSH: review from DESTINATION
         filters: { status: 'APPROVED' },
       });
 
@@ -847,7 +850,7 @@ describe('[ST-007] Stock Transfer Service', () => {
       // Create and complete a transfer
       const originalTransfer = await transferService.createStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         data: {
           sourceBranchId: sourceBranch.id,
           destinationBranchId: destinationBranch.id,
@@ -857,20 +860,20 @@ describe('[ST-007] Stock Transfer Service', () => {
 
       await transferService.reviewStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id, // PUSH: review from DESTINATION
         transferId: originalTransfer.id,
         action: 'approve',
       });
 
       await transferService.shipStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id, // PUSH: review from DESTINATION
         transferId: originalTransfer.id,
       });
 
       const completed = await transferService.receiveStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         transferId: originalTransfer.id,
         receivedItems: [{ itemId: originalTransfer.items[0]!.id, qtyReceived: 100 }],
       });
@@ -878,7 +881,7 @@ describe('[ST-007] Stock Transfer Service', () => {
       // Reverse the transfer - userDestination initiates from destination branch
       const reversalTransfer = await transferService.reverseStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         transferId: completed.id,
         reversalReason: 'Damaged goods',
       });
@@ -929,7 +932,7 @@ describe('[ST-007] Stock Transfer Service', () => {
       // Create and complete a transfer
       const transfer = await transferService.createStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         data: {
           sourceBranchId: sourceBranch.id,
           destinationBranchId: destinationBranch.id,
@@ -939,14 +942,14 @@ describe('[ST-007] Stock Transfer Service', () => {
 
       await transferService.reviewStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id, // PUSH: review from DESTINATION
         transferId: transfer.id,
         action: 'approve',
       });
 
       const shipped = await transferService.shipStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id, // PUSH: review from DESTINATION
         transferId: transfer.id,
       });
 
@@ -955,7 +958,7 @@ describe('[ST-007] Stock Transfer Service', () => {
 
       await transferService.receiveStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         transferId: transfer.id,
         receivedItems: [{ itemId: transfer.items[0]!.id, qtyReceived: 100 }],
       });
@@ -969,7 +972,7 @@ describe('[ST-007] Stock Transfer Service', () => {
       // Reverse the transfer - userDestination initiates from destination branch
       const reversal = await transferService.reverseStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         transferId: transfer.id,
         reversalReason: 'Return to sender',
       });
@@ -989,7 +992,7 @@ describe('[ST-007] Stock Transfer Service', () => {
     it('should reject reversing non-COMPLETED transfer', async () => {
       const transfer = await transferService.createStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         data: {
           sourceBranchId: sourceBranch.id,
           destinationBranchId: destinationBranch.id,
@@ -1000,7 +1003,7 @@ describe('[ST-007] Stock Transfer Service', () => {
       await expect(
         transferService.reverseStockTransfer({
           tenantId: testTenant.id,
-          userId: userSource.id,
+          userId: userDestination.id, // PUSH: review from DESTINATION
           transferId: transfer.id,
         })
       ).rejects.toThrow('Only completed transfers can be reversed');
@@ -1010,7 +1013,7 @@ describe('[ST-007] Stock Transfer Service', () => {
       // Create and complete a transfer
       const transfer = await transferService.createStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         data: {
           sourceBranchId: sourceBranch.id,
           destinationBranchId: destinationBranch.id,
@@ -1020,20 +1023,20 @@ describe('[ST-007] Stock Transfer Service', () => {
 
       await transferService.reviewStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id, // PUSH: review from DESTINATION
         transferId: transfer.id,
         action: 'approve',
       });
 
       await transferService.shipStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id, // PUSH: review from DESTINATION
         transferId: transfer.id,
       });
 
       await transferService.receiveStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         transferId: transfer.id,
         receivedItems: [{ itemId: transfer.items[0]!.id, qtyReceived: 50 }],
       });
@@ -1041,7 +1044,7 @@ describe('[ST-007] Stock Transfer Service', () => {
       // Reverse it once - userDestination initiates from destination branch
       await transferService.reverseStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         transferId: transfer.id,
       });
 
@@ -1049,7 +1052,7 @@ describe('[ST-007] Stock Transfer Service', () => {
       await expect(
         transferService.reverseStockTransfer({
           tenantId: testTenant.id,
-          userId: userDestination.id,
+          userId: userSource.id, // PUSH: create from SOURCE
           transferId: transfer.id,
         })
       ).rejects.toThrow('Transfer has already been reversed');
@@ -1073,7 +1076,7 @@ describe('[ST-007] Stock Transfer Service', () => {
       // Create and complete a transfer
       const transfer = await transferService.createStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         data: {
           sourceBranchId: sourceBranch.id,
           destinationBranchId: destinationBranch.id,
@@ -1083,20 +1086,20 @@ describe('[ST-007] Stock Transfer Service', () => {
 
       await transferService.reviewStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id, // PUSH: review from DESTINATION
         transferId: transfer.id,
         action: 'approve',
       });
 
       await transferService.shipStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id, // PUSH: review from DESTINATION
         transferId: transfer.id,
       });
 
       await transferService.receiveStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         transferId: transfer.id,
         receivedItems: [{ itemId: transfer.items[0]!.id, qtyReceived: 50 }],
       });
@@ -1115,7 +1118,7 @@ describe('[ST-007] Stock Transfer Service', () => {
       // Create and complete a transfer
       const transfer = await transferService.createStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         data: {
           sourceBranchId: sourceBranch.id,
           destinationBranchId: destinationBranch.id,
@@ -1125,20 +1128,20 @@ describe('[ST-007] Stock Transfer Service', () => {
 
       await transferService.reviewStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id, // PUSH: review from DESTINATION
         transferId: transfer.id,
         action: 'approve',
       });
 
       await transferService.shipStockTransfer({
         tenantId: testTenant.id,
-        userId: userSource.id,
+        userId: userDestination.id, // PUSH: review from DESTINATION
         transferId: transfer.id,
       });
 
       await transferService.receiveStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         transferId: transfer.id,
         receivedItems: [{ itemId: transfer.items[0]!.id, qtyReceived: 30 }],
       });
@@ -1146,7 +1149,7 @@ describe('[ST-007] Stock Transfer Service', () => {
       // Reverse the transfer - userDestination initiates from destination branch
       await transferService.reverseStockTransfer({
         tenantId: testTenant.id,
-        userId: userDestination.id,
+        userId: userSource.id, // PUSH: create from SOURCE
         transferId: transfer.id,
         reversalReason: 'Test reversal',
         auditContext: {
@@ -1167,7 +1170,7 @@ describe('[ST-007] Stock Transfer Service', () => {
       });
 
       expect(auditEvents).toHaveLength(1);
-      expect(auditEvents[0]?.actorUserId).toBe(userDestination.id);
+      expect(auditEvents[0]?.actorUserId).toBe(userSource.id); // Reversal done by source user
     });
   });
 });

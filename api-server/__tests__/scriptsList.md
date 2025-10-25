@@ -145,7 +145,7 @@
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/auditLogs/auditLogRoutes.test.ts
 
 
-## FEATURES: STOCK TRANSFERS (12 suites - EXPANDED: PRD-5 Phase 4-6 + Delivery Fields + Reversal Linking)
+## FEATURES: STOCK TRANSFERS (13 suites - EXPANDED: PRD-5 Phase 4-6 + Delivery Fields + Reversal Linking + Dual-Direction)
 
 ### Failing suites
 - transferService.test.ts (previously had 1 failure)
@@ -162,6 +162,8 @@
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/stockTransfers/transferDeliveryFields.test.ts
 
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/stockTransfers/transferReversal.test.ts
+
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/stockTransfers/transferDualDirection.test.ts
 
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/stockTransfers/templates/templateService.test.ts
 
@@ -231,7 +233,7 @@
 
 ## SUMMARY
 
-**Total Suites:** 71 (was 70 - added 1 for reversal linking)
+**Total Suites:** 72 (was 71 - added 1 for dual-direction initiation)
 
 **PRD-5 New Test Files (12 total):**
 1. features/theme/themeService.test.ts (Phase 1)

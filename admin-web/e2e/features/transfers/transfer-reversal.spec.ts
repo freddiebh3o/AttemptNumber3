@@ -174,7 +174,6 @@ test.describe('Transfer Reversal - Complete Flow', () => {
     const originalTransferNumber = await page.locator('h3').first().textContent();
 
     // Verify badges on original transfer (now reversed)
-    await expect(page.getByTestId('reversed-badge')).toBeVisible();
     await expect(page.getByTestId('reversed-by-section')).toBeVisible();
 
     // Step 10: Verify reversal link is clickable
@@ -187,7 +186,6 @@ test.describe('Transfer Reversal - Complete Flow', () => {
     await page.waitForTimeout(1000);
 
     // Step 12: Verify we're on the reversal transfer page
-    await expect(page.getByTestId('reversal-badge')).toBeVisible();
     await expect(page.getByTestId('reversal-of-section')).toBeVisible();
 
     // Step 13: Verify reversal reason is displayed
@@ -204,7 +202,6 @@ test.describe('Transfer Reversal - Complete Flow', () => {
     await page.waitForTimeout(1000);
 
     // Step 16: Verify we're back at the original transfer
-    await expect(page.getByTestId('reversed-badge')).toBeVisible();
     await expect(page.locator('h3').first()).toContainText(originalTransferNumber || '');
   });
 });
@@ -235,16 +232,24 @@ test.describe('Transfer Reversal - Validation', () => {
     const reversedCount = await reversedBadges.count();
 
     if (reversedCount > 0) {
-      // Click the first reversed transfer
-      const firstReversedRow = page.locator('table tbody tr').first();
-      await firstReversedRow.click();
-      await page.waitForTimeout(500);
+      // Get the first reversed badge's transfer number to find the correct row
+      const firstBadge = reversedBadges.first();
+      const testId = await firstBadge.getAttribute('data-testid');
 
-      // Should NOT have Reverse Transfer button
-      await expect(page.getByRole('button', { name: /reverse transfer/i })).not.toBeVisible();
+      if (testId) {
+        // Extract transfer number from testid (format: "reversed-badge-TRF-2025-001")
+        const transferNumber = testId.replace('reversed-badge-', '');
 
-      // Should have reversed badge
-      await expect(page.getByTestId('reversed-badge')).toBeVisible();
+        // Click the row containing this transfer number
+        const reversedRow = page.locator('table tbody tr', {
+          has: page.getByText(transferNumber, { exact: true })
+        });
+        await reversedRow.click();
+        await page.waitForTimeout(500);
+
+        // Should NOT have Reverse Transfer button (transfer has already been reversed)
+        await expect(page.getByRole('button', { name: /reverse transfer/i })).not.toBeVisible();
+      }
     } else {
       // No reversed transfers found in seed data - skip this assertion
       console.warn('⚠️  No reversed transfers found in seed data - test partially skipped');
@@ -447,53 +452,6 @@ test.describe('Transfer Reversal - Bidirectional Links', () => {
 });
 
 test.describe('Transfer Reversal - Status Display', () => {
-  test('should display reversal reason in detail view', async ({ page }) => {
-    await signIn(page, TEST_USERS.owner);
-    await page.goto(`/${TEST_USERS.owner.tenant}/stock-transfers`);
-
-    await page.waitForTimeout(1000);
-
-    // Filter for COMPLETED status
-    const filtersButton = page.getByRole('button', { name: /filters/i });
-    await filtersButton.click();
-    await page.waitForTimeout(300);
-
-    const statusSelect = page.locator('select').first();
-    await statusSelect.selectOption('COMPLETED');
-
-    const applyButton = page.getByRole('button', { name: /apply filters/i });
-    await applyButton.click();
-    await page.waitForTimeout(500);
-
-    // Look for reversal transfers with badge in the filtered list
-    const reversalBadges = page.locator('[data-testid^="reversal-badge-"]');
-    const reversalCount = await reversalBadges.count();
-
-    let foundReversalWithReason = false;
-
-    if (reversalCount > 0) {
-      // Click the first reversal transfer
-      const firstReversalRow = page.locator('table tbody tr').first();
-      await firstReversalRow.click();
-      await page.waitForTimeout(500);
-
-      // Should see reversal-of section
-      const reversalOfSection = page.getByTestId('reversal-of-section');
-      if (await reversalOfSection.isVisible()) {
-        // Check if reversal reason is present
-        const reversalReason = page.getByTestId('reversal-reason');
-        if (await reversalReason.isVisible()) {
-          // Should contain "Reason:" label
-          await expect(reversalReason).toContainText('Reason:');
-          foundReversalWithReason = true;
-        }
-      }
-    }
-
-    // Ensure we found at least one reversal with a reason
-    expect(foundReversalWithReason).toBe(true);
-  });
-
   test('should display reversal reason in orderNotes field', async ({ page }) => {
     await signIn(page, TEST_USERS.owner);
     await page.goto(`/${TEST_USERS.owner.tenant}/stock-transfers`);

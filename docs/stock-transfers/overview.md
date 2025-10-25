@@ -21,18 +21,34 @@ Each transfer tracks exactly what was requested, approved, shipped, and received
 
 ## Basic Workflow
 
-The transfer process has four main steps:
+Stock transfers can be initiated in two directions depending on your operational needs:
 
-### 1. Request (Destination Branch)
-The branch that needs stock creates a transfer request listing what products and quantities they need.
+### Transfer Initiation Types
 
-### 2. Approve (Source Branch)
-The branch that has the stock reviews the request and either approves it (with quantities they can provide) or rejects it.
+**PUSH (Send Stock):**
+- Source branch initiates and sends stock to another branch
+- Common for: Warehouses distributing to stores, centralized inventory management
+- Process: Source creates → Destination approves → Source ships → Destination receives
 
-### 3. Ship (Source Branch)
+**PULL (Request Stock):**
+- Destination branch requests stock from another branch
+- Common for: Stores requesting restocks, emergency stock-outs
+- Process: Destination creates → Source approves → Source ships → Destination receives
+
+You choose the initiation type when creating a new transfer. Both types follow the same four-step process:
+
+### 1. Request
+Either the source (PUSH) or destination (PULL) creates a transfer listing products and quantities.
+
+### 2. Approve
+The receiving party reviews the request and either approves it (with quantities they can provide) or rejects it.
+- **PUSH:** Destination branch approves receipt
+- **PULL:** Source branch approves sending
+
+### 3. Ship
 The source branch ships the approved items. Stock is deducted from their inventory at this stage.
 
-### 4. Receive (Destination Branch)
+### 4. Receive
 The destination branch receives the items. Stock is added to their inventory.
 
 ---
@@ -57,10 +73,19 @@ The destination branch receives the items. Stock is added to their inventory.
 - `stock:write` permission (Editors and above)
 - Membership in the relevant branch
 
-**Branch requirements:**
-- **Request transfers:** Must be member of destination branch (where stock is going)
-- **Approve/ship transfers:** Must be member of source branch (where stock is leaving)
-- **Receive transfers:** Must be member of destination branch
+**Branch requirements vary by initiation type:**
+
+**PUSH Transfers (Source Initiates):**
+- **Create:** Must be member of source branch (where stock is leaving)
+- **Approve:** Must be member of destination branch (where stock is arriving)
+- **Ship:** Must be member of source branch
+- **Receive:** Must be member of destination branch
+
+**PULL Transfers (Destination Requests):**
+- **Create:** Must be member of destination branch (where stock is going)
+- **Approve:** Must be member of source branch (where stock is leaving)
+- **Ship:** Must be member of source branch
+- **Receive:** Must be member of destination branch
 
 ---
 

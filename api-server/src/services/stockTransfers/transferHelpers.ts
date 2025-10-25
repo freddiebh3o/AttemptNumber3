@@ -56,7 +56,11 @@ export function extractLotsConsumed(
 }
 
 /**
- * Check if user has access to transfer (member of source or destination branch)
+ * Check if user has access to transfer (member of initiating branch)
+ * For PUSH transfers: user must be in source branch (initiating)
+ * For PULL transfers: user must be in destination branch (initiating)
+ *
+ * Note: This allows users from the initiating branch to view/manage the transfer
  */
 export async function assertTransferAccess(params: {
   userId: string;
@@ -67,16 +71,23 @@ export async function assertTransferAccess(params: {
 
   const transfer = await prismaClientInstance.stockTransfer.findFirst({
     where: { id: transferId, tenantId },
-    select: { sourceBranchId: true, destinationBranchId: true },
+    select: {
+      sourceBranchId: true,
+      destinationBranchId: true,
+      initiatedByBranchId: true,
+    },
   });
 
   if (!transfer) throw Errors.notFound('Transfer not found');
+
+  // User must be member of the initiating branch to access the transfer
+  const initiatingBranchId = transfer.initiatedByBranchId ?? transfer.sourceBranchId;
 
   const membership = await prismaClientInstance.userBranchMembership.findFirst({
     where: {
       userId,
       tenantId,
-      branchId: { in: [transfer.sourceBranchId, transfer.destinationBranchId] },
+      branchId: initiatingBranchId,
     },
   });
 

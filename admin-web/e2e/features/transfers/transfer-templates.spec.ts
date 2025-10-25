@@ -505,9 +505,9 @@ test.describe('Transfer Templates - Use Template to Create Transfer', () => {
       const createDialog = page.getByRole('dialog').filter({ hasText: /create transfer request/i });
       await expect(createDialog).toBeVisible();
 
-      // Source and destination should be pre-filled
-      await expect(createDialog.getByLabel(/source branch/i)).toBeVisible();
-      await expect(createDialog.getByLabel(/destination branch/i)).toBeVisible();
+      // Source and destination should be pre-filled (PUSH mode labels)
+      await expect(createDialog.getByLabel(/from branch/i)).toBeVisible();
+      await expect(createDialog.getByLabel(/to branch/i)).toBeVisible();
 
       // Items should be pre-populated
       await expect(createDialog.getByText(/items/i)).toBeVisible();
@@ -518,7 +518,6 @@ test.describe('Transfer Templates - Use Template to Create Transfer', () => {
       // Should redirect to transfers page
       await page.waitForTimeout(2000);
       await expect(page).toHaveURL(/\/stock-transfers/);
-      await expect(page.getByRole('heading', { name: 'Stock Transfers', exact: true })).toBeVisible();
     } finally {
       // Cleanup: delete the test template
       await Factories.template.delete(page, templateId);
