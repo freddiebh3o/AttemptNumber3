@@ -20,7 +20,7 @@
 **Related Documentation:**
 - [System Doc](../System/relevant-doc.md) - Context from existing system
 - [SOP Guide](../SOP/relevant-sop.md) - Related procedures
-
+- [AI User Guides](../../docs/) - All user guides for the ai chat assistant
 ---
 
 ## Phase 1: [Phase Name]
