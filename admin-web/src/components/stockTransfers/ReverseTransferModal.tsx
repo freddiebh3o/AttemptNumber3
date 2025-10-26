@@ -16,6 +16,7 @@ import { IconAlertCircle, IconArrowRight, IconArrowBack } from "@tabler/icons-re
 import { notifications } from "@mantine/notifications";
 import { reverseStockTransferApiRequest } from "../../api/stockTransfers";
 import type { StockTransfer } from "../../api/stockTransfers";
+import { formatDateTimeUK } from "../../utils/dateFormatter";
 
 interface ReverseTransferModalProps {
   opened: boolean;
@@ -131,8 +132,8 @@ export default function ReverseTransferModal({
               <Text size="sm" c="dimmed">
                 Requested At:
               </Text>
-              <Text size="sm">
-                {new Date(transfer.requestedAt).toLocaleString()}
+              <Text size="sm" data-testid="reversal-requested-at">
+                {formatDateTimeUK(transfer.requestedAt)}
               </Text>
             </Group>
 
@@ -141,8 +142,8 @@ export default function ReverseTransferModal({
                 <Text size="sm" c="dimmed">
                   Completed At:
                 </Text>
-                <Text size="sm">
-                  {new Date(transfer.completedAt).toLocaleString()}
+                <Text size="sm" data-testid="reversal-completed-at">
+                  {formatDateTimeUK(transfer.completedAt)}
                 </Text>
               </Group>
             )}

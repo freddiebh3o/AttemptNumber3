@@ -44,7 +44,7 @@ export const ZodAuditEventRecord = z.object({
   correlationId: z.string().nullable(),
   ip: z.string().nullable(),
   userAgent: z.string().nullable(),
-  createdAt: z.string().datetime(),
+  createdAt: z.string().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
 }).openapi('AuditEventRecord');
 
 export const ZodListAuditEventsQuery = z.object({

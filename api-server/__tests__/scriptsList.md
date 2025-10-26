@@ -197,6 +197,12 @@
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/featureFlags/featureFlagsRoutes.test.ts
 
 
+## UTILS (1 suite - NEW: Date Formatter Utilities)
+
+### All tests and commands
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js src/utils/__tests__/dateFormatter.test.ts
+
+
 ## SERVICES: PDF (1 suite - NEW: Dispatch Note PDF Generation)
 
 ### All tests and commands
@@ -245,7 +251,7 @@
 
 ## SUMMARY
 
-**Total Suites:** 74 (was 72 - added 1 for PDF service + 1 for PDF integration)
+**Total Suites:** 75 (was 74 - added 1 for date formatter utilities)
 
 **PRD-5 New Test Files (12 total):**
 1. features/theme/themeService.test.ts (Phase 1)

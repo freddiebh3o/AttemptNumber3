@@ -5,6 +5,7 @@ import { requirePermission } from '../middleware/permissionMiddleware.js';
 import { assertAuthed } from '../types/assertions.js';
 import { createStandardSuccessResponse } from '../utils/standardResponse.js';
 import * as analyticsService from '../services/analytics/transferAnalyticsService.js';
+import { serializeVolumeChartData } from '../services/analytics/transferAnalyticsSerializer.js';
 import { Errors } from '../utils/httpErrors.js';
 
 export const transferAnalyticsRouter = Router();
@@ -96,7 +97,7 @@ transferAnalyticsRouter.get(
         endDate,
       });
 
-      return res.status(200).json(createStandardSuccessResponse(chartData));
+      return res.status(200).json(createStandardSuccessResponse(serializeVolumeChartData(chartData)));
     } catch (e) {
       return next(e);
     }

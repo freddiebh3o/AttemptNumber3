@@ -2,7 +2,9 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { MantineProvider, localStorageColorSchemeManager, } from '@mantine/core'
+import { DatesProvider } from '@mantine/dates'
 import { Notifications } from '@mantine/notifications'
+import 'dayjs/locale/en-gb'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import App from './App'
 import AdminLayout from './components/shell/AdminLayout'
@@ -236,8 +238,16 @@ const colorSchemeManager = localStorageColorSchemeManager({ key: 'admin-color-sc
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <MantineProvider defaultColorScheme="light" colorSchemeManager={colorSchemeManager}>
-      <Notifications position="top-right" />
-      <RouterProvider router={router} />
+      <DatesProvider
+        settings={{
+          locale: 'en-gb',
+          firstDayOfWeek: 1, // Monday (British convention)
+          weekendDays: [0, 6], // Sunday and Saturday
+        }}
+      >
+        <Notifications position="top-right" />
+        <RouterProvider router={router} />
+      </DatesProvider>
     </MantineProvider>
   </React.StrictMode>
 )

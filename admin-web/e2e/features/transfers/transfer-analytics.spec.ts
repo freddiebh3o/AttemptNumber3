@@ -129,9 +129,9 @@ test.describe('Analytics Filtering', () => {
     await filtersButton.click();
     await page.waitForTimeout(300);
 
-    // Date buttons should show the selected dates
-    await expect(page.getByLabel(/start date/i)).toContainText('September 1, 2025');
-    await expect(page.getByLabel(/end date/i)).toContainText('October 14, 2025');
+    // Date buttons should show the selected dates in British format (dd/mm/yyyy)
+    await expect(page.getByLabel(/start date/i)).toContainText('01/09/2025');
+    await expect(page.getByLabel(/end date/i)).toContainText('14/10/2025');
   });
 
   test('should filter by branch (overview metrics only)', async ({ page }) => {
@@ -183,9 +183,9 @@ test.describe('Analytics Filtering', () => {
     await filtersButton.click();
     await page.waitForTimeout(300);
 
-    // Date buttons should show the selected dates (pre-filled from URL params)
-    await expect(page.getByLabel(/start date/i)).toContainText('September 15, 2025');
-    await expect(page.getByLabel(/end date/i)).toContainText('October 10, 2025');
+    // Date buttons should show the selected dates in British format (pre-filled from URL params)
+    await expect(page.getByLabel(/start date/i)).toContainText('15/09/2025');
+    await expect(page.getByLabel(/end date/i)).toContainText('10/10/2025');
 
     // Analytics should be filtered
     await expect(page.getByTestId('metric-total-transfers')).toBeVisible();

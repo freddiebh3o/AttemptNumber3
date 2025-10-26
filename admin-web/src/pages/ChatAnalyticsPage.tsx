@@ -31,6 +31,7 @@ import {
 } from '@tabler/icons-react';
 import { getChatAnalyticsApiRequest, type ChatAnalyticsSummary } from '../api/chatAnalytics';
 import { notifications } from '@mantine/notifications';
+import { formatDateReadable } from '../utils/dateFormatter';
 
 // Stat card component
 function StatCard({
@@ -426,12 +427,8 @@ export function ChatAnalyticsPage() {
                 return (
                   <Table.Tr key={day.id}>
                     <Table.Td>
-                      <Text fw={500}>
-                        {new Date(day.date).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })}
+                      <Text fw={500} data-testid="daily-date">
+                        {formatDateReadable(day.date)}
                       </Text>
                     </Table.Td>
                     <Table.Td>{day.totalConversations}</Table.Td>

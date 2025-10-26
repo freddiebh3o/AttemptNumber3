@@ -36,6 +36,7 @@ import {
 } from '../../api/conversations';
 import { getSuggestionsForUser, type ChatSuggestion } from '../../api/chatSuggestions';
 import { notifications } from '@mantine/notifications';
+import { formatDateUK } from '../../utils/dateFormatter';
 
 export function ChatInterface() {
   const [input, setInput] = useState('');
@@ -376,8 +377,8 @@ export function ChatInterface() {
                         </Menu.Dropdown>
                       </Menu>
                     </Group>
-                    <Text size="xs" c="dimmed" mt={4}>
-                      {new Date(conversation.updatedAt).toLocaleDateString()}
+                    <Text size="xs" c="dimmed" mt={4} data-testid="conversation-updated-date">
+                      {formatDateUK(conversation.updatedAt)}
                     </Text>
                   </Paper>
                 ))}

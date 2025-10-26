@@ -14,11 +14,11 @@ export const ZodProductRecord = z
     barcode: z.string().nullable().optional(),
     barcodeType: z.string().nullable().optional(),
     isArchived: z.boolean(),
-    archivedAt: z.string().datetime().nullable().optional(),
+    archivedAt: z.string().nullable().optional().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
     archivedByUserId: z.string().nullable().optional(),
     entityVersion: z.number().int(),
-    createdAt: z.string().datetime(),
-    updatedAt: z.string().datetime(),
+    createdAt: z.string().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
+    updatedAt: z.string().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
   })
   .openapi("ProductRecord");
 
@@ -117,7 +117,7 @@ export const ZodProductActivityItemAudit = z
   .object({
     kind: z.literal("audit"),
     id: z.string(),
-    when: z.string().datetime(),
+    when: z.string().openapi({ description: "Readable British date format (26 October 2025, 14:30)" }),
     action: z.string(),
     message: z.string(),
     messageParts: z.record(z.string(), z.unknown()).optional(),
@@ -131,7 +131,7 @@ export const ZodProductActivityItemLedger = z
   .object({
     kind: z.literal("ledger"),
     id: z.string(),
-    when: z.string().datetime(),
+    when: z.string().openapi({ description: "Readable British date format (26 October 2025, 14:30)" }),
     entryKind: z.enum(["RECEIPT", "ADJUSTMENT", "CONSUMPTION", "REVERSAL"]),
     qtyDelta: z.number().int(),
     branchId: z.string().nullable().optional(),
@@ -165,7 +165,7 @@ export const ZodUnifiedActivityItem = z
     z.object({
       kind: z.literal("audit"),
       id: z.string(),
-      when: z.string().datetime(),
+      when: z.string().openapi({ description: "Readable British date format (26 October 2025, 14:30)" }),
       action: z.string(),
       message: z.string(),
       messageParts: z.record(z.string(), z.any()).optional(),
@@ -176,7 +176,7 @@ export const ZodUnifiedActivityItem = z
     z.object({
       kind: z.literal("ledger"),
       id: z.string(),
-      when: z.string().datetime(),
+      when: z.string().openapi({ description: "Readable British date format (26 October 2025, 14:30)" }),
       entryKind: z.enum(["RECEIPT", "ADJUSTMENT", "CONSUMPTION", "REVERSAL"]),
       qtyDelta: z.number().int(),
       branchId: z.string().nullable().optional(),
@@ -250,11 +250,11 @@ export const ZodProductWithStock = z
     barcode: z.string().nullable().optional(),
     barcodeType: z.string().nullable().optional(),
     isArchived: z.boolean(),
-    archivedAt: z.string().datetime().nullable().optional(),
+    archivedAt: z.string().nullable().optional().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
     archivedByUserId: z.string().nullable().optional(),
     entityVersion: z.number().int(),
-    createdAt: z.string().datetime(),
-    updatedAt: z.string().datetime(),
+    createdAt: z.string().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
+    updatedAt: z.string().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
     stock: z
       .object({
         branchId: z.string(),

@@ -12,8 +12,8 @@ export const ZodPermissionRecord = z.object({
   // tighten this to the enum we already expose
   key: ZodPermissionKey,
   description: z.string(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
+  createdAt: z.string().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
+  updatedAt: z.string().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
 }).openapi('PermissionRecord');
 
 export const ZodRoleRecord = z.object({
@@ -23,11 +23,11 @@ export const ZodRoleRecord = z.object({
   description: z.string().nullable(),
   isSystem: z.boolean(),
   isArchived: z.boolean(),
-  archivedAt: z.string().datetime().nullable(),
+  archivedAt: z.string().nullable().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
   archivedByUserId: z.string().nullable(),
   permissions: z.array(ZodPermissionKey),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
+  createdAt: z.string().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
+  updatedAt: z.string().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
 }).openapi('RoleRecord');
 
 // NEW: helper enum for match mode
@@ -115,7 +115,7 @@ export const ZodRoleActivityActor = z
 export const ZodRoleActivityItem = z.object({
   kind: z.literal('audit'),
   id: z.string(),
-  when: z.string().datetime(),
+  when: z.string().openapi({ description: "Readable British date format (26 October 2025, 14:30)" }),
   action: z.string(),
   message: z.string(),
   messageParts: z.record(z.string(), z.unknown()).optional(),

@@ -36,6 +36,7 @@ import { FilterBar } from "../common/FilterBar";
 import { useLocation, useNavigationType, useSearchParams, Link, useParams } from "react-router-dom";
 import { buildCommonDatePresets } from "../../utils/datePresets";
 import { getRoleActivityApiRequest } from "../../api/roles";
+import { formatDateTimeReadable } from "../../utils/dateFormatter";
 
 dayjs.extend(relativeTime);
 
@@ -468,7 +469,7 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
 
             <DatePickerInput
               label="Occurred from"
-              placeholder="Start date"
+              placeholder="DD/MM/YYYY"
               value={values.occurredFrom ? new Date(values.occurredFrom) : null}
               onChange={(d) =>
                 setValues((prev) => ({
@@ -478,13 +479,14 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
               }
               popoverProps={{ withinPortal: true }}
               presets={buildCommonDatePresets()}
-              valueFormat="YYYY-MM-DD"
+              valueFormat="DD/MM/YYYY"
               clearable
+              data-testid="role-activity-from-date"
             />
 
             <DatePickerInput
               label="Occurred to"
-              placeholder="End date"
+              placeholder="DD/MM/YYYY"
               value={values.occurredTo ? new Date(values.occurredTo) : null}
               onChange={(d) =>
                 setValues((prev) => ({
@@ -494,7 +496,8 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
               }
               popoverProps={{ withinPortal: true }}
               presets={buildCommonDatePresets()}
-              valueFormat="YYYY-MM-DD"
+              valueFormat="DD/MM/YYYY"
+              data-testid="role-activity-to-date"
               clearable
             />
           </div>
@@ -589,7 +592,7 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
           <Timeline active={-1} bulletSize={12} lineWidth={2}>
             {rows.map((it) => {
               const whenDate = new Date(it.when);
-              const whenAbs = whenDate.toLocaleString();
+              const whenAbs = formatDateTimeReadable(whenDate);
               const whenRel = dayjs(whenDate).fromNow();
               return (
                 <Timeline.Item
@@ -706,7 +709,7 @@ export function RoleActivityTab({ roleId }: { roleId: string }) {
             <Table.Tbody>
               {rows.map((it) => {
                 const whenDate = new Date(it.when);
-                const whenAbs = whenDate.toLocaleString();
+                const whenAbs = formatDateTimeReadable(whenDate);
                 const whenRel = dayjs(whenDate).fromNow();
                 return (
                   <Table.Tr key={`audit:${it.id}`}>

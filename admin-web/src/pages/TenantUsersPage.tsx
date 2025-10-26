@@ -52,6 +52,7 @@ import { FilterBar } from "../components/common/FilterBar";
 import type { components } from "../types/openapi";
 import { useNavigate } from "react-router-dom";
 import { buildCommonDatePresets } from "../utils/datePresets";
+import { formatDateTimeUK, formatDateUK } from "../utils/dateFormatter";
 
 type SortField = "createdAt" | "updatedAt" | "userEmailAddress" | "role";
 type SortDir = "asc" | "desc";
@@ -604,22 +605,22 @@ export default function TenantUsersPage() {
     if (appliedFilters.createdAtFrom)
       chips.push({
         key: "createdAtFrom",
-        label: `created ≥ ${appliedFilters.createdAtFrom.toISOString().split('T')[0]}`,
+        label: `created ≥ ${formatDateUK(appliedFilters.createdAtFrom)}`,
       });
     if (appliedFilters.createdAtTo)
       chips.push({
         key: "createdAtTo",
-        label: `created ≤ ${appliedFilters.createdAtTo.toISOString().split('T')[0]}`,
+        label: `created ≤ ${formatDateUK(appliedFilters.createdAtTo)}`,
       });
     if (appliedFilters.updatedAtFrom)
       chips.push({
         key: "updatedAtFrom",
-        label: `updated ≥ ${appliedFilters.updatedAtFrom.toISOString().split('T')[0]}`,
+        label: `updated ≥ ${formatDateUK(appliedFilters.updatedAtFrom)}`,
       });
     if (appliedFilters.updatedAtTo)
       chips.push({
         key: "updatedAtTo",
-        label: `updated ≤ ${appliedFilters.updatedAtTo.toISOString().split('T')[0]}`,
+        label: `updated ≤ ${formatDateUK(appliedFilters.updatedAtTo)}`,
       });
     return chips;
   }, [appliedFilters]);
@@ -768,56 +769,64 @@ export default function TenantUsersPage() {
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
               <DatePickerInput
                 label="Created from"
-                placeholder="Start date"
+                placeholder="DD/MM/YYYY"
                 value={values.createdAtFrom}
                 onChange={(v) =>
                   setValues({ ...values, createdAtFrom: v as Date | null })
                 }
                 popoverProps={{ withinPortal: true }}
                 presets={buildCommonDatePresets()}
+                valueFormat="DD/MM/YYYY"
                 clearable
+                data-testid="user-created-from-date"
               />
             </Grid.Col>
 
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
               <DatePickerInput
                 label="Created to"
-                placeholder="End date"
+                placeholder="DD/MM/YYYY"
                 value={values.createdAtTo}
                 onChange={(v) =>
                   setValues({ ...values, createdAtTo: v as Date | null })
                 }
                 popoverProps={{ withinPortal: true }}
                 presets={buildCommonDatePresets()}
+                valueFormat="DD/MM/YYYY"
                 clearable
+                data-testid="user-created-to-date"
               />
             </Grid.Col>
 
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
               <DatePickerInput
                 label="Updated from"
-                placeholder="Start date"
+                placeholder="DD/MM/YYYY"
                 value={values.updatedAtFrom}
                 onChange={(v) =>
                   setValues({ ...values, updatedAtFrom: v as Date | null })
                 }
                 popoverProps={{ withinPortal: true }}
                 presets={buildCommonDatePresets()}
+                valueFormat="DD/MM/YYYY"
                 clearable
+                data-testid="user-updated-from-date"
               />
             </Grid.Col>
 
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
               <DatePickerInput
                 label="Updated to"
-                placeholder="End date"
+                placeholder="DD/MM/YYYY"
                 value={values.updatedAtTo}
                 onChange={(v) =>
                   setValues({ ...values, updatedAtTo: v as Date | null })
                 }
                 popoverProps={{ withinPortal: true }}
                 presets={buildCommonDatePresets()}
+                valueFormat="DD/MM/YYYY"
                 clearable
+                data-testid="user-updated-to-date"
               />
             </Grid.Col>
           </Grid>
@@ -1098,14 +1107,14 @@ export default function TenantUsersPage() {
                             <Text c="dimmed">—</Text>
                           )}
                         </Table.Td>
-                        <Table.Td>
+                        <Table.Td data-testid="user-created-date">
                           {r.createdAt
-                            ? new Date(r.createdAt).toLocaleString()
+                            ? formatDateTimeUK(r.createdAt)
                             : "—"}
                         </Table.Td>
-                        <Table.Td>
+                        <Table.Td data-testid="user-updated-date">
                           {r.updatedAt
-                            ? new Date(r.updatedAt).toLocaleString()
+                            ? formatDateTimeUK(r.updatedAt)
                             : "—"}
                         </Table.Td>
                         <Table.Td className="flex justify-end">

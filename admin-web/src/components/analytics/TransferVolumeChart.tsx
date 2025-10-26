@@ -11,6 +11,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import { formatDateUK } from "../../utils/dateFormatter";
 
 interface VolumeDataPoint {
   date: string; // YYYY-MM-DD
@@ -25,19 +26,10 @@ interface TransferVolumeChartProps {
 }
 
 export default function TransferVolumeChart({ data }: TransferVolumeChartProps) {
-  // Determine if we need to show year (if data spans multiple years or is not current year)
-  const currentYear = new Date().getFullYear();
-  const dataYears = new Set(data.map((point) => new Date(point.date).getFullYear()));
-  const showYear = dataYears.size > 1 || !dataYears.has(currentYear);
-
-  // Format date for display
+  // Format date for display using British format (dd/mm/yyyy)
   const chartData = data.map((point) => ({
     ...point,
-    displayDate: new Date(point.date).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      ...(showYear && { year: "numeric" }), // Add year if needed
-    }),
+    displayDate: formatDateUK(point.date),
   }));
 
   return (

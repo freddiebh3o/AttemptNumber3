@@ -54,6 +54,7 @@ import { FilterBar } from "../common/FilterBar";
 import { useAuthStore } from "../../stores/auth";
 import { formatPenceAsGBP } from "../../utils/money";
 import { buildCommonDatePresets } from "../../utils/datePresets";
+import { formatDateTimeUK, formatDateUK } from "../../utils/dateFormatter";
 
 type Branch = { id: string; branchName: string };
 
@@ -869,7 +870,7 @@ export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts })
                           : "—"}
                       </Table.Td>
                       <Table.Td>{lot.sourceRef ?? "—"}</Table.Td>
-                      <Table.Td>{new Date(lot.receivedAt).toLocaleString()}</Table.Td>
+                      <Table.Td data-testid="lot-received-date">{formatDateUK(lot.receivedAt)}</Table.Td>
                     </Table.Tr>
                   ))}
                 </Table.Tbody>
@@ -971,26 +972,28 @@ export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts })
               <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
                 <DatePickerInput
                   label="Date from"
-                  placeholder="YYYY-MM-DD"
+                  placeholder="DD/MM/YYYY"
                   value={values.occurredFrom}
                   onChange={(v) => setValues((prev) => ({ ...prev, occurredFrom: v }))}
-                  valueFormat="YYYY-MM-DD"
+                  valueFormat="DD/MM/YYYY"
                   popoverProps={{ withinPortal: true }}
-                  presets={buildCommonDatePresets()} 
+                  presets={buildCommonDatePresets()}
                   clearable
+                  data-testid="fifo-occurred-from-date-picker"
                 />
               </Grid.Col>
 
               <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
                 <DatePickerInput
                   label="Date to"
-                  placeholder="YYYY-MM-DD"
+                  placeholder="DD/MM/YYYY"
                   value={values.occurredTo}
-                  onChange={(v) => setValues((prev) => ({ ...prev, occurredTo: v }))} 
-                  valueFormat="YYYY-MM-DD"
+                  onChange={(v) => setValues((prev) => ({ ...prev, occurredTo: v }))}
+                  valueFormat="DD/MM/YYYY"
                   popoverProps={{ withinPortal: true }}
-                  presets={buildCommonDatePresets()} 
+                  presets={buildCommonDatePresets()}
                   clearable
+                  data-testid="fifo-occurred-to-date-picker"
                 />
               </Grid.Col>
             </Grid>
@@ -1138,7 +1141,7 @@ export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts })
                   <Table.Tbody>
                     {displayedRows.map((row) => (
                       <Table.Tr key={row.id}>
-                        <Table.Td>{new Date(row.occurredAt).toLocaleString()}</Table.Td>
+                        <Table.Td data-testid="ledger-occurred-date">{formatDateTimeUK(row.occurredAt)}</Table.Td>
                         <Table.Td>{row.kind}</Table.Td>
                         <Table.Td>{row.qtyDelta}</Table.Td>
                         <Table.Td>

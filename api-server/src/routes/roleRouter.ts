@@ -26,6 +26,7 @@ import {
 } from "../types/assertions.js";
 import { getAuditContext } from "../utils/auditContext.js";
 import { getRoleActivityForCurrentTenantService } from "../services/role/roleActivityService.js";
+import { serializeEntityTimestamps, serializeActivityLog } from "../services/common/entitySerializer.js";
 
 export const roleRouter = Router();
 
@@ -169,7 +170,11 @@ requireAuthenticatedUserMiddleware,
         }),
       });
 
-      return res.status(200).json(createStandardSuccessResponse(result));
+      const serialized = {
+        ...result,
+        items: result.items.map(serializeEntityTimestamps),
+      };
+      return res.status(200).json(createStandardSuccessResponse(serialized));
     } catch (err) {
       return next(err);
     }
@@ -195,7 +200,7 @@ roleRouter.post(
         auditContextOptional: getAuditContext(req),
       });
 
-      return res.status(201).json(createStandardSuccessResponse({ role }));
+      return res.status(201).json(createStandardSuccessResponse({ role: serializeEntityTimestamps(role) }));
     } catch (err) {
       return next(err);
     }
@@ -230,7 +235,7 @@ roleRouter.put(
         auditContextOptional: getAuditContext(req),
       });
 
-      return res.status(200).json(createStandardSuccessResponse({ role }));
+      return res.status(200).json(createStandardSuccessResponse({ role: serializeEntityTimestamps(role) }));
     } catch (err) {
       return next(err);
     }
@@ -254,7 +259,7 @@ roleRouter.delete(
         auditContextOptional: getAuditContext(req),
       });
 
-      return res.status(200).json(createStandardSuccessResponse({ role }));
+      return res.status(200).json(createStandardSuccessResponse({ role: serializeEntityTimestamps(role) }));
     } catch (err) {
       return next(err);
     }
@@ -278,7 +283,7 @@ roleRouter.post(
         auditContextOptional: getAuditContext(req),
       });
 
-      return res.status(200).json(createStandardSuccessResponse({ role }));
+      return res.status(200).json(createStandardSuccessResponse({ role: serializeEntityTimestamps(role) }));
     } catch (err) {
       return next(err);
     }
@@ -334,7 +339,11 @@ roleRouter.get(
           : {}),
       });
 
-      return res.status(200).json(createStandardSuccessResponse(data));
+      const serialized = {
+        ...data,
+        items: data.items.map(serializeActivityLog),
+      };
+      return res.status(200).json(createStandardSuccessResponse(serialized));
     } catch (err) {
       return next(err);
     }
@@ -357,7 +366,7 @@ roleRouter.get(
         roleId: req.validatedParams.roleId,
       });
 
-      return res.status(200).json(createStandardSuccessResponse({ role }));
+      return res.status(200).json(createStandardSuccessResponse({ role: serializeEntityTimestamps(role) }));
     } catch (err) {
       return next(err);
     }

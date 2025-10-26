@@ -7,6 +7,10 @@ import { assertAuthed } from '../types/assertions.js';
 import { createStandardSuccessResponse } from '../utils/standardResponse.js';
 import * as transferService from '../services/stockTransfers/stockTransferService.js';
 import * as approvalEvaluationService from '../services/stockTransfers/approvalEvaluationService.js';
+import {
+  serializeStockTransfer,
+  serializeStockTransferResponse,
+} from '../services/stockTransfers/stockTransferSerializer.js';
 import { getAuditContext } from '../utils/auditContext.js';
 import { downloadPdfFromStorage, extractFilePathFromUrl, generateDispatchNotePdf } from '../services/pdf/pdfService.js';
 
@@ -83,7 +87,7 @@ stockTransfersRouter.post(
         auditContext: getAuditContext(req),
       });
 
-      return res.status(200).json(createStandardSuccessResponse(transfer));
+      return res.status(200).json(createStandardSuccessResponse(serializeStockTransfer(transfer)));
     } catch (e) {
       return next(e);
     }
@@ -143,7 +147,13 @@ stockTransfersRouter.get(
         },
       });
 
-      return res.status(200).json(createStandardSuccessResponse(result));
+      // Serialize list response (items array + metadata)
+      const serializedResult = {
+        ...result,
+        items: result.items.map(serializeStockTransfer),
+      };
+
+      return res.status(200).json(createStandardSuccessResponse(serializedResult));
     } catch (e) {
       return next(e);
     }
@@ -170,7 +180,7 @@ stockTransfersRouter.get(
         transferId,
       });
 
-      return res.status(200).json(createStandardSuccessResponse(transfer));
+      return res.status(200).json(createStandardSuccessResponse(serializeStockTransferResponse(transfer)));
     } catch (e) {
       return next(e);
     }
@@ -204,7 +214,7 @@ stockTransfersRouter.patch(
         auditContext: getAuditContext(req),
       });
 
-      return res.status(200).json(createStandardSuccessResponse(transfer));
+      return res.status(200).json(createStandardSuccessResponse(serializeStockTransferResponse(transfer)));
     } catch (e) {
       return next(e);
     }
@@ -247,7 +257,7 @@ stockTransfersRouter.post(
         auditContext: getAuditContext(req),
       });
 
-      return res.status(200).json(createStandardSuccessResponse(transfer));
+      return res.status(200).json(createStandardSuccessResponse(serializeStockTransferResponse(transfer)));
     } catch (e) {
       return next(e);
     }
@@ -278,7 +288,7 @@ stockTransfersRouter.post(
         auditContext: getAuditContext(req),
       });
 
-      return res.status(200).json(createStandardSuccessResponse(transfer));
+      return res.status(200).json(createStandardSuccessResponse(serializeStockTransferResponse(transfer)));
     } catch (e) {
       return next(e);
     }
@@ -347,7 +357,7 @@ stockTransfersRouter.post(
         auditContext: getAuditContext(req),
       });
 
-      return res.status(200).json(createStandardSuccessResponse(reversalTransfer));
+      return res.status(200).json(createStandardSuccessResponse(serializeStockTransferResponse(reversalTransfer)));
     } catch (e) {
       return next(e);
     }
@@ -384,7 +394,7 @@ stockTransfersRouter.post(
         auditContext: getAuditContext(req),
       });
 
-      return res.status(200).json(createStandardSuccessResponse(transfer));
+      return res.status(200).json(createStandardSuccessResponse(serializeStockTransferResponse(transfer)));
     } catch (e) {
       return next(e);
     }
@@ -446,7 +456,7 @@ stockTransfersRouter.patch(
         auditContext: getAuditContext(req),
       });
 
-      return res.status(200).json(createStandardSuccessResponse(transfer));
+      return res.status(200).json(createStandardSuccessResponse(serializeStockTransferResponse(transfer)));
     } catch (e) {
       return next(e);
     }

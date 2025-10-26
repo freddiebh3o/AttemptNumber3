@@ -44,7 +44,8 @@ import { useAuthStore } from "../stores/auth";
 import { buildCommonDatePresets } from "../utils/datePresets";
 import { FilterBar } from "../components/common/FilterBar";
 import { useNavigate } from "react-router-dom";
-import { formatPenceAsGBP } from "../utils/money";  
+import { formatPenceAsGBP } from "../utils/money";
+import { formatDateTimeUK } from "../utils/dateFormatter";  
 
 type SortField =
   | "createdAt"
@@ -778,10 +779,11 @@ export default function ProductsPage() {
                 onChange={(v) =>
                   setValues((prev) => ({ ...prev, createdAtFrom: v }))
                 }
-                valueFormat="YYYY-MM-DD"
+                valueFormat="DD/MM/YYYY"
                 popoverProps={{ withinPortal: true }}
                 presets={buildCommonDatePresets()}
                 clearable
+                data-testid="created-from-date-picker"
               />
             </Grid.Col>
 
@@ -793,10 +795,11 @@ export default function ProductsPage() {
                 onChange={(v) =>
                   setValues((prev) => ({ ...prev, createdAtTo: v }))
                 }
-                valueFormat="YYYY-MM-DD"
+                valueFormat="DD/MM/YYYY"
                 popoverProps={{ withinPortal: true }}
                 presets={buildCommonDatePresets()}
                 clearable
+                data-testid="created-to-date-picker"
               />
             </Grid.Col>
 
@@ -808,10 +811,11 @@ export default function ProductsPage() {
                 onChange={(v) =>
                   setValues((prev) => ({ ...prev, updatedAtFrom: v }))
                 }
-                valueFormat="YYYY-MM-DD"
+                valueFormat="DD/MM/YYYY"
                 popoverProps={{ withinPortal: true }}
                 presets={buildCommonDatePresets()}
                 clearable
+                data-testid="updated-from-date-picker"
               />
             </Grid.Col>
 
@@ -823,10 +827,11 @@ export default function ProductsPage() {
                 onChange={(v) =>
                   setValues((prev) => ({ ...prev, updatedAtTo: v }))
                 }
-                valueFormat="YYYY-MM-DD"
+                valueFormat="DD/MM/YYYY"
                 popoverProps={{ withinPortal: true }}
                 presets={buildCommonDatePresets()}
                 clearable
+                data-testid="updated-to-date-picker"
               />
             </Grid.Col>
           </Grid>
@@ -1036,14 +1041,14 @@ export default function ProductsPage() {
                           </Table.Td>
                           <Table.Td>{p.productSku}</Table.Td>
                           <Table.Td>{formatPenceAsGBP(p.productPricePence)}</Table.Td>
-                          <Table.Td>
+                          <Table.Td data-testid="product-created-date">
                             <Text size="sm">
-                              {new Date(p.createdAt).toLocaleString()}
+                              {formatDateTimeUK(p.createdAt)}
                             </Text>
                           </Table.Td>
-                          <Table.Td>
+                          <Table.Td data-testid="product-updated-date">
                             <Text size="sm">
-                              {new Date(p.updatedAt).toLocaleString()}
+                              {formatDateTimeUK(p.updatedAt)}
                             </Text>
                           </Table.Td>
                           <Table.Td>

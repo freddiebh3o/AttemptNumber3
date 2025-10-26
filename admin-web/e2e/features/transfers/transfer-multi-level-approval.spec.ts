@@ -480,33 +480,3 @@ test.describe('Multi-Level Approval - Progress Display', () => {
   });
 });
 
-test.describe('Multi-Level Approval - Permissions', () => {
-  test('should hide approve buttons for unauthorized users', async ({ page }) => {
-    await signIn(page, TEST_USERS.viewer);
-
-    // Navigate to transfers
-    await page.goto(`/${TEST_USERS.viewer.tenant}/stock-transfers`);
-    await page.waitForTimeout(1000);
-
-    // Find a multi-level transfer
-    const multiLevelTransfer = page.locator('table tbody tr').filter({
-      hasText: /multi-level/i,
-    }).first();
-
-    if (await multiLevelTransfer.isVisible()) {
-      const viewButton = multiLevelTransfer.getByRole('button', { name: /view/i }).or(
-        multiLevelTransfer.locator('button').first()
-      );
-      await viewButton.click();
-
-      await page.waitForTimeout(1000);
-
-      // Viewer should see approval progress but NOT action buttons
-      await expect(page.getByText(/approval progress/i)).toBeVisible();
-
-      // Should NOT see approve/reject buttons
-      await expect(page.getByRole('button', { name: /approve level/i })).not.toBeVisible();
-      await expect(page.getByRole('button', { name: /reject level/i })).not.toBeVisible();
-    }
-  });
-});

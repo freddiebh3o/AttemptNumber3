@@ -6,8 +6,6 @@ export const ZodStockMovementKind = z
   .enum(['RECEIPT', 'ADJUSTMENT', 'CONSUMPTION', 'REVERSAL'])
   .openapi('StockMovementKind');
 
-const ZodISODate = z.string().datetime();
-
 // --- Records (mirror DB shapes we return) ---
 export const ZodProductStockRecord = z.object({
   id: z.string(),
@@ -16,8 +14,8 @@ export const ZodProductStockRecord = z.object({
   productId: z.string(),
   qtyOnHand: z.number().int(),
   qtyAllocated: z.number().int(),
-  createdAt: ZodISODate,
-  updatedAt: ZodISODate,
+  createdAt: z.string().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
+  updatedAt: z.string().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
 }).openapi('ProductStockRecord');
 
 export const ZodStockLotRecord = z.object({
@@ -30,9 +28,9 @@ export const ZodStockLotRecord = z.object({
   // Unit cost stored in **pence**
   unitCostPence: z.number().int().nullable().optional(),
   sourceRef: z.string().nullable().optional(),
-  receivedAt: ZodISODate,
-  createdAt: ZodISODate,
-  updatedAt: ZodISODate,
+  receivedAt: z.string().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
+  createdAt: z.string().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
+  updatedAt: z.string().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
 }).openapi('StockLotRecord');
 
 export const ZodStockLedgerRecord = z.object({
@@ -45,8 +43,8 @@ export const ZodStockLedgerRecord = z.object({
   qtyDelta: z.number().int(),
   reason: z.string().nullable().optional(),
   actorUserId: z.string().nullable().optional(),
-  occurredAt: ZodISODate,
-  createdAt: ZodISODate,
+  occurredAt: z.string().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
+  createdAt: z.string().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
 }).openapi('StockLedgerRecord');
 
 // For GET /stock/levels productStock fallback (no id/timestamps)

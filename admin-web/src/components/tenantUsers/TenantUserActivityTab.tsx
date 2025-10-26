@@ -37,6 +37,7 @@ import { handlePageError } from "../../utils/pageError";
 import { getTenantUserActivityApiRequest } from "../../api/tenantUsers";
 import { Link, useLocation, useNavigationType, useParams, useSearchParams } from "react-router-dom";
 import { buildCommonDatePresets } from "../../utils/datePresets";
+import { formatDateTimeReadable } from "../../utils/dateFormatter";
 
 dayjs.extend(relativeTime);
 
@@ -444,23 +445,25 @@ export function TenantUserActivityTab({ userId }: { userId: string }) {
             />
             <DatePickerInput
               label="Occurred from"
-              placeholder="Start date"
+              placeholder="DD/MM/YYYY"
               value={values.occurredFrom ? new Date(values.occurredFrom) : null}
               onChange={(d) => setValues((prev) => ({ ...prev, occurredFrom: d ? dayjs(d).format("YYYY-MM-DD") : null }))}
               popoverProps={{ withinPortal: true }}
               presets={buildCommonDatePresets()}
-              valueFormat="YYYY-MM-DD"
+              valueFormat="DD/MM/YYYY"
               clearable
+              data-testid="user-activity-from-date"
             />
             <DatePickerInput
               label="Occurred to"
-              placeholder="End date"
+              placeholder="DD/MM/YYYY"
               value={values.occurredTo ? new Date(values.occurredTo) : null}
               onChange={(d) => setValues((prev) => ({ ...prev, occurredTo: d ? dayjs(d).format("YYYY-MM-DD") : null }))}
-              valueFormat="YYYY-MM-DD"  
+              valueFormat="DD/MM/YYYY"
               popoverProps={{ withinPortal: true }}
               presets={buildCommonDatePresets()}
               clearable
+              data-testid="user-activity-to-date"
             />
           </div>
         )}
@@ -543,7 +546,7 @@ export function TenantUserActivityTab({ userId }: { userId: string }) {
           <Timeline active={-1} bulletSize={12} lineWidth={2}>
             {rows.map((it) => {
               const whenDate = new Date(it.when);
-              const whenAbs = whenDate.toLocaleString();
+              const whenAbs = formatDateTimeReadable(whenDate);
               const whenRel = dayjs(whenDate).fromNow();
               const mp = (it.messageParts ?? undefined) as any | undefined;
 
@@ -701,7 +704,7 @@ export function TenantUserActivityTab({ userId }: { userId: string }) {
             <Table.Tbody>
               {rows.map((it) => {
                 const whenDate = new Date(it.when);
-                const whenAbs = whenDate.toLocaleString();
+                const whenAbs = formatDateTimeReadable(whenDate);
                 const whenRel = dayjs(whenDate).fromNow();
                 const mp = (it.messageParts ?? undefined) as any | undefined;
 

@@ -375,7 +375,7 @@ export default function TransferAnalyticsPage() {
                 <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
                   <DatePickerInput
                     label="Start Date"
-                    placeholder="Select start date"
+                    placeholder="DD/MM/YYYY"
                     value={values.startDate ? new Date(values.startDate) : null}
                     onChange={(v) => {
                       const dateStr = v ? new Date(v).toISOString().split("T")[0] : null;
@@ -383,13 +383,15 @@ export default function TransferAnalyticsPage() {
                     }}
                     popoverProps={{ withinPortal: true }}
                     presets={buildCommonDatePresets()}
+                    valueFormat="DD/MM/YYYY"
                     clearable={false}
+                    data-testid="analytics-start-date"
                   />
                 </Grid.Col>
                 <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
                   <DatePickerInput
                     label="End Date"
-                    placeholder="Select end date"
+                    placeholder="DD/MM/YYYY"
                     value={values.endDate ? new Date(values.endDate) : null}
                     onChange={(v) => {
                       const dateStr = v ? new Date(v).toISOString().split("T")[0] : null;
@@ -397,7 +399,9 @@ export default function TransferAnalyticsPage() {
                     }}
                     popoverProps={{ withinPortal: true }}
                     presets={buildCommonDatePresets()}
+                    valueFormat="DD/MM/YYYY"
                     clearable={false}
+                    data-testid="analytics-end-date"
                   />
                 </Grid.Col>
                 <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>

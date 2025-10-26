@@ -5,13 +5,14 @@ export type DatePreset = { label: string; value: string };
 
 /**
  * Build common single-date presets relative to "now".
- * Use valueFormat="YYYY-MM-DD" on your <DatePickerInput /> to match the value strings.
+ * Use valueFormat="DD/MM/YYYY" on your <DatePickerInput /> to match the value strings.
+ * Defaults to British date format (DD/MM/YYYY).
  */
 export function buildCommonDatePresets(
   opts?: { base?: dayjs.Dayjs; format?: string }
 ): DatePreset[] {
   const base = opts?.base ?? dayjs();
-  const fmt = opts?.format ?? "YYYY-MM-DD";
+  const fmt = opts?.format ?? "DD/MM/YYYY";
 
   return [
     { label: "Yesterday",  value: base.subtract(1, "day").format(fmt) },

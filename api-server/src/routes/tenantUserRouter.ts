@@ -20,6 +20,7 @@ import {
   restoreUserMembershipService,
 } from '../services/tenantUsers/tenantUserService.js';
 import { listTenantUserActivityForUserService } from '../services/tenantUsers/tenantUserActivityService.js';
+import { serializeNestedEntity, serializeActivityLog } from '../services/common/entitySerializer.js';
 
 // Minimal helper to pass audit context into services
 function getAuditContext(req: any) {
@@ -120,7 +121,13 @@ tenantUserRouter.get(
         ...(q.includeTotal !== undefined && { includeTotalOptional: q.includeTotal }),
       });
 
-      return res.status(200).json(createStandardSuccessResponse(out));
+      // Serialize timestamps in response
+      const serialized = {
+        ...out,
+        items: out.items.map((item: any) => serializeNestedEntity(item, ['user', 'role'])),
+      };
+
+      return res.status(200).json(createStandardSuccessResponse(serialized));
     } catch (err) {
       return next(err);
     }
@@ -141,7 +148,7 @@ tenantUserRouter.get(
         currentTenantId: req.currentTenantId,
         targetUserId: userId,
       });
-      return res.status(200).json(createStandardSuccessResponse({ user: out }));
+      return res.status(200).json(createStandardSuccessResponse({ user: serializeNestedEntity(out, ['user', 'role']) }));
     } catch (err) {
       return next(err);
     }
@@ -170,7 +177,7 @@ tenantUserRouter.post(
         auditContextOptional: getAuditContext(req),
       });
 
-      return res.status(201).json(createStandardSuccessResponse({ user: out }));
+      return res.status(201).json(createStandardSuccessResponse({ user: serializeNestedEntity(out, ['user', 'role']) }));
     } catch (err) {
       return next(err);
     }
@@ -202,7 +209,7 @@ tenantUserRouter.put(
         auditContextOptional: getAuditContext(req),
       });
 
-      return res.status(200).json(createStandardSuccessResponse({ user: out }));
+      return res.status(200).json(createStandardSuccessResponse({ user: serializeNestedEntity(out, ['user', 'role']) }));
     } catch (err) {
       return next(err);
     }
@@ -283,7 +290,13 @@ tenantUserRouter.get(
         ...(q.includeTotal !== undefined && { includeTotalOptional: q.includeTotal }),
       });
 
-      return res.status(200).json(createStandardSuccessResponse(out));
+      // Serialize activity logs
+      const serialized = {
+        ...out,
+        items: out.items.map((item: any) => serializeActivityLog(item)),
+      };
+
+      return res.status(200).json(createStandardSuccessResponse(serialized));
     } catch (err) {
       return next(err);
     }

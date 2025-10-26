@@ -18,6 +18,7 @@ import {
   getProductByBarcodeForCurrentTenantService,
   restoreProductForCurrentTenantService,
 } from "../services/products/productService.js";
+import { serializeProduct, serializeProductList } from "../services/products/productSerializer.js";
 import { assertAuthed } from "../types/assertions.js";
 import { requirePermission } from "../middleware/permissionMiddleware.js";
 import { getAuditContext } from "../utils/auditContext.js";
@@ -119,7 +120,7 @@ productRouter.get(
 
       return response
         .status(200)
-        .json(createStandardSuccessResponse({ product }));
+        .json(createStandardSuccessResponse({ product: serializeProduct(product) }));
     } catch (error) {
       return next(error);
     }
@@ -184,7 +185,10 @@ productRouter.get(
 
       return response
         .status(200)
-        .json(createStandardSuccessResponse(result));
+        .json(createStandardSuccessResponse({
+          ...result,
+          items: serializeProductList(result.items),
+        }));
     } catch (error) {
       return next(error);
     }
@@ -217,7 +221,7 @@ productRouter.get(
 
       return response
         .status(200)
-        .json(createStandardSuccessResponse({ product }));
+        .json(createStandardSuccessResponse({ product: serializeProduct(product) }));
     } catch (error) {
       return next(error);
     }
@@ -249,7 +253,7 @@ productRouter.post(
       });
       return response
         .status(201)
-        .json(createStandardSuccessResponse({ product: createdProduct }));
+        .json(createStandardSuccessResponse({ product: serializeProduct(createdProduct) }));
     } catch (error) {
       return next(error);
     }
@@ -289,7 +293,7 @@ productRouter.put(
 
       return response
         .status(200)
-        .json(createStandardSuccessResponse({ product: updatedProduct }));
+        .json(createStandardSuccessResponse({ product: serializeProduct(updatedProduct) }));
     } catch (error) {
       return next(error);
     }
@@ -347,9 +351,10 @@ productRouter.post(
         productIdPathParam: productId,
         auditContextOptional: getAuditContext(request),
       });
+      // Service throws if product not found, so result is always non-null
       return response
         .status(200)
-        .json(createStandardSuccessResponse({ product: result }));
+        .json(createStandardSuccessResponse({ product: serializeProduct(result!) }));
     } catch (error) {
       return next(error);
     }

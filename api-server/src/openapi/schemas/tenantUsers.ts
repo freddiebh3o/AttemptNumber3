@@ -7,8 +7,8 @@ export const ZodBranchSummary = z
     id: z.string(),
     branchName: z.string(),
     isActive: z.boolean(),
-    createdAt: z.string().datetime(),
-    updatedAt: z.string().datetime(),
+    createdAt: z.string().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
+    updatedAt: z.string().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
   })
   .openapi("BranchSummary");
 
@@ -20,8 +20,8 @@ export const ZodRoleSummary = z
     isSystem: z.boolean(),
     tenantId: z.string(),
     permissions: z.array(ZodPermissionKey),
-    createdAt: z.string().datetime(),
-    updatedAt: z.string().datetime(),
+    createdAt: z.string().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
+    updatedAt: z.string().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
   })
   .openapi("RoleSummary");
 
@@ -32,10 +32,10 @@ export const ZodTenantUserRecord = z
     role: ZodRoleSummary.nullable(),
     branches: z.array(ZodBranchSummary).default([]),
     isArchived: z.boolean(),
-    archivedAt: z.string().datetime().nullable(),
+    archivedAt: z.string().nullable().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
     archivedByUserId: z.string().nullable(),
-    createdAt: z.string().datetime().optional(),
-    updatedAt: z.string().datetime().optional(),
+    createdAt: z.string().optional().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
+    updatedAt: z.string().optional().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
   })
   .openapi("TenantUserRecord");
 
@@ -130,7 +130,7 @@ export const ZodTenantUserActivityItem = z
   .object({
     kind: z.literal("audit"),
     id: z.string(),
-    when: z.string().datetime(),
+    when: z.string().openapi({ description: "Readable British date format (26 October 2025, 14:30)" }),
     action: z.string(),
     message: z.string(),
     messageParts: z.object({}).catchall(z.any()).nullable().optional(),

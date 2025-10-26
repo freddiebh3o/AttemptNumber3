@@ -61,6 +61,7 @@ import type { StockTransferTemplate } from "../api/stockTransferTemplates";
 import { FilterBar } from "../components/common/FilterBar";
 import { buildCommonDatePresets } from "../utils/datePresets";
 import PriorityBadge from "../components/common/PriorityBadge";
+import { formatDateUK } from "../utils/dateFormatter";
 
 type TransferStatus =
   | "REQUESTED"
@@ -1220,7 +1221,7 @@ export default function StockTransfersPage() {
               <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
                 <DatePickerInput
                   label="Requested from"
-                  placeholder="Start date"
+                  placeholder="DD/MM/YYYY"
                   value={values.requestedAtFrom ? new Date(values.requestedAtFrom) : null}
                   onChange={(v) => {
                     const dateStr = v ? new Date(v).toISOString().split("T")[0] : null;
@@ -1228,14 +1229,16 @@ export default function StockTransfersPage() {
                   }}
                   popoverProps={{ withinPortal: true }}
                   presets={buildCommonDatePresets()}
+                  valueFormat="DD/MM/YYYY"
                   clearable
+                  data-testid="filter-requested-from"
                 />
               </Grid.Col>
 
               <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
                 <DatePickerInput
                   label="Requested to"
-                  placeholder="End date"
+                  placeholder="DD/MM/YYYY"
                   value={values.requestedAtTo ? new Date(values.requestedAtTo) : null}
                   onChange={(v) => {
                     const dateStr = v ? new Date(v).toISOString().split("T")[0] : null;
@@ -1243,14 +1246,16 @@ export default function StockTransfersPage() {
                   }}
                   popoverProps={{ withinPortal: true }}
                   presets={buildCommonDatePresets()}
+                  valueFormat="DD/MM/YYYY"
                   clearable
+                  data-testid="filter-requested-to"
                 />
               </Grid.Col>
 
               <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
                 <DatePickerInput
                   label="Shipped from"
-                  placeholder="Start date"
+                  placeholder="DD/MM/YYYY"
                   value={values.shippedAtFrom ? new Date(values.shippedAtFrom) : null}
                   onChange={(v) => {
                     const dateStr = v ? new Date(v).toISOString().split("T")[0] : null;
@@ -1258,14 +1263,16 @@ export default function StockTransfersPage() {
                   }}
                   popoverProps={{ withinPortal: true }}
                   presets={buildCommonDatePresets()}
+                  valueFormat="DD/MM/YYYY"
                   clearable
+                  data-testid="filter-shipped-from"
                 />
               </Grid.Col>
 
               <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
                 <DatePickerInput
                   label="Shipped to"
-                  placeholder="End date"
+                  placeholder="DD/MM/YYYY"
                   value={values.shippedAtTo ? new Date(values.shippedAtTo) : null}
                   onChange={(v) => {
                     const dateStr = v ? new Date(v).toISOString().split("T")[0] : null;
@@ -1273,14 +1280,16 @@ export default function StockTransfersPage() {
                   }}
                   popoverProps={{ withinPortal: true }}
                   presets={buildCommonDatePresets()}
+                  valueFormat="DD/MM/YYYY"
                   clearable
+                  data-testid="filter-shipped-to"
                 />
               </Grid.Col>
 
               <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
                 <DatePickerInput
                   label="Expected delivery from"
-                  placeholder="Start date"
+                  placeholder="DD/MM/YYYY"
                   value={values.expectedDeliveryDateFrom ? new Date(values.expectedDeliveryDateFrom) : null}
                   onChange={(v) => {
                     const dateStr = v ? new Date(v).toISOString().split("T")[0] : null;
@@ -1288,6 +1297,7 @@ export default function StockTransfersPage() {
                   }}
                   popoverProps={{ withinPortal: true }}
                   presets={buildCommonDatePresets()}
+                  valueFormat="DD/MM/YYYY"
                   clearable
                   data-testid="filter-delivery-date-range-from"
                 />
@@ -1296,7 +1306,7 @@ export default function StockTransfersPage() {
               <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
                 <DatePickerInput
                   label="Expected delivery to"
-                  placeholder="End date"
+                  placeholder="DD/MM/YYYY"
                   value={values.expectedDeliveryDateTo ? new Date(values.expectedDeliveryDateTo) : null}
                   onChange={(v) => {
                     const dateStr = v ? new Date(v).toISOString().split("T")[0] : null;
@@ -1304,6 +1314,7 @@ export default function StockTransfersPage() {
                   }}
                   popoverProps={{ withinPortal: true }}
                   presets={buildCommonDatePresets()}
+                  valueFormat="DD/MM/YYYY"
                   clearable
                   data-testid="filter-delivery-date-range-to"
                 />
@@ -1581,9 +1592,9 @@ export default function StockTransfersPage() {
                                 qty)
                               </Text>
                             </Table.Td>
-                            <Table.Td>
+                            <Table.Td data-testid="transfer-requested-date">
                               <Text size="sm">
-                                {new Date(transfer.requestedAt).toLocaleDateString()}
+                                {formatDateUK(transfer.requestedAt)}
                               </Text>
                             </Table.Td>
                             <Table.Td>

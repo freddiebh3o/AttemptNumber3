@@ -56,6 +56,7 @@ import type { components } from "../types/openapi";
 import { FilterBar } from "../components/common/FilterBar";
 import { buildCommonDatePresets } from "../utils/datePresets";
 import { usePermissions } from "../hooks/usePermissions";
+import { formatDateTimeUK } from "../utils/dateFormatter";
 
 type RoleRecord = components["schemas"]["RoleRecord"];
 type SortField = "name" | "createdAt" | "updatedAt" | "isSystem";
@@ -906,52 +907,56 @@ export default function RolesPage() {
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
               <DatePickerInput
                 label="Created from"
-                placeholder="Start date"
+                placeholder="DD/MM/YYYY"
                 value={values.createdAtFrom}
                 onChange={(v) => setValues({ ...values, createdAtFrom: v })}
-                valueFormat="YYYY-MM-DD"
+                valueFormat="DD/MM/YYYY"
                 popoverProps={{ withinPortal: true }}
                 presets={buildCommonDatePresets()}
                 clearable
+                data-testid="role-created-from-date"
               />
             </Grid.Col>
 
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
               <DatePickerInput
                 label="Created to"
-                placeholder="End date"
+                placeholder="DD/MM/YYYY"
                 value={values.createdAtTo}
                 onChange={(v) => setValues({ ...values, createdAtTo: v })}
-                valueFormat="YYYY-MM-DD"
+                valueFormat="DD/MM/YYYY"
                 popoverProps={{ withinPortal: true }}
                 presets={buildCommonDatePresets()}
                 clearable
+                data-testid="role-created-to-date"
               />
             </Grid.Col>
 
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
               <DatePickerInput
                 label="Updated from"
-                placeholder="Start date"
+                placeholder="DD/MM/YYYY"
                 value={values.updatedAtFrom}
                 onChange={(v) => setValues({ ...values, updatedAtFrom: v })}
-                valueFormat="YYYY-MM-DD"
+                valueFormat="DD/MM/YYYY"
                 popoverProps={{ withinPortal: true }}
                 presets={buildCommonDatePresets()}
                 clearable
+                data-testid="role-updated-from-date"
               />
             </Grid.Col>
 
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
               <DatePickerInput
                 label="Updated to"
-                placeholder="End date"
+                placeholder="DD/MM/YYYY"
                 value={values.updatedAtTo}
                 onChange={(v) => setValues({ ...values, updatedAtTo: v })}
-                valueFormat="YYYY-MM-DD"
+                valueFormat="DD/MM/YYYY"
                 popoverProps={{ withinPortal: true }}
                 presets={buildCommonDatePresets()}
                 clearable
+                data-testid="role-updated-to-date"
               />
             </Grid.Col>
 
@@ -1229,8 +1234,8 @@ export default function RolesPage() {
                             ))}
                           </Group>
                         </Table.Td>
-                        <Table.Td>{new Date(r.createdAt).toLocaleString()}</Table.Td>
-                        <Table.Td>{new Date(r.updatedAt).toLocaleString()}</Table.Td>
+                        <Table.Td data-testid="role-created-date">{formatDateTimeUK(r.createdAt)}</Table.Td>
+                        <Table.Td data-testid="role-updated-date">{formatDateTimeUK(r.updatedAt)}</Table.Td>
                         <Table.Td className="text-right">
                           <Group gap="xs" justify="flex-end">
                             {/* View button navigates to role detail page where archive/restore happens */}

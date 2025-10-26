@@ -35,8 +35,8 @@ export const ZodTenantThemeResponseData = z.object({
   presetKey: ZodPresetKey.nullable(),
   overrides: ZodThemeOverrides.default({}),
   logoUrl: z.string().url().nullable().default(null),
-  updatedAt: z.string().datetime().nullable(),
-  createdAt: z.string().datetime().nullable(),
+  updatedAt: z.string().nullable().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
+  createdAt: z.string().nullable().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
 }).openapi('TenantThemeResponseData');
 
 export const ZodTenantThemePutBody = z.object({
@@ -52,7 +52,7 @@ export const ZodActorRef = z
 export const ZodTenantThemeActivityItem = z.object({
   kind: z.literal('audit'),
   id: z.string(),
-  when: z.string().datetime(),
+  when: z.string().openapi({ description: "Readable British date format (26 October 2025, 14:30)" }),
   action: z.string(),
   message: z.string(),
   messageParts: z.record(z.string(), z.unknown()).optional(),

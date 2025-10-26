@@ -173,12 +173,12 @@ test.describe('Chat Analytics Page', () => {
 
     const dailyTable = page.getByTestId('daily-data-table');
     if (await dailyTable.isVisible()) {
-      // Check that dates are formatted (e.g., "Jan 15, 2025")
+      // Check that dates are formatted in British format (e.g., "15 January 2025")
       const dateCell = dailyTable.locator('tbody tr').first().locator('td').first();
       const dateText = await dateCell.textContent();
 
-      // Should match format like "Jan 15, 2025" or "Dec 31, 2024"
-      expect(dateText).toMatch(/[A-Z][a-z]{2} \d{1,2}, \d{4}/);
+      // Should match British format like "15 January 2025" or "31 December 2024"
+      expect(dateText).toMatch(/\d{1,2} [A-Z][a-z]+ \d{4}/);
     }
   });
 

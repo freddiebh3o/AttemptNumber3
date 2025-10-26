@@ -18,6 +18,12 @@ import {
   listStockLedgerService,
   getStockLevelsBulkService,
 } from '../services/stockService.js';
+import {
+  serializeStockResponse,
+  serializeStockLotList,
+  serializeProductStock,
+  serializeStockLedgerList,
+} from '../services/stockSerializer.js';
 import { getAuditContext } from '../utils/auditContext.js';
 
 export const stockRouter = Router();
@@ -117,7 +123,7 @@ stockRouter.post(
         }
       );
 
-      return res.status(201).json(createStandardSuccessResponse(out));
+      return res.status(201).json(createStandardSuccessResponse(serializeStockResponse(out)));
     } catch (err) {
       return next(err);
     }
@@ -150,7 +156,7 @@ stockRouter.post(
         }
       );
 
-      return res.status(200).json(createStandardSuccessResponse(out));
+      return res.status(200).json(createStandardSuccessResponse(serializeStockResponse(out)));
     } catch (err) {
       return next(err);
     }
@@ -182,7 +188,7 @@ stockRouter.post(
         }
       );
 
-      return res.status(200).json(createStandardSuccessResponse(out));
+      return res.status(200).json(createStandardSuccessResponse(serializeStockResponse(out)));
     } catch (err) {
       return next(err);
     }
@@ -206,7 +212,14 @@ stockRouter.get(
         productId,
       });
 
-      return res.status(200).json(createStandardSuccessResponse(result));
+      // Serialize lots array and productStock
+      const serialized = {
+        ...result,
+        lots: serializeStockLotList(result.lots),
+        productStock: serializeProductStock(result.productStock),
+      };
+
+      return res.status(200).json(createStandardSuccessResponse(serialized));
     } catch (err) {
       return next(err);
     }
@@ -254,7 +267,13 @@ stockRouter.get(
         ...(maxQty !== undefined ? { maxQtyOptional: maxQty } : {}),
       });
 
-      return res.status(200).json(createStandardSuccessResponse(data));
+      // Serialize ledger items
+      const serialized = {
+        ...data,
+        items: serializeStockLedgerList(data.items),
+      };
+
+      return res.status(200).json(createStandardSuccessResponse(serialized));
     } catch (err) {
       return next(err);
     }
@@ -275,7 +294,17 @@ stockRouter.get(
         currentTenantId: req.currentTenantId,
         productId,
       });
-      return res.status(200).json(createStandardSuccessResponse(data));
+
+      // Serialize items array (each item has lots and productStock)
+      const serialized = {
+        items: data.items.map((item: any) => ({
+          ...item,
+          lots: serializeStockLotList(item.lots),
+          productStock: serializeProductStock(item.productStock),
+        })),
+      };
+
+      return res.status(200).json(createStandardSuccessResponse(serialized));
     } catch (err) {
       return next(err);
     }

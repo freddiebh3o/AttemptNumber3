@@ -5294,13 +5294,18 @@ export interface paths {
                                     requestedByUserId: string;
                                     reviewedByUserId: string | null;
                                     shippedByUserId: string | null;
+                                    /** @description British date format (dd/mm/yyyy HH:mm) */
                                     requestedAt: string;
+                                    /** @description British date format (dd/mm/yyyy HH:mm) */
                                     reviewedAt: string | null;
+                                    /** @description British date format (dd/mm/yyyy HH:mm) */
                                     shippedAt: string | null;
+                                    /** @description British date format (dd/mm/yyyy HH:mm) */
                                     completedAt: string | null;
                                     requestNotes: string | null;
                                     reviewNotes: string | null;
                                     orderNotes: string | null;
+                                    /** @description British date format (dd/mm/yyyy) */
                                     expectedDeliveryDate: string | null;
                                     isReversal: boolean;
                                     reversalOfId: string | null;
@@ -5324,6 +5329,7 @@ export interface paths {
                                         shipmentBatches?: {
                                             batchNumber: number;
                                             qty: number;
+                                            /** @description British date format (dd/mm/yyyy HH:mm) */
                                             shippedAt: string;
                                             shippedByUserId: string;
                                             lotsConsumed: {
@@ -5374,7 +5380,9 @@ export interface paths {
                                         id: string;
                                         userEmailAddress: string;
                                     } | null;
+                                    /** @description British date format (dd/mm/yyyy HH:mm) */
                                     createdAt: string;
+                                    /** @description British date format (dd/mm/yyyy HH:mm) */
                                     updatedAt: string;
                                 }[];
                                 pageInfo: {
@@ -5453,13 +5461,18 @@ export interface paths {
                                 requestedByUserId: string;
                                 reviewedByUserId: string | null;
                                 shippedByUserId: string | null;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 requestedAt: string;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 reviewedAt: string | null;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 shippedAt: string | null;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 completedAt: string | null;
                                 requestNotes: string | null;
                                 reviewNotes: string | null;
                                 orderNotes: string | null;
+                                /** @description British date format (dd/mm/yyyy) */
                                 expectedDeliveryDate: string | null;
                                 isReversal: boolean;
                                 reversalOfId: string | null;
@@ -5483,6 +5496,7 @@ export interface paths {
                                     shipmentBatches?: {
                                         batchNumber: number;
                                         qty: number;
+                                        /** @description British date format (dd/mm/yyyy HH:mm) */
                                         shippedAt: string;
                                         shippedByUserId: string;
                                         lotsConsumed: {
@@ -5533,7 +5547,9 @@ export interface paths {
                                     id: string;
                                     userEmailAddress: string;
                                 } | null;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 createdAt: string;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 updatedAt: string;
                             };
                         };
@@ -5591,13 +5607,18 @@ export interface paths {
                                 requestedByUserId: string;
                                 reviewedByUserId: string | null;
                                 shippedByUserId: string | null;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 requestedAt: string;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 reviewedAt: string | null;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 shippedAt: string | null;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 completedAt: string | null;
                                 requestNotes: string | null;
                                 reviewNotes: string | null;
                                 orderNotes: string | null;
+                                /** @description British date format (dd/mm/yyyy) */
                                 expectedDeliveryDate: string | null;
                                 isReversal: boolean;
                                 reversalOfId: string | null;
@@ -5621,6 +5642,7 @@ export interface paths {
                                     shipmentBatches?: {
                                         batchNumber: number;
                                         qty: number;
+                                        /** @description British date format (dd/mm/yyyy HH:mm) */
                                         shippedAt: string;
                                         shippedByUserId: string;
                                         lotsConsumed: {
@@ -5671,7 +5693,9 @@ export interface paths {
                                     id: string;
                                     userEmailAddress: string;
                                 } | null;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 createdAt: string;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 updatedAt: string;
                             };
                         };
@@ -5777,13 +5801,18 @@ export interface paths {
                                 requestedByUserId: string;
                                 reviewedByUserId: string | null;
                                 shippedByUserId: string | null;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 requestedAt: string;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 reviewedAt: string | null;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 shippedAt: string | null;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 completedAt: string | null;
                                 requestNotes: string | null;
                                 reviewNotes: string | null;
                                 orderNotes: string | null;
+                                /** @description British date format (dd/mm/yyyy) */
                                 expectedDeliveryDate: string | null;
                                 isReversal: boolean;
                                 reversalOfId: string | null;
@@ -5807,6 +5836,7 @@ export interface paths {
                                     shipmentBatches?: {
                                         batchNumber: number;
                                         qty: number;
+                                        /** @description British date format (dd/mm/yyyy HH:mm) */
                                         shippedAt: string;
                                         shippedByUserId: string;
                                         lotsConsumed: {
@@ -5857,7 +5887,9 @@ export interface paths {
                                     id: string;
                                     userEmailAddress: string;
                                 } | null;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 createdAt: string;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 updatedAt: string;
                             };
                         };
@@ -5923,13 +5955,18 @@ export interface paths {
                                 requestedByUserId: string;
                                 reviewedByUserId: string | null;
                                 shippedByUserId: string | null;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 requestedAt: string;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 reviewedAt: string | null;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 shippedAt: string | null;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 completedAt: string | null;
                                 requestNotes: string | null;
                                 reviewNotes: string | null;
                                 orderNotes: string | null;
+                                /** @description British date format (dd/mm/yyyy) */
                                 expectedDeliveryDate: string | null;
                                 isReversal: boolean;
                                 reversalOfId: string | null;
@@ -5953,6 +5990,7 @@ export interface paths {
                                     shipmentBatches?: {
                                         batchNumber: number;
                                         qty: number;
+                                        /** @description British date format (dd/mm/yyyy HH:mm) */
                                         shippedAt: string;
                                         shippedByUserId: string;
                                         lotsConsumed: {
@@ -6003,7 +6041,9 @@ export interface paths {
                                     id: string;
                                     userEmailAddress: string;
                                 } | null;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 createdAt: string;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 updatedAt: string;
                             };
                         };
@@ -6072,13 +6112,18 @@ export interface paths {
                                 requestedByUserId: string;
                                 reviewedByUserId: string | null;
                                 shippedByUserId: string | null;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 requestedAt: string;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 reviewedAt: string | null;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 shippedAt: string | null;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 completedAt: string | null;
                                 requestNotes: string | null;
                                 reviewNotes: string | null;
                                 orderNotes: string | null;
+                                /** @description British date format (dd/mm/yyyy) */
                                 expectedDeliveryDate: string | null;
                                 isReversal: boolean;
                                 reversalOfId: string | null;
@@ -6102,6 +6147,7 @@ export interface paths {
                                     shipmentBatches?: {
                                         batchNumber: number;
                                         qty: number;
+                                        /** @description British date format (dd/mm/yyyy HH:mm) */
                                         shippedAt: string;
                                         shippedByUserId: string;
                                         lotsConsumed: {
@@ -6152,7 +6198,9 @@ export interface paths {
                                     id: string;
                                     userEmailAddress: string;
                                 } | null;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 createdAt: string;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 updatedAt: string;
                             };
                         };
@@ -6218,13 +6266,18 @@ export interface paths {
                                 requestedByUserId: string;
                                 reviewedByUserId: string | null;
                                 shippedByUserId: string | null;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 requestedAt: string;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 reviewedAt: string | null;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 shippedAt: string | null;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 completedAt: string | null;
                                 requestNotes: string | null;
                                 reviewNotes: string | null;
                                 orderNotes: string | null;
+                                /** @description British date format (dd/mm/yyyy) */
                                 expectedDeliveryDate: string | null;
                                 isReversal: boolean;
                                 reversalOfId: string | null;
@@ -6248,6 +6301,7 @@ export interface paths {
                                     shipmentBatches?: {
                                         batchNumber: number;
                                         qty: number;
+                                        /** @description British date format (dd/mm/yyyy HH:mm) */
                                         shippedAt: string;
                                         shippedByUserId: string;
                                         lotsConsumed: {
@@ -6298,7 +6352,9 @@ export interface paths {
                                     id: string;
                                     userEmailAddress: string;
                                 } | null;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 createdAt: string;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 updatedAt: string;
                             };
                         };
@@ -6369,13 +6425,18 @@ export interface paths {
                                 requestedByUserId: string;
                                 reviewedByUserId: string | null;
                                 shippedByUserId: string | null;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 requestedAt: string;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 reviewedAt: string | null;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 shippedAt: string | null;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 completedAt: string | null;
                                 requestNotes: string | null;
                                 reviewNotes: string | null;
                                 orderNotes: string | null;
+                                /** @description British date format (dd/mm/yyyy) */
                                 expectedDeliveryDate: string | null;
                                 isReversal: boolean;
                                 reversalOfId: string | null;
@@ -6399,6 +6460,7 @@ export interface paths {
                                     shipmentBatches?: {
                                         batchNumber: number;
                                         qty: number;
+                                        /** @description British date format (dd/mm/yyyy HH:mm) */
                                         shippedAt: string;
                                         shippedByUserId: string;
                                         lotsConsumed: {
@@ -6449,7 +6511,9 @@ export interface paths {
                                     id: string;
                                     userEmailAddress: string;
                                 } | null;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 createdAt: string;
+                                /** @description British date format (dd/mm/yyyy HH:mm) */
                                 updatedAt: string;
                             };
                         };
@@ -7626,13 +7690,13 @@ export interface components {
             barcode?: string | null;
             barcodeType?: string | null;
             isArchived: boolean;
-            /** Format: date-time */
+            /** @description British date format (dd/mm/yyyy HH:mm) */
             archivedAt?: string | null;
             archivedByUserId?: string | null;
             entityVersion: number;
-            /** Format: date-time */
+            /** @description British date format (dd/mm/yyyy HH:mm) */
             createdAt: string;
-            /** Format: date-time */
+            /** @description British date format (dd/mm/yyyy HH:mm) */
             updatedAt: string;
         };
         ProductsListResponseData: {
@@ -7688,7 +7752,7 @@ export interface components {
              */
             kind: "audit";
             id: string;
-            /** Format: date-time */
+            /** @description Readable British date format (26 October 2025, 14:30) */
             when: string;
             action: string;
             message: string;
@@ -7706,7 +7770,7 @@ export interface components {
              */
             kind: "ledger";
             id: string;
-            /** Format: date-time */
+            /** @description Readable British date format (26 October 2025, 14:30) */
             when: string;
             /** @enum {string} */
             entryKind: "RECEIPT" | "ADJUSTMENT" | "CONSUMPTION" | "REVERSAL";
@@ -7751,13 +7815,13 @@ export interface components {
             barcode?: string | null;
             barcodeType?: string | null;
             isArchived: boolean;
-            /** Format: date-time */
+            /** @description British date format (dd/mm/yyyy HH:mm) */
             archivedAt?: string | null;
             archivedByUserId?: string | null;
             entityVersion: number;
-            /** Format: date-time */
+            /** @description British date format (dd/mm/yyyy HH:mm) */
             createdAt: string;
-            /** Format: date-time */
+            /** @description British date format (dd/mm/yyyy HH:mm) */
             updatedAt: string;
             stock?: {
                 branchId: string;
@@ -7776,18 +7840,18 @@ export interface components {
             isSystem: boolean;
             tenantId: string;
             permissions: components["schemas"]["PermissionKey"][];
-            /** Format: date-time */
+            /** @description British date format (dd/mm/yyyy HH:mm) */
             createdAt: string;
-            /** Format: date-time */
+            /** @description British date format (dd/mm/yyyy HH:mm) */
             updatedAt: string;
         } | null;
         BranchSummary: {
             id: string;
             branchName: string;
             isActive: boolean;
-            /** Format: date-time */
+            /** @description British date format (dd/mm/yyyy HH:mm) */
             createdAt: string;
-            /** Format: date-time */
+            /** @description British date format (dd/mm/yyyy HH:mm) */
             updatedAt: string;
         };
         TenantUserRecord: {
@@ -7798,12 +7862,12 @@ export interface components {
             /** @default [] */
             branches: components["schemas"]["BranchSummary"][];
             isArchived: boolean;
-            /** Format: date-time */
+            /** @description British date format (dd/mm/yyyy HH:mm) */
             archivedAt: string | null;
             archivedByUserId: string | null;
-            /** Format: date-time */
+            /** @description British date format (dd/mm/yyyy HH:mm) */
             createdAt?: string;
-            /** Format: date-time */
+            /** @description British date format (dd/mm/yyyy HH:mm) */
             updatedAt?: string;
         };
         TenantUsersListResponseData: {
@@ -7849,7 +7913,7 @@ export interface components {
             /** @enum {string} */
             kind: "audit";
             id: string;
-            /** Format: date-time */
+            /** @description Readable British date format (26 October 2025, 14:30) */
             when: string;
             action: string;
             message: string;
@@ -7909,9 +7973,9 @@ export interface components {
              * @default null
              */
             logoUrl: string | null;
-            /** Format: date-time */
+            /** @description British date format (dd/mm/yyyy HH:mm) */
             updatedAt: string | null;
-            /** Format: date-time */
+            /** @description British date format (dd/mm/yyyy HH:mm) */
             createdAt: string | null;
         };
         TenantThemePutBody: {
@@ -7938,7 +8002,7 @@ export interface components {
             /** @enum {string} */
             kind: "audit";
             id: string;
-            /** Format: date-time */
+            /** @description Readable British date format (26 October 2025, 14:30) */
             when: string;
             action: string;
             message: string;
@@ -8001,9 +8065,9 @@ export interface components {
             id: string;
             key: components["schemas"]["PermissionKey"];
             description: string;
-            /** Format: date-time */
+            /** @description British date format (dd/mm/yyyy HH:mm) */
             createdAt: string;
-            /** Format: date-time */
+            /** @description British date format (dd/mm/yyyy HH:mm) */
             updatedAt: string;
         };
         RoleRecord: {
@@ -8013,13 +8077,13 @@ export interface components {
             description: string | null;
             isSystem: boolean;
             isArchived: boolean;
-            /** Format: date-time */
+            /** @description British date format (dd/mm/yyyy HH:mm) */
             archivedAt: string | null;
             archivedByUserId: string | null;
             permissions: components["schemas"]["PermissionKey"][];
-            /** Format: date-time */
+            /** @description British date format (dd/mm/yyyy HH:mm) */
             createdAt: string;
-            /** Format: date-time */
+            /** @description British date format (dd/mm/yyyy HH:mm) */
             updatedAt: string;
         };
         GetRoleResponseData: {
@@ -8073,7 +8137,7 @@ export interface components {
             /** @enum {string} */
             kind: "audit";
             id: string;
-            /** Format: date-time */
+            /** @description Readable British date format (26 October 2025, 14:30) */
             when: string;
             action: string;
             message: string;
@@ -8105,12 +8169,12 @@ export interface components {
             branchName: string;
             isActive: boolean;
             isArchived: boolean;
-            /** Format: date-time */
+            /** @description British date format (dd/mm/yyyy HH:mm) */
             archivedAt: string | null;
             archivedByUserId: string | null;
-            /** Format: date-time */
+            /** @description British date format (dd/mm/yyyy HH:mm) */
             createdAt: string;
-            /** Format: date-time */
+            /** @description British date format (dd/mm/yyyy HH:mm) */
             updatedAt: string;
         };
         BranchesListResponseData: {
@@ -8157,7 +8221,7 @@ export interface components {
             /** @enum {string} */
             kind: "audit";
             id: string;
-            /** Format: date-time */
+            /** @description Readable British date format (26 October 2025, 14:30) */
             when: string;
             action: string;
             message: string;
@@ -8191,11 +8255,11 @@ export interface components {
             qtyRemaining: number;
             unitCostPence?: number | null;
             sourceRef?: string | null;
-            /** Format: date-time */
+            /** @description British date format (dd/mm/yyyy HH:mm) */
             receivedAt: string;
-            /** Format: date-time */
+            /** @description British date format (dd/mm/yyyy HH:mm) */
             createdAt: string;
-            /** Format: date-time */
+            /** @description British date format (dd/mm/yyyy HH:mm) */
             updatedAt: string;
         };
         /** @enum {string} */
@@ -8210,9 +8274,9 @@ export interface components {
             qtyDelta: number;
             reason?: string | null;
             actorUserId?: string | null;
-            /** Format: date-time */
+            /** @description British date format (dd/mm/yyyy HH:mm) */
             occurredAt: string;
-            /** Format: date-time */
+            /** @description British date format (dd/mm/yyyy HH:mm) */
             createdAt: string;
         };
         ProductStockRecord: {
@@ -8222,9 +8286,9 @@ export interface components {
             productId: string;
             qtyOnHand: number;
             qtyAllocated: number;
-            /** Format: date-time */
+            /** @description British date format (dd/mm/yyyy HH:mm) */
             createdAt: string;
-            /** Format: date-time */
+            /** @description British date format (dd/mm/yyyy HH:mm) */
             updatedAt: string;
         };
         ReceiveStockResponseData: {
@@ -8247,7 +8311,7 @@ export interface components {
                 id: string;
                 qtyReceived: number;
                 qtyRemaining: number;
-                /** Format: date-time */
+                /** @description British date format (dd/mm/yyyy HH:mm) */
                 receivedAt: string;
             };
             ledgerId: string;
@@ -8329,7 +8393,7 @@ export interface components {
             correlationId: string | null;
             ip: string | null;
             userAgent: string | null;
-            /** Format: date-time */
+            /** @description British date format (dd/mm/yyyy HH:mm) */
             createdAt: string;
         };
         AuditEventsListResponseData: {

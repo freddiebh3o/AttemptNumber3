@@ -37,6 +37,7 @@ import { getProductActivityApiRequest } from "../../api/products";
 import { FilterBar } from "../common/FilterBar";
 import { useLocation, useNavigationType, useSearchParams, Link, useParams } from "react-router-dom";
 import { buildCommonDatePresets } from "../../utils/datePresets";
+import { formatDateTimeReadable } from "../../utils/dateFormatter";
 
 dayjs.extend(relativeTime);
 
@@ -637,8 +638,9 @@ export function ProductActivityTab({ productId }: { productId: string }) {
               }
               popoverProps={{ withinPortal: true }}
               presets={buildCommonDatePresets()}
-              valueFormat="YYYY-MM-DD"
+              valueFormat="DD/MM/YYYY"
               clearable
+              data-testid="activity-occurred-from-date-picker"
             />
 
             <DatePickerInput
@@ -653,8 +655,9 @@ export function ProductActivityTab({ productId }: { productId: string }) {
               }
               popoverProps={{ withinPortal: true }}
               presets={buildCommonDatePresets()}
-              valueFormat="YYYY-MM-DD"
+              valueFormat="DD/MM/YYYY"
               clearable
+              data-testid="activity-occurred-to-date-picker"
             />
           </div>
         )}
@@ -762,7 +765,7 @@ export function ProductActivityTab({ productId }: { productId: string }) {
           <Timeline active={-1} bulletSize={12} lineWidth={2}>
             {rows.map((it) => {
               const whenDate = new Date(it.when);
-              const whenAbs = whenDate.toLocaleString();
+              const whenAbs = formatDateTimeReadable(it.when);
               const whenRel = dayjs(whenDate).fromNow();
               const color = it.kind === "audit" ? "blue" : "grape";
               const pill =
@@ -908,11 +911,11 @@ export function ProductActivityTab({ productId }: { productId: string }) {
             <Table.Tbody>
               {rows.map((it) => {
                 const whenDate = new Date(it.when);
-                const whenAbs = whenDate.toLocaleString();
+                const whenAbs = formatDateTimeReadable(it.when);
                 const whenRel = dayjs(whenDate).fromNow();
                 return (
                   <Table.Tr key={`${it.kind}:${it.id}`}>
-                    <Table.Td>
+                    <Table.Td data-testid="activity-when-date">
                       <Tooltip label={`${whenAbs} (${timeZone})`} withArrow>
                         <Text size="sm">
                           {whenAbs} · {whenRel}

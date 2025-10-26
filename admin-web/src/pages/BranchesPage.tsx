@@ -51,6 +51,7 @@ import { useAuthStore } from "../stores/auth";
 import { FilterBar } from "../components/common/FilterBar";
 import type { components } from "../types/openapi";
 import { buildCommonDatePresets } from "../utils/datePresets";
+import { formatDateTimeUK } from "../utils/dateFormatter";
 
 type BranchRow = components["schemas"]["BranchRecord"];
 
@@ -759,60 +760,64 @@ export default function BranchesPage() {
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
               <DatePickerInput
                 label="Created from"
-                placeholder="Start date"
+                placeholder="DD/MM/YYYY"
                 value={values.createdAtFrom}
                 onChange={(v) =>
                   setValues((prev) => ({ ...prev, createdAtFrom: v }))
                 }
-                valueFormat="YYYY-MM-DD"
+                valueFormat="DD/MM/YYYY"
                 popoverProps={{ withinPortal: true }}
                 presets={buildCommonDatePresets()}
                 clearable
+                data-testid="branch-created-from-date"
               />
             </Grid.Col>
 
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
               <DatePickerInput
                 label="Created to"
-                placeholder="End date"
+                placeholder="DD/MM/YYYY"
                 value={values.createdAtTo}
                 onChange={(v) =>
                   setValues((prev) => ({ ...prev, createdAtTo: v }))
                 }
-                valueFormat="YYYY-MM-DD"
+                valueFormat="DD/MM/YYYY"
                 presets={buildCommonDatePresets()}
                 popoverProps={{ withinPortal: true }}
                 clearable
+                data-testid="branch-created-to-date"
               />
             </Grid.Col>
 
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
               <DatePickerInput
                 label="Updated from"
-                placeholder="Start date"
+                placeholder="DD/MM/YYYY"
                 value={values.updatedAtFrom}
                 onChange={(v) =>
                   setValues((prev) => ({ ...prev, updatedAtFrom: v }))
                 }
-                valueFormat="YYYY-MM-DD"
+                valueFormat="DD/MM/YYYY"
                 popoverProps={{ withinPortal: true }}
                 presets={buildCommonDatePresets()}
                 clearable
+                data-testid="branch-updated-from-date"
               />
             </Grid.Col>
 
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
               <DatePickerInput
                 label="Updated to"
-                placeholder="End date"
+                placeholder="DD/MM/YYYY"
                 value={values.updatedAtTo}
                 onChange={(v) =>
                   setValues((prev) => ({ ...prev, updatedAtTo: v }))
                 }
-                valueFormat="YYYY-MM-DD"
+                valueFormat="DD/MM/YYYY"
                 popoverProps={{ withinPortal: true }}
                 presets={buildCommonDatePresets()}
                 clearable
+                data-testid="branch-updated-to-date"
               />
             </Grid.Col>
           </Grid>
@@ -1077,14 +1082,14 @@ export default function BranchesPage() {
                             <Badge color="gray">Inactive</Badge>
                           )}
                         </Table.Td>
-                        <Table.Td>
+                        <Table.Td data-testid="branch-created-date">
                           {r.createdAt
-                            ? new Date(r.createdAt).toLocaleString()
+                            ? formatDateTimeUK(r.createdAt)
                             : "—"}
                         </Table.Td>
-                        <Table.Td>
+                        <Table.Td data-testid="branch-updated-date">
                           {r.updatedAt
-                            ? new Date(r.updatedAt).toLocaleString()
+                            ? formatDateTimeUK(r.updatedAt)
                             : "—"}
                         </Table.Td>
                         <Table.Td className="text-right">

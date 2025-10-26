@@ -23,6 +23,7 @@ import {
   updateTenantFeatureFlagsService,
   ensureTenantIdForSlugAndSession as ensureTenantIdForFlags,
 } from '../services/tenantFeatureFlagsService.js';
+import { serializeEntityTimestamps, serializeActivityLog } from '../services/common/entitySerializer.js';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -135,7 +136,7 @@ tenantThemeRouter.post(
 
       return res.json(
         createStandardSuccessResponse({
-          ...payload,
+          ...serializeEntityTimestamps(payload),
           upload: out,
         })
       );
@@ -156,7 +157,7 @@ tenantThemeRouter.get(
       const { tenantSlug } = req.validatedParams as z.infer<typeof paramsSchema>;
       const tenantId = await ensureTenantIdForSlugAndSession(tenantSlug, req.currentTenantId);
       const payload = await getTenantThemeService(tenantId);
-      return res.json(createStandardSuccessResponse(payload));
+      return res.json(createStandardSuccessResponse(serializeEntityTimestamps(payload)));
     } catch (err) {
       return next(err);
     }
@@ -183,7 +184,7 @@ tenantThemeRouter.put(
         logoUrl,
         auditContextOptional: getAuditContext(req),
       });
-      return res.json(createStandardSuccessResponse(payload));
+      return res.json(createStandardSuccessResponse(serializeEntityTimestamps(payload)));
     } catch (err) {
       return next(err);
     }
@@ -219,7 +220,11 @@ tenantThemeRouter.get(
         ...(includeTotal !== undefined ? { includeTotalOptional: includeTotal } : {}),
       });
 
-      return res.json(createStandardSuccessResponse(data));
+      const serialized = {
+        ...data,
+        items: data.items.map(serializeActivityLog),
+      };
+      return res.json(createStandardSuccessResponse(serialized));
     } catch (err) {
       return next(err);
     }

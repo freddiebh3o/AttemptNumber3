@@ -25,7 +25,7 @@ const StockTransferItemSchema = z.object({
       z.object({
         batchNumber: z.number().int(),
         qty: z.number().int(),
-        shippedAt: z.string(),
+        shippedAt: z.string().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
         shippedByUserId: z.string(),
         lotsConsumed: z.array(
           z.object({
@@ -68,14 +68,14 @@ const StockTransferSchema = z.object({
   requestedByUserId: z.string(),
   reviewedByUserId: z.string().nullable(),
   shippedByUserId: z.string().nullable(),
-  requestedAt: z.string(),
-  reviewedAt: z.string().nullable(),
-  shippedAt: z.string().nullable(),
-  completedAt: z.string().nullable(),
+  requestedAt: z.string().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
+  reviewedAt: z.string().nullable().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
+  shippedAt: z.string().nullable().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
+  completedAt: z.string().nullable().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
   requestNotes: z.string().nullable(),
   reviewNotes: z.string().nullable(),
   orderNotes: z.string().nullable(),
-  expectedDeliveryDate: z.string().nullable(),
+  expectedDeliveryDate: z.string().nullable().openapi({ description: "British date format (dd/mm/yyyy)" }),
   isReversal: z.boolean(),
   reversalOfId: z.string().nullable(),
   reversedByTransferId: z.string().nullable(),
@@ -152,8 +152,8 @@ const StockTransferSchema = z.object({
     })
     .nullable()
     .optional(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  createdAt: z.string().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
+  updatedAt: z.string().openapi({ description: "British date format (dd/mm/yyyy HH:mm)" }),
 });
 
 const CreateTransferBodySchema = z.object({

@@ -22,6 +22,7 @@ import {
 } from '../services/branches/branchService.js';
 import { getAuditContext } from '../utils/auditContext.js';
 import { getBranchActivityForCurrentTenantService } from '../services/branches/branchActivityService.js'; // <-- NEW
+import { serializeEntityTimestamps, serializeActivityLog } from '../services/common/entitySerializer.js';
 
 export const branchRouter = Router();
 
@@ -84,7 +85,11 @@ branchRouter.get(
         ...(q.sortDir !== undefined && { sortDirOptional: q.sortDir }),
         ...(q.includeTotal !== undefined && { includeTotalOptional: q.includeTotal }),
       });
-      return res.status(200).json(createStandardSuccessResponse(out));
+      const serialized = {
+        ...out,
+        items: out.items.map(serializeEntityTimestamps),
+      };
+      return res.status(200).json(createStandardSuccessResponse(serialized));
     } catch (err) {
       return next(err);
     }
@@ -104,7 +109,7 @@ branchRouter.get(
         currentTenantId: req.currentTenantId,
         branchId,
       });
-      return res.status(200).json(createStandardSuccessResponse({ branch }));
+      return res.status(200).json(createStandardSuccessResponse({ branch: serializeEntityTimestamps(branch) }));
     } catch (err) {
       return next(err);
     }
@@ -135,7 +140,7 @@ branchRouter.post(
           userAgent: ctx.userAgent ?? null,
         },
       });
-      return res.status(201).json(createStandardSuccessResponse({ branch: created }));
+      return res.status(201).json(createStandardSuccessResponse({ branch: serializeEntityTimestamps(created) }));
     } catch (err) {
       return next(err);
     }
@@ -164,7 +169,7 @@ branchRouter.put(
         ...(body.isActive !== undefined && { isActiveInputValueOptional: body.isActive }),
         auditContextOptional: ctx,
       });
-      return res.status(200).json(createStandardSuccessResponse({ branch: updated }));
+      return res.status(200).json(createStandardSuccessResponse({ branch: serializeEntityTimestamps(updated) }));
     } catch (err) {
       return next(err);
     }
@@ -250,7 +255,11 @@ branchRouter.get(
         ...(includeTotal !== undefined ? { includeTotalOptional: includeTotal } : {}),
       });
 
-      return res.status(200).json(createStandardSuccessResponse(data));
+      const serialized = {
+        ...data,
+        items: data.items.map(serializeActivityLog),
+      };
+      return res.status(200).json(createStandardSuccessResponse(serialized));
     } catch (err) {
       return next(err);
     }

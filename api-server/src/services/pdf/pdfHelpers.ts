@@ -3,30 +3,27 @@
  * Formatting utilities for PDF generation
  */
 
+import {
+  formatDateReadable,
+  formatDateTimeReadable,
+} from '../../utils/dateFormatter.js';
+
 /**
  * Format date to readable string (e.g., "15 January 2025")
+ *
+ * @deprecated Use formatDateReadable from dateFormatter.ts instead
  */
 export function formatDate(date: Date | string): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
+  return formatDateReadable(date);
 }
 
 /**
  * Format date with time (e.g., "15 January 2025, 14:30")
+ *
+ * @deprecated Use formatDateTimeReadable from dateFormatter.ts instead
  */
 export function formatDateTime(date: Date | string): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toLocaleString('en-GB', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return formatDateTimeReadable(date);
 }
 
 /**

@@ -35,6 +35,7 @@ import { buildCommonDatePresets } from "../../utils/datePresets";
 import { useLocation, useNavigationType, useParams, useSearchParams, Link } from "react-router-dom";
 import { handlePageError } from "../../utils/pageError";
 import { getTenantThemeActivityApiRequest } from "../../api/tenantTheme";
+import { formatDateTimeReadable } from "../../utils/dateFormatter";
 
 dayjs.extend(relativeTime);
 
@@ -483,7 +484,7 @@ export default function ThemeActivityTab() {
             />
             <DatePickerInput
               label="Occurred from"
-              placeholder="Start date"
+              placeholder="DD/MM/YYYY"
               value={values.occurredFrom ? new Date(values.occurredFrom) : null}
               onChange={(d) =>
                 setValues((prev) => ({
@@ -493,12 +494,13 @@ export default function ThemeActivityTab() {
               }
               popoverProps={{ withinPortal: true }}
               presets={buildCommonDatePresets()}
-              valueFormat="YYYY-MM-DD"
+              valueFormat="DD/MM/YYYY"
               clearable
+              data-testid="theme-activity-from-date"
             />
             <DatePickerInput
               label="Occurred to"
-              placeholder="End date"
+              placeholder="DD/MM/YYYY"
               value={values.occurredTo ? new Date(values.occurredTo) : null}
               onChange={(d) =>
                 setValues((prev) => ({
@@ -506,9 +508,10 @@ export default function ThemeActivityTab() {
                   occurredTo: d ? dayjs(d).format("YYYY-MM-DD") : null,
                 }))
               }
+              data-testid="theme-activity-to-date"
               popoverProps={{ withinPortal: true }}
               presets={buildCommonDatePresets()}
-              valueFormat="YYYY-MM-DD"
+              valueFormat="DD/MM/YYYY"
               clearable
             />
           </div>
@@ -612,7 +615,7 @@ export default function ThemeActivityTab() {
           <Timeline active={-1} bulletSize={12} lineWidth={2}>
             {rows.map((it) => {
               const whenDate = new Date(it.when);
-              const whenAbs = whenDate.toLocaleString();
+              const whenAbs = formatDateTimeReadable(whenDate);
               const whenRel = dayjs(whenDate).fromNow();
               return (
                 <Timeline.Item
@@ -738,7 +741,7 @@ export default function ThemeActivityTab() {
             <Table.Tbody>
               {rows.map((it) => {
                 const whenDate = new Date(it.when);
-                const whenAbs = whenDate.toLocaleString();
+                const whenAbs = formatDateTimeReadable(whenDate);
                 const whenRel = dayjs(whenDate).fromNow();
                 return (
                   <Table.Tr key={it.id}>

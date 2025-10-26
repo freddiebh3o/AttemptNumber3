@@ -56,6 +56,7 @@ import ShipTransferModal from "../components/stockTransfers/ShipTransferModal";
 import PdfPreviewModal from "../components/stockTransfers/PdfPreviewModal";
 import { useFeatureFlag } from "../hooks/useFeatureFlag";
 import PriorityBadge from "../components/common/PriorityBadge";
+import { formatDateUK, formatDateTimeUK } from "../utils/dateFormatter";
 
 type TransferStatus =
   | "REQUESTED"
@@ -503,7 +504,7 @@ export default function StockTransferDetailPage() {
                 <Group gap="xs">
                   <Text size="sm" c="dimmed">Expected Delivery:</Text>
                   <Text size="sm" fw={500} data-testid="transfer-expected-delivery">
-                    {new Date(transfer.expectedDeliveryDate).toLocaleDateString()}
+                    {formatDateUK(transfer.expectedDeliveryDate)}
                   </Text>
                 </Group>
               )}
@@ -759,7 +760,7 @@ export default function StockTransferDetailPage() {
                               </Text>
                               {record.approvedAt && (
                                 <Text size="sm" c="dimmed">
-                                  {new Date(record.approvedAt).toLocaleString()}
+                                  {formatDateTimeUK(record.approvedAt)}
                                 </Text>
                               )}
                               {record.notes && (
@@ -832,7 +833,7 @@ export default function StockTransferDetailPage() {
               title="Requested"
             >
               <Text size="sm" c="dimmed">
-                {new Date(transfer.requestedAt).toLocaleString()}
+                {formatDateTimeUK(transfer.requestedAt)}
               </Text>
               <Text size="sm">
                 By: {transfer.requestedByUser?.userEmailAddress ?? "Unknown"}
@@ -852,7 +853,7 @@ export default function StockTransferDetailPage() {
                 color={transfer.status === "REJECTED" ? "red" : "blue"}
               >
                 <Text size="sm" c="dimmed">
-                  {new Date(transfer.reviewedAt).toLocaleString()}
+                  {formatDateTimeUK(transfer.reviewedAt)}
                 </Text>
                 <Text size="sm">
                   By: {transfer.reviewedByUser?.userEmailAddress ?? "Unknown"}
@@ -863,7 +864,7 @@ export default function StockTransferDetailPage() {
             {transfer.shippedAt && (
               <Timeline.Item bullet={<IconTruck size={12} />} title="Shipped">
                 <Text size="sm" c="dimmed">
-                  {new Date(transfer.shippedAt).toLocaleString()}
+                  {formatDateTimeUK(transfer.shippedAt)}
                 </Text>
                 <Text size="sm">
                   By: {transfer.shippedByUser?.userEmailAddress ?? "Unknown"}
@@ -878,7 +879,7 @@ export default function StockTransferDetailPage() {
                 color="green"
               >
                 <Text size="sm" c="dimmed">
-                  {new Date(transfer.completedAt).toLocaleString()}
+                  {formatDateTimeUK(transfer.completedAt)}
                 </Text>
               </Timeline.Item>
             )}
@@ -990,7 +991,7 @@ export default function StockTransferDetailPage() {
                                 </Table.Td>
                                 <Table.Td>
                                   <Text size="xs">
-                                    {new Date(batch.shippedAt).toLocaleString()}
+                                    {formatDateTimeUK(batch.shippedAt)}
                                   </Text>
                                 </Table.Td>
                                 <Table.Td>
