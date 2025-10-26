@@ -27,6 +27,7 @@ export async function getCookieHeader(page: Page): Promise<string> {
  * @param method - HTTP method
  * @param path - API path (e.g., '/api/products')
  * @param data - Optional request body data
+ * @param timeout - Optional timeout in milliseconds (default: 10000ms)
  * @returns Response object
  *
  * @example
@@ -48,7 +49,8 @@ export async function makeAuthenticatedRequest(
   page: Page,
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   path: string,
-  data?: any
+  data?: any,
+  timeout?: number
 ) {
   const apiUrl = getApiUrl();
   const cookieHeader = await getCookieHeader(page);
@@ -62,6 +64,10 @@ export async function makeAuthenticatedRequest(
 
   if (data) {
     options.data = data;
+  }
+
+  if (timeout !== undefined) {
+    options.timeout = timeout;
   }
 
   return page.request.fetch(`${apiUrl}${path}`, {

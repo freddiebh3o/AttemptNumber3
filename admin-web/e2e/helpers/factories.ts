@@ -830,6 +830,7 @@ export const TransferFactory = {
       items: Array<{ itemId: string; qtyToShip: number }>;
     }
   ): Promise<void> {
+    // Use 30s timeout because shipping triggers PDF generation with Puppeteer
     const response = await makeAuthenticatedRequest(
       page,
       'POST',
@@ -837,7 +838,8 @@ export const TransferFactory = {
       {
         shippedAt: params.shippedAt,
         items: params.items,
-      }
+      },
+      30_000 // 30 seconds timeout for PDF generation
     );
 
     if (!response.ok()) {

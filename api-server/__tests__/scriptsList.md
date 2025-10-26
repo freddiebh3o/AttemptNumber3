@@ -197,6 +197,18 @@
 - node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/featureFlags/featureFlagsRoutes.test.ts
 
 
+## SERVICES: PDF (1 suite - NEW: Dispatch Note PDF Generation)
+
+### All tests and commands
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/services/pdf/pdfService.test.ts
+
+
+## FEATURES: STOCK TRANSFERS - PDF Integration (1 suite - NEW: PDF Auto-Generation Integration Tests)
+
+### All tests and commands
+- node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js __tests__/features/stockTransfers/transferDispatchNotePdf.test.ts
+
+
 ## FEATURES: CHAT (13 suites)
 
 ### Failing suites
@@ -233,7 +245,7 @@
 
 ## SUMMARY
 
-**Total Suites:** 72 (was 71 - added 1 for dual-direction initiation)
+**Total Suites:** 74 (was 72 - added 1 for PDF service + 1 for PDF integration)
 
 **PRD-5 New Test Files (12 total):**
 1. features/theme/themeService.test.ts (Phase 1)

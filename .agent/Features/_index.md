@@ -197,6 +197,49 @@ Graceful session expiration handling with automatic sign-in redirect and post-au
 
 ---
 
+#### Stock Transfer Dispatch Notes
+**Path:** `Completed/stock-transfer-dispatch-notes/`
+**Status:** ✅ Completed
+**Completion Date:** 2025-01-25
+
+**Overview:**
+Automated PDF dispatch note generation for stock transfers using Puppeteer with HTML/CSS templates. PDFs are auto-generated when transfers are shipped and stored in Supabase Storage for audit compliance and fast access. Users can preview, download, print, and regenerate dispatch notes with tenant-specific branding.
+
+**Key Features:**
+- Auto-generate branded dispatch note PDF on transfer shipment
+- Preview dispatch note in modal with embedded PDF viewer
+- Download and print dispatch notes from UI
+- Regenerate PDFs if template or data changes
+- Tenant branding applied (logo, colors, company info)
+- Multi-tenant isolation in Supabase Storage
+
+**Technical Highlights:**
+- Puppeteer for HTML→PDF conversion
+- Supabase Storage private bucket (`stock-transfer-pdfs`)
+- CSP headers configured for iframe embedding
+- 3-second fallback timer for PDF iframe onLoad
+- Permission-based UI (`stock:read` for view, `stock:write` for regenerate)
+
+**Documentation:**
+- [README.md](./Completed/stock-transfer-dispatch-notes/README.md) - Feature completion summary
+- [prd.md](./Completed/stock-transfer-dispatch-notes/prd.md) - Full PRD with all phases
+- [dispatch-notes.md](../../docs/stock-transfers/dispatch-notes.md) - User guide
+
+**Database Changes:**
+- Added `dispatchNotePdfUrl` field to `StockTransfer` table
+- Stores public URL from Supabase Storage
+
+**Testing:**
+- 24 backend tests (10 PDF service + 14 integration)
+- 11 frontend E2E tests (auto-gen, preview, regeneration, permissions)
+- Total: 35 tests passing
+
+**Dependencies:**
+- Puppeteer npm package (bundles Chromium)
+- Supabase Storage bucket setup
+
+---
+
 #### Testing Implementation
 **Path:** `Completed/testing-implementation/`
 **Status:** ✅ Completed

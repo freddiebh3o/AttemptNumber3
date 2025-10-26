@@ -118,6 +118,56 @@ A stock transfer is a formal workflow for moving inventory from one branch (sour
 
 ---
 
+### Dispatch Note PDF Generation
+
+**What:** Automatically generated PDF document when transfer is shipped
+**Purpose:** Physical documentation for shipments, compliance, and audit trails
+
+**Auto-Generation:**
+When a transfer is shipped (status changes to `IN_TRANSIT`), the system automatically:
+1. Generates a branded PDF dispatch note using Puppeteer
+2. Uploads PDF to Supabase Storage (`stock-transfer-pdfs/{tenantId}/TRF-YYYY-NNNN.pdf`)
+3. Saves public URL to `StockTransfer.dispatchNotePdfUrl`
+
+**PDF Contents:**
+- Transfer number and shipment date
+- Source and destination branch details (name, address, phone)
+- Complete list of shipped items (product name, SKU, quantity, lot numbers)
+- Shipping user name and timestamp
+- Tenant branding (logo, colors, company name)
+
+**Viewing Dispatch Notes:**
+- **Permission Required:** `stock:read`
+- **Button Location:** Transfer detail page (appears after shipment)
+- **Button Label:** "View Dispatch Note"
+- **Display:** Opens modal with embedded PDF viewer
+- **Actions Available:**
+  - Download PDF (Content-Disposition: attachment)
+  - Print PDF (triggers browser print dialog)
+  - Close modal
+
+**Regenerating PDFs:**
+- **Permission Required:** `stock:write`
+- **When to Use:** Template updated, branding changed, or data correction
+- **Button Location:** Transfer detail page
+- **Button Label:** "Regenerate PDF"
+- **What Happens:** Generates new PDF from current transfer data, replaces old URL
+
+**Storage & Access:**
+- PDFs stored in Supabase Storage private bucket
+- File path: `{tenantId}/TRF-{year}-{number}.pdf`
+- Multi-tenant isolation enforced
+- PDFs served through authenticated API endpoint
+- CSP headers configured to allow iframe embedding
+
+**Technical Details:**
+- PDF generation adds ~1-3 seconds to shipment workflow
+- Puppeteer launches headless Chrome for HTML→PDF conversion
+- PDFs are immutable once generated (intentional for audit trail)
+- Regenerate creates new PDF but doesn't preserve history
+
+---
+
 ### Workflow 4: Receive Transfer (Destination Branch User)
 
 **Who:** User with membership in the destination branch

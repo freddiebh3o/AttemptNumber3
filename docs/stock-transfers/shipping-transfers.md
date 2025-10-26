@@ -43,9 +43,18 @@ The transfer details show:
 
 **What happens:**
 - Stock is deducted from your inventory using FIFO (oldest stock first)
+- **Dispatch note PDF is automatically generated** (branded document with all shipment details)
 - Status changes to **IN_TRANSIT** (cyan)
 - Destination branch can now receive the items
 - Transfer shows as "Shipped" with date and who shipped it
+
+**About the Dispatch Note:**
+After shipping, a "View Dispatch Note" button appears on the transfer. Click it to:
+- Preview the PDF (shows what was shipped, lot numbers, costs)
+- Download the PDF for your records
+- Print the PDF to include with the physical shipment
+
+See [Dispatch Notes Guide](dispatch-notes.md) for more details.
 
 ---
 

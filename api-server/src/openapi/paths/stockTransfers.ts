@@ -81,6 +81,7 @@ const StockTransferSchema = z.object({
   reversedByTransferId: z.string().nullable(),
   reversalReason: z.string().nullable(),
   requiresMultiLevelApproval: z.boolean(),
+  dispatchNotePdfUrl: z.string().nullable(),
   items: z.array(StockTransferItemSchema),
   // Reversal relationships
   reversalOf: z
@@ -480,6 +481,71 @@ export function registerStockTransferPaths(registry: OpenAPIRegistry) {
           },
         },
       },
+    },
+  });
+
+  // GET /api/stock-transfers/{transferId}/dispatch-note-pdf - Download dispatch note PDF
+  registry.registerPath({
+    method: 'get',
+    path: '/api/stock-transfers/{transferId}/dispatch-note-pdf',
+    tags: ['Stock Transfers'],
+    summary: 'Download dispatch note PDF',
+    description: 'Download the dispatch note PDF for a shipped transfer',
+    request: {
+      params: z.object({
+        transferId: z.string().openapi({ example: 'transfer_123' }),
+      }),
+      query: z.object({
+        action: z.enum(['download', 'inline']).optional().openapi({
+          description: 'download = attachment, inline = preview in browser',
+          example: 'inline',
+        }),
+      }),
+    },
+    responses: {
+      200: {
+        description: 'PDF file',
+        content: {
+          'application/pdf': {
+            schema: z.string().openapi({
+              type: 'string',
+              format: 'binary',
+            }),
+          },
+        },
+      },
+      404: RESPONSES[404],
+    },
+  });
+
+  // POST /api/stock-transfers/{transferId}/regenerate-pdf - Regenerate dispatch note PDF
+  registry.registerPath({
+    method: 'post',
+    path: '/api/stock-transfers/{transferId}/regenerate-pdf',
+    tags: ['Stock Transfers'],
+    summary: 'Regenerate dispatch note PDF',
+    description: 'Regenerate the dispatch note PDF for a shipped transfer',
+    request: {
+      params: z.object({
+        transferId: z.string().openapi({ example: 'transfer_123' }),
+      }),
+    },
+    responses: {
+      200: {
+        description: 'Success',
+        content: {
+          'application/json': {
+            schema: z.object({
+              success: z.literal(true),
+              data: z.object({
+                pdfUrl: z.string(),
+              }),
+            }),
+          },
+        },
+      },
+      400: RESPONSES[400],
+      404: RESPONSES[404],
     },
   });
 }

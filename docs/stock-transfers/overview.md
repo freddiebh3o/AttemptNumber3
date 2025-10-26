@@ -46,7 +46,7 @@ The receiving party reviews the request and either approves it (with quantities 
 - **PULL:** Source branch approves sending
 
 ### 3. Ship
-The source branch ships the approved items. Stock is deducted from their inventory at this stage.
+The source branch ships the approved items. Stock is deducted from their inventory at this stage. **A dispatch note PDF is automatically generated** for documentation and compliance.
 
 ### 4. Receive
 The destination branch receives the items. Stock is added to their inventory.
@@ -149,6 +149,7 @@ Speed up receiving by scanning product barcodes instead of manually entering qua
 - [Creating Transfers](creating-transfers.md)
 - [Approving Transfers](approving-transfers.md)
 - [Shipping Transfers](shipping-transfers.md)
+- [Dispatch Notes (PDFs)](dispatch-notes.md) - View, download, and print shipment documentation
 - [Receiving Transfers](receiving-transfers.md)
 - [Transfer Templates](transfer-templates.md)
 - [Reversing Transfers](reversing-transfers.md)

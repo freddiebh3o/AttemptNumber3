@@ -11,6 +11,7 @@ import {
   assertBranchMembership,
 } from './transferHelpers.js';
 import { evaluateApprovalRules } from './approvalEvaluationService.js';
+import { generateDispatchNotePdf } from '../pdf/pdfService.js';
 
 type Ids = {
   currentTenantId: string;
@@ -730,6 +731,67 @@ export async function shipStockTransfer(params: {
       });
     } catch {
       // Swallow audit errors
+    }
+
+    // Generate PDF dispatch note if status is IN_TRANSIT (fully shipped)
+    if (updated.status === StockTransferStatus.IN_TRANSIT && !updated.dispatchNotePdfUrl) {
+      try {
+        // Fetch tenant branding and user details
+        const tenant = await tx.tenant.findUnique({
+          where: { id: tenantId },
+          include: { branding: true },
+        });
+
+        const shippedByUser = await tx.user.findUnique({
+          where: { id: userId },
+          select: { userEmailAddress: true },
+        });
+
+        if (tenant && shippedByUser) {
+          // Generate PDF
+          const pdfUrl = await generateDispatchNotePdf({
+            transferNumber: updated.transferNumber,
+            sourceBranch: {
+              name: updated.sourceBranch.branchName,
+            },
+            destinationBranch: {
+              name: updated.destinationBranch.branchName,
+            },
+            shippedAt: updated.shippedAt!,
+            shippedByUser: {
+              fullName: shippedByUser.userEmailAddress,
+            },
+            items: updated.items.map((item) => ({
+              productName: item.product.productName,
+              sku: item.product.productSku,
+              qtyShipped: item.qtyShipped,
+              ...(item.avgUnitCostPence !== null ? { avgUnitCostPence: item.avgUnitCostPence } : {}),
+            })),
+            tenantBranding: {
+              logoUrl: tenant.branding?.logoUrl ?? null,
+              overridesJson: {
+                tenantId: tenant.id,
+                ...(tenant.branding?.overridesJson
+                  ? (tenant.branding.overridesJson as Record<string, any>)
+                  : {}),
+              },
+            },
+            tenantName: tenant.tenantName,
+          });
+
+          // Update transfer with PDF URL
+          await tx.stockTransfer.update({
+            where: { id: transferId },
+            data: { dispatchNotePdfUrl: pdfUrl },
+          });
+
+          // Update the returned object
+          updated.dispatchNotePdfUrl = pdfUrl;
+        }
+      } catch (error) {
+        // Log error but don't fail the transfer
+        console.error('Failed to generate dispatch note PDF:', error);
+      }
     }
 
     return updated;

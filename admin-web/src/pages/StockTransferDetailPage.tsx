@@ -32,6 +32,8 @@ import {
   IconShieldCheck,
   IconShieldX,
   IconQrcode,
+  IconFileText,
+  IconRefresh,
 } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import {
@@ -40,6 +42,8 @@ import {
   getApprovalProgressApiRequest,
   submitApprovalApiRequest,
   updateTransferPriorityApiRequest,
+  getDispatchNotePdfUrl,
+  regenerateDispatchNotePdfApiRequest,
 } from "../api/stockTransfers";
 import type { StockTransfer } from "../api/stockTransfers";
 import { handlePageError } from "../utils/pageError";
@@ -49,6 +53,7 @@ import ReceiveTransferModal from "../components/stockTransfers/ReceiveTransferMo
 import ReverseTransferModal from "../components/stockTransfers/ReverseTransferModal";
 import BarcodeScannerModal from "../components/stockTransfers/BarcodeScannerModal";
 import ShipTransferModal from "../components/stockTransfers/ShipTransferModal";
+import PdfPreviewModal from "../components/stockTransfers/PdfPreviewModal";
 import { useFeatureFlag } from "../hooks/useFeatureFlag";
 import PriorityBadge from "../components/common/PriorityBadge";
 
@@ -113,7 +118,9 @@ export default function StockTransferDetailPage() {
   const [scannerModalOpen, setScannerModalOpen] = useState(false);
   const [reverseModalOpen, setReverseModalOpen] = useState(false);
   const [shipModalOpen, setShipModalOpen] = useState(false);
+  const [pdfPreviewModalOpen, setPdfPreviewModalOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [isRegeneratingPdf, setIsRegeneratingPdf] = useState(false);
 
   // Approval state
   const [approvalProgress, setApprovalProgress] = useState<{
@@ -246,6 +253,15 @@ export default function StockTransferDetailPage() {
     (isMemberOfSource || isMemberOfDestination) &&
     (transfer?.status === "REQUESTED" || transfer?.status === "APPROVED");
 
+  // PDF permissions
+  const hasPdfAvailable =
+    transfer?.dispatchNotePdfUrl &&
+    (transfer?.status === "IN_TRANSIT" ||
+      transfer?.status === "PARTIALLY_RECEIVED" ||
+      transfer?.status === "COMPLETED");
+
+  const canRegeneratePdf = canWriteStock && hasPdfAvailable;
+
   // Check if transfer has partially shipped items
   const hasPartialShipment = transfer?.items.some(
     (item) => item.qtyShipped > 0 && item.qtyShipped < (item.qtyApproved ?? 0)
@@ -322,6 +338,34 @@ export default function StockTransferDetailPage() {
       message: "Transfer reversed successfully",
     });
     void fetchTransfer();
+  }
+
+  async function handleRegeneratePdf() {
+    if (!transfer) return;
+
+    setIsRegeneratingPdf(true);
+    try {
+      const idempotencyKey = `regenerate-pdf-${transfer.id}-${Date.now()}`;
+      const response = await regenerateDispatchNotePdfApiRequest(
+        transfer.id,
+        idempotencyKey
+      );
+
+      if (response.success) {
+        notifications.show({
+          color: "green",
+          message: "Dispatch note PDF regenerated successfully",
+        });
+        void fetchTransfer();
+      }
+    } catch (error: any) {
+      notifications.show({
+        color: "red",
+        message: error?.message ?? "Failed to regenerate PDF",
+      });
+    } finally {
+      setIsRegeneratingPdf(false);
+    }
   }
 
   function openApprovalModal(level: number, approve: boolean) {
@@ -424,7 +468,7 @@ export default function StockTransferDetailPage() {
             <Stack gap="xs">
               <Group gap="md" align="center">
                 <Title order={3}>{transfer.transferNumber}</Title>
-                <Badge color={getStatusColor(transfer.status)} variant="filled" size="lg">
+                <Badge color={getStatusColor(transfer.status)} variant="filled" size="lg" data-testid="transfer-status-badge">
                   {transfer.status.replace(/_/g, " ")}
                 </Badge>
                 <PriorityBadge priority={transfer.priority as "LOW" | "NORMAL" | "HIGH" | "URGENT"} size="lg" />
@@ -466,6 +510,29 @@ export default function StockTransferDetailPage() {
             </Stack>
           </div>
           <Group gap="xs">
+            {hasPdfAvailable && (
+              <Button
+                variant="light"
+                color="blue"
+                leftSection={<IconFileText size={16} />}
+                onClick={() => setPdfPreviewModalOpen(true)}
+                data-testid="view-dispatch-note-btn"
+              >
+                View Dispatch Note
+              </Button>
+            )}
+            {canRegeneratePdf && (
+              <Button
+                variant="light"
+                color="gray"
+                leftSection={<IconRefresh size={16} />}
+                onClick={handleRegeneratePdf}
+                loading={isRegeneratingPdf}
+                data-testid="regenerate-pdf-btn"
+              >
+                Regenerate PDF
+              </Button>
+            )}
             {canEditPriority && (
               <Button
                 variant="light"
@@ -1023,6 +1090,16 @@ export default function StockTransferDetailPage() {
         transfer={transfer}
         onSuccess={handleReverseSuccess}
       />
+
+      {/* PDF Preview Modal */}
+      {transfer?.dispatchNotePdfUrl && (
+        <PdfPreviewModal
+          opened={pdfPreviewModalOpen}
+          onClose={() => setPdfPreviewModalOpen(false)}
+          pdfUrl={getDispatchNotePdfUrl(transfer.id, "inline")}
+          transferNumber={transfer.transferNumber}
+        />
+      )}
 
       {/* Priority Edit Modal */}
       <Modal

@@ -63,6 +63,9 @@ type GetApprovalProgress200Response =
 type UpdatePriority200Response =
   paths["/api/stock-transfers/{transferId}/priority"]["patch"]["responses"]["200"]["content"]["application/json"];
 
+type RegeneratePdf200Response =
+  paths["/api/stock-transfers/{transferId}/regenerate-pdf"]["post"]["responses"]["200"]["content"]["application/json"];
+
 // Export the StockTransfer type for use in components
 export type { StockTransfer };
 
@@ -259,6 +262,32 @@ export async function updateTransferPriorityApiRequest(
     {
       method: "PATCH",
       body: JSON.stringify({ priority }),
+    }
+  );
+}
+
+// Get dispatch note PDF URL (GET /api/stock-transfers/{transferId}/dispatch-note-pdf)
+// Returns a URL that can be used in iframe/embed for preview or download
+export function getDispatchNotePdfUrl(
+  transferId: string,
+  action: "download" | "inline" = "inline"
+): string {
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+  return `${baseUrl}/api/stock-transfers/${transferId}/dispatch-note-pdf?action=${action}`;
+}
+
+// Regenerate dispatch note PDF (POST /api/stock-transfers/{transferId}/regenerate-pdf)
+export async function regenerateDispatchNotePdfApiRequest(
+  transferId: string,
+  idempotencyKeyOptional?: string
+) {
+  return httpRequestJson<RegeneratePdf200Response>(
+    `/api/stock-transfers/${transferId}/regenerate-pdf`,
+    {
+      method: "POST",
+      headers: idempotencyKeyOptional
+        ? { "Idempotency-Key": idempotencyKeyOptional }
+        : undefined,
     }
   );
 }

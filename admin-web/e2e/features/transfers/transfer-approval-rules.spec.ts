@@ -44,6 +44,8 @@ test.describe('Approval Rules - List and Navigation', () => {
 
     // Expand "Stock Management" navigation group if collapsed
     const stockManagementNav = page.getByRole('navigation').getByText(/stock management/i);
+    await page.waitForLoadState('networkidle');
+     
     if (await stockManagementNav.isVisible()) {
       await stockManagementNav.click();
       await page.waitForTimeout(300); // Wait for expansion animation

@@ -41,7 +41,17 @@ export function createConfiguredExpressApplicationInstance() {
   );
 
   // --- Security headers ---
-  app.use(helmet());
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+          // Allow frontend origins to frame our PDFs
+          "frame-ancestors": ["'self'", ...allowedOrigins],
+        },
+      },
+    })
+  );
 
   // --- Core middleware ---
   app.use(cookieParser());

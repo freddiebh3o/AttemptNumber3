@@ -5307,6 +5307,7 @@ export interface paths {
                                     reversedByTransferId: string | null;
                                     reversalReason: string | null;
                                     requiresMultiLevelApproval: boolean;
+                                    dispatchNotePdfUrl: string | null;
                                     items: {
                                         id: string;
                                         productId: string;
@@ -5465,6 +5466,7 @@ export interface paths {
                                 reversedByTransferId: string | null;
                                 reversalReason: string | null;
                                 requiresMultiLevelApproval: boolean;
+                                dispatchNotePdfUrl: string | null;
                                 items: {
                                     id: string;
                                     productId: string;
@@ -5602,6 +5604,7 @@ export interface paths {
                                 reversedByTransferId: string | null;
                                 reversalReason: string | null;
                                 requiresMultiLevelApproval: boolean;
+                                dispatchNotePdfUrl: string | null;
                                 items: {
                                     id: string;
                                     productId: string;
@@ -5787,6 +5790,7 @@ export interface paths {
                                 reversedByTransferId: string | null;
                                 reversalReason: string | null;
                                 requiresMultiLevelApproval: boolean;
+                                dispatchNotePdfUrl: string | null;
                                 items: {
                                     id: string;
                                     productId: string;
@@ -5932,6 +5936,7 @@ export interface paths {
                                 reversedByTransferId: string | null;
                                 reversalReason: string | null;
                                 requiresMultiLevelApproval: boolean;
+                                dispatchNotePdfUrl: string | null;
                                 items: {
                                     id: string;
                                     productId: string;
@@ -6080,6 +6085,7 @@ export interface paths {
                                 reversedByTransferId: string | null;
                                 reversalReason: string | null;
                                 requiresMultiLevelApproval: boolean;
+                                dispatchNotePdfUrl: string | null;
                                 items: {
                                     id: string;
                                     productId: string;
@@ -6225,6 +6231,7 @@ export interface paths {
                                 reversedByTransferId: string | null;
                                 reversalReason: string | null;
                                 requiresMultiLevelApproval: boolean;
+                                dispatchNotePdfUrl: string | null;
                                 items: {
                                     id: string;
                                     productId: string;
@@ -6375,6 +6382,7 @@ export interface paths {
                                 reversedByTransferId: string | null;
                                 reversalReason: string | null;
                                 requiresMultiLevelApproval: boolean;
+                                dispatchNotePdfUrl: string | null;
                                 items: {
                                     id: string;
                                     productId: string;
@@ -6449,6 +6457,124 @@ export interface paths {
                 };
             };
         };
+        trace?: never;
+    };
+    "/api/stock-transfers/{transferId}/dispatch-note-pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download dispatch note PDF
+         * @description Download the dispatch note PDF for a shipped transfer
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description download = attachment, inline = preview in browser */
+                    action?: "download" | "inline";
+                };
+                header?: never;
+                path: {
+                    transferId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description PDF file */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/pdf": string;
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stock-transfers/{transferId}/regenerate-pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Regenerate dispatch note PDF
+         * @description Regenerate the dispatch note PDF for a shipped transfer
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    transferId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                pdfUrl: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorEnvelope"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/transfer-approval-rules": {

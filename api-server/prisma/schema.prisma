@@ -423,6 +423,9 @@ model StockTransfer {
   // Delivery planning
   expectedDeliveryDate DateTime?
 
+  // PDF dispatch note
+  dispatchNotePdfUrl String? // URL to PDF in Supabase Storage
+
   // Reversal fields
   isReversal           Boolean @default(false) // True if this is a reversal transfer
   reversalOfId         String? // Links to original transfer (if reversal)

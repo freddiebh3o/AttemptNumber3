@@ -8,6 +8,7 @@ import { createStandardSuccessResponse } from '../utils/standardResponse.js';
 import * as transferService from '../services/stockTransfers/stockTransferService.js';
 import * as approvalEvaluationService from '../services/stockTransfers/approvalEvaluationService.js';
 import { getAuditContext } from '../utils/auditContext.js';
+import { downloadPdfFromStorage, extractFilePathFromUrl, generateDispatchNotePdf } from '../services/pdf/pdfService.js';
 
 export const stockTransfersRouter = Router();
 
@@ -446,6 +447,129 @@ stockTransfersRouter.patch(
       });
 
       return res.status(200).json(createStandardSuccessResponse(transfer));
+    } catch (e) {
+      return next(e);
+    }
+  }
+);
+
+// GET /api/stock-transfers/:transferId/dispatch-note-pdf
+// Download dispatch note PDF (inline or attachment)
+stockTransfersRouter.get(
+  '/:transferId/dispatch-note-pdf',
+  requireAuthenticatedUserMiddleware,
+  requirePermission('stock:read'),
+  async (req, res, next) => {
+    try {
+      assertAuthed(req);
+
+      const transferId = req.params.transferId!;
+      const action = req.query.action as string | undefined;
+
+      const transfer = await transferService.getStockTransfer({
+        tenantId: req.currentTenantId,
+        userId: req.currentUserId,
+        transferId,
+      });
+
+      if (!transfer.dispatchNotePdfUrl) {
+        return res.status(404).json({
+          success: false,
+          data: null,
+          error: {
+            errorCode: 'RESOURCE_NOT_FOUND',
+            httpStatusCode: 404,
+            userFacingMessage: 'Dispatch note PDF not found for this transfer',
+            developerMessage: 'Transfer has not been shipped yet or PDF generation failed',
+          },
+        });
+      }
+
+      const filePath = extractFilePathFromUrl(transfer.dispatchNotePdfUrl);
+      const pdfBuffer = await downloadPdfFromStorage(filePath);
+
+      const contentDisposition = action === 'download' ? 'attachment' : 'inline';
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `${contentDisposition}; filename="${transfer.transferNumber}.pdf"`);
+      res.setHeader('Content-Length', pdfBuffer.length);
+
+      return res.send(pdfBuffer);
+    } catch (e) {
+      return next(e);
+    }
+  }
+);
+
+// POST /api/stock-transfers/:transferId/regenerate-pdf
+// Regenerate dispatch note PDF
+stockTransfersRouter.post(
+  '/:transferId/regenerate-pdf',
+  requireAuthenticatedUserMiddleware,
+  requirePermission('stock:write'),
+  async (req, res, next) => {
+    try {
+      assertAuthed(req);
+
+      const transferId = req.params.transferId!;
+      const transfer = await transferService.getStockTransfer({
+        tenantId: req.currentTenantId,
+        userId: req.currentUserId,
+        transferId,
+      });
+
+      if (
+        transfer.status !== 'IN_TRANSIT' &&
+        transfer.status !== 'PARTIALLY_RECEIVED' &&
+        transfer.status !== 'COMPLETED'
+      ) {
+        return res.status(400).json({
+          success: false,
+          data: null,
+          error: {
+            errorCode: 'VALIDATION_ERROR',
+            httpStatusCode: 400,
+            userFacingMessage: 'Cannot regenerate PDF for transfer that has not been shipped',
+            developerMessage: `Transfer status is ${transfer.status}`,
+          },
+        });
+      }
+
+      const prisma = (await import('../db/prismaClient.js')).prismaClientInstance;
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: req.currentTenantId },
+        include: { branding: true },
+      });
+
+      if (!tenant) throw new Error('Tenant not found');
+
+      const pdfUrl = await generateDispatchNotePdf({
+        transferNumber: transfer.transferNumber,
+        sourceBranch: { name: transfer.sourceBranch.branchName },
+        destinationBranch: { name: transfer.destinationBranch.branchName },
+        shippedAt: transfer.shippedAt!,
+        shippedByUser: { fullName: transfer.shippedByUser?.userEmailAddress || 'Unknown' },
+        items: transfer.items.map((item) => ({
+          productName: item.product.productName,
+          sku: item.product.productSku,
+          qtyShipped: item.qtyShipped,
+          ...(item.avgUnitCostPence !== null ? { avgUnitCostPence: item.avgUnitCostPence } : {}),
+        })),
+        tenantBranding: {
+          logoUrl: tenant.branding?.logoUrl ?? null,
+          overridesJson: {
+            tenantId: tenant.id,
+            ...(tenant.branding?.overridesJson ? (tenant.branding.overridesJson as Record<string, any>) : {}),
+          },
+        },
+        tenantName: tenant.tenantName,
+      });
+
+      await prisma.stockTransfer.update({
+        where: { id: transferId },
+        data: { dispatchNotePdfUrl: pdfUrl },
+      });
+
+      return res.status(200).json(createStandardSuccessResponse({ pdfUrl }));
     } catch (e) {
       return next(e);
     }
