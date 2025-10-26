@@ -1,6 +1,3 @@
-- Stock transfer additional features:
-    - When a stock transfer is created, we need to create a PDF document for the stock transfer dispatch note, aswell as a purchase order PDF document. Obviously the purchase order will be have a order total of 0 as its just transferring stock between branches
-
 - Probably change the permission required for the features 
     - Currently it is theme:manage which doesnt make sense
     - Should either be a new permission, or tenant:manage
