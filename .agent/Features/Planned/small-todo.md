@@ -1,3 +1,0 @@
-- Probably change the permission required for the features 
-    - Currently it is theme:manage which doesnt make sense
-    - Should either be a new permission, or tenant:manage
