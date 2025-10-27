@@ -44,7 +44,7 @@ import { useAuthStore } from "../stores/auth";
 import { buildCommonDatePresets } from "../utils/datePresets";
 import { FilterBar } from "../components/common/FilterBar";
 import { useNavigate } from "react-router-dom";
-import { formatPenceAsGBP } from "../utils/money";
+import { formatPenceAsGBP, poundsToPence, penceToPounds } from "../utils/money";
 import { formatDateTimeUK } from "../utils/dateFormatter";  
 
 type SortField =
@@ -57,8 +57,8 @@ type SortDir = "asc" | "desc";
 
 type ProductFilters = {
   q: string;
-  minPricePence: number | "";
-  maxPricePence: number | "";
+  minPricePounds: number | "";
+  maxPricePounds: number | "";
   createdAtFrom: string | null;
   createdAtTo: string | null;
   updatedAtFrom: string | null;
@@ -68,8 +68,8 @@ type ProductFilters = {
 
 const emptyProductFilters: ProductFilters = {
   q: "",
-  minPricePence: "",
-  maxPricePence: "",
+  minPricePounds: "",
+  maxPricePounds: "",
   createdAtFrom: null,
   createdAtTo: null,
   updatedAtFrom: null,
@@ -122,11 +122,15 @@ export default function ProductsPage() {
 
   function applyAndFetch(values: ProductFilters) {
     setAppliedFilters(values);
+    // Convert pounds to pence for API
+    const minPricePence = typeof values.minPricePounds === "number" ? poundsToPence(values.minPricePounds) : null;
+    const maxPricePence = typeof values.maxPricePounds === "number" ? poundsToPence(values.maxPricePounds) : null;
+
     setUrlFromState({
       cursorId: null,
       q: values.q.trim() || null,
-      minPricePence: typeof values.minPricePence === "number" ? values.minPricePence : null,
-      maxPricePence: typeof values.maxPricePence === "number" ? values.maxPricePence : null,
+      minPricePence,
+      maxPricePence,
       createdAtFrom: values.createdAtFrom ?? null,
       createdAtTo: values.createdAtTo ?? null,
       updatedAtFrom: values.updatedAtFrom ?? null,
@@ -135,8 +139,8 @@ export default function ProductsPage() {
     });
     resetToFirstPageAndFetch({
       qOverride: values.q.trim() || null,
-      minPriceOverride: typeof values.minPricePence === "number" ? values.minPricePence : null,
-      maxPriceOverride: typeof values.maxPricePence === "number" ? values.maxPricePence : null,
+      minPriceOverride: minPricePence,
+      maxPriceOverride: maxPricePence,
       createdFromOverride: values.createdAtFrom ?? null,
       createdToOverride: values.createdAtTo ?? null,
       updatedFromOverride: values.updatedAtFrom ?? null,
@@ -193,15 +197,15 @@ export default function ProductsPage() {
 
     const minVal =
       overrides?.minPricePence === undefined
-        ? typeof appliedFilters.minPricePence === "number"
-          ? appliedFilters.minPricePence
+        ? typeof appliedFilters.minPricePounds === "number"
+          ? poundsToPence(appliedFilters.minPricePounds)
           : null
         : overrides.minPricePence;
 
     const maxVal =
       overrides?.maxPricePence === undefined
-        ? typeof appliedFilters.maxPricePence === "number"
-          ? appliedFilters.maxPricePence
+        ? typeof appliedFilters.maxPricePounds === "number"
+          ? poundsToPence(appliedFilters.maxPricePounds)
           : null
         : overrides.maxPricePence;
 
@@ -281,8 +285,8 @@ export default function ProductsPage() {
 
       const minParam =
         opts?.minPriceOverride === undefined
-          ? typeof appliedFilters.minPricePence === "number"
-            ? appliedFilters.minPricePence
+          ? typeof appliedFilters.minPricePounds === "number"
+            ? poundsToPence(appliedFilters.minPricePounds)
             : undefined
           : opts.minPriceOverride == null
           ? undefined
@@ -290,8 +294,8 @@ export default function ProductsPage() {
 
       const maxParam =
         opts?.maxPriceOverride === undefined
-          ? typeof appliedFilters.maxPricePence === "number"
-            ? appliedFilters.maxPricePence
+          ? typeof appliedFilters.maxPricePounds === "number"
+            ? poundsToPence(appliedFilters.maxPricePounds)
             : undefined
           : opts.maxPriceOverride == null
           ? undefined
@@ -438,10 +442,14 @@ export default function ProductsPage() {
     if (qpSortBy) setSortBy(qpSortBy);
     if (qpSortDir) setSortDir(qpSortDir);
 
+    // Convert pence from URL to pounds for display
+    const minPounds = qpMin !== null && qpMin !== "" ? penceToPounds(Number(qpMin)) : "";
+    const maxPounds = qpMax !== null && qpMax !== "" ? penceToPounds(Number(qpMax)) : "";
+
     setAppliedFilters({
       q: qpQ ?? "",
-      minPricePence: qpMin !== null ? (qpMin === "" ? "" : Number(qpMin)) : "",
-      maxPricePence: qpMax !== null ? (qpMax === "" ? "" : Number(qpMax)) : "",
+      minPricePounds: minPounds,
+      maxPricePounds: maxPounds,
       createdAtFrom: qpCreatedFrom ?? null,
       createdAtTo: qpCreatedTo ?? null,
       updatedAtFrom: qpUpdatedFrom ?? null,
@@ -498,10 +506,14 @@ export default function ProductsPage() {
     if (qpSortBy) setSortBy(qpSortBy);
     if (qpSortDir) setSortDir(qpSortDir);
 
+    // Convert pence from URL to pounds for display
+    const minPoundsNav = qpMin !== null && qpMin !== "" ? penceToPounds(Number(qpMin)) : "";
+    const maxPoundsNav = qpMax !== null && qpMax !== "" ? penceToPounds(Number(qpMax)) : "";
+
     setAppliedFilters({
       q: qpQ ?? "",
-      minPricePence: qpMin !== null ? (qpMin === "" ? "" : Number(qpMin)) : "",
-      maxPricePence: qpMax !== null ? (qpMax === "" ? "" : Number(qpMax)) : "",
+      minPricePounds: minPoundsNav,
+      maxPricePounds: maxPoundsNav,
       createdAtFrom: qpCreatedFrom ?? null,
       createdAtTo: qpCreatedTo ?? null,
       updatedAtFrom: qpUpdatedFrom ?? null,
@@ -616,8 +628,8 @@ export default function ProductsPage() {
   const activeFilterChips = useMemo(() => {
     const chips: { key: keyof ProductFilters; label: string }[] = [];
     if (appliedFilters.q.trim()) chips.push({ key: "q", label: `search: "${appliedFilters.q.trim()}"` });
-    if (typeof appliedFilters.minPricePence === "number") chips.push({ key: "minPricePence", label: `min: £${(appliedFilters.minPricePence/100).toFixed(2)}` });
-    if (typeof appliedFilters.maxPricePence === "number") chips.push({ key: "maxPricePence", label: `max: £${(appliedFilters.maxPricePence/100).toFixed(2)}` });
+    if (typeof appliedFilters.minPricePounds === "number") chips.push({ key: "minPricePounds", label: `min: £${appliedFilters.minPricePounds.toFixed(2)}` });
+    if (typeof appliedFilters.maxPricePounds === "number") chips.push({ key: "maxPricePounds", label: `max: £${appliedFilters.maxPricePounds.toFixed(2)}` });
     if (appliedFilters.createdAtFrom) chips.push({ key: "createdAtFrom", label: `created ≥ ${appliedFilters.createdAtFrom}` });
     if (appliedFilters.createdAtTo) chips.push({ key: "createdAtTo", label: `created ≤ ${appliedFilters.createdAtTo}` });
     if (appliedFilters.updatedAtFrom) chips.push({ key: "updatedAtFrom", label: `updated ≥ ${appliedFilters.updatedAtFrom}` });
@@ -629,8 +641,8 @@ export default function ProductsPage() {
     const defaults: ProductFilters = {
       ...appliedFilters,
       q: key === "q" ? "" : appliedFilters.q,
-      minPricePence: key === "minPricePence" ? "" : appliedFilters.minPricePence,
-      maxPricePence: key === "maxPricePence" ? "" : appliedFilters.maxPricePence,
+      minPricePounds: key === "minPricePounds" ? "" : appliedFilters.minPricePounds,
+      maxPricePounds: key === "maxPricePounds" ? "" : appliedFilters.maxPricePounds,
       createdAtFrom: key === "createdAtFrom" ? null : appliedFilters.createdAtFrom,
       createdAtTo: key === "createdAtTo" ? null : appliedFilters.createdAtTo,
       updatedAtFrom: key === "updatedAtFrom" ? null : appliedFilters.updatedAtFrom,
@@ -741,14 +753,17 @@ export default function ProductsPage() {
 
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
               <NumberInput
-                label="Min price (pence)"
-                placeholder="e.g. 5000"
-                value={values.minPricePence}
+                label="Min price (£)"
+                placeholder="e.g. 50.00"
+                value={values.minPricePounds}
                 min={0}
+                step={0.01}
+                decimalScale={2}
+                fixedDecimalScale
                 onChange={(v) =>
                   setValues((prev) => ({
                     ...prev,
-                    minPricePence:
+                    minPricePounds:
                       typeof v === "number" ? v : v === "" ? "" : Number(v),
                   }))
                 }
@@ -757,14 +772,17 @@ export default function ProductsPage() {
 
             <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
               <NumberInput
-                label="Max price (pence)"
-                placeholder="e.g. 20000"
-                value={values.maxPricePence}
+                label="Max price (£)"
+                placeholder="e.g. 200.00"
+                value={values.maxPricePounds}
                 min={0}
+                step={0.01}
+                decimalScale={2}
+                fixedDecimalScale
                 onChange={(v) =>
                   setValues((prev) => ({
                     ...prev,
-                    maxPricePence:
+                    maxPricePounds:
                       typeof v === "number" ? v : v === "" ? "" : Number(v),
                   }))
                 }

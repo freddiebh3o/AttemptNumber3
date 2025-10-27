@@ -38,6 +38,7 @@ import { FilterBar } from "../common/FilterBar";
 import { useLocation, useNavigationType, useSearchParams, Link, useParams } from "react-router-dom";
 import { buildCommonDatePresets } from "../../utils/datePresets";
 import { formatDateTimeReadable } from "../../utils/dateFormatter";
+import { formatPenceAsGBP } from "../../utils/money";
 
 dayjs.extend(relativeTime);
 
@@ -137,12 +138,12 @@ function AuditDiffLines({ parts }: { parts: Record<string, any> }) {
       )}
       {parts.salePrice && (
         <Text size="xs" c="dimmed">
-          Sale price: <code>{parts.salePrice.before ?? "—"}</code> → <code>{parts.salePrice.after ?? "—"}</code>
+          Sale price: <code>{parts.salePrice.before != null ? formatPenceAsGBP(parts.salePrice.before) : "—"}</code> → <code>{parts.salePrice.after != null ? formatPenceAsGBP(parts.salePrice.after) : "—"}</code>
         </Text>
       )}
       {parts.costPrice && (
         <Text size="xs" c="dimmed">
-          Cost price: <code>{parts.costPrice.before ?? "—"}</code> → <code>{parts.costPrice.after ?? "—"}</code>
+          Cost price: <code>{parts.costPrice.before != null ? formatPenceAsGBP(parts.costPrice.before) : "—"}</code> → <code>{parts.costPrice.after != null ? formatPenceAsGBP(parts.costPrice.after) : "—"}</code>
         </Text>
       )}
       {parts.taxRate && (
@@ -970,14 +971,14 @@ export function ProductActivityTab({ productId }: { productId: string }) {
                           )}
                           {"salePrice" in it.messageParts && (it.messageParts as any).salePrice && (
                             <Text size="xs" c="dimmed">
-                              Sale price: <code>{(it.messageParts as any).salePrice.before ?? "—"}</code> →{" "}
-                              <code>{(it.messageParts as any).salePrice.after ?? "—"}</code>
+                              Sale price: <code>{(it.messageParts as any).salePrice.before != null ? formatPenceAsGBP((it.messageParts as any).salePrice.before) : "—"}</code> →{" "}
+                              <code>{(it.messageParts as any).salePrice.after != null ? formatPenceAsGBP((it.messageParts as any).salePrice.after) : "—"}</code>
                             </Text>
                           )}
                           {"costPrice" in it.messageParts && (it.messageParts as any).costPrice && (
                             <Text size="xs" c="dimmed">
-                              Cost price: <code>{(it.messageParts as any).costPrice.before ?? "—"}</code> →{" "}
-                              <code>{(it.messageParts as any).costPrice.after ?? "—"}</code>
+                              Cost price: <code>{(it.messageParts as any).costPrice.before != null ? formatPenceAsGBP((it.messageParts as any).costPrice.before) : "—"}</code> →{" "}
+                              <code>{(it.messageParts as any).costPrice.after != null ? formatPenceAsGBP((it.messageParts as any).costPrice.after) : "—"}</code>
                             </Text>
                           )}
                           {"taxRate" in it.messageParts && (it.messageParts as any).taxRate && (

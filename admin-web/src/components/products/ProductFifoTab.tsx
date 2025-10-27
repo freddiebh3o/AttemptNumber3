@@ -52,7 +52,7 @@ import {
 import { handlePageError } from "../../utils/pageError";
 import { FilterBar } from "../common/FilterBar";
 import { useAuthStore } from "../../stores/auth";
-import { formatPenceAsGBP } from "../../utils/money";
+import { formatPenceAsGBP, poundsToPence } from "../../utils/money";
 import { buildCommonDatePresets } from "../../utils/datePresets";
 import { formatDateTimeUK, formatDateUK } from "../../utils/dateFormatter";
 
@@ -181,7 +181,7 @@ export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts })
   const [stockModalOpen, setStockModalOpen] = useState(false);
   const [stockMode, setStockMode] = useState<"increase" | "decrease">("increase");
   const [stockQty, setStockQty] = useState<number | "">("");
-  const [stockCostPence, setStockCostPence] = useState<number | "">(""); // <-- pence
+  const [stockCostPounds, setStockCostPounds] = useState<number | "">(""); // <-- pounds
   const [stockReason, setStockReason] = useState<string>("");
   const [submittingStock, setSubmittingStock] = useState(false);
 
@@ -1206,7 +1206,7 @@ export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts })
           if (!submittingStock) {
             setStockModalOpen(false);
             setStockQty("");
-            setStockCostPence("");
+            setStockCostPounds("");
             setStockReason("");
             setStockMode("increase");
           }
@@ -1237,13 +1237,16 @@ export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts })
 
           {stockMode === "increase" && (
             <NumberInput
-              label="Unit cost (pence)" // API field is unitCostPence
-              placeholder="e.g. 1299"
+              label="Unit cost (£)"
+              placeholder="e.g. 12.99"
               min={0}
+              step={0.01}
+              decimalScale={2}
+              fixedDecimalScale
               required
-              value={stockCostPence}
+              value={stockCostPounds}
               onChange={(v) =>
-                setStockCostPence(
+                setStockCostPounds(
                   typeof v === "number" ? v : v === "" ? "" : Number(v)
                 )
               }
@@ -1283,19 +1286,21 @@ export const ProductFifoTab: React.FC<Props> = ({ productId, canWriteProducts })
                 setSubmittingStock(true);
                 try {
                   if (stockMode === "increase") {
-                    const cost = typeof stockCostPence === "number" ? stockCostPence : -1;
-                    if (cost < 0) {
-                      notifications.show({ color: "red", message: "Unit cost (pence) is required." });
+                    const costPounds = typeof stockCostPounds === "number" ? stockCostPounds : -1;
+                    if (costPounds < 0) {
+                      notifications.show({ color: "red", message: "Unit cost is required." });
                       setSubmittingStock(false);
                       return;
                     }
-                    await doAdjust(+qty, stockReason, cost);
+                    // Convert pounds to pence for the API
+                    const costPence = poundsToPence(costPounds);
+                    await doAdjust(+qty, stockReason, costPence);
                   } else {
                     await doAdjust(-qty, stockReason);
                   }
                   setStockModalOpen(false);
                   setStockQty("");
-                  setStockCostPence("");
+                  setStockCostPounds("");
                   setStockReason("");
                   setStockMode("increase");
                 } catch (e) {
