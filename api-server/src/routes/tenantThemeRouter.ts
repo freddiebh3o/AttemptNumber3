@@ -235,7 +235,7 @@ tenantThemeRouter.get(
 tenantThemeRouter.get(
   '/:tenantSlug/feature-flags',
   requireAuthenticatedUserMiddleware,
-  requirePermission('theme:manage'),
+  requirePermission('features:read'),
   validateRequestParamsWithZod(paramsSchema),
   async (req, res, next) => {
     try {
@@ -254,7 +254,7 @@ tenantThemeRouter.put(
   '/:tenantSlug/feature-flags',
   idempotencyMiddleware(60),
   requireAuthenticatedUserMiddleware,
-  requirePermission('theme:manage'),
+  requirePermission('features:manage'),
   validateRequestParamsWithZod(paramsSchema),
   validateRequestBodyWithZod(featureFlagsPutBodySchema),
   async (req, res, next) => {

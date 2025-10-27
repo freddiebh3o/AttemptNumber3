@@ -136,7 +136,12 @@ export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) 
           />
         )}
 
-        {(hasPerm("theme:manage") || hasPerm("users:manage") || hasPerm("reports:view")) && (
+        {(
+          hasPerm("theme:manage") || 
+          hasPerm("users:manage") || 
+          hasPerm("reports:view") || 
+          hasPerm("chat:view") || 
+          hasPerm("features:read")) && (
           <NavLink
             label="System"
             leftSection={<IconSettings size={16} />}
@@ -153,7 +158,7 @@ export default function SidebarNav({ onNavigate }: { onNavigate?: () => void }) 
                 leftSection={<IconPalette size={16} />}
               />
             )}
-            {hasPerm("theme:manage") && (
+            {hasPerm("features:read") && (
               <NavLink
                 label="Features"
                 component={Link}

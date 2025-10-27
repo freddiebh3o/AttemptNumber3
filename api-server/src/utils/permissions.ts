@@ -10,6 +10,9 @@ export const PERMISSION_KEYS = [
   // Theme & uploads
   'theme:manage',
   'uploads:write',
+  // Features
+  'features:read',
+  'features:manage',
   'branches:manage',
   'stock:read',
   'stock:write',

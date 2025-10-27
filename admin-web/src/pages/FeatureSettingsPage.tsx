@@ -21,6 +21,7 @@ import {
   putTenantFeatureFlagsApiRequest,
 } from '../api/tenantFeatureFlags';
 import { useAuthStore } from '../stores/auth';
+import { usePermissions } from '../hooks/usePermissions';
 
 interface FeatureFlags {
   chatAssistantEnabled: boolean;
@@ -30,6 +31,8 @@ interface FeatureFlags {
 
 export default function FeatureSettingsPage() {
   const { tenantSlug } = useParams<{ tenantSlug: string }>();
+  const { hasPerm } = usePermissions();
+  const canManageFeatures = hasPerm('features:manage');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -131,15 +134,30 @@ export default function FeatureSettingsPage() {
     <Stack gap="lg">
       <Group justify="space-between" align="start">
         <Title order={2}>Feature Settings</Title>
-        
-        <Button
-          onClick={handleSave}
-          loading={saving}
-          data-testid="btn-save-features"
-        >
-          Save Settings
-        </Button>
+
+        {canManageFeatures && (
+          <Button
+            onClick={handleSave}
+            loading={saving}
+            data-testid="btn-save-features"
+          >
+            Save Settings
+          </Button>
+        )}
       </Group>
+
+      {!canManageFeatures && (
+        <Alert
+          icon={<IconInfoCircle size={16} />}
+          title="Read-Only Access"
+          color="blue"
+          data-testid="alert-read-only"
+        >
+          <Text size="sm">
+            You have permission to view feature settings, but only the account owner can modify them.
+          </Text>
+        </Alert>
+      )}
 
       <Paper p="lg" withBorder>
         <Stack gap="md">
@@ -155,6 +173,7 @@ export default function FeatureSettingsPage() {
                 chatAssistantEnabled: event.currentTarget.checked,
               })
             }
+            disabled={!canManageFeatures}
             data-testid="toggle-chat-assistant"
           />
 
@@ -172,6 +191,7 @@ export default function FeatureSettingsPage() {
             }
             error={validationError}
             required={featureFlags.chatAssistantEnabled}
+            disabled={!canManageFeatures}
             data-testid="input-openai-api-key"
           />
 
@@ -214,6 +234,7 @@ export default function FeatureSettingsPage() {
                 barcodeScanningEnabled: event.currentTarget.checked,
               })
             }
+            disabled={!canManageFeatures}
             data-testid="toggle-barcode-scanning"
           />
         </Stack>

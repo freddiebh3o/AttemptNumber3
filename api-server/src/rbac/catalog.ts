@@ -16,6 +16,10 @@ export const PERMISSIONS = [
   { key: 'theme:manage',   description: 'Manage tenant theme/branding' },
   { key: 'uploads:write',  description: 'Upload images/files' },
 
+  // Features
+  { key: 'features:read',   description: 'View feature settings' },
+  { key: 'features:manage', description: 'Manage feature flags (AI chat, barcode scanning)' },
+
   { key: 'branches:manage', description: 'Manage branches and memberships' },
   { key: 'stock:read',      description: 'View branch stock, lots, and movements' },
   { key: 'stock:write',     description: 'Receive and adjust stock' },
@@ -36,6 +40,7 @@ export const ROLE_DEFS: Record<
     'products:read','products:write',
     'users:manage','roles:read','roles:manage','tenant:manage',
     'theme:manage','uploads:write',
+    'features:read','features:manage',
     'branches:manage','stock:read','stock:write','stock:allocate',
     'reports:view',
   ],
@@ -43,15 +48,18 @@ export const ROLE_DEFS: Record<
     'products:read','products:write',
     'users:manage','roles:read',
     'theme:manage','uploads:write',
+    'features:read',
     'branches:manage','stock:read','stock:write','stock:allocate',
     'reports:view',
   ],
   EDITOR: [
     'products:read','products:write','uploads:write',
+    'features:read',
     'stock:read','stock:allocate',
   ],
   VIEWER: [
     'products:read',
+    'features:read',
     'stock:read',
   ],
 };

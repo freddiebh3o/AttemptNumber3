@@ -131,7 +131,7 @@ const router = createBrowserRouter([
           {
             path: 'settings/features',
             element: (
-              <RequirePermission perm="theme:manage">
+              <RequirePermission perm="features:read">
                 <FeatureSettingsPage />
               </RequirePermission>
             ),

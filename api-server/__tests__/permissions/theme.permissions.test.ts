@@ -338,7 +338,7 @@ describe('[RBAC] Theme Permissions', () => {
   });
 
   describe('GET /api/tenants/:tenantSlug/feature-flags - Get Feature Flags', () => {
-    it('OWNER - should allow access (has theme:manage)', async () => {
+    it('OWNER - should allow access (has features:read)', async () => {
       const response = await request(app)
         .get(`/api/tenants/${tenantSlug}/feature-flags`)
         .set('Cookie', ownerCookie);
@@ -348,7 +348,7 @@ describe('[RBAC] Theme Permissions', () => {
       expect(response.body.data).toBeDefined();
     });
 
-    it('ADMIN - should allow access (has theme:manage)', async () => {
+    it('ADMIN - should allow access (has features:read)', async () => {
       const response = await request(app)
         .get(`/api/tenants/${tenantSlug}/feature-flags`)
         .set('Cookie', adminCookie);
@@ -356,27 +356,27 @@ describe('[RBAC] Theme Permissions', () => {
       expect(response.status).toBe(200);
     });
 
-    it('EDITOR - should deny (lacks theme:manage)', async () => {
+    it('EDITOR - should allow access (has features:read)', async () => {
       const response = await request(app)
         .get(`/api/tenants/${tenantSlug}/feature-flags`)
         .set('Cookie', editorCookie);
 
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(200);
     });
 
-    it('VIEWER - should deny (lacks theme:manage)', async () => {
+    it('VIEWER - should allow access (has features:read)', async () => {
       const response = await request(app)
         .get(`/api/tenants/${tenantSlug}/feature-flags`)
         .set('Cookie', viewerCookie);
 
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(200);
     });
 
-    it('Custom role with theme:manage - should allow', async () => {
+    it('Custom role with features:read - should allow', async () => {
       const customUser = await createTestUser();
       const customRole = await createTestRoleWithPermissions({
         tenantId: testTenant.id,
-        permissionKeys: ['theme:manage'],
+        permissionKeys: ['features:read'],
       });
       await createTestMembership({
         userId: customUser.id,
@@ -392,7 +392,7 @@ describe('[RBAC] Theme Permissions', () => {
       expect(response.status).toBe(200);
     });
 
-    it('Custom role without theme:manage - should deny', async () => {
+    it('Custom role without features:read - should deny', async () => {
       const customUser = await createTestUser();
       const customRole = await createTestRoleWithPermissions({
         tenantId: testTenant.id,
@@ -437,7 +437,7 @@ describe('[RBAC] Theme Permissions', () => {
       barcodeScanningEnabled: false,
     };
 
-    it('OWNER - should allow (has theme:manage)', async () => {
+    it('OWNER - should allow (has features:manage)', async () => {
       const response = await request(app)
         .put(`/api/tenants/${tenantSlug}/feature-flags`)
         .set('Cookie', ownerCookie)
@@ -447,16 +447,16 @@ describe('[RBAC] Theme Permissions', () => {
       expect(response.body.success).toBe(true);
     });
 
-    it('ADMIN - should allow (has theme:manage)', async () => {
+    it('ADMIN - should deny (lacks features:manage)', async () => {
       const response = await request(app)
         .put(`/api/tenants/${tenantSlug}/feature-flags`)
         .set('Cookie', adminCookie)
         .send({ chatAssistantEnabled: false });
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(403);
     });
 
-    it('EDITOR - should deny (lacks theme:manage)', async () => {
+    it('EDITOR - should deny (lacks features:manage)', async () => {
       const response = await request(app)
         .put(`/api/tenants/${tenantSlug}/feature-flags`)
         .set('Cookie', editorCookie)
@@ -465,7 +465,7 @@ describe('[RBAC] Theme Permissions', () => {
       expect(response.status).toBe(403);
     });
 
-    it('VIEWER - should deny (lacks theme:manage)', async () => {
+    it('VIEWER - should deny (lacks features:manage)', async () => {
       const response = await request(app)
         .put(`/api/tenants/${tenantSlug}/feature-flags`)
         .set('Cookie', viewerCookie)
@@ -474,11 +474,11 @@ describe('[RBAC] Theme Permissions', () => {
       expect(response.status).toBe(403);
     });
 
-    it('Custom role with permission - should allow', async () => {
+    it('Custom role with features:manage - should allow', async () => {
       const customUser = await createTestUser();
       const customRole = await createTestRoleWithPermissions({
         tenantId: testTenant.id,
-        permissionKeys: ['theme:manage', 'tenant:manage'],
+        permissionKeys: ['features:read', 'features:manage'],
       });
       await createTestMembership({
         userId: customUser.id,
@@ -495,11 +495,11 @@ describe('[RBAC] Theme Permissions', () => {
       expect(response.status).toBe(200);
     });
 
-    it('Custom role without permission - should deny', async () => {
+    it('Custom role without features:manage - should deny', async () => {
       const customUser = await createTestUser();
       const customRole = await createTestRoleWithPermissions({
         tenantId: testTenant.id,
-        permissionKeys: ['products:read'],
+        permissionKeys: ['products:read', 'features:read'],
       });
       await createTestMembership({
         userId: customUser.id,

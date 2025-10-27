@@ -6,7 +6,9 @@ Learn how to manage your tenant's feature settings, including AI Chat Assistant 
 
 The **Feature Settings** page allows administrators to enable or disable specific features for your organization and configure feature-specific options like API keys.
 
-**Access Level:** Requires **Owner** or **Admin** role (users with `theme:manage` permission)
+**Access Level:**
+- **View Settings:** All authenticated users (requires `features:read` permission)
+- **Modify Settings:** Owner only (requires `features:manage` permission)
 
 **Location:** System → Features
 
@@ -89,17 +91,43 @@ Enable or disable barcode scanning capabilities for product management and stock
 
 ### Accessing the Features Page
 
-1. Sign in with an **Owner** or **Admin** account
+1. Sign in with any account (**Owner**, **Admin**, **Editor**, or **Viewer**)
 2. Click **System** in the left sidebar
 3. Click **Features** from the expanded menu
 4. You'll see the Feature Settings page with all available features
 
+**Note:** If you're not an **Owner**, the page will be in read-only mode. You can view current settings but cannot make changes.
+
+### Understanding Read-Only Mode
+
+If you see a blue information banner at the top of the page stating *"You have permission to view feature settings, but only the account owner can modify them"*, you are in **read-only mode**.
+
+**In Read-Only Mode:**
+- ✅ You can see which features are enabled or disabled
+- ✅ You can view current configuration (e.g., whether an API key is set)
+- ❌ You cannot toggle features on or off
+- ❌ You cannot modify API keys or other settings
+- ❌ The Save Settings button is not visible
+
+**Why Read-Only?**
+Feature settings affect billing, costs, and tenant-wide capabilities. Only the account **Owner** can modify these settings to maintain control over organizational costs and feature availability.
+
+**Need to Make Changes?**
+Contact your organization's **Owner** to request feature changes.
+
 ### Saving Changes
 
+**For Owners:**
 1. Make your desired changes to any feature settings
-2. Click the **Save Settings** button at the bottom of the page
+2. Click the **Save Settings** button at the top of the page
 3. You'll see a success notification when your changes are saved
 4. Changes take effect immediately for all users
+
+**For Other Roles (Admin, Editor, Viewer):**
+- You can view current feature settings but cannot modify them
+- All input fields will be disabled (grayed out)
+- The **Save Settings** button will not be visible
+- You'll see a blue information alert: *"You have permission to view feature settings, but only the account owner can modify them."*
 
 ### Settings Persistence
 
@@ -193,9 +221,11 @@ Contact your organization admin or platform support if you need help migrating.
 
 ## Frequently Asked Questions
 
-### Who can change feature settings?
+### Who can view and change feature settings?
 
-Only users with the **Owner** or **Admin** role can access and modify feature settings. Users with **Editor** or **Viewer** roles will not see the Features menu option.
+**View Settings:** All users (**Owner**, **Admin**, **Editor**, **Viewer**) can access and view feature settings. The Features menu option is visible to all authenticated users.
+
+**Modify Settings:** Only users with the **Owner** role can change feature settings. Admin, Editor, and Viewer roles have read-only access and will see disabled input fields.
 
 ### Do feature changes affect all users immediately?
 
@@ -237,7 +267,8 @@ When disabled:
 Yes, your API key is:
 - Stored securely in the database
 - Masked (password field) when displayed in the UI
-- Only accessible to users with `theme:manage` permission
+- Only accessible to users with `features:read` permission (visible but masked)
+- Only modifiable by users with `features:manage` permission (Owner role)
 - Validated to ensure it starts with `sk-`
 
 Note: In the current version, API keys are stored in plaintext in the database. For enhanced security in future versions, we plan to add encryption at rest.
@@ -260,4 +291,4 @@ Currently, there is no built-in usage analytics for the AI Chat Assistant. If yo
 
 If you have questions about feature settings or need assistance configuring features for your organization, contact your system administrator or support team.
 
-**Last Updated:** 2025-10-24
+**Last Updated:** 2025-10-27

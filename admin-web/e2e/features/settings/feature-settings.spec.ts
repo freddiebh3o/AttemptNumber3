@@ -256,53 +256,108 @@ test.describe('Feature Settings - API Key Requirement Validation', () => {
 });
 
 test.describe('Feature Settings - Permission Checks', () => {
-  test('owner can access Features page', async ({ page }) => {
+  test('owner can access Features page with full edit access', async ({ page }) => {
     await signIn(page, TEST_USERS.owner);
     await page.goto(`/${TEST_USERS.owner.tenant}/settings/features`);
     await page.waitForLoadState('networkidle');
 
     await expect(page.getByRole('heading', { name: /feature settings/i })).toBeVisible();
+
+    // Owner should see Save button and NOT see read-only alert
+    await expect(page.getByTestId(SELECTORS.FEATURES.BTN_SAVE_FEATURES)).toBeVisible();
+    await expect(page.getByTestId('alert-read-only')).not.toBeVisible();
+
+    // Owner should be able to interact with toggles (not disabled)
+    await expect(page.getByTestId(SELECTORS.FEATURES.TOGGLE_CHAT_ASSISTANT)).not.toBeDisabled();
+    await expect(page.getByTestId(SELECTORS.FEATURES.TOGGLE_BARCODE_SCANNING)).not.toBeDisabled();
+    await expect(page.getByTestId(SELECTORS.FEATURES.INPUT_OPENAI_API_KEY)).not.toBeDisabled();
   });
 
-  test('admin can access Features page', async ({ page }) => {
+  test('admin can access Features page in read-only mode', async ({ page }) => {
     await signIn(page, TEST_USERS.admin);
     await page.goto(`/${TEST_USERS.admin.tenant}/settings/features`);
     await page.waitForLoadState('networkidle');
 
-    // Admin has theme:manage permission
+    // Admin has features:read permission (can view the page)
     await expect(page.getByRole('heading', { name: /feature settings/i })).toBeVisible();
+
+    // Admin should NOT see Save button
+    await expect(page.getByTestId(SELECTORS.FEATURES.BTN_SAVE_FEATURES)).not.toBeVisible();
+
+    // Admin should see read-only alert
+    await expect(page.getByTestId('alert-read-only')).toBeVisible();
+    await expect(page.getByText(/only the account owner can modify/i)).toBeVisible();
+
+    // All inputs should be disabled
+    await expect(page.getByTestId(SELECTORS.FEATURES.TOGGLE_CHAT_ASSISTANT)).toBeDisabled();
+    await expect(page.getByTestId(SELECTORS.FEATURES.TOGGLE_BARCODE_SCANNING)).toBeDisabled();
+    await expect(page.getByTestId(SELECTORS.FEATURES.INPUT_OPENAI_API_KEY)).toBeDisabled();
   });
 
-  test('editor cannot see Features nav link', async ({ page }) => {
+  test('editor can access Features page in read-only mode', async ({ page }) => {
     await signIn(page, TEST_USERS.editor);
-    await page.goto(`/${TEST_USERS.editor.tenant}/products`);
+    await page.goto(`/${TEST_USERS.editor.tenant}/settings/features`);
     await page.waitForLoadState('networkidle');
 
-    // Expand System menu if visible
-    const systemNav = page.getByRole('navigation').getByText(/system/i);
-    if (await systemNav.isVisible()) {
-      await systemNav.click();
-      await page.waitForTimeout(300);
-    }
+    // Editor has features:read permission (can view the page)
+    await expect(page.getByRole('heading', { name: /feature settings/i })).toBeVisible();
 
-    // Features link should not be visible (no theme:manage permission)
-    await expect(page.getByTestId(SELECTORS.FEATURES.NAV_LINK)).not.toBeVisible();
+    // Editor should NOT see Save button
+    await expect(page.getByTestId(SELECTORS.FEATURES.BTN_SAVE_FEATURES)).not.toBeVisible();
+
+    // Editor should see read-only alert
+    await expect(page.getByTestId('alert-read-only')).toBeVisible();
+
+    // All inputs should be disabled
+    await expect(page.getByTestId(SELECTORS.FEATURES.TOGGLE_CHAT_ASSISTANT)).toBeDisabled();
+    await expect(page.getByTestId(SELECTORS.FEATURES.TOGGLE_BARCODE_SCANNING)).toBeDisabled();
+    await expect(page.getByTestId(SELECTORS.FEATURES.INPUT_OPENAI_API_KEY)).toBeDisabled();
   });
 
-  test('viewer cannot see Features nav link', async ({ page }) => {
+  test('viewer can access Features page in read-only mode', async ({ page }) => {
     await signIn(page, TEST_USERS.viewer);
-    await page.goto(`/${TEST_USERS.viewer.tenant}/products`);
+    await page.goto(`/${TEST_USERS.viewer.tenant}/settings/features`);
     await page.waitForLoadState('networkidle');
 
-    // Expand System menu if visible
-    const systemNav = page.getByRole('navigation').getByText(/system/i);
-    if (await systemNav.isVisible()) {
-      await systemNav.click();
-      await page.waitForTimeout(300);
-    }
+    // Viewer has features:read permission (can view the page)
+    await expect(page.getByRole('heading', { name: /feature settings/i })).toBeVisible();
 
-    // Features link should not be visible (no theme:manage permission)
-    await expect(page.getByTestId(SELECTORS.FEATURES.NAV_LINK)).not.toBeVisible();
+    // Viewer should NOT see Save button
+    await expect(page.getByTestId(SELECTORS.FEATURES.BTN_SAVE_FEATURES)).not.toBeVisible();
+
+    // Viewer should see read-only alert
+    await expect(page.getByTestId('alert-read-only')).toBeVisible();
+
+    // All inputs should be disabled
+    await expect(page.getByTestId(SELECTORS.FEATURES.TOGGLE_CHAT_ASSISTANT)).toBeDisabled();
+    await expect(page.getByTestId(SELECTORS.FEATURES.TOGGLE_BARCODE_SCANNING)).toBeDisabled();
+    await expect(page.getByTestId(SELECTORS.FEATURES.INPUT_OPENAI_API_KEY)).toBeDisabled();
+  });
+
+  test('all roles can see Features nav link', async ({ page }) => {
+    // Test that Features link is visible to all roles (has features:read)
+    const users = [TEST_USERS.owner, TEST_USERS.admin, TEST_USERS.editor, TEST_USERS.viewer];
+
+    for (const user of users) {
+      await signIn(page, user);
+      await page.goto(`/${user.tenant}/products`);
+      await page.waitForLoadState('networkidle');
+
+      await page.waitForTimeout(500);
+
+      // Expand System menu if visible
+      const systemNav = page.getByRole('navigation').getByText(/system/i);
+      if (await systemNav.isVisible()) {
+        await systemNav.click();
+        await page.waitForTimeout(300);
+      }
+
+      // Features link should be visible (all roles have features:read permission)
+      await expect(page.getByTestId(SELECTORS.FEATURES.NAV_LINK)).toBeVisible();
+
+      // Clear cookies for next iteration
+      await page.context().clearCookies();
+    }
   });
 });
 
